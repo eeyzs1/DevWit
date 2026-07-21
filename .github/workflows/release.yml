@@ -26,9 +26,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Rebuild node-pty for Electron ABI
-        run: npm run rebuild-native
-
       - name: Build NSIS installer + portable
         run: npm run dist
 
