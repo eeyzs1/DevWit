@@ -38,6 +38,9 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      - name: Build (tsc -b 产出各包 dist，vitest 依赖其解析 @devwit/* 入口)
+        run: npm run build
+
       - name: Unit tests (vitest)
         run: npm test
 
@@ -58,9 +61,6 @@ jobs:
             Invoke-Expression "python $c"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-
-      - name: Build (tsc + esbuild)
-        run: npm run build
 
   e2e:
     name: E2E Smoke (Electron + CDP)

@@ -378,7 +378,15 @@ try {
       if (failed && pages[0]) await shot(pages[0], EVIDENCE, "failure-state").catch(() => {});
       await browser.close().catch(() => {});
     }
-    if (electronProc && !electronProc.killed) electronProc.kill();
+    if (electronProc && !electronProc.killed) {
+      electronProc.kill();
+      // CI（Windows runner）上 GPU/磁盘缓存句柄释放有延迟：等进程真正退出，
+      // 否则随后清理 userData 会撞 EPERM（DawnGraphiteCache 仍被占用）。
+      await new Promise((resolve) => {
+        const timer = setTimeout(resolve, 10_000);
+        electronProc.once("exit", () => { clearTimeout(timer); resolve(); });
+      });
+    }
   } catch { /* 收尾失败不遮蔽主结果 */ }
   try {
     // manifest 落盘产物 → evidence/AC2（check-context-audit.py 的校验对象）
@@ -397,7 +405,7 @@ try {
   writeJson(EVIDENCE, "e2e-report.json", report);
   // 本次 E2E 新建的 userData 予以清理（预先存在则保留用户数据）
   if (!userDataPreExisted && fs.existsSync(userDataDir)) {
-    fs.rmSync(userDataDir, { recursive: true, force: true });
+    fs.rmSync(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
   }
   if (failed) {
     console.error(`[e2e] FAILED: ${failed.stack ?? failed.message}`);
