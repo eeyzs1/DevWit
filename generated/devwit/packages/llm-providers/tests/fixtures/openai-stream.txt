@@ -1,0 +1,21 @@
+: fixture: OpenAI chat/completions 流式 chat.completion.chunk 帧序列
+: 帧格式来源: OpenAI 官方文档 "Streaming"（platform.openai.com/docs/api-reference/streaming）
+: 事件序列: role 帧 → content delta*2 → tool_calls 首帧(id+name) → arguments 分片*2
+:           → finish_reason=tool_calls → usage 统计帧(include_usage) → [DONE]
+data: {"id":"chatcmpl-9vA5fGH3kLmN8pQrStUvWxYz","object":"chat.completion.chunk","created":1719076800,"model":"gpt-4o-2024-08-06","system_fingerprint":"fp_abc123","choices":[{"index":0,"delta":{"role":"assistant","content":null},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"chatcmpl-9vA5fGH3kLmN8pQrStUvWxYz","object":"chat.completion.chunk","created":1719076800,"model":"gpt-4o-2024-08-06","system_fingerprint":"fp_abc123","choices":[{"index":0,"delta":{"content":"好的，"},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"chatcmpl-9vA5fGH3kLmN8pQrStUvWxYz","object":"chat.completion.chunk","created":1719076800,"model":"gpt-4o-2024-08-06","system_fingerprint":"fp_abc123","choices":[{"index":0,"delta":{"content":"我来创建文件。"},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"chatcmpl-9vA5fGH3kLmN8pQrStUvWxYz","object":"chat.completion.chunk","created":1719076800,"model":"gpt-4o-2024-08-06","system_fingerprint":"fp_abc123","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_abc123xyz","type":"function","function":{"name":"write","arguments":""}}]},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"chatcmpl-9vA5fGH3kLmN8pQrStUvWxYz","object":"chat.completion.chunk","created":1719076800,"model":"gpt-4o-2024-08-06","system_fingerprint":"fp_abc123","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"path\":\"hello.js\","}}]},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"chatcmpl-9vA5fGH3kLmN8pQrStUvWxYz","object":"chat.completion.chunk","created":1719076800,"model":"gpt-4o-2024-08-06","system_fingerprint":"fp_abc123","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"content\":\"console.log(1)\"}"}}]},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"chatcmpl-9vA5fGH3kLmN8pQrStUvWxYz","object":"chat.completion.chunk","created":1719076800,"model":"gpt-4o-2024-08-06","system_fingerprint":"fp_abc123","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"tool_calls"}]}
+
+data: {"id":"chatcmpl-9vA5fGH3kLmN8pQrStUvWxYz","object":"chat.completion.chunk","created":1719076800,"model":"gpt-4o-2024-08-06","system_fingerprint":"fp_abc123","choices":[],"usage":{"prompt_tokens":82,"completion_tokens":21,"total_tokens":103}}
+
+data: [DONE]

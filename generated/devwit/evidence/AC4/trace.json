@@ -1,0 +1,137 @@
+[
+  {
+    "seq": 1,
+    "timestamp": "2026-07-20T19:11:10.526Z",
+    "sessionId": "session-1784574669921",
+    "type": "user_message",
+    "summary": "你好"
+  },
+  {
+    "seq": 0,
+    "timestamp": "2026-07-20T19:11:10.605Z",
+    "sessionId": "session-1784574669921",
+    "type": "assistant_delta",
+    "summary": "你好！我是 DevWit，简洁上下文的 AI 编程助手。"
+  },
+  {
+    "seq": 2,
+    "timestamp": "2026-07-20T19:11:10.713Z",
+    "sessionId": "session-1784574669921",
+    "type": "assistant_message",
+    "summary": "你好！我是 DevWit，简洁上下文的 AI 编程助手。"
+  },
+  {
+    "seq": 3,
+    "timestamp": "2026-07-20T19:11:10.714Z",
+    "sessionId": "session-1784574669921",
+    "type": "done",
+    "summary": "任务完成"
+  },
+  {
+    "seq": 4,
+    "timestamp": "2026-07-20T19:11:10.934Z",
+    "sessionId": "session-1784574669921",
+    "type": "user_message",
+    "summary": "请把 hello.txt 加一行"
+  },
+  {
+    "seq": 0,
+    "timestamp": "2026-07-20T19:11:10.974Z",
+    "sessionId": "session-1784574669921",
+    "type": "assistant_delta",
+    "summary": "这是修改后的 hello.txt：\n\n```\nE2E hello devwit\nline2\nadded by agent proposal\n```"
+  },
+  {
+    "seq": 5,
+    "timestamp": "2026-07-20T19:11:11.080Z",
+    "sessionId": "session-1784574669921",
+    "type": "assistant_message",
+    "summary": "这是修改后的 hello.txt：\n\n```\nE2E hello devwit\nline2\nadded by agent proposal\n```"
+  },
+  {
+    "seq": 6,
+    "timestamp": "2026-07-20T19:11:11.080Z",
+    "sessionId": "session-1784574669921",
+    "type": "done",
+    "summary": "任务完成"
+  },
+  {
+    "seq": 7,
+    "timestamp": "2026-07-20T19:11:11.371Z",
+    "sessionId": "session-1784574669921",
+    "type": "user_message",
+    "summary": "创建文件 agent-created.txt"
+  },
+  {
+    "seq": 8,
+    "timestamp": "2026-07-20T19:11:11.517Z",
+    "sessionId": "session-1784574669921",
+    "type": "assistant_message",
+    "summary": "（发起 1 个工具调用）",
+    "detail": {
+      "toolCalls": [
+        {
+          "id": "call_e2e_1",
+          "name": "write",
+          "args": {
+            "path": "agent-created.txt",
+            "content": "created by devwit agent\n"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "seq": 9,
+    "timestamp": "2026-07-20T19:11:11.517Z",
+    "sessionId": "session-1784574669921",
+    "type": "tool_call",
+    "summary": "write({\"path\":\"agent-created.txt\",\"content\":\"created by devwit agent\\n\"})",
+    "detail": {
+      "args": {
+        "path": "agent-created.txt",
+        "content": "created by devwit agent\n"
+      }
+    }
+  },
+  {
+    "seq": 10,
+    "timestamp": "2026-07-20T19:11:11.517Z",
+    "sessionId": "session-1784574669921",
+    "type": "authorization_request",
+    "summary": "write: 写入文件: agent-created.txt",
+    "detail": {
+      "requestId": "auth-63fc46c2-c6f5-44d3-b5d5-ddb017bbcc50",
+      "toolName": "write",
+      "args": {
+        "path": "agent-created.txt",
+        "content": "created by devwit agent\n"
+      },
+      "reason": "写入文件: agent-created.txt"
+    }
+  },
+  {
+    "seq": 11,
+    "timestamp": "2026-07-20T19:11:11.668Z",
+    "sessionId": "session-1784574669921",
+    "type": "authorization_decision",
+    "summary": "write → allow",
+    "detail": {
+      "requestId": "auth-63fc46c2-c6f5-44d3-b5d5-ddb017bbcc50",
+      "decision": "allow"
+    }
+  },
+  {
+    "seq": 12,
+    "timestamp": "2026-07-20T19:11:11.670Z",
+    "sessionId": "session-1784574669921",
+    "type": "tool_result",
+    "summary": "write 成功",
+    "detail": {
+      "result": {
+        "ok": true,
+        "output": "已写入 agent-created.txt（24 字符）"
+      }
+    }
+  }
+]

@@ -1,0 +1,62 @@
+{
+  "id": "manifest-207c55a6-75b7-4e62-b7e5-2f524b67891b",
+  "timestamp": "2026-07-20T19:10:06.008Z",
+  "sessionId": "session-1784574605340",
+  "modeId": "chat",
+  "providerId": "e2e-local-a",
+  "model": "e2e-model-a",
+  "items": [
+    {
+      "id": "item-f3092b33-3f4a-4e7d-bffd-1b7f1b590409",
+      "type": "system_prompt",
+      "label": "系统提示",
+      "enabled": true,
+      "tokens": 65,
+      "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-97b1e3b7-4f7e-4d8a-9a0f-59f3df7deec7",
+      "type": "tool_definitions",
+      "label": "工具定义（0 个）",
+      "enabled": true,
+      "tokens": 1,
+      "content": "[]",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-d2fcf2d6-df06-45e4-964a-b03041609bb6",
+      "type": "conversation_history",
+      "label": "会话历史（1 条）",
+      "enabled": true,
+      "tokens": 5,
+      "content": "[user] 你好",
+      "source": "conversation",
+      "counting": "exact"
+    },
+    {
+      "id": "item-282e4b5c-8608-4846-936c-0c880a717611",
+      "type": "file_fragment",
+      "label": "文件片段 hello.txt",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-So67Kf\\hello.txt",
+      "counting": "exact"
+    },
+    {
+      "id": "item-e5fbd649-3270-48c6-a58e-cdb5996b1345",
+      "type": "git_status",
+      "label": "Git 状态",
+      "enabled": true,
+      "tokens": 8,
+      "content": "(非 git 仓库)",
+      "source": "git status",
+      "counting": "exact"
+    }
+  ],
+  "totalTokens": 79,
+  "systemPromptTokens": 65
+}

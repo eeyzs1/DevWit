@@ -1,0 +1,3 @@
+编辑前: "hello devwit\nline2\n"
+编辑后(磁盘真实内容): "E2E hello devwit\nline2\n"
+文件树/打开/编辑/保存链路验证通过。

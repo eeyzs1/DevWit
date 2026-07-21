@@ -1,0 +1,34 @@
+version: 1
+description: DevWit 人工干预接口配置——哪些动作必须人工审批、何时升级
+approval_queue:
+  requires_approval:
+    - action: "agent 执行 write/edit 工具修改用户项目文件"
+      reason: "AC4 授权门：文件变更必须先经用户确认（agent-runtime 授权提示）"
+    - action: "agent 执行 bash 工具运行非白名单命令"
+      reason: "AC4 授权门：shell 命令可能不可逆，白名单外必须人工确认"
+    - action: "修改 packages/settings 的凭证加解密逻辑（AR005）"
+      reason: "safeStorage 凭证方案变更属安全关键修改"
+    - action: "修改 constraints/architecture-rules.yaml 的 AR001-AR007"
+      reason: "架构规则变更影响所有 agent 的边界约束"
+    - action: "electron-builder 打包发布产物（pre-release gate）"
+      reason: "对外发布的安装包必须人工确认"
+    - action: "标记 WU014 完成（evidence/AC1..AC7 齐全性）"
+      reason: "work-units.yaml 声明 requires_human_review: true"
+    - action: "处理 audit_write_failed / secret_leak_detected 错误"
+      reason: "retry-config 标记 requires_human，禁止自动重试"
+
+escalation_rules:
+  - condition: "同一 work unit 连续 3 次失败"
+    action: "升级人工，附失败摘要与已尝试修复"
+  - condition: "verification loop 耗尽（fix 重试超 max_retries）"
+    action: "升级人工，附部分结果"
+  - condition: "planning/budget.yaml 预算耗尽"
+    action: "升级人工，附进度摘要"
+  - condition: "security-guardrails 触发（明文密钥/未授权危险命令）"
+    action: "立即升级人工——不自动重试"
+  - condition: "rebase 冲突（merge-policy: rebase_preferred）"
+    action: "workitem 标 blocked，升级人工 triage"
+
+notification:
+  channels: ["console"]
+  format: "structured YAML with decision context"

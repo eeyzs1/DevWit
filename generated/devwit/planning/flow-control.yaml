@@ -1,0 +1,240 @@
+version: 2
+description: >-
+  DevWit 强制执行流控（ENFORCED, NOT SUGGESTED）。
+  6 个 workflow 与 work-units.yaml 的 workflow 字段一一对应：
+  foundation / editor / workspace / ai-core / ai-ux / verification。
+  每个 workflow 共用 guard→implement→verify→review 骨架；
+  代码型 workflow 在 implement 后插入架构边界检查；
+  涉及凭证/网络的 workspace 与 ai-core 插入明文密钥扫描。
+enforcement: STRICT
+guard_required: true
+
+workflows:
+  foundation:
+    type: sequential
+    mandatory_pre_steps:
+      - name: guard_check
+        command: python guard.py --check
+        required: true
+        description: "MUST describe your plan and pass guard before any code"
+      - name: read_constraints
+        required: true
+        description: "Read constraints/architecture-rules.yaml"
+    steps:
+      - name: plan
+        next: [guard]
+      - name: guard
+        next: [implement]
+        command: python guard.py --check
+      - name: implement
+        next: [test]
+        constraint_check: true
+      - name: test
+        next: [review]
+        on_failure: [fix]
+        command: python orchestrator.py --verify
+      - name: fix
+        next: [test]
+        max_retries: 3
+      - name: review
+        next: [mark]
+        on_failure: [fix]
+      - name: mark
+        next: []
+        command: python orchestrator.py --mark-complete
+        description: "ONLY after verification passes"
+
+  editor:
+    type: sequential
+    mandatory_pre_steps:
+      - name: guard_check
+        command: python guard.py --check
+        required: true
+      - name: read_constraints
+        required: true
+        description: "Read constraints/architecture-rules.yaml (AR003 编辑器内核独立性)"
+    steps:
+      - name: plan
+        next: [guard]
+      - name: guard
+        next: [implement]
+        command: python guard.py --check
+      - name: implement
+        next: [boundary_check]
+        constraint_check: true
+      - name: boundary_check
+        next: [test]
+        on_failure: [fix]
+        command: python verification/check-architecture-boundaries.py --project-root .
+      - name: test
+        next: [review]
+        on_failure: [fix]
+        command: python orchestrator.py --verify
+      - name: fix
+        next: [test]
+        max_retries: 3
+      - name: review
+        next: [mark]
+        on_failure: [fix]
+      - name: mark
+        next: []
+        command: python orchestrator.py --mark-complete
+
+  workspace:
+    type: sequential
+    mandatory_pre_steps:
+      - name: guard_check
+        command: python guard.py --check
+        required: true
+      - name: read_constraints
+        required: true
+        description: "Read constraints/architecture-rules.yaml + verification/security-guardrails.yaml (凭证加密)"
+    steps:
+      - name: plan
+        next: [guard]
+      - name: guard
+        next: [implement]
+        command: python guard.py --check
+      - name: implement
+        next: [boundary_check]
+        constraint_check: true
+      - name: boundary_check
+        next: [secret_scan]
+        on_failure: [fix]
+        command: python verification/check-architecture-boundaries.py --project-root .
+      - name: secret_scan
+        next: [test]
+        on_failure: [fix]
+        command: python verification/scan-secret-leak.py --project-root .
+      - name: test
+        next: [review]
+        on_failure: [fix]
+        command: python orchestrator.py --verify
+      - name: fix
+        next: [test]
+        max_retries: 3
+      - name: review
+        next: [mark]
+        on_failure: [fix]
+      - name: mark
+        next: []
+        command: python orchestrator.py --mark-complete
+
+  ai-core:
+    type: sequential
+    mandatory_pre_steps:
+      - name: guard_check
+        command: python guard.py --check
+        required: true
+      - name: read_constraints
+        required: true
+        description: "Read constraints/architecture-rules.yaml (AR002 LLM 出口唯一 + AR007 上下文默认极简)"
+    steps:
+      - name: plan
+        next: [guard]
+      - name: guard
+        next: [implement]
+        command: python guard.py --check
+      - name: implement
+        next: [boundary_check]
+        constraint_check: true
+      - name: boundary_check
+        next: [secret_scan]
+        on_failure: [fix]
+        command: python verification/check-architecture-boundaries.py --project-root .
+      - name: secret_scan
+        next: [context_audit]
+        on_failure: [fix]
+        command: python verification/scan-secret-leak.py --project-root .
+      - name: context_audit
+        next: [test]
+        on_failure: [fix]
+        command: python verification/check-context-audit.py --project-root .
+      - name: test
+        next: [review]
+        on_failure: [fix]
+        command: python orchestrator.py --verify
+      - name: fix
+        next: [test]
+        max_retries: 3
+      - name: review
+        next: [mark]
+        on_failure: [fix]
+      - name: mark
+        next: []
+        command: python orchestrator.py --mark-complete
+
+  ai-ux:
+    type: sequential
+    mandatory_pre_steps:
+      - name: guard_check
+        command: python guard.py --check
+        required: true
+      - name: read_constraints
+        required: true
+        description: "Read constraints/architecture-rules.yaml (AR001 渲染进程边界)"
+    steps:
+      - name: plan
+        next: [guard]
+      - name: guard
+        next: [implement]
+        command: python guard.py --check
+      - name: implement
+        next: [boundary_check]
+        constraint_check: true
+      - name: boundary_check
+        next: [test]
+        on_failure: [fix]
+        command: python verification/check-architecture-boundaries.py --project-root .
+      - name: test
+        next: [review]
+        on_failure: [fix]
+        command: python orchestrator.py --verify
+      - name: fix
+        next: [test]
+        max_retries: 3
+      - name: review
+        next: [mark]
+        on_failure: [fix]
+      - name: mark
+        next: []
+        command: python orchestrator.py --mark-complete
+
+  verification:
+    type: sequential
+    mandatory_pre_steps:
+      - name: guard_check
+        command: python guard.py --check
+        required: true
+    steps:
+      - name: plan
+        next: [guard]
+      - name: guard
+        next: [implement]
+        command: python guard.py --check
+      - name: implement
+        next: [test]
+        constraint_check: true
+      - name: test
+        next: [review]
+        on_failure: [fix]
+        command: python orchestrator.py --verify
+      - name: fix
+        next: [test]
+        max_retries: 3
+      - name: review
+        next: [mark]
+        on_failure: [fix]
+        description: "evidence/AC1..AC7 齐全，人工 review（WU014 requires_human_review）"
+      - name: mark
+        next: []
+        command: python orchestrator.py --mark-complete
+
+auto_enforcement:
+  before_code_change:
+    - python guard.py --check
+  after_code_change:
+    - python orchestrator.py --verify
+  before_mark_complete:
+    - python orchestrator.py --verify
+    - python guard.py --report

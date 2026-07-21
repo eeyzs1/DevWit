@@ -1,0 +1,62 @@
+{
+  "id": "manifest-2a565cdc-595a-4bdd-842e-d4af86961a34",
+  "timestamp": "2026-07-20T19:10:06.398Z",
+  "sessionId": "session-1784574605340",
+  "modeId": "chat",
+  "providerId": "e2e-local-a",
+  "model": "e2e-model-a",
+  "items": [
+    {
+      "id": "item-5913cd28-e1b4-467c-9fef-1511692357e4",
+      "type": "system_prompt",
+      "label": "系统提示",
+      "enabled": true,
+      "tokens": 65,
+      "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-5afdb00e-6d33-4603-9239-7f2f4beef1c1",
+      "type": "tool_definitions",
+      "label": "工具定义（0 个）",
+      "enabled": true,
+      "tokens": 1,
+      "content": "[]",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-7a5d4c80-132b-4c72-bc76-1d237981ea8b",
+      "type": "conversation_history",
+      "label": "会话历史（1 条）",
+      "enabled": true,
+      "tokens": 11,
+      "content": "[user] 请把 hello.txt 加一行",
+      "source": "conversation",
+      "counting": "exact"
+    },
+    {
+      "id": "item-f91888bd-cba5-43da-a9e3-bb561d01fcce",
+      "type": "file_fragment",
+      "label": "文件片段 hello.txt",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-So67Kf\\hello.txt",
+      "counting": "exact"
+    },
+    {
+      "id": "item-9ca95cc2-9365-4a3f-9f5e-c4fb99aac36c",
+      "type": "git_status",
+      "label": "Git 状态",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "git status",
+      "counting": "exact"
+    }
+  ],
+  "totalTokens": 77,
+  "systemPromptTokens": 65
+}

@@ -1,0 +1,69 @@
+version: 1
+description: |
+  DevWit 分布式/事件追踪配置。覆盖两层：
+  (1) harness 层——agent 执行与验证 span；(2) 产品层——DevWit IDE 运行时
+  （agent loop 每轮、IPC、编辑器渲染帧、context manifest、凭证读取）。
+  凭证读取事件只记录 provider/时间/结果，API key 一律脱敏（hard_constraint HC5 延伸）。
+
+tracing:
+  enabled: true
+  provider: opentelemetry
+  sampling_rate: 1.0                # 开发期全采样；性能验证阶段可降至 0.25（soft_constraint：不榨干资源）
+  propagation_format: w3c_trace_context
+
+spans:
+  # ---- 产品层：DevWit IDE 运行时（packages/* 内 instrumentation）----
+  - name: agent_loop_turn
+    attributes: [session_id, turn_index, model, provider, duration_ms, prompt_tokens, completion_tokens, tool_call_count]
+    kind: INTERNAL
+    traces_to: [AC2, AC4, AC5]
+
+  - name: llm_request
+    attributes: [provider, model, endpoint_host, duration_ms, prompt_tokens, completion_tokens, status]
+    kind: CLIENT
+    traces_to: [AC5]
+
+  - name: tool_call
+    attributes: [tool_name, authorized, duration_ms, result_status]
+    kind: INTERNAL
+    traces_to: [AC4]
+
+  - name: ipc_call
+    attributes: [channel, direction, duration_ms, payload_bytes]
+    kind: INTERNAL
+    traces_to: [AC1, AC4]
+
+  - name: editor_render_frame
+    attributes: [file_line_count, visible_lines, frame_ms, scroll_position]
+    kind: INTERNAL
+    traces_to: [AC1]
+
+  - name: context_manifest_built
+    attributes: [session_id, system_prompt_tokens, total_tokens, item_count, enabled_item_count]
+    kind: INTERNAL
+    traces_to: [AC2]                # 每次 LLM 请求的上下文组成可审计
+
+  - name: credential_read
+    attributes: [provider, storage_backend, success]
+    kind: INTERNAL
+    redact: [api_key, token, secret]  # 脱敏：只记录 provider 与成败，不记录密钥本体
+    traces_to: [AC5]
+
+  # ---- harness 层：开发流水线自身 ----
+  - name: agent_execution
+    attributes: [agent_role, task_type, steps_taken, tokens_used]
+    kind: INTERNAL
+
+  - name: verification
+    attributes: [check_type, passed, violations_count]
+    kind: INTERNAL
+
+  - name: evolution_mutation
+    attributes: [mutation_type, target, fitness_delta]
+    kind: INTERNAL
+
+export:
+  format: json
+  path: ".meta-harness/events/"     # harness 事件流目录（event_stream.py 同目录）
+  rotation: daily
+  retention_days: 30

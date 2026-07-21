@@ -1,0 +1,182 @@
+version: 1
+description: >-
+  Task Card Schema —— agent 间 handoff 协议格式（meta harness 硬约束）。
+
+  第一性原理分工：
+  - task card 的"格式"是通用协议 → 本文件（硬约束，所有项目共享）
+  - task card 的"内容"是项目特定的 → 由 dispatcher.py 按 work-units.yaml
+    + sub-agent-dispatch.yaml 实例化（运行时生成，不是 LLM slot 填充）
+
+  runtime（Trae Task tool / Claude Code subagent / Cursor composer）读 task card
+  的 input 部分作为派发指令，subagent 完成后写 output 部分。
+  agent 之间不传 chat history，只传结构化 task card（context firewall）。
+
+# ===== Task Card 输入（dispatcher → subagent）=====
+input:
+  # 唯一标识 + 可追溯性
+  task_id:
+    type: string
+    required: true
+    format: "WU<NNN>-<NN>"  # work_unit_id + instance_seq，如 WU001-01
+    traces_to: audit_log.control_command.command_id（工业控制示例）
+
+  work_unit_id:
+    type: string
+    required: true
+    description: "对应 planning/work-units.yaml 的 unit id"
+
+  assigned_to:
+    type: string
+    required: true
+    description: "对应 sub-agent-dispatch.yaml prototypes 的 key（如 control-engineer）"
+
+  agent_role_description:
+    type: string
+    required: false
+    description: "从 prototype.responsibilities 派生，让 subagent 知道自己的角色"
+
+  # 任务描述
+  objective:
+    type: string
+    required: true
+    description: "本 work unit 要完成什么（来自 work-units.yaml 的 name）"
+
+  # 上下文边界——硬约束的 context firewall
+  context:
+    type: object
+    required: true
+    fields:
+      can_read:
+        type: list[string]
+        required: true
+        description: "从 prototype.receives 派生的文件/资源路径白名单"
+      can_write:
+        type: list[string]
+        required: true
+        description: "从 prototype.produces 派生"
+      cannot:
+        type: list[string]
+        required: true
+        description: "从 prototype.boundaries.cannot 派生——subagent 不得越界"
+      max_context_lines:
+        type: integer
+        required: true
+        description: "从 prototype.boundaries.max_context_lines 派生——上下文预算"
+
+  # 输入工件——上游产物
+  inputs:
+    type: list[object]
+    required: false
+    item_schema:
+      path: {type: string, required: true}
+      description: {type: string, required: false}
+      from_work_unit: {type: string, required: false}
+        # 上游 work_unit 的 id，让 subagent 知道输入来自哪个上游
+
+  # 验收标准——本 work unit 必须满足什么
+  success_criteria:
+    type: list[string]
+    required: true
+    description: "从 work-units.yaml 的 success_criteria 派生，必须 trace 到 task.acceptance_criteria"
+
+  # 约束——本 work unit 必须遵守什么（项目特定，从 architecture-rules 派生）
+  constraints:
+    type: list[object]
+    required: false
+    item_schema:
+      rule_id: {type: string, required: true}  # 如 AR001
+      rule_text: {type: string, required: true}
+      traces_to: {type: string, required: false}  # 如 AC2
+
+  # 人工 review 要求
+  requires_human_review:
+    type: boolean
+    required: true
+    default: false
+    description: "从 prototype.requires_human_review 派生——为 true 时 runtime 必须暂停等人工"
+
+  # 超时与重试预算
+  budget:
+    type: object
+    required: true
+    fields:
+      max_steps: {type: integer, required: true}
+      max_tokens: {type: integer, required: true}
+      max_retries: {type: integer, required: true}
+      timeout_seconds: {type: integer, required: false}
+    description: "从 planning/budget.yaml + prototype.per_role_budget 派生"
+
+# ===== Task Card 输出（subagent → dispatcher）=====
+output:
+  task_id:
+    type: string
+    required: true
+    description: "回填 input.task_id 以便 dispatcher 对账"
+
+  status:
+    type: string
+    required: true
+    enum: [completed, blocked, failed, needs_human_review]
+    description: "subagent 自报状态，dispatcher 不信——必须由 verifier 复核"
+
+  # 产出工件
+  artifacts:
+    type: list[object]
+    required: true
+    item_schema:
+      path: {type: string, required: true}
+      artifact_type: {type: string, required: true}
+        # code | test | config | report | log
+      sha256: {type: string, required: true}
+        # 防止后续被改——hash 链
+      description: {type: string, required: false}
+
+  # 自检证据（subagent 必须提供，不是空话）
+  self_check_evidence:
+    type: list[object]
+    required: true
+    item_schema:
+      criterion: {type: string, required: true}
+        # 对应 input.success_criteria 的一条
+      evidence_type: {type: string, required: true}
+        # test_result | log_line | file_hash | command_output
+      evidence_ref: {type: string, required: true}
+        # 实际证据路径或命令输出片段
+      passed: {type: boolean, required: true}
+
+  # 给下游的 handoff
+  handoff:
+    type: object
+    required: false
+    fields:
+      downstream_work_units: {type: "list[string]", required: false}
+        # 依赖本 unit 的下游 id 列表
+      notes_for_downstream: {type: string, required: false}
+        # 接口契约、注意事项
+
+  # 失败原因（status != completed 时必填）
+  failure_reason:
+    type: object
+    required: false
+    fields:
+      error_type: {type: string, required: true}
+        # 对应 feedback/retry-config.yaml 的 error_types
+      message: {type: string, required: true}
+      root_cause_hypothesis: {type: string, required: false}
+        # 3-Strike Recovery Protocol 用
+      suggested_fix: {type: string, required: false}
+
+# ===== 协议不变量（dispatcher 与 runtime 都必须保证）=====
+invariants:
+  - "subagent 不得修改 context.can_read 之外的文件——guard.py 在派发前后校验"
+  - "subagent 不得自行声明 completed——必须由独立 verifier 复核 self_check_evidence"
+  - "status=needs_human_review 时 runtime 必须暂停，不能 advance 到下游 work unit"
+  - "artifacts.sha256 写入 audit_log，hash 链不允许断裂"
+  - "task card 本身作为 audit_log 的一条事件记录"
+  - "context firewall：subagent 不传 chat history，只传本 card 的 input/output 结构化字段"
+
+# ===== 协议版本与兼容性 =====
+schema_version: 1
+compatibility:
+  breaking_change_policy: "major version bump + 项目重新校验"
+  deprecation_notice_days: 30

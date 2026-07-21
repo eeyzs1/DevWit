@@ -1,0 +1,4 @@
+提案代码块经 diff 视图「全部接受 → 应用并关闭 → Ctrl+S」后落盘。
+提案内容: "E2E hello devwit\nline2\nadded by agent proposal\n"
+磁盘内容: "E2E hello devwit\nline2\nadded by agent proposal"
+（尾部换行差异来自提案提取的 trim 语义，正文完全一致）

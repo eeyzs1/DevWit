@@ -1,0 +1,38 @@
+{
+  "name": "devwit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DevWit — 简洁上下文 AI 原生桌面 IDE",
+  "type": "module",
+  "main": "apps/desktop/dist/main/index.js",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc -b && npm run build:renderer && npm run build:main && npm run build:preload && npm run copy:html",
+    "build:renderer": "esbuild apps/desktop/src/renderer/index.ts --bundle --outfile=apps/desktop/dist/renderer/index.js --format=iife --target=chrome130 --sourcemap --loader:.css=css",
+    "build:main": "esbuild apps/desktop/src/main/index.ts --bundle --outfile=apps/desktop/dist/main/index.js --format=esm --platform=node --target=node20 --external:electron --external:node-pty",
+    "build:preload": "esbuild apps/desktop/src/main/preload.ts --bundle --outfile=apps/desktop/dist/main/preload.cjs --format=cjs --platform=node --external:electron",
+    "copy:html": "node -e \"require('node:fs').copyFileSync('apps/desktop/src/renderer/index.html','apps/desktop/dist/renderer/index.html')\"",
+    "dev": "npm run build && electron .",
+    "test": "vitest run",
+    "test:e2e": "node apps/desktop/tests/e2e/smoke.mjs",
+    "lint": "eslint .",
+    "rebuild-native": "electron-rebuild -f -w node-pty",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.0",
+    "@types/node": "^24.0.0",
+    "electron": "^37.0.0",
+    "electron-builder": "^25.0.0",
+    "esbuild": "^0.24.0",
+    "eslint": "^9.0.0",
+    "playwright": "^1.61.1",
+    "typescript": "~5.8.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.0.0"
+  }
+}

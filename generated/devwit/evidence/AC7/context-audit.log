@@ -1,0 +1,1 @@
+﻿PASS: 14 个 context manifest 结构合规（items 字段齐全、存在 enabled=false 项、system_prompt tokens < 1500）

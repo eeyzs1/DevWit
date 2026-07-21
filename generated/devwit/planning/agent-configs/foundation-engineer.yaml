@@ -1,0 +1,50 @@
+agent:
+  name: foundation-engineer
+  role: 搭建 npm workspaces + TypeScript monorepo 工程骨架; 配置 electron-builder / electron-forge
+    打包流水线; 建立根级构建/测试/lint 脚本（dev/build/test/lint）; 定义 tsconfig base 与包间引用规则（project
+    references）
+  capabilities:
+  - 搭建 npm workspaces + TypeScript monorepo 工程骨架
+  - 配置 electron-builder / electron-forge 打包流水线
+  - 建立根级构建/测试/lint 脚本（dev/build/test/lint）
+  - 定义 tsconfig base 与包间引用规则（project references）
+  tools:
+  - name: task definition (task.yaml)
+    access: read
+  - name: constraints/architecture-rules.yaml
+    access: read
+  - name: 可构建的 monorepo 骨架（package.json/tsconfig/构建脚本）
+    access: write
+  - name: electron-builder 配置与打包产物脚本
+    access: write
+  scope:
+    can_read:
+    - task definition (task.yaml)
+    - constraints/architecture-rules.yaml
+    can_write:
+    - 可构建的 monorepo 骨架（package.json/tsconfig/构建脚本）
+    - electron-builder 配置与打包产物脚本
+    can_execute:
+    - python orchestrator.py --verify
+    - python guard.py --check
+  boundaries:
+    cannot:
+    - 实现任何 packages/* 的业务逻辑（只搭骨架与构建）
+    - 引入 Monaco Editor 或 CodeMirror 依赖（task 硬约束禁止）
+    - 跳过 audit_log 直接修改 planning/* 状态
+    max_context_lines: 600
+    requires_human_review: false
+  handoff:
+    input_format:
+    - task definition (task.yaml)
+    - constraints/architecture-rules.yaml
+    output_format:
+    - 可构建的 monorepo 骨架（package.json/tsconfig/构建脚本）
+    - electron-builder 配置与打包产物脚本
+  verification:
+    self_check: Run verification before marking complete
+    external_check: orchestrator.py --verify must pass
+  assigned_workflows:
+  - foundation
+  assigned_criteria:
+  - 构建成功无错误，上述每条标准均有可验证证据

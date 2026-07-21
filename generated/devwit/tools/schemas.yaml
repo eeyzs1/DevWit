@@ -1,0 +1,54 @@
+version: 1
+description: DevWit harness 运行时工具 schema — 真实 LLM HTTP（Anthropic/OpenAI 兼容）、本地 fs、git、npm/node 构建测试、python harness 脚本
+tools:
+  - name: llm_chat_completion
+    description: 经 packages/llm-providers 发起真实 LLM 请求（AR002 唯一出口），支持 Anthropic Messages API 与 OpenAI 兼容 API，流式
+    parameters:
+      provider: { type: string, required: true, enum: [anthropic, openai-compatible], description: "提供商类型" }
+      model: { type: string, required: true, description: "模型 id，如 claude-sonnet-4-5 / gpt-4o" }
+      base_url: { type: string, required: false, description: "自定义 endpoint（OpenAI 兼容必须可配）；https，localhost 允许 http" }
+      api_key_ref: { type: string, required: true, description: "packages/settings 中的凭证条目 id（safeStorage 密文引用），禁止直接传明文 key" }
+      messages: { type: array, required: true, description: "对话消息数组，由 context-engine 按 manifest 组装" }
+      context_manifest: { type: object, required: true, description: "AR007 要求的本次请求上下文组成（含各项 name/type/enabled/tokens）" }
+      stream: { type: boolean, default: true, description: "SSE 流式输出" }
+      max_tokens: { type: integer, default: 8192, description: "最大输出 token" }
+      timeout: { type: integer, default: 120, description: "超时秒数（首 token 30s 见 cost-budget）" }
+    access_level: network
+
+  - name: file_read
+    description: 读本地文件（产品代码 generated/devwit 或 agent 用户项目目录）
+    parameters:
+      path: { type: string, required: true, description: "文件路径，必须位于允许根目录内" }
+    access_level: read
+
+  - name: file_write
+    description: 写本地文件（产品代码或用户项目目录，禁系统目录）
+    parameters:
+      path: { type: string, required: true, description: "文件路径，禁止 C:\\Windows、/etc、~/.ssh 等 blocked_paths" }
+      content: { type: string, required: true, description: "写入内容" }
+    access_level: write
+
+  - name: git_op
+    description: git worktree/branch/commit 操作（harness 多 worktree 并发与证据提交）
+    parameters:
+      operation: { type: string, required: true, enum: [status, log, diff, worktree_add, worktree_remove, branch, add, commit], description: "git 子操作" }
+      args: { type: array, default: [], description: "子操作参数，禁止 push --force" }
+      cwd: { type: string, required: true, description: "仓库目录" }
+    access_level: execute
+
+  - name: npm_run
+    description: npm/node 构建与测试命令（Electron monorepo）
+    parameters:
+      command: { type: string, required: true, enum: [npm, npx, node], description: "命令白名单" }
+      args: { type: array, required: true, description: "如 [run, build] / [test] / [tsc, --noEmit]" }
+      cwd: { type: string, required: true, description: "包目录（apps/desktop 或 packages/*）" }
+      timeout: { type: integer, default: 600, description: "超时秒数，不超 cost-budget 构建预算" }
+    access_level: execute
+
+  - name: python_run
+    description: 运行 harness 脚本（verification/、runtime/、guard.py、orchestrator.py）
+    parameters:
+      script: { type: string, required: true, description: "harness 内 python 脚本路径" }
+      args: { type: array, default: [], description: "脚本参数，如 --project-root ." }
+      timeout: { type: integer, default: 300, description: "超时秒数" }
+    access_level: execute

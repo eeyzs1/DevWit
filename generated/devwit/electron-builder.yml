@@ -1,0 +1,20 @@
+appId: com.devwit.app
+productName: DevWit
+directories:
+  app: .
+  output: release
+files:
+  # 主进程/preload/渲染层均已 esbuild 打包进 apps/desktop/dist（含全部 @devwit/* 依赖），
+  # 无需 node_modules 随行；node-pty 为可选原生依赖，缺失时自动回退 pipe 后端。
+  - apps/desktop/dist/**
+  - package.json
+asar: true
+# 本机已装 Electron dist（与 devDependency 同版本），打包零下载，规避 GitHub 直连不可达。
+electronDist: node_modules/electron/dist
+win:
+  target:
+    - nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+npmRebuild: false

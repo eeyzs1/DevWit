@@ -1,0 +1,103 @@
+version: 1
+description: |
+  DevWit 进化基因组。constraints 直接来自 task.yaml 的 5 条 hard_constraints
+  （HC1-HC5，原样引用，不可在进化中删除/弱化）；workflows 为 flow-control.yaml
+  的 6 条工作流；fitness 维度对齐 AC 验收与"简洁上下文"产品目标。
+
+harness_genome:
+  constraints:
+    - id: HC1
+      rule: "禁止自建云端后端：本地优先架构，agent runtime 运行于 Electron 主进程，直连 LLM 提供商 API"
+      source: task.yaml
+      last_triggered: null
+      trigger_count: 0
+    - id: HC2
+      rule: "桌面壳必须使用 Electron + TypeScript（与 pi/Claude Code 生态同语言）"
+      source: task.yaml
+      last_triggered: null
+      trigger_count: 0
+    - id: HC3
+      rule: "代码编辑器内核必须自研（禁止使用 Monaco Editor / CodeMirror）"
+      source: task.yaml
+      last_triggered: null
+      trigger_count: 0
+    - id: HC4
+      rule: "上下文默认极简（pi 式）：禁止静默注入用户未开启的上下文项，每次请求的上下文组成必须可审计"
+      source: task.yaml
+      last_triggered: null
+      trigger_count: 0
+    - id: HC5
+      rule: "禁止 mock 真实集成：LLM API、文件系统、终端均为真实调用"
+      source: task.yaml
+      last_triggered: null
+      trigger_count: 0
+
+  workflows:
+    - id: WF-foundation
+      name: foundation
+      steps: [define, plan, execute, verify, record]
+      source: "flow-control.yaml — WU001 monorepo 骨架"
+    - id: WF-editor
+      name: editor
+      steps: [define, plan, execute, verify, record]
+      source: "flow-control.yaml — WU002-WU004 编辑器内核/渲染/语法"
+    - id: WF-workspace
+      name: workspace
+      steps: [define, plan, execute, verify, record]
+      source: "flow-control.yaml — WU005-WU007 Electron 壳/终端/settings"
+    - id: WF-ai-core
+      name: ai-core
+      steps: [define, plan, execute, verify, record]
+      source: "flow-control.yaml — WU008-WU011 providers/context/agent-runtime/modes"
+    - id: WF-ai-ux
+      name: ai-ux
+      steps: [define, plan, execute, verify, record]
+      source: "flow-control.yaml — WU012-WU013 chat-ui/diff 内联编辑"
+    - id: WF-verification
+      name: verification
+      steps: [define, plan, execute, verify, record]
+      source: "flow-control.yaml — WU014 E2E + 构建证据"
+
+  skills:
+    - id: S001
+      name: "self-verify"
+      source: "initial design"
+    - id: S002
+      name: "task-decompose"
+      source: "initial design"
+
+agent_genome:
+  topology_rules:
+    - "always add verifier"
+    - "merge tightly coupled roles"
+    - "split when context exceeds budget"
+  default_scope:
+    max_context_lines: 60
+    handoff_format: "structured YAML"
+
+evolution_genome:
+  fitness_weights:
+    ac_pass_rate: 0.4               # AC1-AC7 verified 比例（首要维度）
+    context_leanness: 0.3           # 系统提示 token 数越低于 1000 得分越高
+    build_success_rate: 0.3         # npm run build 成功率
+  fitness_dimensions:
+    - name: ac_pass_rate
+      metric: "verified ACs / 7"
+      target: 1.0
+      traces_to: [AC1, AC2, AC3, AC4, AC5, AC6, AC7]
+    - name: context_leanness
+      metric: "1 - (system_prompt_tokens / 1000)，低于 1000 token 为正分"
+      target: 0.5                   # 默认系统提示 ≤500 token
+      traces_to: [AC2]
+    - name: build_success_rate
+      metric: "build passes / build attempts"
+      target: 1.0
+      traces_to: [AC7]
+  mutation_rate: 0.1
+  selection_threshold: "fitness must improve or complexity must decrease"
+  safety_constraints:
+    - "never remove verification layer"
+    - "never remove evolution system"
+    - "never weaken HC1-HC5"
+    - "mutation rate <= 30%"
+    - "all mutations reversible"

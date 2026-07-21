@@ -1,0 +1,68 @@
+version: 1
+description: |
+  DevWit leaf agent 协议。从 sub-agent-dispatch.yaml 的 prototypes 派生：
+  foundation/editor/platform/ai/ux-engineer → worker；verifier → tester+reviewer；
+  只读探索 → explorer。本文件被 runtime/leaf_prepare.py 读取合成 task.json。
+
+roles:
+  explorer:
+    gates: [pre-implement]
+    forbidden_side_effects:
+      - "write any file"
+      - "modify audit_log"
+      - "modify planning/*.yaml"
+      - "execute npm install / package.json 变更"
+    timeout_seconds: 300
+    effort_budget:
+      S: 2000
+      M: 5000
+      L: 10000
+
+  worker:
+    gates: [implement]
+    forbidden_side_effects:
+      - "modify audit_log"
+      - "明文写入任何 API key/凭证（必须经 settings safeStorage）"
+      - "引入 monaco-editor / codemirror 依赖"
+      - "在 llm-providers 之外发起 LLM HTTP 请求"
+      - "渲染进程代码中 import node:fs / node:child_process"
+    timeout_seconds: 900
+    effort_budget:
+      S: 4000
+      M: 9000
+      L: 18000
+
+  tester:
+    gates: [test]
+    forbidden_side_effects:
+      - "修改被测源码"
+      - "无证据标记 acceptance_criteria 完成"
+      - "性能测试占满 CPU/内存"
+    timeout_seconds: 900
+    effort_budget:
+      S: 3000
+      M: 6000
+      L: 12000
+
+  reviewer:
+    gates: [pre-release, pre-advance]
+    forbidden_side_effects:
+      - "write any file outside evidence/"
+      - "修改 evidence/ 已有证据文件"
+    timeout_seconds: 300
+    effort_budget:
+      S: 2000
+      M: 5000
+      L: 10000
+
+gates:
+  - plan
+  - pre-implement
+  - implement
+  - test
+  - pre-release        # 桌面应用无 deploy；electron-builder 打包前检查
+  - pre-advance
+  - report
+
+default_role: worker
+default_gate: implement

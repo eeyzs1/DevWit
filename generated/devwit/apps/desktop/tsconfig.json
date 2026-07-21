@@ -1,0 +1,56 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "references": [
+    {
+      "path": "../../packages/contracts"
+    },
+    {
+      "path": "../../packages/editor-core"
+    },
+    {
+      "path": "../../packages/editor-render"
+    },
+    {
+      "path": "../../packages/syntax"
+    },
+    {
+      "path": "../../packages/workspace"
+    },
+    {
+      "path": "../../packages/terminal"
+    },
+    {
+      "path": "../../packages/settings"
+    },
+    {
+      "path": "../../packages/llm-providers"
+    },
+    {
+      "path": "../../packages/context-engine"
+    },
+    {
+      "path": "../../packages/modes"
+    },
+    {
+      "path": "../../packages/agent-runtime"
+    },
+    {
+      "path": "../../packages/chat-ui"
+    }
+  ]
+}

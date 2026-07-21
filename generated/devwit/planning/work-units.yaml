@@ -1,0 +1,169 @@
+version: 1
+description: >-
+  DevWit 工作单元分解。只声明真实依赖（depends_on 基于产物消费关系），
+  拓扑排序与并行分组由 planning/dag-builder.py + dispatcher.py 负责。
+  assigned_to 引用 sub-agent-dispatch.yaml 的 prototype；workflow 引用
+  flow-control.yaml 的 workflows key；traces_to 引用 task.yaml 的 AC id。
+
+work_units:
+  - id: WU001
+    name: 搭建 monorepo 工程骨架与构建流水线
+    assigned_to: foundation-engineer
+    workflow: foundation
+    depends_on: []
+    success_criteria:
+      - npm workspaces + TypeScript project references 骨架就绪（apps/desktop + packages/*）
+      - 根级 npm run build / test / lint 脚本可运行
+      - electron-builder 配置存在且可产出安装包
+    traces_to: [AC7]
+    constraints: [AR006]
+
+  - id: WU002
+    name: 实现 editor-core 文本缓冲区（piece-table + 编辑操作 + undo/redo）
+    assigned_to: editor-engineer
+    workflow: editor
+    depends_on: [WU001]
+    success_criteria:
+      - piece-table 缓冲区支持 insert/delete/replace，大文件（10MB）编辑不阻塞
+      - undo/redo 栈正确，单元测试通过
+    traces_to: [AC1]
+    constraints: [AR003]
+
+  - id: WU003
+    name: 实现 editor-render Canvas 渲染器（布局/滚动/选区/光标/IME）
+    assigned_to: editor-engineer
+    workflow: editor
+    depends_on: [WU002]
+    success_criteria:
+      - Canvas 自绘文本渲染，可视区虚拟化滚动流畅（万行文件）
+      - 鼠标选区、多光标、IME 合成输入可用
+    traces_to: [AC1]
+    constraints: [AR003]
+
+  - id: WU004
+    name: 实现 syntax 语法高亮（tree-sitter wasm 增量解析）
+    assigned_to: editor-engineer
+    workflow: editor
+    depends_on: [WU002]
+    success_criteria:
+      - tree-sitter wasm 加载 TypeScript/Python 语法，编辑后增量重解析
+      - 高亮 token 流接入 editor-render
+    traces_to: [AC1]
+    constraints: [AR003]
+
+  - id: WU005
+    name: 实现 Electron 壳与 workspace 工作区服务（窗口/IPC/文件树/fs）
+    assigned_to: platform-engineer
+    workflow: workspace
+    depends_on: [WU001]
+    success_criteria:
+      - 应用可启动，可通过对话框打开本地文件夹，文件树展示目录结构
+      - 渲染进程经 preload 白名单 IPC 读写文件，contextIsolation 开启
+      - 编辑器可打开/编辑/保存文件（集成 editor-core）
+    traces_to: [AC1]
+    constraints: [AR001, AR004, AR005]
+
+  - id: WU006
+    name: 实现 terminal 终端集成（xterm.js + node-pty）
+    assigned_to: platform-engineer
+    workflow: workspace
+    depends_on: [WU005]
+    success_criteria:
+      - 内置终端可运行交互式 shell，输出实时渲染
+      - PTY 句柄经 IPC 对 agent-runtime 的 bash 工具复用
+    traces_to: [AC4]
+    constraints: [AR004]
+
+  - id: WU007
+    name: 实现 settings 设置中心与凭证加密存储（热更新）
+    assigned_to: platform-engineer
+    workflow: workspace
+    depends_on: [WU005]
+    success_criteria:
+      - API key 经 Electron safeStorage 加密落盘，无明文
+      - 配置变更经 watcher 热生效，无需重启应用
+    traces_to: [AC5, AC6]
+    constraints: [AR004, AR005]
+
+  - id: WU008
+    name: 实现 llm-providers 多模型接入层（Anthropic + OpenAI 兼容）
+    assigned_to: ai-engineer
+    workflow: ai-core
+    depends_on: [WU001, WU007]
+    success_criteria:
+      - Anthropic Messages API 流式调用可用，支持自定义 base URL 与 API key
+      - OpenAI 兼容 API（chat/completions）流式调用可用，支持自定义 endpoint
+      - 统一 provider 接口（stream/message/tool_use），会话中可切换模型
+      - 凭证从 settings 热读取，切换 key 不重启
+    traces_to: [AC5]
+    constraints: [AR002, AR005]
+
+  - id: WU009
+    name: 实现 context-engine 简洁上下文引擎
+    assigned_to: ai-engineer
+    workflow: ai-core
+    depends_on: [WU008]
+    success_criteria:
+      - 上下文项注册表（系统提示/工具定义/文件片段/git 状态/终端输出等）逐项可开关
+      - 每次请求生成 context manifest：各项内容与 token 计数落盘可审计
+      - 默认极简：仅系统提示+工具定义，未开启项零注入
+    traces_to: [AC2]
+    constraints: [AR002, AR007]
+
+  - id: WU010
+    name: 实现 agent-runtime（agent loop + 工具系统 + 授权门 + 轨迹）
+    assigned_to: ai-engineer
+    workflow: ai-core
+    depends_on: [WU009, WU006]
+    success_criteria:
+      - agent loop：模型响应→工具调用→结果回填→直至任务完成
+      - 内置 read/write/edit/bash/grep/find/ls 工具；write/edit/bash 需用户授权后执行
+      - 可完成多步任务（如"创建文件并运行脚本"），轨迹事件流可查询
+    traces_to: [AC4]
+    constraints: [AR002, AR005]
+
+  - id: WU011
+    name: 实现 modes 模式系统（schema/CRUD/热更新）
+    assigned_to: ai-engineer
+    workflow: ai-core
+    depends_on: [WU009]
+    success_criteria:
+      - mode = {系统提示, 工具集, 模型, 上下文注入策略} 的 schema 定义
+      - 用户可创建/编辑/删除模式，内置 chat/agent 两个默认模式
+      - 模式变更 watcher 热生效，agent-runtime 下次请求即用新模式
+    traces_to: [AC6]
+    constraints: [AR002, AR007]
+
+  - id: WU012
+    name: 实现 chat-ui 对话面板与上下文组成面板
+    assigned_to: ux-engineer
+    workflow: ai-ux
+    depends_on: [WU009, WU011]
+    success_criteria:
+      - 对话面板流式渲染消息与工具调用，可在会话中切换模型
+      - 上下文组成面板展示当次请求各项 token 占用，逐项开关实时生效
+    traces_to: [AC2, AC5]
+    constraints: [AR001, AR007]
+
+  - id: WU013
+    name: 实现 diff 内联编辑（选区修改 → diff → 逐块接受/拒绝）
+    assigned_to: ux-engineer
+    workflow: ai-ux
+    depends_on: [WU003, WU010]
+    success_criteria:
+      - 对话中请求代码修改后，编辑器内以 diff 视图呈现变更
+      - 每个变更块可独立接受或拒绝，接受后写回 editor-core 缓冲区
+    traces_to: [AC3]
+    constraints: [AR001]
+
+  - id: WU014
+    name: E2E 验证与构建产物证据收集
+    assigned_to: verifier
+    workflow: verification
+    depends_on: [WU005, WU010, WU011, WU012, WU013]
+    success_criteria:
+      - npm run build 全仓零错误，electron-builder 产出安装包
+      - E2E：启动→打开文件夹→编辑保存→对话→Agent 多步任务→切模型→改模式热生效 全通过
+      - evidence/AC1..AC7 每条验收标准有落盘证据
+    traces_to: [AC7]
+    requires_human_review: true

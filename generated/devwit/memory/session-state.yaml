@@ -1,0 +1,94 @@
+blockers: []
+guard_log:
+- action: mark_complete
+  criterion: 桌面应用可启动并打开本地项目文件夹，文件树可浏览，自研编辑器可打开/编辑/保存文件
+  timestamp: '2026-07-21T07:25:45.210431'
+  verdict: VERIFIED
+- action: mark_complete
+  criterion: 简洁上下文引擎：每次 LLM 请求的完整上下文组成（系统提示、工具列表、注入项及各项 token 占用）对用户可见，且用户可逐项开启/关闭
+  timestamp: '2026-07-21T07:25:45.660328'
+  verdict: VERIFIED
+- action: mark_complete
+  criterion: 对话式编程：用户可通过对话请求代码修改，修改以 diff 形式在编辑器内呈现，可逐块接受或拒绝
+  timestamp: '2026-07-21T07:26:41.010314'
+  verdict: VERIFIED
+- action: mark_complete
+  criterion: Agent 模式：Agent 可在用户授权下读写文件并执行终端命令，能完成多步任务，执行轨迹可见
+  timestamp: '2026-07-21T07:26:41.465137'
+  verdict: VERIFIED
+- action: mark_complete
+  criterion: 多模型接入：支持 Anthropic API 与 OpenAI 兼容 API，可自定义 base URL 与 API key，会话中可切换模型
+  timestamp: '2026-07-21T07:26:41.913289'
+  verdict: VERIFIED
+- action: mark_complete
+  criterion: 模式自定义系统：用户可创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略， 修改热生效无需重启
+  timestamp: '2026-07-21T07:26:42.376091'
+  verdict: VERIFIED
+- action: mark_complete
+  criterion: 构建成功无错误，上述每条标准均有可验证证据
+  timestamp: '2026-07-21T07:26:42.827558'
+  verdict: VERIFIED
+phase: GENERATE
+progress:
+  acceptance_criteria:
+  - description: 桌面应用可启动并打开本地项目文件夹，文件树可浏览，自研编辑器可打开/编辑/保存文件
+    id: AC1
+    status: pending
+    traces_to:
+    - WU001
+    - WU002
+    - WU003
+    - WU005
+    verifier: tests/e2e/ac1-workspace-editing.spec.ts + evidence/AC1
+  - description: 简洁上下文引擎：每次 LLM 请求的完整上下文组成（系统提示、工具列表、注入项及各项 token 占用）对用户可见，且用户可逐项开启/关闭
+    id: AC2
+    status: pending
+    traces_to:
+    - WU009
+    - WU012
+    verifier: verification/check-context-audit.py + evidence/AC2/manifest 样例
+  - description: 对话式编程：用户可通过对话请求代码修改，修改以 diff 形式在编辑器内呈现，可逐块接受或拒绝
+    id: AC3
+    status: pending
+    traces_to:
+    - WU013
+    verifier: tests/e2e/ac3-diff-inline-edit.spec.ts + evidence/AC3
+  - description: Agent 模式：Agent 可在用户授权下读写文件并执行终端命令，能完成多步任务，执行轨迹可见
+    id: AC4
+    status: pending
+    traces_to:
+    - WU006
+    - WU010
+    verifier: tests/e2e/ac4-agent-multistep.spec.ts + evidence/AC4
+  - description: 多模型接入：支持 Anthropic API 与 OpenAI 兼容 API，可自定义 base URL 与 API key，会话中可切换模型
+    id: AC5
+    status: pending
+    traces_to:
+    - WU007
+    - WU008
+    - WU012
+    verifier: tests/e2e/ac5-multi-model.spec.ts + evidence/AC5
+  - description: 模式自定义系统：用户可创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略，修改热生效无需重启
+    id: AC6
+    status: pending
+    traces_to:
+    - WU011
+    verifier: tests/e2e/ac6-modes-hot-reload.spec.ts + evidence/AC6
+  - description: 构建成功无错误，上述每条标准均有可验证证据
+    id: AC7
+    status: pending
+    traces_to:
+    - WU001
+    - WU014
+    verifier: npm run build 日志 + verification/ 全部检查报告 + evidence/AC7
+  completed_criteria:
+  - 桌面应用可启动并打开本地项目文件夹，文件树可浏览，自研编辑器可打开/编辑/保存文件
+  - 简洁上下文引擎：每次 LLM 请求的完整上下文组成（系统提示、工具列表、注入项及各项 token 占用）对用户可见，且用户可逐项开启/关闭
+  - 对话式编程：用户可通过对话请求代码修改，修改以 diff 形式在编辑器内呈现，可逐块接受或拒绝
+  - Agent 模式：Agent 可在用户授权下读写文件并执行终端命令，能完成多步任务，执行轨迹可见
+  - 多模型接入：支持 Anthropic API 与 OpenAI 兼容 API，可自定义 base URL 与 API key，会话中可切换模型
+  - 模式自定义系统：用户可创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略， 修改热生效无需重启
+  - 构建成功无错误，上述每条标准均有可验证证据
+  failed_criteria: []
+status: in_progress
+updated_at: '2026-07-21T07:26:42.827558'

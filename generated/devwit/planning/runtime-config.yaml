@@ -1,0 +1,37 @@
+version: 1
+description: |
+  DevWit supervisor runtime 配置。
+  派生自 task.yaml：scope=4 / criticality=3 / novelty=4 / coupling=4（tier=full）；
+  scale=team 但实际 team_size=1（单人+AI 开发），按 harness-author.md 决策矩阵
+  "S>=3 + team=1" 行：supervisor 启用、subprocess 派发、无 worktree 池、不自动 push。
+  max_items=14 对齐 planning/work-units.yaml 的 WU001-WU014。
+
+supervisor:
+  enabled: true                     # 单人+AI 多 workitem，需 supervisor 驱动流水线
+  max_items: 14                     # 对齐 work-units.yaml 的 WU001-WU014
+  max_runtime_seconds: 14400        # full tier 单轮 4 小时上限
+  error_threshold: 3                # 连续失败 3 次 stop 转人工
+  claim_policy: priority            # fifo / priority / critical / any —— 按 priority 字段再按依赖序
+
+stop_conditions:
+  - queue_empty                     # workitem source 无候选
+  - max_items_reached               # 达到 max_items 上限
+  - error_threshold                 # 连续失败次数超阈值
+  - manual_stop                     # 检测到 .meta-harness/STOP 文件
+  - all_acs_verified                # AC1-AC7 全部 verified 即完成（C=3 启用）
+  - max_runtime_exceeded            # 超时
+  # - fatal_event                   # criticality >= 4 才启用，本项目 C=3 不启用
+  # - drain                         # graceful shutdown 模式，单人项目不需要
+
+dispatch_mode: subprocess           # team_size=1 → spawn `python orchestrator.py --workitem-id <id>`
+
+worktree:
+  pool_size: 0                      # 单人不预创建 worktree 池
+  branch_prefix: devwit             # 分支形如 devwit/WU001-monorepo-skeleton
+  base_branch: main                 # 本地 main，无远端团队同步
+  push_after_rebase: false          # team_size=1，不自动 push
+
+traces_to:
+  all_acs_verified: [AC1, AC2, AC3, AC4, AC5, AC6, AC7]
+  max_items_reached: [AC7]          # WU001-WU014 全处理完才有完整构建证据
+  error_threshold: [AC7]            # 构建/验证连续失败需人工介入

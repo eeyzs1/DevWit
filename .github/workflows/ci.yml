@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHONIOENCODING: utf-8
+
+jobs:
+  quality:
+    name: Lint / Unit Tests / Verification / Build
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: generated/devwit
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: generated/devwit/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Python deps (verification scripts)
+        run: pip install pyyaml
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rebuild node-pty for Electron ABI
+        run: npm run rebuild-native
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Unit tests (vitest)
+        run: npm test
+
+      - name: Verification suite
+        shell: pwsh
+        run: |
+          $checks = @(
+            "verification/self-check.py --project-root .",
+            "verification/consistency-check.py --project-root .",
+            "verification/scan-secret-leak.py --project-root .",
+            "verification/check-architecture-boundaries.py --project-root .",
+            "verification/anti-mock-check.py --project-root .",
+            "verification/quality-gate.py --check",
+            "verification/check-context-audit.py --project-root ."
+          )
+          foreach ($c in $checks) {
+            Write-Host "=== python $c ==="
+            Invoke-Expression "python $c"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Build (tsc + esbuild)
+        run: npm run build
+
+  e2e:
+    name: E2E Smoke (Electron + CDP)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: generated/devwit
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: generated/devwit/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rebuild node-pty for Electron ABI
+        run: npm run rebuild-native
+
+      - name: Build
+        run: npm run build
+
+      - name: E2E smoke (AC1–AC6 scenarios)
+        run: npm run test:e2e
+
+      - name: Upload E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-evidence
+          path: generated/devwit/evidence/
+          retention-days: 30

@@ -1,0 +1,30 @@
+# generated/ 下仅跟踪本次验收通过的产品（被忽略的目录无法用否定规则重新包含，
+# 故用 generated/* + 否定写法放行 devwit）
+generated/*
+!generated/devwit/
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+node_modules/
+.env
+*.egg-info/
+dist/
+build/
+*.log
+.DS_Store
+Thumbs.db
+.meta-harness/
+# E2E 测试运行时生成的临时项目目录（v2.8.0 runtime layer 验证）
+.e2e-runtime-test/
+meta/pipeline-state.yaml
+memory/generation-log.yaml
+# task.yaml 是 INTERPRET 阶段的运行时输出（会随用户任务变化）。
+# 示例 task 见 tests/task-industrial-control.yaml；首次运行用 --interpret-intent 生成。
+task.yaml
+
+# IDE / tooling working dirs
+.trae/
+.vscode/

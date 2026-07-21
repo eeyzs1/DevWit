@@ -1,0 +1,115 @@
+version: 1
+description: DevWit harness 各 prototype 权限矩阵 — foundation/editor/platform/ai/ux/verifier 六个 agent 角色的读写执行边界
+roles:
+  foundation-engineer:
+    can_read:
+      - "apps/**"
+      - "packages/**"
+      - "constraints/**"
+      - "planning/**"
+    can_write:
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig*.json"
+      - ".npmrc"
+      - ".eslintrc*"
+      - "vitest.config.*"
+      - "electron-builder.yml"
+      - "scripts/**"
+    can_execute:
+      - "npm install"
+      - "npm run build"
+      - "npm run lint"
+      - "npx tsc"
+      - "git status"
+      - "git log"
+      - "git diff"
+
+  editor-engineer:
+    can_read:
+      - "packages/editor-core/**"
+      - "packages/editor-render/**"
+      - "packages/syntax/**"
+      - "constraints/architecture-rules.yaml"
+    can_write:
+      - "packages/editor-core/**"
+      - "packages/editor-render/**"
+      - "packages/syntax/**"
+    can_execute:
+      - "npm run build"
+      - "npm test"
+      - "npx vitest run"
+      - "npx tsc --noEmit"
+
+  platform-engineer:
+    can_read:
+      - "apps/desktop/**"
+      - "packages/workspace/**"
+      - "packages/terminal/**"
+      - "packages/settings/**"
+      - "constraints/architecture-rules.yaml"
+    can_write:
+      - "apps/desktop/**"
+      - "packages/workspace/**"
+      - "packages/terminal/**"
+      - "packages/settings/**"
+    can_execute:
+      - "npm run build"
+      - "npm test"
+      - "npx electron ."
+      - "npx tsc --noEmit"
+
+  ai-engineer:
+    can_read:
+      - "packages/llm-providers/**"
+      - "packages/context-engine/**"
+      - "packages/agent-runtime/**"
+      - "packages/modes/**"
+      - "constraints/architecture-rules.yaml"
+      - "verification/security-guardrails.yaml"
+    can_write:
+      - "packages/llm-providers/**"
+      - "packages/context-engine/**"
+      - "packages/agent-runtime/**"
+      - "packages/modes/**"
+    can_execute:
+      - "npm run build"
+      - "npm test"
+      - "npx vitest run"
+      - "python verification/scan-secret-leak.py --project-root ."
+
+  ux-engineer:
+    can_read:
+      - "packages/chat-ui/**"
+      - "packages/editor-render/**"
+      - "apps/desktop/**"
+      - "constraints/architecture-rules.yaml"
+    can_write:
+      - "packages/chat-ui/**"
+    can_execute:
+      - "npm run build"
+      - "npm test"
+      - "npx vitest run"
+
+  verifier:
+    can_read:
+      - "apps/**"
+      - "packages/**"
+      - "constraints/**"
+      - "verification/**"
+      - "evidence/**"
+      - "tests/**"
+    can_write:
+      - "tests/**"
+      - "evidence/**"
+    can_execute:
+      - "npm run build"
+      - "npm run lint"
+      - "npm run typecheck"
+      - "npm test"
+      - "npx vitest run"
+      - "python guard.py --check"
+      - "python orchestrator.py --verify"
+      - "python verification/check-architecture-boundaries.py --project-root ."
+      - "python verification/scan-secret-leak.py --project-root ."
+      - "python verification/check-context-audit.py --project-root ."

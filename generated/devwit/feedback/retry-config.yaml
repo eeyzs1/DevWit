@@ -1,0 +1,59 @@
+version: 1
+description: >-
+  DevWit 项目错误类型的重试策略。self-check.py 的 _get_retry_strategy 按
+  error_types 匹配本文件取 strategy；可机械修复的条目在 fixer-registry.yaml
+  绑定定向 fixer，no_retry/requires_human 的条目转人工。
+
+strategies:
+  eslint_failure:
+    error_types: [eslint_failure]
+    strategy: auto_fix
+    max_retries: 1
+    action: "绑定 eslint_autofix fixer：对报错文件跑 npx eslint --fix 机械修复后重检"
+
+  tsc_type_error:
+    error_types: [tsc_type_error]
+    strategy: retry_with_context
+    max_retries: 2
+    action: "携带 tsc 报错位置与相关类型定义上下文重试，由执行 agent 修正类型"
+
+  build_failure:
+    error_types: [build_failure]
+    strategy: retry_with_context
+    max_retries: 2
+    action: "携带 npm run build 失败日志（exit code + 首尾各 20 行）重试，修正后重新构建"
+
+  test_failure:
+    error_types: [test_failure]
+    strategy: retry_with_diagnosis
+    max_retries: 3
+    action: "先诊断失败用例根因（断言差异/环境/时序），再带诊断结论重试"
+
+  lockfile_drift:
+    error_types: [lockfile_drift]
+    strategy: auto_fix
+    max_retries: 1
+    action: "绑定 lockfile_repair fixer：npm install --package-lock-only 重算 package-lock.json"
+
+  secret_leak_detected:
+    error_types: [secret_leak_detected]
+    strategy: no_retry
+    max_retries: 0
+    requires_human: true
+    action: "凭证/API key 明文泄露（违反 AR005）：立即停止，转人工轮换凭证并清除泄露点"
+
+  audit_write_failed:
+    error_types: [audit_write_failed]
+    strategy: no_retry
+    max_retries: 0
+    requires_human: true
+    action: "审计日志写入/哈希链校验失败：不自动重试，audit_hash_repair（safe:false）仅给出人工修复步骤"
+
+  llm_api_error:
+    error_types: [llm_api_error]
+    strategy: exponential_backoff
+    max_retries: 3
+    initial_delay_seconds: 2
+    max_delay_seconds: 30
+    backoff_multiplier: 2
+    action: "真实 LLM API 调用限流/5xx：指数退避后重试；认证失败（401/403）不在此列，按 no_retry 转人工"

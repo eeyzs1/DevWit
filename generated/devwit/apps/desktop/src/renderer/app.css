@@ -1,0 +1,622 @@
+/* DevWit IDE 布局与主题（WU012/WU013） */
+:root {
+  --dw-bg: #1e1f24;
+  --dw-bg-panel: #26272e;
+  --dw-bg-elevated: #2e3038;
+  --dw-border: #3a3c46;
+  --dw-fg: #d7d9e0;
+  --dw-fg-dim: #9a9daa;
+  --dw-accent: #4f8cff;
+  --dw-danger: #e5534b;
+  --dw-add: #1f3d2b;
+  --dw-add-fg: #7ee2a8;
+  --dw-remove: #3d2426;
+  --dw-remove-fg: #f2a0a0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  background: var(--dw-bg);
+  color: var(--dw-fg);
+  font-family: system-ui, "Segoe UI", sans-serif;
+  font-size: 13px;
+}
+
+.dw-ide {
+  display: grid;
+  grid-template-rows: 40px 1fr 24px;
+  grid-template-columns: 230px 1fr 400px;
+  grid-template-areas:
+    "header header header"
+    "sidebar editor side"
+    "status status status";
+  height: 100%;
+}
+
+/* ---- 顶栏 ---- */
+.dw-header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  background: var(--dw-bg-panel);
+  border-bottom: 1px solid var(--dw-border);
+}
+
+.dw-header .dw-title {
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.dw-header .dw-spacer {
+  flex: 1;
+}
+
+.dw-active-file {
+  color: var(--dw-fg-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 40%;
+}
+
+/* ---- 按钮与表单控件 ---- */
+.dw-btn {
+  background: var(--dw-bg-elevated);
+  color: var(--dw-fg);
+  border: 1px solid var(--dw-border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.dw-btn:hover {
+  border-color: var(--dw-accent);
+}
+
+.dw-btn-primary {
+  background: var(--dw-accent);
+  border-color: var(--dw-accent);
+  color: #fff;
+}
+
+.dw-btn-danger {
+  border-color: var(--dw-danger);
+  color: var(--dw-danger);
+}
+
+.dw-btn-small {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.dw-btn-tiny {
+  padding: 1px 6px;
+  font-size: 11px;
+  background: transparent;
+  color: var(--dw-fg);
+  border: 1px solid var(--dw-border);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.dw-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.dw-select,
+.dw-input,
+.dw-textarea {
+  background: var(--dw-bg-elevated);
+  color: var(--dw-fg);
+  border: 1px solid var(--dw-border);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
+/* ---- 侧栏：文件树 ---- */
+.dw-sidebar {
+  grid-area: sidebar;
+  background: var(--dw-bg-panel);
+  border-right: 1px solid var(--dw-border);
+  overflow: auto;
+  padding: 6px 0;
+}
+
+.dw-tree,
+.dw-tree ul {
+  list-style: none;
+  margin: 0;
+  padding-left: 14px;
+}
+
+.dw-tree {
+  padding-left: 6px;
+}
+
+.dw-tree-node {
+  padding: 2px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--dw-fg-dim);
+}
+
+.dw-tree-node:hover {
+  background: var(--dw-bg-elevated);
+  color: var(--dw-fg);
+}
+
+.dw-tree-node.dw-tree-active {
+  color: var(--dw-accent);
+}
+
+.dw-sidebar-empty {
+  padding: 12px;
+  color: var(--dw-fg-dim);
+}
+
+/* ---- 编辑区 ---- */
+.dw-editor-area {
+  grid-area: editor;
+  position: relative;
+  overflow: hidden;
+  background: var(--dw-bg);
+}
+
+.dw-editor-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.dw-diff-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--dw-bg);
+  display: flex;
+  flex-direction: column;
+  z-index: 5;
+}
+
+/* ---- 右侧栏 ---- */
+.dw-side {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  background: var(--dw-bg-panel);
+  border-left: 1px solid var(--dw-border);
+  min-height: 0;
+}
+
+.dw-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--dw-border);
+}
+
+.dw-tab {
+  flex: 1;
+  padding: 7px 0;
+  text-align: center;
+  cursor: pointer;
+  color: var(--dw-fg-dim);
+  border-bottom: 2px solid transparent;
+}
+
+.dw-tab.dw-tab-active {
+  color: var(--dw-fg);
+  border-bottom-color: var(--dw-accent);
+}
+
+.dw-side-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- 对话面板 ---- */
+.dw-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.dw-chat-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-bottom: 1px solid var(--dw-border);
+}
+
+.dw-chat-toolbar .dw-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.dw-chat-list {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dw-msg {
+  padding: 6px 8px;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+.dw-msg-user {
+  background: var(--dw-bg-elevated);
+  align-self: flex-end;
+  max-width: 92%;
+}
+
+.dw-msg-assistant {
+  background: transparent;
+  border: 1px solid var(--dw-border);
+}
+
+.dw-msg-assistant.dw-streaming {
+  border-color: var(--dw-accent);
+}
+
+.dw-msg-tool {
+  color: var(--dw-fg-dim);
+  font-family: Consolas, monospace;
+  font-size: 11px;
+}
+
+.dw-msg-authorization {
+  border: 1px solid var(--dw-accent);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dw-msg-authorization .dw-btn {
+  margin-right: 6px;
+}
+
+.dw-auth-decided {
+  color: var(--dw-fg-dim);
+  font-size: 11px;
+}
+
+.dw-msg-error {
+  border: 1px solid var(--dw-danger);
+  color: var(--dw-danger);
+}
+
+.dw-msg-done {
+  color: var(--dw-fg-dim);
+  text-align: center;
+  font-size: 11px;
+}
+
+.dw-chat-input {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--dw-border);
+  align-items: flex-end;
+}
+
+.dw-chat-textarea {
+  flex: 1;
+  resize: none;
+  background: var(--dw-bg-elevated);
+  color: var(--dw-fg);
+  border: 1px solid var(--dw-border);
+  border-radius: 4px;
+  padding: 6px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+/* ---- 上下文面板 ---- */
+.dw-context {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.dw-context-header {
+  padding: 8px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--dw-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dw-context-toggles {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px solid var(--dw-border);
+}
+
+.dw-context-toggle {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  cursor: pointer;
+  color: var(--dw-fg-dim);
+}
+
+.dw-context-toggle input {
+  accent-color: var(--dw-accent);
+}
+
+.dw-context-manifest {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+}
+
+.dw-context-meta {
+  color: var(--dw-fg-dim);
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+
+.dw-context-empty {
+  color: var(--dw-fg-dim);
+  padding: 12px 4px;
+}
+
+.dw-context-item {
+  border: 1px solid var(--dw-border);
+  border-radius: 4px;
+  margin-bottom: 6px;
+  padding: 6px;
+}
+
+.dw-context-item-off {
+  opacity: 0.55;
+}
+
+.dw-context-item-title {
+  font-size: 12px;
+}
+
+.dw-context-item-content {
+  max-height: 200px;
+  overflow: auto;
+  background: var(--dw-bg);
+  padding: 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---- diff 视图 ---- */
+.dw-diff {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.dw-diff-header {
+  padding: 8px 10px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--dw-border);
+  background: var(--dw-bg-panel);
+}
+
+.dw-diff-body {
+  flex: 1;
+  overflow: auto;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  padding: 6px 0;
+}
+
+.dw-diff-line {
+  padding: 0 10px;
+  white-space: pre;
+  line-height: 1.5;
+}
+
+.dw-diff-context {
+  color: var(--dw-fg-dim);
+}
+
+.dw-diff-add {
+  background: var(--dw-add);
+  color: var(--dw-add-fg);
+}
+
+.dw-diff-remove {
+  background: var(--dw-remove);
+  color: var(--dw-remove-fg);
+}
+
+.dw-diff-hunk {
+  border-top: 1px solid var(--dw-border);
+  border-bottom: 1px solid var(--dw-border);
+  margin: 4px 0;
+}
+
+.dw-diff-hunk-accepted {
+  outline: 1px solid var(--dw-add-fg);
+}
+
+.dw-diff-hunk-rejected {
+  outline: 1px solid var(--dw-remove-fg);
+}
+
+.dw-diff-hunk-header {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 3px 10px;
+  background: var(--dw-bg-panel);
+  font-family: system-ui, sans-serif;
+}
+
+.dw-diff-hunk-header span {
+  flex: 1;
+  color: var(--dw-fg-dim);
+}
+
+.dw-diff-footer {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--dw-border);
+  background: var(--dw-bg-panel);
+  align-items: center;
+}
+
+.dw-diff-progress {
+  margin-left: auto;
+  color: var(--dw-fg-dim);
+}
+
+/* ---- 状态栏 ---- */
+.dw-statusbar {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px;
+  background: var(--dw-bg-panel);
+  border-top: 1px solid var(--dw-border);
+  color: var(--dw-fg-dim);
+  font-size: 11px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* ---- 模态框 ---- */
+.dw-modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.dw-modal {
+  width: 640px;
+  max-width: 92vw;
+  max-height: 86vh;
+  overflow: auto;
+  background: var(--dw-bg-panel);
+  border: 1px solid var(--dw-border);
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dw-modal h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.dw-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.dw-modal-list-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 8px;
+  border: 1px solid var(--dw-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.dw-modal-list-item:hover {
+  border-color: var(--dw-accent);
+}
+
+.dw-modal-list-item .dw-grow {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dw-form {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px 10px;
+  align-items: center;
+}
+
+.dw-form label {
+  color: var(--dw-fg-dim);
+  text-align: right;
+}
+
+.dw-form .dw-input,
+.dw-form .dw-select,
+.dw-form .dw-textarea {
+  width: 100%;
+}
+
+.dw-form .dw-textarea {
+  min-height: 90px;
+  resize: vertical;
+  font-family: Consolas, monospace;
+}
+
+.dw-form-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.dw-form-checks label {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  color: var(--dw-fg);
+  cursor: pointer;
+}
+
+.dw-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dw-form-error {
+  color: var(--dw-danger);
+  grid-column: 1 / -1;
+}

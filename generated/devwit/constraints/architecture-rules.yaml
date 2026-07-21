@@ -1,0 +1,96 @@
+version: 2
+description: DevWit 架构约束规则（AR001-AR007）— 由 guard.py 与 verification/check-architecture-boundaries.py 自动执行
+enforcement: AUTOMATIC
+guard_integration: true
+
+auto_check_script: guard.py
+
+rules:
+  - id: AR001
+    description: "渲染进程边界：packages/chat-ui、packages/editor-render 与 apps/desktop 的渲染进程代码不得 import node:fs/node:child_process，不得直接发起 LLM HTTP 请求；主进程能力仅经 apps/desktop preload 白名单 IPC 暴露"
+    pattern: "(?:import|require)\\s*\\(?\\s*['\"](?:node:)?(?:fs|child_process)['\"]"
+    file_pattern: "packages/chat-ui/**, packages/editor-render/**, apps/desktop/**/renderer/**"
+    severity: error
+    auto_block: true
+
+  - id: AR002
+    description: "LLM 出口唯一：仅 packages/llm-providers 可发起 Anthropic Messages API / OpenAI 兼容 API 请求；packages/agent-runtime、packages/context-engine、packages/modes 必须经 llm-providers 接口访问模型，禁止反向依赖"
+    pattern: "(?:api\\.anthropic\\.com|api\\.openai\\.com)"
+    file_pattern: "packages/**, apps/**"
+    severity: error
+    auto_block: true
+
+  - id: AR003
+    description: "编辑器内核独立：packages/editor-core（piece-table）、packages/editor-render（Canvas 渲染）、packages/syntax（tree-sitter wasm）不得依赖 packages/agent-runtime、packages/chat-ui、packages/modes、packages/llm-providers"
+    check: "check-architecture-boundaries.py 校验 editor-core/editor-render/syntax 的 import 图不含 AI 侧包"
+    file_pattern: "packages/editor-core/**, packages/editor-render/**, packages/syntax/**"
+    severity: error
+    auto_block: true
+
+  - id: AR004
+    description: "主进程服务边界：packages/workspace（fs/watch）、packages/terminal（node-pty）、packages/settings（safeStorage）仅供 Electron 主进程使用，不得被渲染进程代码（packages/chat-ui、packages/editor-render、apps/desktop 渲染层）直接 import"
+    check: "check-architecture-boundaries.py 校验渲染进程 import 图不含 workspace/terminal/settings"
+    file_pattern: "packages/chat-ui/**, packages/editor-render/**, apps/desktop/**/renderer/**"
+    severity: error
+    auto_block: true
+
+  - id: AR005
+    description: "凭证加密：LLM API key 必须经 packages/settings 的 Electron safeStorage 加密落盘，禁止明文写入磁盘（settings.json/.env/日志），禁止明文进入日志或 agent 轨迹事件"
+    pattern: "(?:api[_-]?key|x-api-key)\\s*[:=]\\s*['\"]sk-[^'\"]+['\"]"
+    file_pattern: "packages/**, apps/**"
+    severity: error
+    auto_block: true
+
+  - id: AR006
+    description: "禁第三方编辑器内核：任何包不得引入 monaco-editor 或 @codemirror/* 依赖；编辑器内核由 packages/editor-core + packages/editor-render + packages/syntax 自研"
+    pattern: "(?:monaco-editor|@codemirror/)"
+    file_pattern: "packages/**, apps/**, package.json, **/package.json"
+    severity: error
+    auto_block: true
+
+  - id: AR007
+    description: "上下文默认极简：packages/context-engine 默认仅注入系统提示+工具定义，用户未开启的上下文项零注入；每次 LLM 请求必须生成含各项 token 计数的 context manifest（供 chat-ui 上下文组成面板审计，对应 AC2）"
+    check: "check-context-audit.py 校验 evidence/AC2 下 context manifest 证据结构"
+    severity: error
+    auto_block: true
+
+dependency_direction:
+  allowed:
+    - "apps/desktop → packages/*"
+    - "agent-runtime → llm-providers"
+    - "agent-runtime → context-engine"
+    - "agent-runtime → modes"
+    - "context-engine → modes"
+    - "chat-ui → ipc-interface"
+  forbidden:
+    - "packages/* → apps/*"
+    - "llm-providers → agent-runtime"
+    - "editor-core → agent-runtime"
+    - "editor-core → chat-ui"
+    - "editor-core → modes"
+    - "editor-core → llm-providers"
+    - "editor-render → agent-runtime"
+    - "editor-render → chat-ui"
+    - "editor-render → modes"
+    - "editor-render → llm-providers"
+    - "syntax → agent-runtime"
+    - "syntax → chat-ui"
+    - "syntax → modes"
+    - "syntax → llm-providers"
+    - "renderer → workspace"
+    - "renderer → terminal"
+    - "renderer → settings"
+    - "* → llm-http"
+    - "renderer → node:fs"
+    - "renderer → node:child_process"
+
+pre_commit_checks:
+  - id: PC001
+    command: python guard.py --check "pre-commit validation"
+    required: true
+  - id: PC002
+    command: python orchestrator.py --verify
+    required: true
+  - id: PC003
+    command: python verification/check-architecture-boundaries.py --project-root .
+    required: true

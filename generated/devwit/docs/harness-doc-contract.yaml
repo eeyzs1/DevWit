@@ -1,0 +1,84 @@
+version: 1
+description: |
+  DevWit harness 自身文档契约。
+  定义 harness 文档（README/AGENTS.md/CHANGELOG/DESIGN-DECISIONS）的 schema、
+  生成时机、版本化策略。文档纳入 evolution loop：超过 max_age_days 未更新
+  触发 innovation-engine 的 doc_refresh 提案。
+
+documents:
+  - name: README.md
+    purpose: "DevWit harness 使用说明——pipeline 命令、workitem 队列操作、slot 结构"
+    generate_when: [generate_complete]   # GENERATE 阶段完成时生成
+    required_fields:
+      - quick_start                       # python meta/meta-orchestrator.py --status / --advance
+      - commands                          # supervisor / local_file_source CLI / validate-harness
+      - architecture_overview             # planning/runtime/verification/evolution 目录职责
+    versioned: true
+    version_field: "harness_version"
+
+  - name: AGENTS.md
+    purpose: "agent 操作指令（已存在，内容随 slot 变更同步更新）"
+    generate_when: [scaffold, on_slot_change]
+    copy_to: [CLAUDE.md, .cursorrules]
+    required_fields:
+      - startup_steps
+      - workflow
+      - hard_constraints                  # 必须含 HC1-HC5 原文
+      - completion_check
+
+  - name: CHANGELOG.md
+    purpose: "harness 演进历史——每次 phase 推进（INTERPRET→EVOLVE）追加一条"
+    generate_when: [after_phase_advance, after_evolve]
+    append_only: true                     # 不删旧条目，只追加
+    entry_schema:
+      - version
+      - date
+      - phase                             # interpret / generate / factory / prove / judge / evolve
+      - mutations                         # evolve 的 mutation 列表（无则空）
+      - fitness_before
+      - fitness_after
+      - traces_to_acs
+
+  - name: docs/DESIGN-DECISIONS.md
+    purpose: "DevWit 关键设计决策记录（ADR 风格）"
+    generate_when: [generate_complete, when_decision_made]
+    required_fields:
+      - decision_id
+      - context
+      - decision
+      - consequences
+      - status                             # proposed / accepted / deprecated / superseded
+    initial_decisions:
+      - id: DD-001
+        topic: "桌面壳选型 Electron + TypeScript"
+        rationale: "与 pi/Claude Code 生态同语言，跨平台，node-pty/tree-sitter wasm 生态成熟（HC2）"
+      - id: DD-002
+        topic: "pi 式极简上下文引擎"
+        rationale: "默认极少注入、逐项可见可开关，解决现有工具上下文膨胀失控问题（HC4、AC2）"
+      - id: DD-003
+        topic: "用户自定义模式系统"
+        rationale: "prompt/工具集/模型/上下文策略定义权交给用户，热生效（AC6）"
+      - id: DD-004
+        topic: "自研编辑器内核"
+        rationale: "禁用 Monaco/CodeMirror，piece-table + Canvas 自绘（HC3）"
+      - id: DD-005
+        topic: "本地优先无自建后端"
+        rationale: "agent runtime 在 Electron 主进程直连 LLM API（HC1）"
+
+evolution:
+  staleness_check:
+    enabled: true
+    max_age_days: 30                       # 超 30 天没更新 = 过时，触发 innovation 提案
+    trigger: "innovation_engine"
+    proposal_type: "doc_refresh"
+
+  versioning:
+    strategy: semver                        # major.minor.patch
+    bump_on:
+      - "slot schema change → major"
+      - "new AC added → minor"
+      - "typo / clarification → patch"
+
+traces_to:
+  CHANGELOG.md: [AC7]                       # phase 推进与 AC 证据可追溯
+  AGENTS.md: [AC7]

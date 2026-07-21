@@ -1,0 +1,176 @@
+version: 2
+description: >-
+  DevWit（简洁上下文 AI 原生桌面 IDE）的 sub-agent 拓扑。
+  按 task.yaml 的真实组件图合成：Electron 壳 + 自研编辑器内核 + pi 式 agent 内核
+  + 多模型接入 + 模式系统。不套 ceil(S/2) 公式，角色按组件边界切分。
+  agent-factory 按 prototypes 实例化角色；boundaries.* 为硬约束字段。
+
+prototypes:
+  foundation-engineer:
+    responsibilities:
+      - 搭建 npm workspaces + TypeScript monorepo 工程骨架
+      - 配置 electron-builder / electron-forge 打包流水线
+      - 建立根级构建/测试/lint 脚本（dev/build/test/lint）
+      - 定义 tsconfig base 与包间引用规则（project references）
+    receives:
+      - task definition (task.yaml)
+      - constraints/architecture-rules.yaml
+    produces:
+      - 可构建的 monorepo 骨架（package.json/tsconfig/构建脚本）
+      - electron-builder 配置与打包产物脚本
+    count: 1
+    boundaries:
+      cannot:
+        - "实现任何 packages/* 的业务逻辑（只搭骨架与构建）"
+        - "引入 Monaco Editor 或 CodeMirror 依赖（task 硬约束禁止）"
+        - "跳过 audit_log 直接修改 planning/* 状态"
+      max_context_lines: 600
+    requires_human_review: false
+
+  editor-engineer:
+    responsibilities:
+      - 实现 packages/editor-core 文本缓冲区（piece-table、编辑操作、undo/redo）
+      - 实现 packages/editor-render Canvas 渲染器（布局/滚动/选区/光标/IME 合成）
+      - 实现 packages/syntax tree-sitter wasm 增量高亮
+    receives:
+      - monorepo 骨架（WU001 产物）
+      - 编辑器交互需求（task.yaml AC1）
+    produces:
+      - packages/editor-core 源码与单元测试
+      - packages/editor-render 源码与单元测试
+      - packages/syntax 源码与单元测试
+    count: 1
+    boundaries:
+      cannot:
+        - "依赖 Monaco/CodeMirror/任何第三方编辑器内核"
+        - "在 editor-core 中引用 agent-runtime 或 chat-ui（编辑器内核必须独立可用）"
+        - "使用 DOM contenteditable 作为编辑核心（渲染必须是 Canvas 自绘）"
+      max_context_lines: 900
+    requires_human_review: false
+
+  platform-engineer:
+    responsibilities:
+      - 实现 apps/desktop Electron 壳（窗口/菜单/preload 白名单 IPC）
+      - 实现 packages/workspace 文件树与工作区服务（fs 读写/watch）
+      - 实现 packages/terminal 终端（xterm.js + node-pty）
+      - 实现 packages/settings 设置中心与凭证加密存储（Electron safeStorage，热更新）
+    receives:
+      - monorepo 骨架（WU001 产物）
+      - IPC 边界约束（security-guardrails.yaml）
+    produces:
+      - apps/desktop 源码（main/preload）
+      - packages/workspace、packages/terminal、packages/settings 源码与测试
+    count: 1
+    boundaries:
+      cannot:
+        - "渲染进程开启 nodeIntegration（必须 contextIsolation + 白名单 IPC）"
+        - "明文落盘任何 API key/凭证（必须 safeStorage 加密）"
+        - "在渲染进程直接调用 node:fs / node:child_process"
+      max_context_lines: 800
+    requires_human_review: false
+
+  ai-engineer:
+    responsibilities:
+      - 实现 packages/llm-providers 多模型接入层（Anthropic + OpenAI 兼容，流式，自定义 endpoint）
+      - 实现 packages/context-engine 简洁上下文引擎（上下文项注册表/token 计数/context manifest/注入策略）
+      - 实现 packages/agent-runtime（agent loop、read/write/edit/bash/grep/find/ls 工具、授权门、轨迹事件）
+      - 实现 packages/modes 模式系统（mode schema/CRUD/热更新 watcher）
+    receives:
+      - settings 凭证接口（WU007 产物）
+      - terminal PTY 接口（WU006 产物）
+      - task.yaml 硬约束（上下文默认极简、禁止静默注入）
+    produces:
+      - packages/llm-providers、context-engine、agent-runtime、modes 源码与测试
+      - context manifest 样例（每项 token 占用可审计证据）
+    count: 1
+    boundaries:
+      cannot:
+        - "在 llm-providers 之外任何包发起 LLM HTTP 请求"
+        - "默认注入用户未开启的上下文项（违反核心硬约束）"
+        - "mock/stub LLM API 响应（必须真实调用，测试用录制真实响应的 fixture）"
+        - "绕过授权门执行 write/edit/bash 工具"
+      max_context_lines: 1000
+    requires_human_review: false
+
+  ux-engineer:
+    responsibilities:
+      - 实现 packages/chat-ui 对话面板（流式消息/工具调用展示/模型切换器）
+      - 实现上下文组成面板（逐项 token 占用展示与开关）
+      - 实现 diff 内联编辑视图（选区修改 → diff → 逐块接受/拒绝，嵌入 editor-render）
+    receives:
+      - context-engine manifest 接口（WU009 产物）
+      - modes 模式定义接口（WU011 产物）
+      - agent-runtime 轨迹事件接口（WU010 产物）
+      - editor-render 嵌入接口（WU003 产物）
+    produces:
+      - packages/chat-ui 源码与组件测试
+      - diff 内联编辑交互实现
+    count: 1
+    boundaries:
+      cannot:
+        - "在 chat-ui 直接调用 LLM API 或 node:*（只经 IPC 接口层）"
+        - "把上下文开关状态存于渲染进程内存而不持久化（必须经 settings 热更新）"
+      max_context_lines: 800
+    requires_human_review: false
+
+  verifier:
+    responsibilities:
+      - 编写并运行 E2E 测试（启动应用/打开文件夹/编辑保存/对话/Agent/切换模型/模式热更新）
+      - 运行 build 验证（npm run build 全仓无错误，electron-builder 产物可生成）
+      - 为每条 acceptance_criteria 收集可验证证据（截图/日志/manifest 样例）
+      - 运行 verification/ 下全部检查脚本并汇总报告
+    receives:
+      - 全部 packages 与 apps 产物
+      - task.yaml acceptance_criteria（7 条）
+    produces:
+      - E2E 测试套件与运行报告
+      - 每条 AC 的证据文件（evidence/AC1..AC7）
+      - 构建验证报告
+    count: 1
+    boundaries:
+      cannot:
+        - "修改被测源码以让测试通过"
+        - "无证据标记 AC 完成（证据必须落盘 evidence/）"
+        - "性能测试占满 CPU/内存（task 软约束）"
+      max_context_lines: 600
+    requires_human_review: false
+
+# 向后兼容：旧格式 roles 保留。agent-factory 在无 prototypes 时回退使用。
+roles:
+  - name: planner
+    responsibilities:
+      - design API contracts
+      - define component structure
+      - create task decomposition
+    receives:
+      - task definition
+    produces:
+      - API contracts
+      - component specs
+      - execution plan
+
+  - name: executor
+    responsibilities:
+      - implement features
+      - write code
+      - fix bugs
+    receives:
+      - execution plan
+      - API contracts
+      - component specs
+    produces:
+      - source code
+      - test code
+
+  - name: verifier
+    responsibilities:
+      - run tests
+      - check consistency
+      - validate outputs
+    receives:
+      - source code
+      - test code
+      - acceptance criteria
+    produces:
+      - test results
+      - verification report

@@ -1,0 +1,186 @@
+version: 1
+scaffolded_at: '2026-07-20T21:39:54.907081'
+task_file: task.yaml
+task_name: DevWit — 简洁上下文 AI 原生桌面 IDE
+task_domain: desktop_app
+profile:
+  tier: full
+  scope: 4
+  criticality: 3
+  novelty: 4
+  coupling: 4
+universal_primitives:
+- context/loader.py
+- tools/tool-discovery.py
+- memory/snapshot.py
+- planning/dag-builder.py
+- planning/dispatcher.py
+- planning/task-card-schema.yaml
+- verification/self-check.py
+- verification/consistency-check.py
+- verification/anti-mock-check.py
+- verification/quality-gate.py
+- verification/dispatch-verifier.py
+- verification/hook-executor.py
+- verification/runtime-hooks.yaml
+- verification/audit-append.py
+- verification/lint-check.py
+- feedback/error-capture.py
+- feedback/mistake-to-constraint.py
+- constraints/entropy-reduction.py
+- evolution/framework.md
+- evolution/innovation-engine.py
+- evolution/product-analyzer.py
+- runtime/supervisor.py
+- runtime/worktree_lifecycle.py
+- runtime/leaf_protocol.py
+- runtime/leaf_prepare.py
+- runtime/leaf_record.py
+- runtime/event_stream.py
+- runtime/rebase_sync.py
+- runtime/workitem_source.py
+- guard.py
+- orchestrator.py
+llm_slots:
+- layer: context
+  file: context/knowledge-index.yaml
+  baseline_hash: 1bdcbeab2238c20a942e719073add7b7
+  guidance: 分析 task 的组件结构，把 mappings 改为该项目的真实路径到知识域映射。每条带 description + tags。
+- layer: tools
+  file: tools/schemas.yaml
+  baseline_hash: 15668ed60fa4ffa9a2626d6f9f06abf9
+  guidance: 分析 task 实际需要调用的工具（DB/HTTP/外部 API/协议），写出该项目的工具 schema 定义。
+- layer: tools
+  file: tools/sandbox.yaml
+  baseline_hash: 52eb9000e56f43f5b4e2be67fdd9546e
+  guidance: 按该项目实际执行的命令与网络访问需求，写沙箱配置。
+- layer: tools
+  file: tools/permissions.yaml
+  baseline_hash: 6eb0e360e49ea19341435bca659b1e66
+  guidance: 按该项目 agent 角色（planner/executor/verifier 等），写每个角色的读写执行权限。
+- layer: memory
+  file: memory/session-state.yaml
+  baseline_hash: d41d8cd98f00b204e9800998ecf8427e
+  guidance: 初始化会话状态：当前阶段、已完成/待办验收标准（从 task.acceptance_criteria 派生）。
+- layer: memory
+  file: memory/compression-rules.yaml
+  baseline_hash: a6f0e0cde8e54bbf99c6c5f94fa3d719
+  guidance: 按该项目该保留/压缩/遗忘的内容，写压缩规则。
+- layer: planning
+  file: planning/flow-control.yaml
+  baseline_hash: 6fa00cd1dbb11505cf60095bbac7980a
+  guidance: 按该项目工作流（顺序/并行/条件/重试），写流控配置。
+- layer: planning
+  file: planning/work-units.yaml
+  baseline_hash: d41d8cd98f00b204e9800998ecf8427e
+  guidance: 把 task 分解为可独立派发的工作单元。每条含 id/name/depends_on/assigned_to/success_constraints/success_criteria。depends_on
+    必须基于真实依赖（如下游用上游的产物）。assigned_to 必须引用 sub-agent-dispatch.yaml 里某个 prototype 名。dispatcher.py
+    读本文件做拓扑排序与并行分组，不要在这里硬塞顺序——只声明依赖关系即可。
+- layer: planning
+  file: planning/sub-agent-dispatch.yaml
+  baseline_hash: c0fe8fd5fd962475d9f60db60bfdd1c4
+  guidance: '分析 task 的工作单元与依赖，合成 agent 拓扑（不要套用固定公式 ceil(S/2)）。每个 prototype 必须含 responsibilities/receives/produces/count/boundaries.cannot/boundaries.max_context_lines。需人工
+    review 的角色必须显式 requires_human_review: true。'
+- layer: planning
+  file: planning/budget.yaml
+  baseline_hash: fc355d7c7ccfa52021671952977e35da
+  guidance: 按该项目复杂度与风险，设置 reasoning step/token/retry 预算。
+- layer: verification
+  file: verification/security-guardrails.yaml
+  baseline_hash: 1de64e996fd304b993b2a5a0afb0a5d9
+  guidance: 分析 task 的数据流与敏感数据面，写 PII/secret 模式与危险操作拦截（针对该项目领域）。
+- layer: feedback
+  file: feedback/retry-config.yaml
+  baseline_hash: 6d34e71a4c632f04eff1b9e981e0c5ba
+  guidance: 按该项目可能的错误类型，写重试策略。
+- layer: feedback
+  file: feedback/fixer-registry.yaml
+  baseline_hash: 1cb93686ac697f6c5b1fad8daf831e72
+  guidance: 按该项目 retry-config 的 strategy，为可机械修复的错误类型绑定定向 fixer（match/handler/entry/safe）。通用
+    ruff_autofix 条目保留，项目特定 fixer 据 task.yaml + work-units + retry-config 推演追加，并在 feedback/fixers/
+    生成实现。
+- layer: constraints
+  file: constraints/architecture-rules.yaml
+  baseline_hash: 431dfdd0780cd2d7eb711ea12c820883
+  guidance: 分析 task 的组件依赖图，写依赖方向规则（allowed/forbidden）与架构约束——必须引用 task 里真实的组件/模块。
+- layer: constraints
+  file: constraints/linter-config.yaml
+  baseline_hash: 0f9c4062485c398c75216f8344aabeae
+  guidance: 按该项目架构规则派生 lint 规则。
+- layer: constraints
+  file: constraints/cost-budget.yaml
+  baseline_hash: d2b2f9b7859fece43b5e48cc09c2fb4a
+  guidance: 按该项目实际资源约束（不是 web-app 默认值），写预算阈值。
+- layer: security
+  file: security/sandbox-config.yaml
+  baseline_hash: db99010ccdc176a534ca76a0c52177ca
+  guidance: 按该项目隔离需求，写沙箱配置。
+- layer: security
+  file: security/encryption-rules.yaml
+  baseline_hash: 0eefa12e0ad3fb09c42d6e04bcc43fd7
+  guidance: 按该项目数据分类，写加密规则。
+- layer: observability
+  file: observability/tracing.yaml
+  baseline_hash: 913926ac3b89dd2496d67100edd3796f
+  guidance: 按该项目可观测需求，写追踪配置。
+- layer: observability
+  file: observability/metrics-dashboard.yaml
+  baseline_hash: 90f7b42353b2a53c814539ef260b11c4
+  guidance: 按该项目质量指标，写监控面板配置。
+- layer: observability
+  file: observability/session-replay.yaml
+  baseline_hash: 07d7b92ccda9677916676301d4d989ba
+  guidance: 按该项目回放需求，写会话回放配置。
+- layer: observability
+  file: observability/versioning.yaml
+  baseline_hash: a92e8eabb98844b11200b1f40a18cf1a
+  guidance: 版本管理配置（结构通用，可按项目调整）。
+- layer: evolution
+  file: evolution/genome.yaml
+  baseline_hash: aa59f7d5b54f4fae34377a8e95c54ca5
+  guidance: 初始化进化基因组：把 task 的 hard_constraints 与 acceptance_criteria 作为种子约束写入。
+- layer: evolution
+  file: evolution/log.yaml
+  baseline_hash: fadaf9c8bc9b0e1f4ad904757c50b3df
+  guidance: 初始化为空进化日志。
+- layer: evolution
+  file: evolution/domain-advancements.yaml
+  baseline_hash: 487e50032dd596d35e8a65123511c648
+  guidance: 按该项目领域写四阶段进阶模式（Basic/Solid/Advanced/Excellent），供创新引擎使用。
+- layer: planning
+  file: planning/runtime-config.yaml
+  baseline_hash: c23f4bfad3a5deb4ffbd17dbe59897e4
+  guidance: supervisor 运行时配置：max_items / stop_conditions / dispatch_mode / claim_policy
+    / worktree_pool / branch_prefix / base_branch。从 task.complexity (S/C/N/K) + team_size
+    派生。scope<=2 时 supervisor.enabled=false。
+- layer: planning
+  file: planning/workitem-source.yaml
+  baseline_hash: 49222f4c5ff9221f50f15385b84b8a4c
+  guidance: 声明 workitem source adapter（adapter + class_name + config）。LLM 据 task.work_source
+    决定用 yunxiao/github_issues/local_file/jira 等，并在 runtime/sources/<adapter>_source.py
+    生成实现（继承 runtime/workitem_source.py 的 WorkitemSource 基类，实现 4 个抽象方法）。meta-harness
+    不预设 adapter。
+- layer: planning
+  file: planning/merge-policy.yaml
+  baseline_hash: f448f149d48ddb3c7a56d31419b00750
+  guidance: 分支合并策略：rebase_only / rebase_preferred / merge_allowed / squash。从 criticality
+    派生（C>=4 → rebase_only）。rebase-only 下不需要 merge sub-agent，冲突由 supervisor 标 blocked
+    转人工。
+- layer: planning
+  file: planning/agent-protocol.yaml
+  baseline_hash: 931242824a65563e37a578eae123fb24
+  guidance: leaf agent 协议配置：role 枚举（explorer/worker/tester/reviewer 等）+ 每 role 的 gate
+    / forbidden_side_effects / timeout / effort→budget 映射。从 sub-agent-dispatch.yaml
+    的 prototypes 派生。被 runtime/leaf_prepare.py 读取。
+- layer: docs
+  file: docs/harness-doc-contract.yaml
+  baseline_hash: 68b9b28f83d54f99a80b910e1db84670
+  guidance: harness 自身文档契约：README/AGENTS.md/CHANGELOG/DESIGN-DECISIONS 的 schema、生成时机、版本化策略。纳入
+    evolution loop（genome 含 doc 演进约束，innovation 把'文档过时'作为创新提案）。
+- layer: docs
+  file: docs/project-doc-contract.yaml
+  baseline_hash: 8211c40f9bd4750b8bac6c35f506fc36
+  guidance: 项目代码文档契约：README/API.md/CHANGELOG/DEPLOYMENT.md/SECURITY.md 的 schema、生成时机、版本化策略。PROVE
+    阶段验证文档与代码一致（API endpoints 与 routes 对齐等）。纳入 evolution loop。
+next_step: LLM 读 meta/harness-author.md，对每个 llm_slots 条目分析 task.yaml 并改写文件。完成后运行 python
+  scripts/validate-harness.py <output_dir> 校验。

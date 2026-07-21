@@ -1,0 +1,37 @@
+version: 1
+description: |
+  DevWit 分支合并策略。criticality=3 < 4 → rebase_preferred（rebase 优先，
+  冲突不自动解决，标 blocked 转人工；单人项目允许人工选择 squash 兜底）。
+  不启用 merge 子 agent——rebase 冲突由 supervisor 标 blocked。
+
+policy: rebase_preferred           # rebase_only / rebase_preferred / merge_allowed / squash
+
+rules:
+  - id: MP001
+    description: "workitem 分支（devwit/WUxxx-*）只 rebase 到 main，从不 merge main 到 feature 分支"
+    applies_when: "policy in [rebase_only, rebase_preferred]"
+    enforcement: "runtime/rebase_sync.py sync 在每次 workitem 完成后执行"
+
+  - id: MP002
+    description: "rebase 冲突由 supervisor 标 blocked，不自动 merge 解决，转人工处理"
+    applies_when: "policy in [rebase_only, rebase_preferred]"
+    enforcement: "supervisor._dispatch_workitem_agent 后调 rebase_sync.sync，conflicts 非空则 update_status=blocked"
+
+  - id: MP003
+    description: "merge 子 agent 仅在 merge_allowed 策略下启用"
+    applies_when: "policy == merge_allowed"
+    enforcement: "sub-agent-dispatch.yaml 含 merge-coordinator prototype，仅此策略激活"
+
+  - id: MP004
+    description: "rebase 同一 workitem 连续失败 2 次后，允许人工选择 git merge --squash 兜底合并并记录决策"
+    applies_when: "policy == rebase_preferred"
+    enforcement: "人工执行 squash 后在 evolution/log.yaml 追加一条 mutation 记录（类型 manual_squash_fallback）"
+
+dual_approval:
+  required: false                   # criticality=3 < 4，单人项目不启用双签
+  reviewers: []
+  applies_to: []
+
+traces_to:
+  MP002: [AC7]                      # 冲突转人工保证 main 始终可构建
+  MP004: [AC7]

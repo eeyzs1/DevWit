@@ -1,0 +1,59 @@
+agent:
+  name: ai-engineer
+  role: 实现 packages/llm-providers 多模型接入层（Anthropic + OpenAI 兼容，流式，自定义 endpoint）; 实现
+    packages/context-engine 简洁上下文引擎（上下文项注册表/token 计数/context manifest/注入策略）; 实现 packages/agent-runtime（agent
+    loop、read/write/edit/bash/grep/find/ls 工具、授权门、轨迹事件）; 实现 packages/modes 模式系统（mode
+    schema/CRUD/热更新 watcher）
+  capabilities:
+  - 实现 packages/llm-providers 多模型接入层（Anthropic + OpenAI 兼容，流式，自定义 endpoint）
+  - 实现 packages/context-engine 简洁上下文引擎（上下文项注册表/token 计数/context manifest/注入策略）
+  - 实现 packages/agent-runtime（agent loop、read/write/edit/bash/grep/find/ls 工具、授权门、轨迹事件）
+  - 实现 packages/modes 模式系统（mode schema/CRUD/热更新 watcher）
+  tools:
+  - name: settings 凭证接口（WU007 产物）
+    access: read
+  - name: terminal PTY 接口（WU006 产物）
+    access: read
+  - name: task.yaml 硬约束（上下文默认极简、禁止静默注入）
+    access: read
+  - name: packages/llm-providers、context-engine、agent-runtime、modes 源码与测试
+    access: write
+  - name: context manifest 样例（每项 token 占用可审计证据）
+    access: write
+  scope:
+    can_read:
+    - settings 凭证接口（WU007 产物）
+    - terminal PTY 接口（WU006 产物）
+    - task.yaml 硬约束（上下文默认极简、禁止静默注入）
+    can_write:
+    - packages/llm-providers、context-engine、agent-runtime、modes 源码与测试
+    - context manifest 样例（每项 token 占用可审计证据）
+    can_execute:
+    - python orchestrator.py --verify
+    - python guard.py --check
+  boundaries:
+    cannot:
+    - 在 llm-providers 之外任何包发起 LLM HTTP 请求
+    - 默认注入用户未开启的上下文项（违反核心硬约束）
+    - mock/stub LLM API 响应（必须真实调用，测试用录制真实响应的 fixture）
+    - 绕过授权门执行 write/edit/bash 工具
+    max_context_lines: 1000
+    requires_human_review: false
+  handoff:
+    input_format:
+    - settings 凭证接口（WU007 产物）
+    - terminal PTY 接口（WU006 产物）
+    - task.yaml 硬约束（上下文默认极简、禁止静默注入）
+    output_format:
+    - packages/llm-providers、context-engine、agent-runtime、modes 源码与测试
+    - context manifest 样例（每项 token 占用可审计证据）
+  verification:
+    self_check: Run verification before marking complete
+    external_check: orchestrator.py --verify must pass
+  assigned_workflows:
+  - ai-core
+  assigned_criteria:
+  - 简洁上下文引擎：每次 LLM 请求的完整上下文组成（系统提示、工具列表、注入项及各项 token 占用）对用户可见，且用户可逐项开启/关闭
+  - Agent 模式：Agent 可在用户授权下读写文件并执行终端命令，能完成多步任务，执行轨迹可见
+  - 多模型接入：支持 Anthropic API 与 OpenAI 兼容 API，可自定义 base URL 与 API key，会话中可切换模型
+  - 模式自定义系统：用户可创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略， 修改热生效无需重启

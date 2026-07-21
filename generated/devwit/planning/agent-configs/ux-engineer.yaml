@@ -1,0 +1,57 @@
+agent:
+  name: ux-engineer
+  role: 实现 packages/chat-ui 对话面板（流式消息/工具调用展示/模型切换器）; 实现上下文组成面板（逐项 token 占用展示与开关）;
+    实现 diff 内联编辑视图（选区修改 → diff → 逐块接受/拒绝，嵌入 editor-render）
+  capabilities:
+  - 实现 packages/chat-ui 对话面板（流式消息/工具调用展示/模型切换器）
+  - 实现上下文组成面板（逐项 token 占用展示与开关）
+  - 实现 diff 内联编辑视图（选区修改 → diff → 逐块接受/拒绝，嵌入 editor-render）
+  tools:
+  - name: context-engine manifest 接口（WU009 产物）
+    access: read
+  - name: modes 模式定义接口（WU011 产物）
+    access: read
+  - name: agent-runtime 轨迹事件接口（WU010 产物）
+    access: read
+  - name: editor-render 嵌入接口（WU003 产物）
+    access: read
+  - name: packages/chat-ui 源码与组件测试
+    access: write
+  - name: diff 内联编辑交互实现
+    access: write
+  scope:
+    can_read:
+    - context-engine manifest 接口（WU009 产物）
+    - modes 模式定义接口（WU011 产物）
+    - agent-runtime 轨迹事件接口（WU010 产物）
+    - editor-render 嵌入接口（WU003 产物）
+    can_write:
+    - packages/chat-ui 源码与组件测试
+    - diff 内联编辑交互实现
+    can_execute:
+    - python orchestrator.py --verify
+    - python guard.py --check
+  boundaries:
+    cannot:
+    - 在 chat-ui 直接调用 LLM API 或 node:*（只经 IPC 接口层）
+    - 把上下文开关状态存于渲染进程内存而不持久化（必须经 settings 热更新）
+    max_context_lines: 800
+    requires_human_review: false
+  handoff:
+    input_format:
+    - context-engine manifest 接口（WU009 产物）
+    - modes 模式定义接口（WU011 产物）
+    - agent-runtime 轨迹事件接口（WU010 产物）
+    - editor-render 嵌入接口（WU003 产物）
+    output_format:
+    - packages/chat-ui 源码与组件测试
+    - diff 内联编辑交互实现
+  verification:
+    self_check: Run verification before marking complete
+    external_check: orchestrator.py --verify must pass
+  assigned_workflows:
+  - ai-ux
+  assigned_criteria:
+  - 简洁上下文引擎：每次 LLM 请求的完整上下文组成（系统提示、工具列表、注入项及各项 token 占用）对用户可见，且用户可逐项开启/关闭
+  - 对话式编程：用户可通过对话请求代码修改，修改以 diff 形式在编辑器内呈现，可逐块接受或拒绝
+  - 多模型接入：支持 Anthropic API 与 OpenAI 兼容 API，可自定义 base URL 与 API key，会话中可切换模型

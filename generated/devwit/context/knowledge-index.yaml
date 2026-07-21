@@ -1,0 +1,67 @@
+version: 2
+description: >-
+  DevWit 源码路径 → 知识域映射（v2: tagged）。每条映射带 description 与
+  受控词汇 tags，供 loader.py 按 path-prefix + tags + keywords 多信号
+  排序检索。产品代码位于 apps/ 与 packages/（npm workspaces monorepo），
+  harness 自身工件位于 planning/、verification/、constraints/。
+
+mappings:
+  apps/desktop/:
+    description: Electron 桌面壳——主进程窗口生命周期、preload 白名单 IPC、应用菜单与对话框（AR001 渲染进程边界、AR004 主进程服务边界）
+    tags: [electron, ipc, lifecycle]
+
+  packages/editor-core/:
+    description: 自研文本缓冲区内核——piece-table、insert/delete/replace 编辑操作、undo/redo 栈（AR003 编辑器内核独立，禁 Monaco/CodeMirror）
+    tags: [piece-table, undo, core]
+
+  packages/editor-render/:
+    description: Canvas 文本渲染器——布局、虚拟化滚动、选区、多光标、IME 合成输入（AR003）
+    tags: [rendering, ime, selection]
+
+  packages/syntax/:
+    description: tree-sitter wasm 增量语法解析与高亮 token 流，接入 editor-render（AR003）
+    tags: [tree-sitter, wasm]
+
+  packages/workspace/:
+    description: 工作区服务——本地文件树、文件读写、目录 watch（经主进程 fs，AR001/AR004）
+    tags: [fs, file-tree, watch]
+
+  packages/terminal/:
+    description: 内置终端——xterm.js 渲染 + node-pty 伪终端，PTY 句柄复用于 agent-runtime bash 工具（AR004）
+    tags: [xterm, node-pty]
+
+  packages/settings/:
+    description: 设置中心——用户配置、API key 经 Electron safeStorage 加密落盘、配置 watcher 热更新（AR005 凭证加密）
+    tags: [safeStorage, hot-reload]
+
+  packages/llm-providers/:
+    description: LLM 唯一出口网关——Anthropic Messages API 与 OpenAI 兼容 API 流式调用、自定义 base URL/API key、统一 provider 接口、会话内切换模型（AR002 LLM 出口唯一）
+    tags: [anthropic, openai, streaming]
+
+  packages/context-engine/:
+    description: 简洁上下文引擎——上下文项注册表逐项开关、token 计数、每次请求生成可审计 context manifest、默认极简零静默注入（AR007）
+    tags: [tokens, manifest, injection]
+
+  packages/agent-runtime/:
+    description: Agent 运行时——主进程内 agent loop、read/write/edit/bash/grep/find/ls 七工具、write/edit/bash 用户授权门、执行轨迹事件流（AR002/AR004）
+    tags: [tools, authorization, trace]
+
+  packages/modes/:
+    description: 模式系统——mode schema（系统提示/工具集/模型/上下文注入策略）、CRUD、watcher 热生效（AC6）
+    tags: [prompts, hot-reload]
+
+  packages/chat-ui/:
+    description: 对话与上下文 UI——对话面板流式渲染、上下文组成面板（逐项 token 占用与开关）、diff 内联编辑视图逐块接受/拒绝（AC2/AC3）
+    tags: [chat, diff, context-panel]
+
+  planning/:
+    description: harness 规划工件——work-units.yaml（WU001-WU014）、sub-agent-dispatch.yaml（六个 prototype）、flow-control.yaml（六条 workflow）、dispatcher/dag-builder
+    tags: [harness, planning, dag, dispatch]
+
+  verification/:
+    description: harness 验证原语——audit-append 哈希链、quality-gate、anti-mock-check、lint-check、self-check 闭环（AC7 证据管线）
+    tags: [harness, verification, audit, gate]
+
+  constraints/:
+    description: harness 架构约束——architecture-rules.yaml（AR001-AR007）、cost-budget、linter-config、entropy-reduction
+    tags: [harness, architecture, rules]

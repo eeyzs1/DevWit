@@ -1,0 +1,52 @@
+agent:
+  name: editor-engineer
+  role: 实现 packages/editor-core 文本缓冲区（piece-table、编辑操作、undo/redo）; 实现 packages/editor-render
+    Canvas 渲染器（布局/滚动/选区/光标/IME 合成）; 实现 packages/syntax tree-sitter wasm 增量高亮
+  capabilities:
+  - 实现 packages/editor-core 文本缓冲区（piece-table、编辑操作、undo/redo）
+  - 实现 packages/editor-render Canvas 渲染器（布局/滚动/选区/光标/IME 合成）
+  - 实现 packages/syntax tree-sitter wasm 增量高亮
+  tools:
+  - name: monorepo 骨架（WU001 产物）
+    access: read
+  - name: 编辑器交互需求（task.yaml AC1）
+    access: read
+  - name: packages/editor-core 源码与单元测试
+    access: write
+  - name: packages/editor-render 源码与单元测试
+    access: write
+  - name: packages/syntax 源码与单元测试
+    access: write
+  scope:
+    can_read:
+    - monorepo 骨架（WU001 产物）
+    - 编辑器交互需求（task.yaml AC1）
+    can_write:
+    - packages/editor-core 源码与单元测试
+    - packages/editor-render 源码与单元测试
+    - packages/syntax 源码与单元测试
+    can_execute:
+    - python orchestrator.py --verify
+    - python guard.py --check
+  boundaries:
+    cannot:
+    - 依赖 Monaco/CodeMirror/任何第三方编辑器内核
+    - 在 editor-core 中引用 agent-runtime 或 chat-ui（编辑器内核必须独立可用）
+    - 使用 DOM contenteditable 作为编辑核心（渲染必须是 Canvas 自绘）
+    max_context_lines: 900
+    requires_human_review: false
+  handoff:
+    input_format:
+    - monorepo 骨架（WU001 产物）
+    - 编辑器交互需求（task.yaml AC1）
+    output_format:
+    - packages/editor-core 源码与单元测试
+    - packages/editor-render 源码与单元测试
+    - packages/syntax 源码与单元测试
+  verification:
+    self_check: Run verification before marking complete
+    external_check: orchestrator.py --verify must pass
+  assigned_workflows:
+  - editor
+  assigned_criteria:
+  - 桌面应用可启动并打开本地项目文件夹，文件树可浏览，自研编辑器可打开/编辑/保存文件

@@ -1,0 +1,64 @@
+version: 1
+description: DevWit 安全护栏 — LLM 凭证/用户源码敏感数据过滤 + 危险操作阻断（授权门/nodeIntegration/静默注入/危险 bash）
+sensitive_data_filters:
+  pii_patterns:
+    - name: user_source_path
+      pattern: "(?:[A-Za-z]:\\\\Users\\\\[^\\s'\"]+|/home/[^\\s'\"]+|/Users/[^\\s'\"]+)"
+      action: mask
+    - name: user_email_in_gitconfig
+      pattern: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+      action: mask
+
+  secret_patterns:
+    - name: anthropic_api_key
+      pattern: "sk-ant-[A-Za-z0-9-]{20,}"
+      action: block
+    - name: openai_project_key
+      pattern: "sk-proj-[A-Za-z0-9-]{20,}"
+      action: block
+    - name: generic_llm_api_key
+      pattern: "sk-[A-Za-z0-9]{32,}"
+      action: block
+    - name: x_api_key_header
+      pattern: "x-api-key\\s*[:=]\\s*['\"][^'\"]+['\"]"
+      action: block
+    - name: authorization_header
+      pattern: "(?i)authorization\\s*[:=]\\s*['\"]?(?:bearer\\s+)[^'\"\\s]+"
+      action: block
+    - name: safestorage_ciphertext_leak
+      pattern: "encryptedApiKey['\"]?\\s*[:=]\\s*['\"][A-Za-z0-9+/=]{32,}['\"]"
+      action: block
+    - name: private_key
+      pattern: "-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----"
+      action: block
+
+dangerous_operations:
+  blocked_commands:
+    - pattern: "rm\\s+-rf\\s+[/~*]"
+      reason: "agent bash 工具递归强删根/家目录/通配，不可逆"
+    - pattern: "(?:mkfs|dd\\s+if=|fdisk|diskpart)"
+      reason: "磁盘级破坏命令"
+    - pattern: "(?:format\\s+[A-Za-z]:|EraseVolume)"
+      reason: "Windows 卷格式化"
+    - pattern: ":\\s*\\(\\s*\\)\\s*\\{[^}]*\\|[^}]*&\\s*\\}\\s*;\\s*:"
+      reason: "fork 炸弹"
+    - pattern: "(?:shutdown|reboot|poweroff|halt)"
+      reason: "破坏宿主机的关机/重启命令"
+    - pattern: "curl[^\\n]*\\|[^\\n]*(?:sh|bash)"
+      reason: "远端内容管道进 shell，引入未审计代码"
+    - pattern: "git\\s+push\\s+--force"
+      reason: "强制推送覆盖历史，用户仓库不可逆"
+
+  blocked_file_operations:
+    - pattern: "plaintext api key 落盘（settings.json/.env/任何文件写入 sk- 开头值，绕过 packages/settings 的 safeStorage 加密）"
+      reason: "违反 AR005 凭证加密，密钥明文持久化"
+    - pattern: "agent-runtime 的 write/edit/bash 工具在无用户授权记录时执行"
+      reason: "违反 AC4 授权门：写文件/编辑/执行命令必须先获用户授权且轨迹可见"
+    - pattern: "apps/desktop BrowserWindow webPreferences 设置 nodeIntegration=true 或 contextIsolation=false"
+      reason: "违反 AR001 渲染进程边界，preload 白名单 IPC 失效"
+    - pattern: "packages/context-engine 注入 enabled=false 的上下文项（静默注入）"
+      reason: "违反 AR007 上下文默认极简，context manifest 与用户可见组成不一致"
+    - pattern: "writing to ~/.ssh/"
+      reason: "SSH 配置/私钥篡改"
+    - pattern: "writing to C:\\\\Windows 或 /etc/"
+      reason: "系统目录修改"

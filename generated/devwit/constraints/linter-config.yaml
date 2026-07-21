@@ -1,0 +1,63 @@
+version: 1
+description: DevWit lint 规则配置 — 从 AR001-AR007 架构约束派生（ESLint no-restricted-imports + 自定义 import 边界规则 + 密钥模式禁用）
+rules:
+  ar006_no_third_party_editor_core:
+    severity: error
+    message: "AR006: 禁止引入第三方编辑器内核，编辑器由 packages/editor-core + editor-render + syntax 自研"
+    patterns:
+      - "ESLint no-restricted-imports: monaco-editor"
+      - "ESLint no-restricted-imports: @codemirror/*"
+      - "package.json dependencies/devDependencies 出现 monaco-editor 或 @codemirror/*"
+
+  ar003_editor_kernel_independence:
+    severity: error
+    message: "AR003: packages/editor-core、editor-render、syntax 不得 import agent-runtime/chat-ui/modes/llm-providers"
+    patterns:
+      - "packages/editor-core/** 中 import 含 agent-runtime|chat-ui|modes|llm-providers 的说明符"
+      - "packages/editor-render/** 中 import 含 agent-runtime|chat-ui|modes|llm-providers 的说明符"
+      - "packages/syntax/** 中 import 含 agent-runtime|chat-ui|modes|llm-providers 的说明符"
+
+  ar001_renderer_process_boundary:
+    severity: error
+    message: "AR001: 渲染进程代码（chat-ui、editor-render、apps/desktop 渲染层）禁止 node:fs/node:child_process，主进程能力只经 preload 白名单 IPC"
+    patterns:
+      - "自定义 import 边界规则：渲染进程文件 import 'fs'|'node:fs'|'child_process'|'node:child_process'"
+      - "渲染进程文件 import 'electron' 主进程-only API（ipcMain/app/BrowserWindow）"
+      - "BrowserWindow webPreferences 中 nodeIntegration: true 或 contextIsolation: false"
+
+  ar002_single_llm_egress:
+    severity: error
+    message: "AR002: 仅 packages/llm-providers 可发起 Anthropic/OpenAI 兼容 API 请求，其余包禁止直接 LLM HTTP"
+    patterns:
+      - "自定义 import 边界规则：packages/llm-providers 之外的文件出现 fetch/axios/got 指向 api.anthropic.com 或 api.openai.com"
+      - "packages/llm-providers 之外的文件 import '@anthropic-ai/sdk' 或 'openai'"
+      - "llm-providers 反向 import agent-runtime（禁止 llm-providers → agent-runtime）"
+
+  ar004_main_process_service_boundary:
+    severity: error
+    message: "AR004: packages/workspace、terminal、settings 仅供主进程使用，渲染进程不得直接 import"
+    patterns:
+      - "自定义 import 边界规则：packages/chat-ui 或 packages/editor-render import workspace|terminal|settings"
+      - "apps/desktop 渲染层文件经相对路径 ../../packages/workspace|terminal|settings 绕过 IPC"
+
+  ar005_no_plaintext_secret:
+    severity: error
+    message: "AR005: API key 必须经 Electron safeStorage 加密落盘，禁止明文密钥字面量与明文日志"
+    patterns:
+      - "源码中出现 sk-ant-/sk-proj-/sk- 开头的密钥字面量"
+      - "settings.json/.env 写入未加密 apiKey 字段（绕过 packages/settings 的 safeStorage 加密）"
+      - "console.log/logger 调用参数中含 apiKey/x-api-key/Authorization 变量"
+
+  ar007_no_silent_context_injection:
+    severity: error
+    message: "AR007: context-engine 禁止注入 enabled=false 的上下文项；每次请求必须产出含各项 token 计数的 context manifest"
+    patterns:
+      - "packages/context-engine 中组装消息时未按 registry 项 enabled 标志过滤"
+      - "LLM 请求路径上缺少 context manifest 生成调用（每次请求必须产出 manifest 供 AC2 审计）"
+
+  explicit_error_types:
+    severity: warning
+    message: "使用显式错误类型（LLMProviderError/AuthDeniedError 等），不用裸 Error 吞咽授权与流式错误"
+    patterns:
+      - "catch (e) { } 空捕获块"
+      - "throw new Error 于 agent-runtime 授权门/llm-providers 流式解析处（应抛具体类型）"

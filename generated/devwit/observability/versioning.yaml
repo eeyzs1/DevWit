@@ -1,0 +1,46 @@
+version: 1
+description: |
+  DevWit 版本与配置管理。语义化版本；harness 配置变更与产品代码变更
+  分别打 tag（harness-v* / devwit-v*），CHANGELOG 随 PROVE 阶段更新，
+  保证每次 AC 证据都可回溯到具体版本。
+
+versioning:
+  harness_version: "1.0.0"
+  product_version: "0.1.0"          # DevWit 产品初始版本，WU014 构建通过后 bump
+  config_version: 1
+  last_updated: null
+
+  version_control:
+    type: git
+    branch_strategy: feature_branches
+    branch_prefix: devwit           # 对齐 planning/runtime-config.yaml
+    base_branch: main
+    tag_patterns:
+      harness: "harness-v*"         # harness 配置/slot 变更
+      product: "devwit-v*"          # 产品代码（apps/packages）变更
+
+  config_management:
+    track_changes: true
+    change_log: "memory/decisions.md"
+    require_reason: true
+    separate_tagging: true          # harness 与产品代码独立打 tag，互不污染
+
+  reproducibility:
+    pin_dependencies: true
+    lock_file: "package-lock.json"  # 产品侧 npm lockfile（Electron+TS monorepo）
+    harness_lock_file: "requirements-lock.txt"
+    environment_file: ".nvmrc"      # 产品 Node 版本固定
+    record_platform: true           # 记录 win32/darwin/linux（Electron 跨平台构建）
+
+  compatibility:
+    breaking_change_policy: "major version bump"
+    deprecation_notice_periods_days: 30
+    migration_guide_required: true
+
+  changelog:
+    product: "CHANGELOG.md"         # generated/devwit/ 根，随 PROVE 阶段更新
+    update_when: [after_prove, after_evolve]
+    entry_schema: [version, date, acs_addressed, evidence_links]
+
+traces_to:
+  changelog: [AC7]                  # 每条 AC 证据链接进 CHANGELOG

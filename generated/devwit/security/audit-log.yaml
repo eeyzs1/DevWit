@@ -1,0 +1,57 @@
+version: 1
+description: >-
+  DevWit 审计日志配置（策略文件，不是日志本身）。
+  实际的不可篡改哈希链日志由 verification/audit-append.py 写到
+  <project_root>/audit_log.yaml（YAML list of records，每条含 seq/timestamp/
+  event/check_id/result/actor/payload_digest/prev_hash/hash）。
+logging:
+  enabled: true
+  level: INFO
+  format: structured_json
+  outputs:
+    - type: file
+      path: "logs/audit.jsonl"
+      rotation: daily
+      retention_days: 90
+    - type: console
+      level: WARNING
+
+events_to_log:
+  - category: llm_api_calls
+    fields: [provider, model, endpoint_host, tokens_in, tokens_out, duration_ms, timestamp]
+    level: INFO
+    reason: "多模型接入调用的用量审计（AC5）；API key 永不记录，只记脱敏引用"
+  - category: agent_tool_calls
+    fields: [tool_name, args_digest, authorized, user_decision, duration_ms, timestamp]
+    level: INFO
+    reason: "agent-runtime 授权门轨迹（AC4）：write/edit/bash 的每次授权决策"
+  - category: context_manifest_built
+    fields: [mode, enabled_items, total_tokens, system_prompt_tokens, timestamp]
+    level: INFO
+    reason: "上下文组成可审计（AC2/AR007）：每次请求的注入项与 token 计数"
+  - category: credential_events
+    fields: [operation, provider_ref, success, timestamp]
+    level: WARNING
+    reason: "凭证读取/写入/热更新事件（AR005），绝不记录密钥本体"
+  - category: mode_changes
+    fields: [mode_id, change_type, hot_applied, timestamp]
+    level: INFO
+    reason: "模式系统 CRUD 与热生效轨迹（AC6）"
+  - category: constraint_violations
+    fields: [rule_id, violation_type, file, details, timestamp]
+    level: WARNING
+    reason: "AR001-AR007 架构规则违反记录"
+  - category: human_interventions
+    fields: [trigger, decision, context, timestamp]
+    level: INFO
+    reason: "人工审批/升级决策留痕（配合 feedback/human-interface.yaml）"
+  - category: evolution_events
+    fields: [mutation_type, target, evidence, result, timestamp]
+    level: INFO
+    reason: "自我演化治理记录"
+
+immutability:
+  enabled: true
+  method: append_only
+  tamper_detection: hash_chain
+  reason: "审计日志必须防篡改：授权门与凭证事件的追溯是 AC4/AR005 证据链的一部分"

@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build & Publish Windows Release
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: generated/devwit
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: generated/devwit/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rebuild node-pty for Electron ABI
+        run: npm run rebuild-native
+
+      - name: Build NSIS installer + portable
+        run: npm run dist
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            generated/devwit/release/*.exe
+            generated/devwit/release/*.blockmap
+          generate_release_notes: true

@@ -1,0 +1,26 @@
+{
+  "name": "@devwit/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/main/index.js",
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@devwit/contracts": "*",
+    "@devwit/editor-core": "*",
+    "@devwit/editor-render": "*",
+    "@devwit/syntax": "*",
+    "@devwit/workspace": "*",
+    "@devwit/terminal": "*",
+    "@devwit/settings": "*",
+    "@devwit/llm-providers": "*",
+    "@devwit/context-engine": "*",
+    "@devwit/modes": "*",
+    "@devwit/agent-runtime": "*",
+    "@devwit/chat-ui": "*",
+    "@xterm/xterm": "^5.5.0",
+    "@xterm/addon-fit": "^0.10.0"
+  }
+}

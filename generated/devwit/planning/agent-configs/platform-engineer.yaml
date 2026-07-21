@@ -1,0 +1,53 @@
+agent:
+  name: platform-engineer
+  role: 实现 apps/desktop Electron 壳（窗口/菜单/preload 白名单 IPC）; 实现 packages/workspace 文件树与工作区服务（fs
+    读写/watch）; 实现 packages/terminal 终端（xterm.js + node-pty）; 实现 packages/settings
+    设置中心与凭证加密存储（Electron safeStorage，热更新）
+  capabilities:
+  - 实现 apps/desktop Electron 壳（窗口/菜单/preload 白名单 IPC）
+  - 实现 packages/workspace 文件树与工作区服务（fs 读写/watch）
+  - 实现 packages/terminal 终端（xterm.js + node-pty）
+  - 实现 packages/settings 设置中心与凭证加密存储（Electron safeStorage，热更新）
+  tools:
+  - name: monorepo 骨架（WU001 产物）
+    access: read
+  - name: IPC 边界约束（security-guardrails.yaml）
+    access: read
+  - name: apps/desktop 源码（main/preload）
+    access: write
+  - name: packages/workspace、packages/terminal、packages/settings 源码与测试
+    access: write
+  scope:
+    can_read:
+    - monorepo 骨架（WU001 产物）
+    - IPC 边界约束（security-guardrails.yaml）
+    can_write:
+    - apps/desktop 源码（main/preload）
+    - packages/workspace、packages/terminal、packages/settings 源码与测试
+    can_execute:
+    - python orchestrator.py --verify
+    - python guard.py --check
+  boundaries:
+    cannot:
+    - 渲染进程开启 nodeIntegration（必须 contextIsolation + 白名单 IPC）
+    - 明文落盘任何 API key/凭证（必须 safeStorage 加密）
+    - 在渲染进程直接调用 node:fs / node:child_process
+    max_context_lines: 800
+    requires_human_review: false
+  handoff:
+    input_format:
+    - monorepo 骨架（WU001 产物）
+    - IPC 边界约束（security-guardrails.yaml）
+    output_format:
+    - apps/desktop 源码（main/preload）
+    - packages/workspace、packages/terminal、packages/settings 源码与测试
+  verification:
+    self_check: Run verification before marking complete
+    external_check: orchestrator.py --verify must pass
+  assigned_workflows:
+  - workspace
+  assigned_criteria:
+  - 桌面应用可启动并打开本地项目文件夹，文件树可浏览，自研编辑器可打开/编辑/保存文件
+  - Agent 模式：Agent 可在用户授权下读写文件并执行终端命令，能完成多步任务，执行轨迹可见
+  - 多模型接入：支持 Anthropic API 与 OpenAI 兼容 API，可自定义 base URL 与 API key，会话中可切换模型
+  - 模式自定义系统：用户可创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略， 修改热生效无需重启

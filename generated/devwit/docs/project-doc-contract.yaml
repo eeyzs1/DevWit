@@ -1,0 +1,83 @@
+version: 1
+description: |
+  DevWit 产品代码文档契约。
+  定义产品文档（README/API/CHANGELOG/SECURITY）的 schema、生成时机与 PROVE
+  阶段的一致性验证规则。核心规则：docs/API.md 中每个接口名必须能在对应
+  packages/* 源码中 grep 到，否则 PROVE fail。
+
+documents:
+  - name: README.md
+    purpose: "DevWit 产品介绍 + 快速开始（面向最终用户）"
+    generate_when: [WU001, WU014]         # WU001 生成骨架（项目结构+构建命令），WU014 补全截图与完整功能
+    required_fields:
+      - project_overview                  # 简洁上下文 AI 原生 IDE 定位
+      - installation                      # 对应 electron-builder 产物
+      - quick_start                       # 打开文件夹 → 配置模型 → 对话编程
+      - features                          # AC1-AC6 功能列表
+      - architecture                      # apps/desktop + packages/* 布局
+    versioned: true
+
+  - name: docs/API.md
+    purpose: "packages/* 公共 API 文档"
+    generate_when: [after_factory, on_api_change]
+    auto_generated: false                  # 由 worker 按真实代码撰写，PROVE 反向校验
+    required_fields:
+      - llm_providers_interface           # packages/llm-providers：Provider 接口、Anthropic/OpenAI 兼容适配、自定义 endpoint 配置
+      - context_engine_manifest_format    # packages/context-engine：manifest schema（系统提示/工具/注入项/token 占用）
+      - modes_schema                      # packages/modes：模式定义 schema（prompt/工具集/模型/上下文策略）
+      - agent_runtime_tool_protocol       # packages/agent-runtime：工具调用协议与授权门接口
+      - editor_core_api                   # packages/editor-core：缓冲区与编辑操作公共接口
+    traces_to: [AC2, AC4, AC5, AC6]
+
+  - name: CHANGELOG.md
+    purpose: "产品变更历史"
+    generate_when: [after_prove, after_evolve]
+    append_only: true
+    entry_schema:
+      - version
+      - date
+      - changes                             # added / changed / deprecated / removed / fixed / security
+      - acs_addressed                       # 本版本完成的 AC（⊆ verified ACs）
+
+  - name: docs/SECURITY.md
+    purpose: "安全文档：凭证与授权模型"
+    generate_when: [after_WU007, after_WU010]   # settings 凭证加密落地后 + agent 授权门落地后
+    required_fields:
+      - credential_encryption               # settings 模块：Electron safeStorage 加密 API key，不落明文
+      - authorization_gate                  # agent-runtime：写文件/执行命令前用户确认机制
+      - ipc_allowlist                       # preload 白名单 IPC，contextIsolation 开启
+      - threat_model                        # 本地凭证泄露 / agent 越权写 / 恶意命令执行
+      - incident_response
+    traces_to: [AC4, AC5]
+
+evolution:
+  staleness_check:
+    enabled: true
+    max_age_days: 14                        # 项目文档比 harness 文档更新更频繁
+    trigger: "innovation_engine"
+    proposal_type: "project_doc_refresh"
+
+  versioning:
+    strategy: semver
+    bump_on:
+      - "breaking API change → major"
+      - "new feature → minor"
+      - "bug fix → patch"
+    sync_with:
+      - "harness CHANGELOG"
+      - "project CHANGELOG"
+
+verification:
+  # PROVE 阶段验证
+  doc_code_consistency:
+    enabled: true
+    checks:
+      - "API.md 中每个接口名（函数/类/类型）必须能在对应 packages/* 源码中 grep 到定义"
+      - "README installation == package.json / electron-builder 配置"
+      - "CHANGELOG acs_addressed ⊆ verified ACs"
+      - "SECURITY.md 的授权门描述 == packages/agent-runtime 实际拦截逻辑"
+    on_inconsistency: "fail PROVE with diff"
+
+traces_to:
+  CHANGELOG.md: [AC7]                     # AC 完成记录在 changelog
+  docs/API.md: [AC2, AC4, AC5, AC6]

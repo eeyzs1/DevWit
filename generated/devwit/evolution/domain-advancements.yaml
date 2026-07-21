@@ -1,0 +1,138 @@
+version: 1
+description: "AI 原生桌面 IDE 领域进阶模式 —— 从 Basic 到 Excellent（DevWit domain=desktop_app）"
+stages:
+  - name: "Basic"
+    description: "满足用户核心需求：本地 agent loop 可用"
+    capabilities:
+      - "本地 agent loop 运行于 Electron 主进程，直连 LLM API（HC1）"
+      - "4 个核心工具：read / write / bash / diff（pi 式极简工具集）"
+      - "单模型接入（Anthropic 或 OpenAI 兼容其一）"
+      - "编辑器可打开/编辑/保存本地文件（AC1）"
+    indicators:
+      - "AC1、AC4 基本路径通过"
+      - "Build succeeds"
+
+  - name: "Solid"
+    description: "生产可用质量：DevWit 本次交付目标（AC1-AC7 全覆盖）"
+    capabilities:
+      - "多模型接入与会话内切换（Anthropic + OpenAI 兼容 API + 自定义 endpoint，AC5）"
+      - "上下文审计：每次请求组成逐项可见、可开关、token 占用透明（AC2）"
+      - "diff 内联编辑：对话修改以 diff 呈现，逐块接受/拒绝（AC3）"
+      - "模式系统：用户 CRUD 模式（prompt/工具集/模型/上下文策略），热生效（AC6）"
+      - "Agent 授权门：读写/执行命令前用户确认，执行轨迹可见（AC4）"
+    innovations:
+      - id: "DI-I001"
+        name: "Context manifest 面板"
+        description: "每次 LLM 请求的完整上下文组成（系统提示/工具/注入项及 token 占用）对用户可见可逐项开关"
+        category: "transparency"
+        effort: "medium"
+        impact: "high"
+        trigger: "用户对 AI 工具静默注入上下文失去控制"
+        traces_to: [AC2]
+      - id: "DI-I002"
+        name: "Hunk 级 diff 接受/拒绝"
+        description: "对话产出的修改按 hunk 粒度在编辑器内联接受或拒绝"
+        category: "usability"
+        effort: "medium"
+        impact: "high"
+        trigger: "AI 修改不可控、只能整体接受或放弃"
+        traces_to: [AC3]
+      - id: "DI-I003"
+        name: "用户自定义模式系统"
+        description: "每个模式独立定义系统提示/工具集/模型/上下文注入策略，热更新无需重启"
+        category: "customizability"
+        effort: "high"
+        impact: "high"
+        trigger: "不同任务（问答/重构/agent）需要不同 prompt 与工具组合"
+        traces_to: [AC6]
+
+  - name: "Advanced"
+    description: "有竞争力的产品质量（AC 交付后的下一阶段演进方向）"
+    capabilities:
+      - "代码库语义索引：embedding 索引本地构建，按需注入相关代码片段而非全量"
+      - "子代理并行任务：agent 可拆分多步任务为并行子代理执行并汇总"
+      - "终端命令智能白名单：从用户授权历史学习，高频安全命令免重复确认"
+      - "LSP 诊断回馈 agent：类型错误/lint 诊断自动注入下一轮 agent 上下文"
+    innovations:
+      - id: "DI-I010"
+        name: "语义代码索引"
+        description: "本地 embedding 索引代码库，按查询相关性注入片段，保持上下文极简"
+        category: "context_engineering"
+        effort: "high"
+        impact: "high"
+        trigger: "大型仓库下手动挑选上下文项成本高"
+        traces_to: [AC2]
+      - id: "DI-I011"
+        name: "并行子代理"
+        description: "多步任务拆分为并行子代理（各自独立上下文），主代理汇总结果"
+        category: "agent_capability"
+        effort: "high"
+        impact: "high"
+        trigger: "长任务串行执行慢、上下文超长"
+        traces_to: [AC4]
+      - id: "DI-I012"
+        name: "授权白名单学习"
+        description: "记录用户批准的安全命令模式（如 git status/npm test），同类命令免重复确认"
+        category: "usability"
+        effort: "medium"
+        impact: "medium"
+        trigger: "授权弹窗疲劳"
+        traces_to: [AC4]
+      - id: "DI-I013"
+        name: "LSP 诊断回馈"
+        description: "编辑后 LSP/tsc 诊断自动作为下一轮 agent 输入，闭环修复"
+        category: "agent_capability"
+        effort: "medium"
+        impact: "high"
+        trigger: "agent 修改引入类型错误后无感知"
+        traces_to: [AC3, AC4]
+
+  - name: "Excellent"
+    description: "市场领先质量（长期愿景）"
+    capabilities:
+      - "自进化模式推荐：按任务类型与历史成功率自动推荐/调优模式配置"
+      - "跨会话工作流记忆：沉淀可复用的多步任务工作流模板"
+      - "本地小模型辅助路由：简单任务路由本地小模型，降本且离线可用"
+      - "插件市场：第三方模式/工具/主题分发与沙箱化安装"
+    innovations:
+      - id: "DI-I020"
+        name: "模式自进化推荐"
+        description: "统计各模式在任务类型上的成功率，自动推荐并微调 prompt/工具/模型组合"
+        category: "intelligence"
+        effort: "high"
+        impact: "high"
+        trigger: "用户难以判断哪个模式适合当前任务"
+        traces_to: [AC6]
+      - id: "DI-I021"
+        name: "工作流记忆"
+        description: "成功的多步 agent 任务轨迹沉淀为可复用工作流模板，跨会话调用"
+        category: "intelligence"
+        effort: "high"
+        impact: "medium"
+        trigger: "同类多步任务重复指导 agent"
+        traces_to: [AC4]
+      - id: "DI-I022"
+        name: "本地小模型路由"
+        description: "简单问答/补全路由到本地小模型（如 Ollama），复杂任务走云端大模型"
+        category: "cost"
+        effort: "high"
+        impact: "medium"
+        trigger: "LLM 成本高、离线场景不可用"
+        traces_to: [AC5]
+      - id: "DI-I023"
+        name: "插件市场"
+        description: "模式/工具/主题的分发平台，插件在受限沙箱中运行"
+        category: "ecosystem"
+        effort: "high"
+        impact: "high"
+        trigger: "社区贡献需求出现"
+        traces_to: [AC6]
+
+# stage_to_novelty: 将进阶阶段映射到 Novelty 因子，供 generate.py 的
+# preseed_long_term() 按 N 差异化预填 memory/long-term/。
+# N<=2 不预填；N==3 预填 Solid；N==4 预填 Solid+Advanced；N==5 全部。
+stage_to_novelty:
+  Basic: 1
+  Solid: 3
+  Advanced: 4
+  Excellent: 5

@@ -1,0 +1,5 @@
+version: 1
+description: |
+  DevWit 进化日志。初始为空——EVOLVE 阶段每次 mutation（含
+  merge-policy.yaml MP004 的 manual_squash_fallback 记录）追加到 mutations。
+mutations: []

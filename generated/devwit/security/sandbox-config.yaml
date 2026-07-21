@@ -1,0 +1,61 @@
+version: 1
+description: DevWit 开发 harness 沙箱配置 — 允许 npm/node/python 构建测试与真实 LLM API 出口（禁 mock），禁系统目录修改，agent bash 限于用户项目目录
+environment:
+  type: process
+  base_image: "host-dev-machine (Node.js 20 + Python 3 + Electron toolchain)"
+  isolation_level: process
+network:
+  allow_outbound:
+    - "api.anthropic.com:443"
+    - "registry.npmjs.org:443"
+    - "user-configured-openai-compatible-endpoint:443"
+  block_outbound:
+    - "0.0.0.0/0"
+  allow_inbound: []
+  dns_allowlist:
+    - "api.anthropic.com"
+    - "registry.npmjs.org"
+    - "user-configured OpenAI 兼容 base URL 的主机名（packages/settings 中 endpoint 配置，运行时解析）"
+filesystem:
+  read_only_paths:
+    - "Node.js/Python 工具链安装目录"
+  read_write_paths:
+    - "generated/devwit"
+    - "agent bash 工具的用户项目工作目录（DevWit 打开的文件夹）"
+    - "%TEMP%"
+  blocked_paths:
+    - "C:\\Windows"
+    - "/etc"
+    - "~/.ssh"
+    - "~/.aws"
+    - "~/.gnupg"
+capabilities:
+  drop_all: true
+  add:
+    - PROCESS_SPAWN_FOR_WHITELISTED_COMMANDS
+seccomp:
+  profile: default
+  allow_syscalls:
+    - read
+    - write
+    - open
+    - close
+    - stat
+    - fstat
+    - lstat
+    - poll
+    - lseek
+    - mmap
+    - mprotect
+    - munmap
+    - brk
+    - rt_sigaction
+    - rt_sigprocmask
+    - ioctl
+    - access
+    - pipe
+    - select
+    - sched_yield
+    - mremap
+    - nanosleep
+    - clock_gettime

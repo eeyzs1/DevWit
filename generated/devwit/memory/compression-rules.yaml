@@ -1,0 +1,33 @@
+version: 1
+description: Memory compression rules — DevWit 项目记忆保留/压缩/遗忘策略
+rules:
+  keep_verbatim:
+    - "memory/session-state.yaml 中 7 条 acceptance_criteria 的 status 与 verifier 证据路径（AC1-AC7，guard.py 强制读取，永不压缩）"
+    - "evidence/AC1..AC7/ 下每条验收标准的落盘证据路径清单"
+    - "constraints/architecture-rules.yaml 的 AR001-AR007（渲染进程边界/LLM 出口唯一/编辑器内核独立/主进程服务边界/凭证加密/禁第三方编辑器内核/上下文默认极简+manifest 可审计）"
+    - "planning/work-units.yaml 的 WU001-WU014 依赖图（depends_on 拓扑关系）"
+    - "凭证相关安全事件：safeStorage 加密失败、API key 明文泄露检测（secret_leak_detected）、credential 热更新记录（AR005 相关，永不压缩）"
+    - "每次 LLM 请求的 context manifest 摘要（各项 id + token 计数 + 开关状态，AR007 审计要求；manifest 全文可压缩，摘要保留）"
+  keep_verbatim_reason: "验收证据、架构规则、WU 依赖图、凭证安全事件与 context manifest 摘要是 AC1-AC7 可验证性与 AR001-AR007 可审计性的根基，必须原文保留"
+
+  summarize:
+    - pattern: "工具原始输出（npm run build / tsc / eslint / playwright 等）"
+      max_age_days: 3
+      method: "保留 exit code + 输出首尾各 20 行，丢弃中间重复日志"
+    - pattern: "LLM 流式响应原始 chunk（Anthropic/OpenAI SSE 原始事件流）"
+      max_age_days: 1
+      method: "聚合为最终消息文本 + token 用量统计，丢弃逐 chunk 增量帧"
+    - pattern: "npm install / npm ci 日志"
+      max_age_days: 1
+      method: "保留 exit code + 依赖树变更摘要（新增/移除/升级包列表），丢弃逐包下载进度"
+
+  forget:
+    - pattern: "node_modules/**"
+      max_age_days: 0
+      reason: "依赖目录可由 package-lock.json 重建，无任何记忆价值"
+    - pattern: "构建中间产物（dist/、out/、.turbo/、tsc buildinfo、electron-builder 中间目录）"
+      max_age_days: 1
+      reason: "构建产物可经 npm run build 重新生成，只需保留最终构建日志的 exit code（AC7 证据）"
+    - pattern: "重复 lint 输出（同一文件同一规则的重复 eslint/tsc 报错）"
+      max_age_days: 0
+      reason: "重复诊断无增量信息，保留首次出现即可"

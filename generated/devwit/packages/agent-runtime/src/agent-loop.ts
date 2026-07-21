@@ -1,0 +1,224 @@
+import type {
+  AgentRunInput,
+  ChatMessage,
+  LLMProvider,
+  ModeDefinition,
+  ToolCall,
+  ToolResult,
+} from "@devwit/contracts";
+import type { ContextEngine } from "@devwit/context-engine";
+import { Authorizer, buildAuthorizationReason } from "./authorizer.js";
+import { executeTool, isAgentToolName, toolDefinitionsFor, type ToolEnvironment } from "./tools.js";
+import { AgentTrace } from "./trace.js";
+
+export interface AgentLoopDeps {
+  /** 经 llm-providers 接口访问模型（AR002：本包不直接发 LLM HTTP）。 */
+  provider: LLMProvider;
+  /** 简洁上下文引擎：每轮迭代 build 一次，产出可审计 manifest（AR007）。 */
+  engine: ContextEngine;
+  /** 当前模式：系统提示 + 工具集 + 上下文策略。 */
+  mode: ModeDefinition;
+  /** 工具执行环境（真实 Node 环境或 apps 注入的 workspace/terminal 实现）。 */
+  env: ToolEnvironment;
+  authorizer?: Authorizer;
+  trace?: AgentTrace;
+  /** 最大迭代数（防失控兜底），默认 25。 */
+  maxIterations?: number;
+  /** assistant 文本块实时回调（流式渲染；apps 层经 IPC 转发为 assistant_delta 瞬时事件）。 */
+  onAssistantDelta?: (delta: string) => void;
+}
+
+export type AgentFinishReason = "completed" | "max_iterations" | "cancelled" | "error";
+
+export interface AgentRunResult {
+  finishReason: AgentFinishReason;
+  /** 最后一条非空 assistant 文本（任务总结）。 */
+  finalText: string;
+  iterations: number;
+  errorMessage?: string;
+}
+
+const DEFAULT_MAX_ITERATIONS = 25;
+
+/** 工具结果回填为 role=tool 消息的内容。 */
+export function formatToolResultContent(result: ToolResult): string {
+  if (result.ok) return result.output.length > 0 ? result.output : "(无输出)";
+  const parts = [`错误: ${result.error ?? "未知错误"}`];
+  if (result.output.length > 0) parts.push(result.output);
+  return parts.join("\n");
+}
+
+function summarizeArgs(args: Record<string, unknown>): string {
+  const json = JSON.stringify(args);
+  return json.length > 120 ? `${json.slice(0, 120)}…` : json;
+}
+
+/**
+ * AgentLoop（WU010）：模型响应 → 工具调用 → 结果回填 → 直至任务完成。
+ * - 每轮：engine.build 组上下文（含 manifest 落盘）→ provider.streamChat →
+ *   assistant 消息入 transcript → 无工具调用即完成 → 否则逐个执行工具并回填；
+ * - 授权门：write/edit/bash 执行前经 Authorizer（AC4），deny 时回填拒绝说明；
+ * - 当前 transcript 是请求本体：loop 在模式策略层强制 conversation_history=true
+ *   （引擎级用户开关仍可覆盖——透明度优先，退化在 manifest 中可见）；
+ * - 轨迹：user_message / assistant_message / tool_call / authorization 系列 /
+ *   tool_result / error / done 全量入 AgentTrace，可查询可订阅。
+ */
+export class AgentLoop {
+  private readonly deps: AgentLoopDeps;
+  readonly authorizer: Authorizer;
+  private readonly injectedTrace?: AgentTrace;
+  private lastRunTrace?: AgentTrace;
+
+  constructor(deps: AgentLoopDeps) {
+    this.deps = deps;
+    this.authorizer = deps.authorizer ?? new Authorizer();
+    if (deps.trace !== undefined) this.injectedTrace = deps.trace;
+  }
+
+  /** 最近一次 run 的轨迹（注入 trace 时为注入对象）。 */
+  get trace(): AgentTrace | null {
+    return this.injectedTrace ?? this.lastRunTrace ?? null;
+  }
+
+  async run(input: AgentRunInput, signal?: AbortSignal): Promise<AgentRunResult> {
+    const trace = this.injectedTrace ?? new AgentTrace(input.sessionId);
+    this.lastRunTrace = trace;
+    const maxIterations = this.deps.maxIterations ?? DEFAULT_MAX_ITERATIONS;
+    const transcript: ChatMessage[] = [{ role: "user", content: input.userText }];
+    trace.record("user_message", input.userText);
+
+    let iterations = 0;
+    let finalText = "";
+
+    for (;;) {
+      if (signal?.aborted) {
+        this.authorizer.denyAllPending();
+        trace.record("done", "会话已取消");
+        return { finishReason: "cancelled", finalText, iterations };
+      }
+      iterations += 1;
+      if (iterations > maxIterations) {
+        trace.record("done", `达到最大迭代数 ${maxIterations}，停止`);
+        return { finishReason: "max_iterations", finalText, iterations: iterations - 1 };
+      }
+
+      const build = await this.deps.engine.build({
+        modeId: this.deps.mode.id,
+        providerId: this.deps.provider.config.id,
+        model: this.deps.provider.config.model,
+        systemPrompt: this.deps.mode.systemPrompt,
+        tools: toolDefinitionsFor(this.deps.mode.tools),
+        contextPolicy: { ...this.deps.mode.contextPolicy, conversation_history: true },
+        workspaceRoot: input.workspaceRoot,
+        ...(input.activeFile !== undefined ? { activeFile: input.activeFile } : {}),
+        ...(input.selection !== undefined ? { selection: input.selection } : {}),
+        ...(input.terminalTail !== undefined ? { terminalTail: input.terminalTail } : {}),
+        conversationHistory: transcript,
+      });
+
+      let assistantText = "";
+      const toolCalls: ToolCall[] = [];
+      let providerCancelled = false;
+      let streamError: string | null = null;
+      try {
+        for await (const event of this.deps.provider.streamChat(build.messages, build.tools, signal)) {
+          switch (event.type) {
+            case "text":
+              assistantText += event.text;
+              this.deps.onAssistantDelta?.(event.text);
+              break;
+            case "tool_call":
+              toolCalls.push(event.toolCall);
+              break;
+            case "usage":
+              break; // token 用量由 manifest 的精确计数负责审计
+            case "error":
+              streamError = event.error;
+              break;
+            case "done":
+              providerCancelled = event.stopReason === "cancelled";
+              break;
+          }
+        }
+      } catch (error) {
+        if (!signal?.aborted) streamError = error instanceof Error ? error.message : String(error);
+      }
+
+      if (providerCancelled || signal?.aborted) {
+        this.authorizer.denyAllPending();
+        trace.record("done", "会话已取消");
+        return { finishReason: "cancelled", finalText, iterations };
+      }
+      if (streamError !== null) {
+        trace.record("error", streamError);
+        return { finishReason: "error", finalText, iterations, errorMessage: streamError };
+      }
+
+      if (assistantText.length > 0) finalText = assistantText;
+      transcript.push({
+        role: "assistant",
+        content: assistantText,
+        ...(toolCalls.length > 0 ? { toolCalls } : {}),
+      });
+      trace.record(
+        "assistant_message",
+        assistantText.length > 0 ? assistantText : `（发起 ${toolCalls.length} 个工具调用）`,
+        toolCalls.length > 0 ? { toolCalls } : undefined
+      );
+
+      if (toolCalls.length === 0) {
+        trace.record("done", "任务完成");
+        return { finishReason: "completed", finalText, iterations };
+      }
+
+      for (const call of toolCalls) {
+        const result = await this.runOneTool(call, input.workspaceRoot, trace, signal);
+        transcript.push({ role: "tool", toolCallId: call.id, content: formatToolResultContent(result) });
+        if (signal?.aborted) break;
+      }
+    }
+  }
+
+  private async runOneTool(
+    call: ToolCall,
+    workspaceRoot: string,
+    trace: AgentTrace,
+    signal?: AbortSignal
+  ): Promise<ToolResult> {
+    trace.record("tool_call", `${call.name}(${summarizeArgs(call.args)})`, { args: call.args });
+
+    if (isAgentToolName(call.name) && this.authorizer.needsAuthorization(call.name)) {
+      const reason = buildAuthorizationReason(call.name, call.args);
+      const { request, decision } = await this.authorizer.requestAuthorization(
+        call.name,
+        call.args,
+        reason,
+        (req) => {
+          trace.record("authorization_request", `${call.name}: ${reason}`, {
+            requestId: req.id,
+            toolName: call.name,
+            args: call.args,
+            reason,
+          });
+        }
+      );
+      trace.record("authorization_decision", `${call.name} → ${decision}`, { requestId: request.id, decision });
+      if (decision === "deny") {
+        const denied: ToolResult = { ok: false, output: "", error: "用户拒绝授权，工具未执行" };
+        trace.record("tool_result", `${call.name} 被用户拒绝`, { result: denied });
+        return denied;
+      }
+    }
+
+    const result = await executeTool(call, this.deps.env, {
+      workspaceRoot,
+      ...(signal ? { signal } : {}),
+    });
+    trace.record(
+      "tool_result",
+      result.ok ? `${call.name} 成功` : `${call.name} 失败: ${result.error ?? "未知错误"}`,
+      { result }
+    );
+    return result;
+  }
+}

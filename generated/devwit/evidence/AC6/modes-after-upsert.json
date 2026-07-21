@@ -1,0 +1,48 @@
+[
+  {
+    "id": "chat",
+    "name": "Chat",
+    "description": "纯对话：极简上下文，无工具",
+    "systemPrompt": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。",
+    "tools": [],
+    "providerId": "",
+    "contextPolicy": {},
+    "builtin": true,
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "agent",
+    "name": "Agent",
+    "description": "多步任务：读写文件与执行命令需用户授权",
+    "systemPrompt": "你是 DevWit 的编码 Agent，通过工具逐步完成用户任务。先用 read/grep/find/ls 了解现状，再用 write/edit 做最小修改，必要时用 bash 验证。修改文件前先读文件；一次只推进一小步；完成后用一句话说明做了什么。",
+    "tools": [
+      "read",
+      "write",
+      "edit",
+      "bash",
+      "grep",
+      "find",
+      "ls"
+    ],
+    "providerId": "",
+    "contextPolicy": {},
+    "builtin": true,
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "e2e-mode",
+    "name": "E2E Mode",
+    "description": "热更新证明",
+    "systemPrompt": "你是 E2E 自定义模式，系统提示经热更新注入。",
+    "tools": [
+      "read"
+    ],
+    "providerId": "e2e-local-a",
+    "contextPolicy": {},
+    "builtin": false,
+    "createdAt": "2026-07-20T19:11:12.223Z",
+    "updatedAt": "2026-07-20T19:11:12.223Z"
+  }
+]

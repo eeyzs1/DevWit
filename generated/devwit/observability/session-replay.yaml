@@ -1,0 +1,60 @@
+version: 1
+description: |
+  DevWit 会话回放配置。记录 agent loop 完整 transcript、工具调用序列与
+  用户授权决策点，支持按 workitem（WU001-WU014）回放整个开发会话，
+  也支持产品侧按 chat session 回放 agent 执行轨迹（AC4 证据来源之一）。
+
+replay:
+  enabled: true
+  storage:
+    type: file
+    path: ".meta-harness/sessions/"
+    format: jsonl
+    rotation: per_workitem          # 每个 workitem 一个文件：WU001.jsonl ...
+    retention_days: 90              # 保留至 PROVE/JUDGE 完成（AC7 证据可追溯）
+
+  capture:
+    - category: agent_loop_transcript
+      fields: [turn_index, role, content, model, timestamp]
+      reason: "agent loop 每轮对话全文，复盘多步任务推理链"
+      traces_to: [AC4]
+
+    - category: tool_call_sequence
+      fields: [seq, tool, parameters, result, duration_ms, timestamp]
+      reason: "工具调用有序序列（read/write/bash/diff），复现 agent 行为"
+      redact: [api_key, authorization_header]
+      traces_to: [AC4]
+
+    - category: authorization_decisions
+      fields: [tool, target_path_or_command, decision, decided_by, rationale, timestamp]
+      reason: "用户授权决策点：批准/拒绝写文件与执行命令，AC4 授权证据"
+      traces_to: [AC4]
+
+    - category: context_manifest_snapshots
+      fields: [turn_index, system_prompt_tokens, items, total_tokens, timestamp]
+      reason: "每轮上下文组成快照，验证默认极简与逐项可审计"
+      traces_to: [AC2]
+
+    - category: diff_proposals
+      fields: [file, hunks_proposed, hunks_accepted, hunks_rejected, timestamp]
+      reason: "对话式编程 diff 提案与逐块接受/拒绝记录"
+      traces_to: [AC3]
+
+    - category: decisions
+      fields: [decision, rationale, alternatives, timestamp]
+      reason: "harness 开发期关键决策轨迹（如 tree-sitter vs 自研 tokenizer 选型）"
+
+    - category: errors
+      fields: [error_type, message, stack_trace, context, timestamp]
+      reason: "错误上下文，供 systematic-debugging 复现"
+
+    - category: verification_results
+      fields: [check_type, passed, details, timestamp]
+      reason: "验证结果，供 AC7 证据链复盘"
+
+  replay_mode:
+    allow_step_through: true        # 逐轮步进回放 agent loop
+    allow_fast_forward: true
+    allow_branching: false          # 只读回放，不允许从中间分叉改历史
+    max_replay_sessions: 5
+    index_by: [workitem_id, session_id, ac_id]   # 支持按 WU / 会话 / AC 检索

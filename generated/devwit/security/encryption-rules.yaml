@@ -1,0 +1,50 @@
+version: 1
+description: DevWit 数据分类与加密规则 — API key 走 Electron safeStorage；transcript 本地明文+日志脱敏；context manifest 本地存储外发须用户可见；设置非 secret 部分明文
+encryption_at_rest:
+  enabled: true
+  algorithm: Electron safeStorage（Windows DPAPI / macOS Keychain / Linux libsecret，AES 加密）
+  key_management: os_keychain_via_safestorage
+  scope:
+    - pattern: "**/settings/credentials.json"
+      reason: "packages/settings 的 LLM API key 存储：必须 safeStorage 加密落盘，内存中不持久保留明文（仅请求瞬时解密）"
+    - pattern: "**/.env"
+      reason: "环境文件可能含 sk-ant-*/sk-proj-* 凭证，禁止明文提交"
+    - pattern: "**/*credential*"
+      reason: "任何凭证文件必须加密"
+    - pattern: "**/sessions/*.transcript.jsonl"
+      reason: "会话 transcript 本地明文可存，但日志/轨迹导出必须脱敏 API key（AR005）"
+    - pattern: "**/context-manifests/*.json"
+      reason: "context manifest 含用户代码片段，仅本地存储；任何外发必须先经 chat-ui 上下文组成面板用户可见（AR007）"
+    - pattern: "**/settings/settings.json"
+      reason: "设置文件非 secret 部分（主题/字体/模式定义）明文存储，secret 字段只允许 encryptedApiKey 密文"
+
+encryption_in_transit:
+  enabled: true
+  minimum_tls_version: "1.2"
+  enforce_https: true
+  certificate_pinning: false
+
+data_masking:
+  enabled: true
+  rules:
+    - field: anthropic_api_key
+      pattern: "(sk-ant-)[A-Za-z0-9-]{8,}"
+      replacement: "$1***"
+    - field: openai_compatible_key
+      pattern: "(sk-(?:proj-)?)[A-Za-z0-9-]{8,}"
+      replacement: "$1***"
+    - field: x_api_key_header
+      pattern: "(x-api-key\\s*[:=]\\s*['\"]?)[^'\"\\s]+"
+      replacement: "$1***"
+
+access_control:
+  default: deny
+  rules:
+    - role: settings_service
+      access: credential_plaintext_owner
+    - role: agent_runtime
+      access: credential_in_memory_transient
+    - role: chat_ui
+      access: ciphertext_metadata_only
+    - role: verifier
+      access: read_only_with_execute

@@ -1,0 +1,51 @@
+version: 1
+description: DevWit harness 工具执行沙箱 — 命令白名单 npm/npx/node/python/git，网络限 LLM API 与 npm registry，文件限 generated/devwit 与用户测试项目目录
+allowed_commands:
+  - npm
+  - npx
+  - node
+  - python
+  - pip
+  - git
+  - tsc
+  - eslint
+  - vitest
+blocked_commands:
+  - rm -rf /
+  - sudo
+  - format
+  - mkfs
+  - dd if=
+  - curl.*|.*sh
+  - wget.*|.*sh
+  - shutdown
+  - git push --force
+network_rules:
+  allow_outbound:
+    - "api.anthropic.com"
+    - "registry.npmjs.org"
+    - "user-configured-openai-compatible-endpoint"
+  block_outbound:
+    - "*"
+  allow_inbound: []
+file_access:
+  allow_paths:
+    - "./apps"
+    - "./packages"
+    - "./tests"
+    - "./evidence"
+    - "./scripts"
+    - "./constraints"
+    - "./verification"
+    - "用户测试项目目录（DevWit agent bash 工具的工作区）"
+  block_paths:
+    - "C:\\Windows"
+    - "/etc"
+    - "/var"
+    - "~/.ssh"
+    - "~/.aws"
+    - "~/.gnupg"
+resource_limits:
+  max_memory_mb: 4096
+  max_cpu_seconds: 600
+  max_file_size_mb: 50

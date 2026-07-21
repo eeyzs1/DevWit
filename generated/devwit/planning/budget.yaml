@@ -1,0 +1,52 @@
+version: 1
+description: |
+  DevWit reasoning budget 配置（tier=full）。
+  派生：novelty=4（自研编辑器内核 + agent runtime 内核）→ ai-engineer 与
+  editor-engineer 预算上浮 50%；verifier 收紧 25%（验证只需复现证据，不做探索）。
+  worker L 档 18000 与 planning/agent-protocol.yaml effort_budget.L 一致。
+  总项目 token 预算 2,000,000，对应 WU001-WU014 全流程。
+
+limits:
+  max_steps_per_task: 40            # 单个 workunit 的 reasoning steps 上限（full tier）
+  max_tokens_per_step: 8000
+  max_total_tokens: 2000000         # 总项目 token 预算（全部 WU + gates + verify）
+  max_retries: 3                    # 每个 gate 重试 3 次
+  max_verification_loops: 3
+  max_evolution_cycles: 5
+
+per_work_unit:
+  reasoning_steps: 40               # 对齐 max_steps_per_task
+  gate_retries: 3                   # 每个 gate 失败最多重试 3 次后标 blocked
+  worker_token_budget:
+    S: 4000                         # 与 agent-protocol.yaml worker.effort_budget 一致
+    M: 9000
+    L: 18000
+
+per_role_budget:
+  # 基准 = agent-protocol.yaml worker 档；浮动系数作用于该角色全部 workunit
+  foundation-engineer:
+    multiplier: 1.0
+    reason: "成熟脚手架工作（npm workspaces / electron-builder），无 novelty 上浮"
+  editor-engineer:
+    multiplier: 1.5
+    reason: "novelty=4：自研 piece-table 缓冲区 + Canvas 渲染器（WU002-WU004），禁止 Monaco/CodeMirror"
+  platform-engineer:
+    multiplier: 1.0
+    reason: "Electron 壳/终端/settings 为主流方案集成（WU005-WU007）"
+  ai-engineer:
+    multiplier: 1.5
+    reason: "novelty=4：pi 式极简上下文引擎 + agent runtime + 模式系统（WU008-WU012）"
+  ux-engineer:
+    multiplier: 1.0
+    reason: "chat-ui 与 diff 内联编辑交互（WU012-WU013），模式参照 Cursor"
+  verifier:
+    multiplier: 0.75
+    reason: "收紧 25%：WU014 只复现证据与跑 E2E，不做探索性推理"
+
+escalation:
+  on_budget_exceeded: "escalate to human with summary of progress"
+  on_max_retries: "log as meta-mistake and try alternative approach"
+  on_verification_loop_exhausted: "flag as BLOCKER in meta-mistakes.md"
+
+traces_to:
+  per_role_budget: [AC7]            # 预算分配保障全部 WU 在总预算内完成并产出证据

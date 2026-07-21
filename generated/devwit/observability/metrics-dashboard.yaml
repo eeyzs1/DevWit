@@ -1,0 +1,92 @@
+version: 1
+description: |
+  DevWit 指标面板配置。直接对齐 AC1-AC7 验收与"简洁上下文"产品目标
+  （pi 式：系统提示 <1000 token），以及 LLM 成本与 agent 授权安全指标。
+
+metrics:
+  - name: ac_completion_status
+    type: gauge
+    description: "每条 AC 的完成状态（0=未开始, 0.5=进行中, 1=verified，按 label 区分）"
+    labels: [ac_id]                 # AC1..AC7
+    target: 1
+    traces_to: [AC1, AC2, AC3, AC4, AC5, AC6, AC7]
+
+  - name: build_pass_rate
+    type: gauge
+    description: "npm run build 成功率（WU001 起每次 workunit 合并后测量）"
+    unit: percent
+    target: 100
+    alert_threshold: 90
+    traces_to: [AC7]
+
+  - name: e2e_pass_rate
+    type: gauge
+    description: "WU014 E2E 套件通过率（启动/打开文件夹/编辑保存/对话/diff/agent/多模型/模式）"
+    unit: percent
+    target: 100
+    alert_threshold: 80
+    traces_to: [AC7]
+
+  - name: llm_token_consumption
+    type: counter
+    description: "LLM 请求 token 总量（harness 开发 + 产品运行时实测）"
+    labels: [provider, model, agent_role]
+    budget: 2000000                 # 对齐 planning/budget.yaml max_total_tokens
+
+  - name: llm_cost_estimate
+    type: histogram
+    description: "按 provider 公开定价估算的 LLM 成本"
+    unit: usd
+    labels: [provider, model]
+
+  - name: agent_authorization_intercepts
+    type: counter
+    description: "agent-runtime 授权门拦截/请求用户确认次数（写文件/执行命令前）"
+    labels: [tool_name, decision]   # decision: approved / denied / pending
+    traces_to: [AC4]
+
+  - name: context_system_prompt_tokens
+    type: histogram
+    description: "每次请求系统提示 token 数——简洁性核心目标"
+    unit: tokens
+    target: 1000                    # pi 式目标：系统提示 <1000 token
+    alert_threshold: 1000
+    traces_to: [AC2]
+
+  - name: context_total_tokens
+    type: histogram
+    description: "每次请求完整上下文 token 数（系统提示+工具+注入项）"
+    unit: tokens
+    labels: [mode]
+    traces_to: [AC2]
+
+  - name: error_rate_by_type
+    type: counter
+    description: "错误计数（按类型分组）"
+    labels: [error_type]
+    alert_threshold: 10
+
+  - name: constraint_violation_count
+    type: counter
+    description: "hard_constraints HC1-HC5 违反次数"
+    labels: [rule_id]
+    alert_threshold: 1              # 硬约束违反一次即告警
+
+  - name: evolution_fitness_score
+    type: gauge
+    description: "harness 当前适应度"
+    target: 0.8
+
+dashboard:
+  refresh_interval_seconds: 30
+  panels:
+    - title: "AC 验收"
+      metrics: [ac_completion_status, build_pass_rate, e2e_pass_rate]
+    - title: "简洁上下文"
+      metrics: [context_system_prompt_tokens, context_total_tokens]
+    - title: "LLM 资源"
+      metrics: [llm_token_consumption, llm_cost_estimate]
+    - title: "Agent 安全"
+      metrics: [agent_authorization_intercepts, constraint_violation_count]
+    - title: "健康与演进"
+      metrics: [error_rate_by_type, evolution_fitness_score]

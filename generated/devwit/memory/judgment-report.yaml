@@ -1,0 +1,35 @@
+criteria:
+- criterion: 桌面应用可启动并打开本地项目文件夹，文件树可浏览，自研编辑器可打开/编辑/保存文件
+  evidence: Not found in completed_criteria
+  verdict: NOT_PROVEN
+- criterion: 简洁上下文引擎：每次 LLM 请求的完整上下文组成（系统提示、工具列表、注入项及各项 token 占用）对用户可见，且用户可逐项开启/关闭
+  evidence: Not found in completed_criteria
+  verdict: NOT_PROVEN
+- criterion: 对话式编程：用户可通过对话请求代码修改，修改以 diff 形式在编辑器内呈现，可逐块接受或拒绝
+  evidence: Not found in completed_criteria
+  verdict: NOT_PROVEN
+- criterion: Agent 模式：Agent 可在用户授权下读写文件并执行终端命令，能完成多步任务，执行轨迹可见
+  evidence: Not found in completed_criteria
+  verdict: NOT_PROVEN
+- criterion: 多模型接入：支持 Anthropic API 与 OpenAI 兼容 API，可自定义 base URL 与 API key，会话中可切换模型
+  evidence: Not found in completed_criteria
+  verdict: NOT_PROVEN
+- criterion: 模式自定义系统：用户可创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略， 修改热生效无需重启
+  evidence: Not found in completed_criteria
+  verdict: NOT_PROVEN
+- criterion: 构建成功无错误，上述每条标准均有可验证证据
+  evidence: Not found in completed_criteria
+  verdict: NOT_PROVEN
+goal: 开发一款 Electron + TypeScript 桌面 AI IDE：自研编辑器内核 + pi 式简洁上下文引擎 （默认极少注入、每项上下文可见可裁剪）+
+  对话式编程（diff 内联编辑）+ Agent 模式 （读写文件/执行命令的多步任务）+ 多模型接入（Anthropic/OpenAI 兼容 API，可自定义
+  endpoint） + 用户自定义模式系统（每个模式独立定义 prompt/工具集/模型/上下文注入策略，热更新生效）。 无自建云端后端，本地 agent runtime
+  直连模型 API。
+insufficient_evidence: 0
+not_proven: 7
+project: DevWit — 简洁上下文 AI 原生桌面 IDE
+proven: 0
+timestamp: '2026-07-20T22:14:03.000705'
+total_criteria: 7
+verdict: NOT_PROVEN
+verification_passed: null
+verification_run: false

@@ -1,0 +1,10 @@
+version: 1
+generated_at: '2026-07-20T21:39:54.911093'
+tier: full
+factors:
+  scope: 4
+  criticality: 3
+  novelty: 4
+  coupling: 4
+generation_mode: scaffold+llm
+note: Structure scaffolded by script; content authored by LLM per harness-scaffold.yaml.

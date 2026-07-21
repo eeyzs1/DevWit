@@ -1,0 +1,28 @@
+version: 1
+description: |
+  DevWit workitem source adapter 配置。
+  开发期（harness 驱动 WU001-WU014）使用 local_file adapter：workitem 即
+  runtime/sources/workitems/ 下的 yaml 文件，无外部系统依赖，可手工审计/编辑。
+  产品进入迭代维护期后可替换为 github_issues adapter（同一 WorkitemSource 接口，
+  仅需新增 runtime/sources/github_issues_source.py 并改本文件 adapter/class_name）。
+
+adapter: local_file                 # runtime/sources/local_file_source.py
+class_name: LocalFileSource
+
+config:
+  source_dir: runtime/sources/workitems/   # workitem 根目录（相对 harness 根）
+  pending_dir: pending/                    # 待领：WU001-WU014 初始都在此
+  in_progress_dir: in_progress/            # supervisor 已 claim、worker 处理中
+  done_dir: done/                          # archive 后落位（文件内追加 result/summary）
+  blocked_dir: blocked/                    # rebase 冲突 / 连续失败转人工
+
+  # workitem 文件 schema（每个 .yaml 一个 workitem，文件名即 id，如 WU001.yaml）：
+  #   id: WU001
+  #   title: ...
+  #   description: ...
+  #   acceptance_criteria: [AC7]
+  #   effort: M            # S / M / L —— 映射 agent-protocol.yaml 的 effort_budget
+  #   priority: 1          # 数字越小优先级越高（priority claim policy 用）
+
+traces_to:
+  - AC7                   # source 队列驱动全部 WU，最终产出构建与 AC 证据

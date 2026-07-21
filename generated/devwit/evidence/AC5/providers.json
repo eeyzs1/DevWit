@@ -1,0 +1,20 @@
+[
+  {
+    "id": "e2e-local-a",
+    "type": "openai",
+    "label": "E2E Local A",
+    "baseUrl": "http://127.0.0.1:63054",
+    "model": "e2e-model-a",
+    "credentialRef": "e2e-cred",
+    "maxTokens": 2048
+  },
+  {
+    "id": "e2e-local-b",
+    "type": "openai",
+    "label": "E2E Local B",
+    "baseUrl": "http://127.0.0.1:63054",
+    "model": "e2e-model-b",
+    "credentialRef": "e2e-cred",
+    "maxTokens": 2048
+  }
+]

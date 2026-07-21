@@ -1,0 +1,10 @@
+{
+  "system_prompt": true,
+  "tool_definitions": true,
+  "file_fragment": false,
+  "git_status": false,
+  "terminal_output": false,
+  "selection": false,
+  "conversation_history": false,
+  "custom": false
+}

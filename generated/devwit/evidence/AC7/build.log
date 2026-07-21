@@ -1,0 +1,100 @@
+﻿
+> devwit@0.1.0 build:renderer
+> esbuild apps/desktop/src/renderer/index.ts --bundle --outfile=apps/desktop/dist/renderer/index.js --format=iife --target=chrome130 --sourcemap --loader:.css=css
+
+node.exe : 
+At line:1 char:1
++ & "E:\Tools\apps\nodejs/node.exe" "E:\Tools\apps\nodejs/node_modules/ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  apps\desktop\dist\renderer\index.js       116.5kb
+  apps\desktop\dist\renderer\index.css        9.6kb
+  apps\desktop\dist\renderer\index.js.map   276.1kb
+  apps\desktop\dist\renderer\index.css.map   16.7kb
+
+Done in 18ms
+
+> devwit@0.1.0 build:main
+> esbuild apps/desktop/src/main/index.ts --bundle --outfile=apps/desktop/dist/main/index.js --format=esm --platform=node --target=node20 --external:electron --external:node-pty
+
+node.exe : 
+At line:1 char:1
++ & "E:\Tools\apps\nodejs/node.exe" "E:\Tools\apps\nodejs/node_modules/ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  apps\desktop\dist\main\index.js  5.4mb
+
+Done in 75ms
+
+> devwit@0.1.0 build:preload
+> esbuild apps/desktop/src/main/preload.ts --bundle --outfile=apps/desktop/dist/main/preload.cjs --format=cjs --platform=node --external:electron
+
+node.exe : 
+At line:1 char:1
++ & "E:\Tools\apps\nodejs/node.exe" "E:\Tools\apps\nodejs/node_modules/ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  apps\desktop\dist\main\preload.cjs  4.4kb
+
+Done in 6ms
+
+> devwit@0.1.0 copy:html
+> node -e "require('node:fs').copyFileSync('apps/desktop/src/renderer/index.html','apps/desktop/dist/renderer/index.html')"
+
+[summary] tsc exit=0, full build exit=0 — apps/desktop/dist 产物就绪
+
+> devwit@0.1.0 build:renderer
+> esbuild apps/desktop/src/renderer/index.ts --bundle --outfile=apps/desktop/dist/renderer/index.js --format=iife --target=chrome130 --sourcemap --loader:.css=css
+
+node.exe : 
+At line:1 char:1
++ & "E:\Tools\apps\nodejs/node.exe" "E:\Tools\apps\nodejs/node_modules/ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  apps\desktop\dist\renderer\index.js       116.5kb
+  apps\desktop\dist\renderer\index.css        9.6kb
+  apps\desktop\dist\renderer\index.js.map   276.1kb
+  apps\desktop\dist\renderer\index.css.map   16.7kb
+
+Done in 114ms
+
+> devwit@0.1.0 build:main
+> esbuild apps/desktop/src/main/index.ts --bundle --outfile=apps/desktop/dist/main/index.js --format=esm --platform=node --target=node20 --external:electron --external:node-pty
+
+node.exe : 
+At line:1 char:1
++ & "E:\Tools\apps\nodejs/node.exe" "E:\Tools\apps\nodejs/node_modules/ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  apps\desktop\dist\main\index.js  5.4mb
+
+Done in 189ms
+
+> devwit@0.1.0 build:preload
+> esbuild apps/desktop/src/main/preload.ts --bundle --outfile=apps/desktop/dist/main/preload.cjs --format=cjs --platform=node --external:electron
+
+node.exe : 
+At line:1 char:1
++ & "E:\Tools\apps\nodejs/node.exe" "E:\Tools\apps\nodejs/node_modules/ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  apps\desktop\dist\main\preload.cjs  4.4kb
+
+Done in 9ms
+
+> devwit@0.1.0 copy:html
+> node -e "require('node:fs').copyFileSync('apps/desktop/src/renderer/index.html','apps/desktop/dist/renderer/index.html')"
+
+[summary] tsc exit=0, full build exit=0 — apps/desktop/dist 产物就绪

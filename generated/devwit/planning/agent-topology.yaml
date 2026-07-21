@@ -1,0 +1,73 @@
+topology:
+  total_agents: 6
+  roles:
+  - foundation-engineer
+  - editor-engineer
+  - platform-engineer
+  - ai-engineer
+  - ux-engineer
+  - verifier
+  parallel_groups:
+  - - foundation-engineer
+  - - editor-engineer
+    - platform-engineer
+  - - ai-engineer
+  - - ux-engineer
+  - - verifier
+  sequential_chain:
+  - foundation-engineer
+  - editor-engineer
+  - platform-engineer
+  - ai-engineer
+  - ux-engineer
+  - verifier
+  handoff_points:
+  - from: foundation-engineer
+    to: editor-engineer
+    format: 可构建的 monorepo 骨架（package.json/tsconfig/构建脚本）
+  - from: foundation-engineer
+    to: platform-engineer
+    format: 可构建的 monorepo 骨架（package.json/tsconfig/构建脚本）
+  - from: editor-engineer
+    to: ux-engineer
+    format: packages/editor-core 源码与单元测试
+  - from: editor-engineer
+    to: ux-engineer
+    format: packages/editor-render 源码与单元测试
+  - from: editor-engineer
+    to: verifier
+    format: packages/editor-core 源码与单元测试
+  - from: editor-engineer
+    to: verifier
+    format: packages/editor-render 源码与单元测试
+  - from: editor-engineer
+    to: verifier
+    format: packages/syntax 源码与单元测试
+  - from: platform-engineer
+    to: ai-engineer
+    format: packages/workspace、packages/terminal、packages/settings 源码与测试
+  - from: platform-engineer
+    to: verifier
+    format: apps/desktop 源码（main/preload）
+  - from: platform-engineer
+    to: verifier
+    format: packages/workspace、packages/terminal、packages/settings 源码与测试
+  - from: ai-engineer
+    to: ux-engineer
+    format: packages/llm-providers、context-engine、agent-runtime、modes 源码与测试
+  - from: ai-engineer
+    to: ux-engineer
+    format: context manifest 样例（每项 token 占用可审计证据）
+  - from: ai-engineer
+    to: verifier
+    format: packages/llm-providers、context-engine、agent-runtime、modes 源码与测试
+  - from: ux-engineer
+    to: verifier
+    format: packages/chat-ui 源码与组件测试
+  context_budget: 1000
+  complexity_profile:
+    tier: full
+    scope: 4
+    criticality: 3
+    novelty: 4
+    coupling: 4

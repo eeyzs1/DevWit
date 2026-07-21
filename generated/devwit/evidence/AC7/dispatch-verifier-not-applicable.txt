@@ -1,0 +1,18 @@
+dispatch-verifier.py 不适用性说明（AC7 证据附件）
+=====================================================
+
+结论：NOT_APPLICABLE — 本检查针对 harness 的「dispatcher → subagent 派发」
+工作流做 input/output task card 对账；DevWit 的 FACTORY 阶段采用
+agent-factory 直接生成路径（meta/agent-factory.md），全部 WU001–WU014
+由单一构建循环顺序完成，未走 planning/dispatcher.py 派发，因此
+planning/dispatch-plan.yaml 从未生成，dispatch-verifier 以
+"ERROR: dispatch-plan.yaml not found" 退出（exit 1）。
+
+证据链替代：
+- FACTORY 阶段产物由 meta-orchestrator pipeline-state.yaml 记录
+  （FACTORY action=completed，2026-07-20T22:12:19）；
+- 全部 work unit 的完成证据 = 本仓库源码本身 + evidence/AC1..AC7
+  + E2E 冒烟（evidence/e2e-report.json, result=PASSED, 216 项单测全过）。
+
+附：dispatch-verifier 原始输出见同目录 dispatch-verifier.log。
+若未来项目改用 dispatcher 派发流，需重新运行本检查并要求 exit 0/2。

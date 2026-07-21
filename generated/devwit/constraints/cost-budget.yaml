@@ -1,0 +1,35 @@
+version: 1
+description: DevWit 桌面 IDE 资源与成本预算 — 编辑器 60fps / 大文件秒开 / Electron idle 内存基线 / 构建与测试不榨干资源（软约束）
+limits:
+  editor:
+    target_render_fps: 60
+    large_file_size_mb: 10
+    max_large_file_open_ms: 1000
+    smooth_scroll_min_lines: 10000
+    max_keystroke_latency_ms: 16
+  build:
+    max_build_time_seconds: 600
+    max_typecheck_time_seconds: 180
+    max_renderer_bundle_size_kb: 5120
+  runtime:
+    max_idle_memory_mb: 500
+    max_idle_cpu_percent: 5
+    max_active_memory_mb: 2048
+    max_pty_processes: 8
+  test:
+    max_test_time_seconds: 600
+    max_test_memory_mb: 4096
+    max_test_cpu_percent: 80
+  llm:
+    max_system_prompt_tokens: 1500
+    max_manifest_overhead_tokens: 3000
+    stream_first_token_timeout_seconds: 30
+circuit_breakers:
+  error_rate_threshold: 0.2
+  latency_threshold_seconds: 30
+  consecutive_failure_threshold: 3
+  cooldown_seconds: 60
+rate_limits:
+  llm_api_calls_per_minute: 20
+  file_operations_per_minute: 200
+  file_watch_events_per_second: 100

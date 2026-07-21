@@ -1,0 +1,72 @@
+- recorded_at: '2026-07-21T02:46:04'
+  type: manual_fix
+  action: investigate_and_fix
+  source: lint
+  detail: 'E902 The system cannot find the file specified. (os error 2)
+
+    --> src:1:1
+
+
+    Found 1 error.
+
+    '
+- recorded_at: '2026-07-21T02:46:04'
+  type: manual_fix
+  action: investigate_and_fix
+  source: lint
+  detail: 'E902 The system cannot find the file specified. (os error 2)
+
+    --> src:1:1
+
+
+    Found 1 error.
+
+    '
+- recorded_at: '2026-07-21T02:46:04'
+  type: manual_fix
+  action: investigate_and_fix
+  source: lint
+  detail: 'E902 The system cannot find the file specified. (os error 2)
+
+    --> src:1:1
+
+
+    Found 1 error.
+
+    '
+- recorded_at: '2026-07-21T02:46:22'
+  type: manual_fix
+  action: investigate_and_fix
+  source: lint
+  detail: 'E902 The system cannot find the file specified. (os error 2)
+
+    --> src:1:1
+
+
+    Found 1 error.
+
+    '
+- recorded_at: '2026-07-21T02:46:22'
+  type: manual_fix
+  action: investigate_and_fix
+  source: lint
+  detail: 'E902 The system cannot find the file specified. (os error 2)
+
+    --> src:1:1
+
+
+    Found 1 error.
+
+    '
+- recorded_at: '2026-07-21T02:46:23'
+  type: manual_fix
+  action: investigate_and_fix
+  source: lint
+  detail: 'E902 The system cannot find the file specified. (os error 2)
+
+    --> src:1:1
+
+
+    Found 1 error.
+
+    '
