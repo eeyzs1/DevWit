@@ -88,6 +88,14 @@ jobs:
       - name: Restore Electron binary
         run: node node_modules/electron/install.js
 
+      - name: Diagnose electron install
+        shell: pwsh
+        run: |
+          Write-Host "ELECTRON_SKIP_BINARY_DOWNLOAD=$env:ELECTRON_SKIP_BINARY_DOWNLOAD"
+          Get-ChildItem node_modules/electron -Name | Select-Object -First 15
+          if (Test-Path node_modules/electron/dist) { Write-Host "dist exists:"; Get-ChildItem node_modules/electron/dist -Name | Select-Object -First 8 } else { Write-Host "NO DIST DIR" }
+          if (Test-Path node_modules/electron/path.txt) { Write-Host ("path.txt bytes: " + ([System.IO.File]::ReadAllBytes("$PWD/node_modules/electron/path.txt") -join ',')) } else { Write-Host "NO path.txt" }
+
       - name: Build
         run: npm run build
 
