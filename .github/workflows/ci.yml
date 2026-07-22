@@ -35,6 +35,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Restore Electron binary
+        # npm 12（Node 26.5+ 自带）默认阻止依赖 postinstall，allowScripts 声明后
+        # electron install.js 在 CI 仍未执行（原因待查）；显式运行兜底，幂等。
+        run: node node_modules/electron/install.js
+
       - name: ESLint
         run: npm run lint
 
@@ -79,6 +84,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Restore Electron binary
+        run: node node_modules/electron/install.js
 
       - name: Build
         run: npm run build
