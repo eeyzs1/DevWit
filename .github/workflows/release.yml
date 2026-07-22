@@ -27,7 +27,16 @@ jobs:
         run: npm ci
 
       - name: Restore Electron binary
-        run: node node_modules/electron/install.js
+        shell: pwsh
+        run: |
+          $ver = (Get-Content node_modules/electron/package.json -Raw | ConvertFrom-Json).version
+          $zip = "$env:TEMP\electron-v$ver-win32-x64.zip"
+          curl.exe -sSL -o $zip "https://github.com/electron/electron/releases/download/v$ver/electron-v$ver-win32-x64.zip"
+          if ($LASTEXITCODE -ne 0) { Write-Error "electron zip 下载失败"; exit 1 }
+          Expand-Archive $zip -DestinationPath node_modules/electron/dist -Force
+          [System.IO.File]::WriteAllText("$PWD\node_modules\electron\path.txt", "electron.exe")
+          if (!(Test-Path node_modules/electron/dist/electron.exe)) { Write-Error "electron.exe 仍缺失"; exit 1 }
+          Write-Host "electron $ver 二进制就绪"
 
       - name: Build NSIS installer + portable
         run: npm run dist
