@@ -9,6 +9,11 @@
     "apps/*",
     "packages/*"
   ],
+  "allowScripts": {
+    "electron@37.10.3": true,
+    "esbuild@0.24.2": true,
+    "esbuild@0.28.1": true
+  },
   "scripts": {
     "build": "tsc -b && npm run build:renderer && npm run build:main && npm run build:preload && npm run copy:html",
     "build:renderer": "esbuild apps/desktop/src/renderer/index.ts --bundle --outfile=apps/desktop/dist/renderer/index.js --format=iife --target=chrome130 --sourcemap --loader:.css=css",
