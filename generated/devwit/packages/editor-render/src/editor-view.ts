@@ -67,7 +67,7 @@ export class EditorView {
     this.canvas = canvas;
     const ctx = canvas.getContext("2d");
     if (ctx === null) {
-      throw new Error("EditorView: 无法获取 2d canvas context");
+      throw new Error("EditorView: failed to acquire 2d canvas context");
     }
     this.ctx = ctx;
     this.doc = doc;

@@ -9,11 +9,12 @@
  * "AI 子系统未初始化"——这是明确的未接线错误，不是 mock 数据（WU008-WU011 接线）。
  */
 import { IPC } from "@devwit/contracts";
-import type { AgentRunInput, AuthorizationDecision, ContextItemType, ProviderConfig } from "@devwit/contracts";
+import type { AgentRunInput, AuthorizationDecision, ContextItemType, ExternalEditorConfig, ProviderConfig } from "@devwit/contracts";
 import type { SettingsStore } from "@devwit/settings";
 import type { TerminalService } from "@devwit/terminal";
 import type { WorkspaceService } from "@devwit/workspace";
 import type { AiRuntime } from "./ai-runtime.js";
+import { openInExternalEditor } from "./external-editor.js";
 
 // ---------------------------------------------------------------------------
 // 依赖注入接口（electron 的结构子集）
@@ -53,7 +54,7 @@ export const PUSH_CHANNELS: readonly string[] = [
   IPC.ModesChanged
 ];
 
-const AI_NOT_WIRED = "AI 子系统未初始化";
+const AI_NOT_WIRED = "DW_AI_NOT_WIRED";
 
 // ---------------------------------------------------------------------------
 // handlers 表
@@ -107,6 +108,17 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
   table[IPC.SettingsGet] = (_e, key) => settings.get(String(key)) ?? null;
   table[IPC.SettingsSet] = (_e, key, value) => {
     settings.set(String(key), value);
+  };
+
+  // ---- 外部编辑器（AC10）：settings["externalEditor"].command 模板 → 真实 spawn ----
+  table[IPC.ExternalEditorOpen] = async (_e, filePath, line) => {
+    const config = settings.get("externalEditor") as ExternalEditorConfig | undefined;
+    const command = config?.command ?? "";
+    if (command.trim() === "") {
+      // ASCII 错误码：渲染端据此弹出编辑器引导小页并本地化文案（GBK 终端 stderr 防乱码）
+      throw new Error("DW_EXTERNAL_EDITOR_NOT_CONFIGURED");
+    }
+    await openInExternalEditor(command, String(filePath), typeof line === "number" ? line : 1);
   };
 
   // ---- credentials（明文绝不回传渲染进程，无 get 通道）----

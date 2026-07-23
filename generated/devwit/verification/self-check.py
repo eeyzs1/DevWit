@@ -48,8 +48,8 @@ def run_error_capture(project_root: Path, error_output: str, source: str) -> lis
         if proc.returncode == 0 and proc.stdout.strip():
             data = yaml.safe_load(proc.stdout) or {}
             return data.get("errors", [])
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"WARNING: error-capture 调用失败，按无错误处理: {exc}", file=sys.stderr)
     finally:
         Path(tmp_path).unlink(missing_ok=True)
     return []
@@ -228,8 +228,8 @@ def _append_pending_fixes(pending_path: Path, fixes: list) -> None:
                 data = yaml.safe_load(f)
             if isinstance(data, list):
                 existing = data
-        except Exception:
-            pass  # 旧文件不可读则覆盖
+        except Exception as exc:
+            print(f"WARNING: pending fixes 读取失败，将覆盖重写: {exc}", file=sys.stderr)
 
     ts = datetime.datetime.now().isoformat(timespec="seconds")
     for fx in fixes:
@@ -411,8 +411,9 @@ def verify_acceptance_criterion(project_root: Path, task_id: str) -> dict:
                         criteria = tc.get("success_criteria") or []
                         requires_review = bool(tc.get("requires_human_review", False))
                         break
-            except Exception:
-                pass  # dispatch-plan 不可读时降级为只校验 status + evidence
+            except Exception as exc:
+                # dispatch-plan 不可读时降级为只校验 status + evidence
+                print(f"WARNING: dispatch-plan 读取失败，降级校验: {exc}", file=sys.stderr)
 
     # 1. status check
     acceptable = ["completed"]

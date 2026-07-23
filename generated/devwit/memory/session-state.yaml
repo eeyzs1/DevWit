@@ -28,12 +28,12 @@ guard_log:
   criterion: 构建成功无错误，上述每条标准均有可验证证据
   timestamp: '2026-07-21T07:26:42.827558'
   verdict: VERIFIED
-phase: GENERATE
+phase: EVOLVE
 progress:
   acceptance_criteria:
   - description: 桌面应用可启动并打开本地项目文件夹，文件树可浏览，自研编辑器可打开/编辑/保存文件
     id: AC1
-    status: pending
+    status: completed
     traces_to:
     - WU001
     - WU002
@@ -42,27 +42,27 @@ progress:
     verifier: tests/e2e/ac1-workspace-editing.spec.ts + evidence/AC1
   - description: 简洁上下文引擎：每次 LLM 请求的完整上下文组成（系统提示、工具列表、注入项及各项 token 占用）对用户可见，且用户可逐项开启/关闭
     id: AC2
-    status: pending
+    status: completed
     traces_to:
     - WU009
     - WU012
     verifier: verification/check-context-audit.py + evidence/AC2/manifest 样例
   - description: 对话式编程：用户可通过对话请求代码修改，修改以 diff 形式在编辑器内呈现，可逐块接受或拒绝
     id: AC3
-    status: pending
+    status: completed
     traces_to:
     - WU013
     verifier: tests/e2e/ac3-diff-inline-edit.spec.ts + evidence/AC3
   - description: Agent 模式：Agent 可在用户授权下读写文件并执行终端命令，能完成多步任务，执行轨迹可见
     id: AC4
-    status: pending
+    status: completed
     traces_to:
     - WU006
     - WU010
     verifier: tests/e2e/ac4-agent-multistep.spec.ts + evidence/AC4
   - description: 多模型接入：支持 Anthropic API 与 OpenAI 兼容 API，可自定义 base URL 与 API key，会话中可切换模型
     id: AC5
-    status: pending
+    status: completed
     traces_to:
     - WU007
     - WU008
@@ -70,13 +70,13 @@ progress:
     verifier: tests/e2e/ac5-multi-model.spec.ts + evidence/AC5
   - description: 模式自定义系统：用户可创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略，修改热生效无需重启
     id: AC6
-    status: pending
+    status: completed
     traces_to:
     - WU011
     verifier: tests/e2e/ac6-modes-hot-reload.spec.ts + evidence/AC6
   - description: 构建成功无错误，上述每条标准均有可验证证据
     id: AC7
-    status: pending
+    status: completed
     traces_to:
     - WU001
     - WU014
@@ -90,5 +90,72 @@ progress:
   - 模式自定义系统：用户可创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略， 修改热生效无需重启
   - 构建成功无错误，上述每条标准均有可验证证据
   failed_criteria: []
-status: in_progress
-updated_at: '2026-07-21T07:26:42.827558'
+iteration_2:
+  scope: AI-native 工作台 UX 重设计（用户反馈：上手引导 / 外部编辑器替代内置编辑器定位 / Agent 编排可见性）
+  acceptance_criteria:
+  - description: 双形态切换：「对话」与「指挥台」一键切换，两种形态的工作状态各自保持（草稿、活动文件不丢失）
+    id: AC8
+    status: completed
+    verifier: tests/e2e/iteration2.mjs + evidence/AC8
+  - description: 任务指挥台：任务列表（状态徽标实时归约）+ Agent 活动流（五类事件 + 内联授权裁决）+ 工作区视图（代码/Diff 页签）
+    id: AC9
+    status: completed
+    verifier: tests/e2e/iteration2.mjs + evidence/AC9
+  - description: 外部编辑器：命令模板（{file}/{line} 占位符）配置后真实 spawn 打开当前文件，未配置时弹出配置引导
+    id: AC10
+    status: completed
+    verifier: tests/e2e/iteration2.mjs + tests/external-editor.test.ts + evidence/AC10
+  - description: 首次使用引导：未打开工作区时三步引导（配置模型→打开文件夹→输入第一个意图附示例），对话空态说明主 Agent 行为
+    id: AC11
+    status: completed
+    verifier: tests/e2e/iteration2.mjs + evidence/AC11
+  e2e_report: evidence/e2e2-report.json (PASSED)
+  unit_tests: 29 files / 233 tests passed
+iteration_3:
+  scope: 国际化与统一设置入口（用户反馈：中英文切换支持 + 设置按钮/页面缺失）
+  acceptance_criteria:
+  - description: 统一设置页：通用/模型/编辑器/模式 四分区左侧导航单一入口（替代原三个独立对话框），语言切换热生效无需重启并持久化（settings "ui.locale"，启动时恢复）
+    id: AC12
+    status: completed
+    verifier: tests/e2e/iteration2.mjs (AC12 场景) + packages/i18n/tests/i18n.test.ts + evidence/AC12
+  notes: 新增 @devwit/i18n 包（zh-CN/en-US 双词典编译期同型校验、t() 插值/ta() 数组/setLocale 热生效订阅）；renderer + chat-ui 全部界面文案接入词典；顶栏三设置入口合并为单一「设置」
+  e2e_report: evidence/e2e2-report.json (PASSED，含 AC12 场景)
+  unit_tests: 30 files / 239 tests passed
+iteration_4:
+  scope: 运行时错误本地化与编辑器引导（用户三反馈：终端乱码 / 中文界面英文残留 / 外部编辑器未配置点击无反应）
+  acceptance_criteria:
+  - description: 主进程错误不再向 stderr 输出中文（GBK 终端乱码根因消除）：主进程/包层抛 ASCII 错误码（DW_*），渲染端 localizeError 按当前语言映射词典文案；stderr 无 CJK、无非法 UTF-8 序列
+    id: AC13
+    status: completed
+    verifier: tests/e2e/verify-i4.mjs + evidence/AC13（stderr-raw.bin 字节级分析）
+  - description: 中英文切换无残留：内置模式名（Chat/Agent）经 displayModeName 按当前语言显示（用户改名优先）；设置·模型/模式表单 label 全部经 t() 输出；英→中往返切换恢复
+    id: AC13
+    status: completed
+    verifier: tests/e2e/verify-i4.mjs + evidence/AC13
+  - description: 外部编辑器未配置时点击「外部编辑器 ↗」弹出「选择外部编辑器」引导小页（预设一键填模板 + 自定义），「保存并打开」保存后立即重试打开（真实 spawn 落盘证明）
+    id: AC13
+    status: completed
+    verifier: tests/e2e/verify-i4.mjs + tests/e2e/iteration2.mjs (AC10 更新) + evidence/AC13
+  notes: 主进程 ai-runtime/ipc/external-editor 与 modes/llm-providers 包校验错误全部改 ASCII 错误码；i18n 新增 localizeError/displayModeName 与 err.* 词典；新增 renderer/editor-setup-dialog.ts 引导小页；externalBtn 未配置分支在有打开文件时传 onSaved（保存后直接打开当前文件）；诊断脚本 repro-i4.mjs 由 verify-i4.mjs 取代并删除
+  e2e_report: evidence/AC13/verify-i4-report.json (10 项断言全 PASS) + smoke/iteration2 回归 PASSED
+  unit_tests: 30 files / 239 tests passed
+iteration_5:
+  scope: 通用设置布局与语言跟随系统（用户三反馈：通用分区文字堆叠 / 缺跟随系统选项 / 工具栏与下拉按钮文字不随语言变）
+  acceptance_criteria:
+  - description: 设置·通用分区 hint 文字不再堆叠（.dw-form 两列 grid 中 hint 跨整行渲染）
+    id: AC14
+    status: completed
+    verifier: tests/e2e/verify-i5.mjs + evidence/AC14（hint 宽 578.7px=表单 100%、高 38.4px 非逐词换行）
+  - description: 语言选项新增「跟随系统」置顶项：系统中文用中文否则英文（resolveSystemLocale，navigator.language 前缀 zh → zh-CN 否则 en-US）；持久化原始选择 "system"，新用户默认选中；启动恢复按持久化值或系统解析
+    id: AC14
+    status: completed
+    verifier: tests/e2e/verify-i5.mjs + evidence/AC14（持久化 "system"、en-GB 系统→英文界面）
+  - description: 语言切换后工具栏/下拉框/tooltip 无残留：文件树 ↗ 按钮 tooltip（tree.external）在 applyLocale 中随语言重写（树不重建保留展开状态）；对话+指挥台两种形态切英文全量文本 dump 无 CJK 残留
+    id: AC14
+    status: completed
+    verifier: tests/e2e/verify-i5.mjs + evidence/AC14（dumpAll 覆盖 button/option/placeholder/title/tab/nav）
+  notes: 根因——文件树构建后语言切换不重建导致 ↗ tooltip 停留旧语言；通用分区 hint 落在 110px label 列被挤压（CSS 补 .dw-form > .dw-modal-hint { grid-column: 1 / -1 } + .dw-modal-hint 基础样式）。首启语言改为跟随系统后，smoke/iteration2/verify-i4 三个 e2e 脚本统一加 --lang=zh-CN 固定中文测试环境
+  e2e_report: evidence/AC14/verify-i5-report.json (11 项断言全 PASS) + smoke/iteration2/verify-i4 回归 PASSED
+  unit_tests: 30 files / 239 tests passed
+status: complete
+updated_at: '2026-07-23T11:45:00.000000'

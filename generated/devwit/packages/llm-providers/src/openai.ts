@@ -125,7 +125,8 @@ export async function* parseOpenAiEvents(payloads: AsyncIterable<string>): Async
   for await (const payload of payloads) {
     const chunk = parseJsonObject(payload);
     if (!chunk) {
-      yield { type: "error", error: `无法解析 OpenAI SSE 数据: ${payload.slice(0, 120)}`, retryable: false };
+      // 错误码保持 ASCII：消息经 trace→IPC 到渲染端，localizeError 按当前语言本地化
+      yield { type: "error", error: "DW_SSE_PARSE_FAILED:openai", retryable: false };
       continue;
     }
     const usage = chunk["usage"];
@@ -223,7 +224,7 @@ export class OpenAiCompatibleProvider implements LLMProvider {
   }
 
   async *streamChat(messages: ChatMessage[], tools: ToolDefinition[], signal?: AbortSignal): AsyncIterable<StreamEvent> {
-    if (!this.config.baseUrl) throw new Error("OpenAiCompatibleProvider: ProviderConfig.baseUrl 为空");
+    if (!this.config.baseUrl) throw new Error("OpenAiCompatibleProvider: ProviderConfig.baseUrl is empty");
     const apiKey = await this.credentials.resolve(this.config.credentialRef);
     const body = buildOpenAiRequest(this.config, messages, tools);
     const response = await fetch(joinUrl(this.config.baseUrl, "/chat/completions"), {
@@ -236,7 +237,7 @@ export class OpenAiCompatibleProvider implements LLMProvider {
       ...(signal ? { signal } : {}),
     });
     await assertResponseOk(response);
-    if (!response.body) throw new Error("OpenAiCompatibleProvider: 响应缺少可读取的 body 流");
+    if (!response.body) throw new Error("OpenAiCompatibleProvider: response has no readable body stream");
     yield* parseOpenAiEvents(parseSseStream(response.body));
   }
 }

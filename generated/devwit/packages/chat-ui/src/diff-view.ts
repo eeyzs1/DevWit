@@ -1,3 +1,4 @@
+import { onDidChangeLocale, t } from "@devwit/i18n";
 import type { DiffController } from "./diff-controller.js";
 
 /**
@@ -28,7 +29,7 @@ export function mountDiffView(container: HTMLElement, options: DiffViewOptions):
 
   const header = document.createElement("div");
   header.className = "dw-diff-header";
-  header.textContent = options.title ?? "变更审查";
+  header.textContent = options.title ?? t("diff.title");
   root.appendChild(header);
 
   const body = document.createElement("div");
@@ -39,21 +40,25 @@ export function mountDiffView(container: HTMLElement, options: DiffViewOptions):
   footer.className = "dw-diff-footer";
   const acceptAllBtn = document.createElement("button");
   acceptAllBtn.className = "dw-btn dw-btn-small";
-  acceptAllBtn.textContent = "全部接受";
   const rejectAllBtn = document.createElement("button");
   rejectAllBtn.className = "dw-btn dw-btn-small";
-  rejectAllBtn.textContent = "全部拒绝";
   const applyBtn = document.createElement("button");
   applyBtn.className = "dw-btn dw-btn-small dw-btn-primary";
-  applyBtn.textContent = "应用并关闭";
   const closeBtn = document.createElement("button");
   closeBtn.className = "dw-btn dw-btn-small";
-  closeBtn.textContent = "取消";
   const progress = document.createElement("span");
   progress.className = "dw-diff-progress";
   footer.append(acceptAllBtn, rejectAllBtn, applyBtn, closeBtn, progress);
   root.appendChild(footer);
   container.appendChild(root);
+
+  /** 静态文案随语言热更新（AC12）。 */
+  function applyLocale(): void {
+    acceptAllBtn.textContent = t("diff.acceptAll");
+    rejectAllBtn.textContent = t("diff.rejectAll");
+    applyBtn.textContent = t("diff.apply");
+    closeBtn.textContent = t("diff.cancel");
+  }
 
   function render(): void {
     body.textContent = "";
@@ -73,15 +78,15 @@ export function mountDiffView(container: HTMLElement, options: DiffViewOptions):
       const hunkHeader = document.createElement("div");
       hunkHeader.className = "dw-diff-hunk-header";
       const label = document.createElement("span");
-      label.textContent = `变更块 #${hunk.id}（第 ${hunk.startLine} 行起）`;
+      label.textContent = t("diff.hunk", { id: hunk.id, line: hunk.startLine });
       hunkHeader.appendChild(label);
       const acceptBtn = document.createElement("button");
       acceptBtn.className = "dw-btn dw-btn-tiny";
-      acceptBtn.textContent = "接受";
+      acceptBtn.textContent = t("diff.accept");
       acceptBtn.addEventListener("click", () => controller.accept(hunk.id));
       const rejectBtn = document.createElement("button");
       rejectBtn.className = "dw-btn dw-btn-tiny";
-      rejectBtn.textContent = "拒绝";
+      rejectBtn.textContent = t("diff.reject");
       rejectBtn.addEventListener("click", () => controller.reject(hunk.id));
       hunkHeader.append(acceptBtn, rejectBtn);
       hunkBox.appendChild(hunkHeader);
@@ -95,7 +100,7 @@ export function mountDiffView(container: HTMLElement, options: DiffViewOptions):
     }
 
     const decided = controller.hunks.filter((hunk) => hunk.decision !== "pending").length;
-    progress.textContent = `${decided}/${controller.hunks.length} 已裁决`;
+    progress.textContent = t("diff.progress", { decided, total: controller.hunks.length });
     applyBtn.disabled = !controller.allDecided;
   }
 
@@ -109,12 +114,19 @@ export function mountDiffView(container: HTMLElement, options: DiffViewOptions):
   closeBtn.addEventListener("click", () => options.onClose());
 
   const unsubscribe = controller.onChange(render);
+  // 语言热生效（AC12）：按钮/hunk 标签/进度按新语言重绘
+  const unsubscribeLocale = onDidChangeLocale(() => {
+    applyLocale();
+    render();
+  });
+  applyLocale();
   render();
 
   return {
     root,
     dispose(): void {
       unsubscribe();
+      unsubscribeLocale();
       root.remove();
     },
   };

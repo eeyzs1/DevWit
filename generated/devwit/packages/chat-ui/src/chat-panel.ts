@@ -1,5 +1,13 @@
 import type { ModeDefinition, ProviderConfig } from "@devwit/contracts";
+import { displayModeName, localizeError, onDidChangeLocale, t, ta } from "@devwit/i18n";
 import type { ChatContextSnapshot, ChatController, ChatItem } from "./chat-controller.js";
+
+/** 授权裁决 → 词典键（模板串键无法通过 MessageKey 类型检查，用显式映射）。 */
+const DECISION_KEY = {
+  allow: "chat.decision.allow",
+  allow_session: "chat.decision.allow_session",
+  deny: "chat.decision.deny",
+} as const;
 
 /**
  * chat-panel DOM 视图（WU012）：对话面板 + 模式/模型切换 + 授权裁决 + 流式渲染。
@@ -34,10 +42,8 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
   toolbar.className = "dw-chat-toolbar";
   const modeSelect = document.createElement("select");
   modeSelect.className = "dw-select";
-  modeSelect.title = "模式";
   const providerSelect = document.createElement("select");
   providerSelect.className = "dw-select";
-  providerSelect.title = "模型";
   toolbar.append(modeSelect, providerSelect);
   root.appendChild(toolbar);
 
@@ -51,18 +57,24 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
   inputArea.className = "dw-chat-input";
   const textarea = document.createElement("textarea");
   textarea.className = "dw-chat-textarea";
-  textarea.placeholder = "描述你的需求…（Enter 发送，Shift+Enter 换行）";
   textarea.rows = 3;
   const sendBtn = document.createElement("button");
   sendBtn.className = "dw-btn dw-btn-primary";
-  sendBtn.textContent = "发送";
   const stopBtn = document.createElement("button");
   stopBtn.className = "dw-btn";
-  stopBtn.textContent = "停止";
   stopBtn.style.display = "none";
   inputArea.append(textarea, sendBtn, stopBtn);
   root.appendChild(inputArea);
   container.appendChild(root);
+
+  /** 静态文案随语言热更新（AC12）：选择器 title / 占位符 / 按钮文本。 */
+  function applyLocale(): void {
+    modeSelect.title = t("chat.mode");
+    providerSelect.title = t("chat.provider");
+    textarea.placeholder = t("chat.input.placeholder");
+    sendBtn.textContent = t("chat.send");
+    stopBtn.textContent = t("chat.stop");
+  }
 
   function refreshSelectors(): void {
     const modes = options.listModes();
@@ -70,7 +82,8 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
     for (const mode of modes) {
       const option = document.createElement("option");
       option.value = mode.id;
-      option.textContent = mode.name;
+      // 内置模式工厂名（Chat/Agent）按当前语言本地化显示（迭代 4）
+      option.textContent = displayModeName(mode);
       option.selected = mode.id === controller.currentModeId;
       modeSelect.appendChild(option);
     }
@@ -78,7 +91,7 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
     providerSelect.textContent = "";
     const auto = document.createElement("option");
     auto.value = "";
-    auto.textContent = "（模式绑定）";
+    auto.textContent = t("chat.provider.modeBound");
     providerSelect.appendChild(auto);
     for (const provider of providers) {
       const option = document.createElement("option");
@@ -87,6 +100,12 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
       option.selected = provider.id === controller.currentProviderId;
       providerSelect.appendChild(option);
     }
+  }
+
+  /** 模式 id → 当前语言显示名（localizeError 的 resolveModeName 回调）。 */
+  function resolveModeDisplayName(modeId: string): string {
+    const mode = options.listModes().find((candidate) => candidate.id === modeId);
+    return mode !== undefined ? displayModeName(mode) : modeId;
   }
 
   function renderItem(item: ChatItem): HTMLElement {
@@ -104,7 +123,7 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
         if (!item.streaming && options.onProposalReview !== undefined && item.text.includes("```")) {
           const reviewBtn = document.createElement("button");
           reviewBtn.className = "dw-btn dw-btn-small";
-          reviewBtn.textContent = "审查修改";
+          reviewBtn.textContent = t("chat.review");
           reviewBtn.addEventListener("click", () => options.onProposalReview?.(item.text));
           row.appendChild(document.createElement("br"));
           row.appendChild(reviewBtn);
@@ -113,37 +132,40 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
       }
       case "tool": {
         const badge = item.ok === null ? "…" : item.ok ? "✓" : "✗";
-        row.textContent = `[工具 ${badge}] ${item.summary}`;
+        row.textContent = `[${t("chat.tool")} ${badge}] ${item.summary}`;
         break;
       }
       case "authorization": {
         const title = document.createElement("div");
-        title.textContent = `授权请求：${item.reason}`;
+        title.textContent = t("chat.auth.request", { reason: item.reason });
         row.appendChild(title);
         if (item.decision === null) {
           const allow = document.createElement("button");
           allow.className = "dw-btn dw-btn-small dw-btn-primary";
-          allow.textContent = "允许";
+          allow.textContent = t("chat.allow");
           allow.addEventListener("click", () => controller.authorize(item.requestId, "allow"));
           const allowSession = document.createElement("button");
           allowSession.className = "dw-btn dw-btn-small";
-          allowSession.textContent = "本会话允许";
+          allowSession.textContent = t("chat.allowSession");
           allowSession.addEventListener("click", () => controller.authorize(item.requestId, "allow_session"));
           const deny = document.createElement("button");
           deny.className = "dw-btn dw-btn-small dw-btn-danger";
-          deny.textContent = "拒绝";
+          deny.textContent = t("chat.deny");
           deny.addEventListener("click", () => controller.authorize(item.requestId, "deny"));
           row.append(allow, allowSession, deny);
         } else {
           const decided = document.createElement("div");
           decided.className = "dw-auth-decided";
-          decided.textContent = `已裁决：${item.decision}`;
+          decided.textContent = t("chat.decided", { decision: t(DECISION_KEY[item.decision]) });
           row.appendChild(decided);
         }
         break;
       }
       case "error":
-        row.textContent = `错误：${item.text}`;
+        // 主进程 ASCII 错误码 → 当前语言文案；模式名按 modes 列表本地化
+        row.textContent = t("chat.error", {
+          text: localizeError(item.text, { resolveModeName: resolveModeDisplayName }),
+        });
         break;
       case "done":
         row.textContent = `— ${item.text} —`;
@@ -154,7 +176,21 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
 
   function render(): void {
     list.textContent = "";
-    for (const item of controller.listItems()) {
+    const items = controller.listItems();
+    if (items.length === 0) {
+      // 对话空态（AC11）：说明主 Agent 行为，降低首次使用的不确定性
+      const empty = document.createElement("div");
+      empty.className = "dw-chat-empty";
+      const title = document.createElement("div");
+      title.className = "dw-chat-empty-title";
+      title.textContent = t("chat.empty.title");
+      const lines = document.createElement("div");
+      lines.className = "dw-chat-empty-lines";
+      lines.textContent = ta("chat.empty.lines").join("\n");
+      empty.append(title, lines);
+      list.appendChild(empty);
+    }
+    for (const item of items) {
       list.appendChild(renderItem(item));
     }
     list.scrollTop = list.scrollHeight;
@@ -185,6 +221,13 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
   });
 
   const unsubscribe = controller.onChange(render);
+  // 语言热生效（AC12）：静态文案重写 + 列表按新语言全量重绘
+  const unsubscribeLocale = onDidChangeLocale(() => {
+    applyLocale();
+    refreshSelectors();
+    render();
+  });
+  applyLocale();
   refreshSelectors();
   render();
 
@@ -193,6 +236,7 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
     refreshSelectors,
     dispose(): void {
       unsubscribe();
+      unsubscribeLocale();
       root.remove();
     },
   };

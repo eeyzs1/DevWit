@@ -377,7 +377,7 @@ export class HighlightEngine {
     try {
       const tree = this.parser.parse(text);
       if (tree === null || tree === undefined) {
-        throw new Error("tree-sitter parse 返回空树");
+        throw new Error("tree-sitter parse returned a null tree");
       }
       this.mirror = text;
       this.tree?.delete();
@@ -414,7 +414,7 @@ export class HighlightEngine {
       }
       const next = this.parser.parse(this.mirror, this.tree);
       if (next === null || next === undefined) {
-        throw new Error("tree-sitter 增量解析返回空树");
+        throw new Error("tree-sitter incremental parse returned a null tree");
       }
       this.tree.delete();
       this.tree = next;

@@ -47,11 +47,11 @@ describe("ProviderRegistry", () => {
 
   it("未知 id 抛错；非法配置 register 抛错", () => {
     const registry = new ProviderRegistry(credentials);
-    expect(() => registry.createProvider("missing")).toThrow(/Provider 不存在/);
-    expect(() => registry.register(makeConfig({ id: "" }))).toThrow(/id 不能为空/);
+    expect(() => registry.createProvider("missing")).toThrow(/provider not found/);
+    expect(() => registry.register(makeConfig({ id: "" }))).toThrow(/provider id must not be empty/);
     expect(() => registry.register(makeConfig({ maxTokens: 0 }))).toThrow(/maxTokens/);
     expect(() => registry.register(makeConfig({ baseUrl: " " }))).toThrow(/baseUrl/);
-    expect(() => registry.register(makeConfig({ type: "other" as ProviderConfig["type"] }))).toThrow(/不支持的 provider 类型/);
+    expect(() => registry.register(makeConfig({ type: "other" as ProviderConfig["type"] }))).toThrow(/unsupported provider type/);
   });
 
   it("onDidChange 在 register/remove 时触发，退订后不再触发", () => {

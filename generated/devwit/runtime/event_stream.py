@@ -78,8 +78,8 @@ class EventStream:
                         last = evt.get("hash", "")
                     except json.JSONDecodeError:
                         continue
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"WARNING: 读取事件流尾哈希失败 {self.events_file}: {exc}", file=sys.stderr)
         return last
 
     @staticmethod
@@ -119,8 +119,8 @@ class EventStream:
                         events.append(json.loads(line))
                     except json.JSONDecodeError:
                         continue
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"WARNING: 读取事件流失败 {self.events_file}: {exc}", file=sys.stderr)
         return events[-n:] if n else events
 
     def verify_chain(self) -> dict:

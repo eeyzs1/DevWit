@@ -266,6 +266,19 @@ export interface CredentialMeta {
 export type SettingsChangeListener = (key: string, value: unknown) => void;
 
 // ============================================================================
+// 外部编辑器（迭代 2 / AC10）
+// ============================================================================
+
+/**
+ * 外部编辑器配置（存 settings 的 "externalEditor" 键）。
+ * command 为命令模板，支持占位符 {file}（必需）、{line}（缺省 1），
+ * 例：code -g "{file}:{line}" ｜ subl "{file}:{line}" ｜ notepad++ "{file}"
+ */
+export interface ExternalEditorConfig {
+  command: string;
+}
+
+// ============================================================================
 // 终端（WU006）
 // ============================================================================
 
@@ -313,6 +326,7 @@ export const IPC = {
   ContextManifestList: "context:manifest:list",
   ContextPolicyGet: "context:policy:get",
   ContextPolicySet: "context:policy:set",
+  ExternalEditorOpen: "external-editor:open",
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];
@@ -367,5 +381,12 @@ export interface DevwitApi {
     getPolicy(): Promise<Record<ContextItemType, boolean>>;
     /** 逐项开关（用户覆盖，实时生效；AC2）。 */
     setItemEnabled(type: ContextItemType, enabled: boolean): Promise<void>;
+  };
+  externalEditor: {
+    /**
+     * 在外部编辑器打开文件（AC10）。命令模板经 settings 配置；
+     * 未配置时 reject 并附引导文案。line 缺省 1。
+     */
+    open(path: string, line?: number): Promise<void>;
   };
 }

@@ -1,27 +1,27 @@
 /**
- * DevWit 渲染进程（WU012/WU013 集成）。
+ * DevWit 渲染进程（WU012/WU013 集成 + 迭代 3 / AC12 国际化）。
  * 布局：侧栏文件树 | 自研 Canvas 编辑器（diff 覆盖层） | 对话/上下文面板。
  * 只允许经 window.devwit（preload 白名单）访问主进程能力（AR001/AR004）。
+ * 全部界面文案经 @devwit/i18n 词典渲染；启动时从 settings "ui.locale" 恢复语言，
+ * 订阅 onDidChangeLocale 全量重写静态文案与动态列表（语言热生效）。
  */
-import type {
-  AgentToolName,
-  ContextItemType,
-  DevwitApi,
-  ModeDefinition,
-  ProviderConfig,
-  ProviderType,
-} from "@devwit/contracts";
+import type { DevwitApi, ModeDefinition, ProviderConfig } from "@devwit/contracts";
+import { displayModeName, localizeError, onDidChangeLocale, resolveSystemLocale, setLocale, t, ta, type Locale } from "@devwit/i18n";
 import { TextDocument } from "@devwit/editor-core";
 import { EditorView, normalizeSelection } from "@devwit/editor-render";
 import {
   ChatController,
   ContextPanelController,
   DiffController,
+  TaskCenter,
   extractEditProposal,
+  mountActivityStream,
   mountChatPanel,
   mountContextPanel,
   mountDiffView,
 } from "@devwit/chat-ui";
+import { openSettingsDialog, type SettingsDialogDeps } from "./settings-dialog.js";
+import { openEditorSetupDialog } from "./editor-setup-dialog.js";
 import "./app.css";
 
 declare global {
@@ -37,17 +37,13 @@ interface TreeNode {
   children?: TreeNode[];
 }
 
-const AGENT_TOOLS: AgentToolName[] = ["read", "write", "edit", "bash", "grep", "find", "ls"];
-const CONTEXT_TYPES: Array<{ type: ContextItemType; label: string }> = [
-  { type: "system_prompt", label: "系统提示" },
-  { type: "tool_definitions", label: "工具定义" },
-  { type: "file_fragment", label: "文件片段" },
-  { type: "git_status", label: "git 状态" },
-  { type: "terminal_output", label: "终端输出" },
-  { type: "selection", label: "当前选区" },
-  { type: "conversation_history", label: "会话历史" },
-  { type: "custom", label: "自定义" },
-];
+/** 任务状态 → 词典键（类型安全映射，模板串键无法通过 MessageKey 检查）。 */
+const TASK_STATUS_KEY = {
+  running: "task.status.running",
+  waiting_auth: "task.status.waiting_auth",
+  done: "task.status.done",
+  failed: "task.status.failed",
+} as const;
 
 /** 编辑器会话：一个打开的文件 = 一个 TextDocument。 */
 interface OpenFile {
@@ -76,38 +72,58 @@ function bootstrap(api: DevwitApi): void {
   let providers: ProviderConfig[] = [];
   let openFile: OpenFile | null = null;
   let diffOverlay: HTMLElement | null = null;
+  let workspaceRoot = "";
+  /** 主界面形态（AC8）：chat = 对话形态；console = 指挥台形态。两形态 DOM 各自保持。 */
+  let form: "chat" | "console" = "chat";
 
-  // ---- 布局骨架 ----
-  const ide = el("div", "dw-ide");
+  // ---- 布局骨架：header / main（两种形态之一）/ statusbar ----
   const header = el("div", "dw-header");
+  const main = el("div", "dw-main");
+  const statusbar = el("div", "dw-statusbar");
+  app.append(header, main, statusbar);
+
+  // 对话形态（原 IDE 布局：侧栏文件树 | 编辑器 | 对话/上下文面板）
+  const ide = el("div", "dw-ide");
   const sidebar = el("div", "dw-sidebar");
   const editorArea = el("div", "dw-editor-area");
   const side = el("div", "dw-side");
-  const statusbar = el("div", "dw-statusbar");
-  ide.append(header, sidebar, editorArea, side, statusbar);
-  app.appendChild(ide);
+  ide.append(sidebar, editorArea, side);
+  main.appendChild(ide);
+
+  // 指挥台形态（AC9：任务列表 | Agent 活动流 | 工作区视图）
+  const consoleRoot = el("div", "dw-console");
+  consoleRoot.style.display = "none";
+  const taskCol = el("div", "dw-console-tasks");
+  const activityCol = el("div", "dw-console-activity");
+  const workspaceCol = el("div", "dw-console-workspace");
+  consoleRoot.append(taskCol, activityCol, workspaceCol);
+  main.appendChild(consoleRoot);
 
   // ---- 顶栏 ----
   header.appendChild(el("span", "dw-title", "DevWit"));
-  const openBtn = el("button", "dw-btn", "打开文件夹");
-  const saveBtn = el("button", "dw-btn", "保存 (Ctrl+S)");
-  const activeFileLabel = el("span", "dw-active-file", "未打开文件");
+  const formBtn = el("button", "dw-btn dw-btn-primary", t("chrome.form.console"));
+  const openBtn = el("button", "dw-btn", t("chrome.openFolder"));
+  const saveBtn = el("button", "dw-btn", t("chrome.save"));
+  const externalBtn = el("button", "dw-btn", t("chrome.external"));
+  const activeFileLabel = el("span", "dw-active-file", t("chrome.noFile"));
   const spacer = el("span", "dw-spacer");
-  const modesBtn = el("button", "dw-btn", "模式管理");
-  const settingsBtn = el("button", "dw-btn", "模型设置");
-  header.append(openBtn, saveBtn, activeFileLabel, spacer, modesBtn, settingsBtn);
+  const settingsBtn = el("button", "dw-btn", t("chrome.settings"));
+  header.append(formBtn, openBtn, saveBtn, externalBtn, activeFileLabel, spacer, settingsBtn);
 
   // ---- 状态栏 ----
-  const statusWorkspace = el("span", undefined, "未打开工作区");
+  const statusWorkspace = el("span", undefined, t("status.noWorkspace"));
   const statusDirty = el("span");
-  statusbar.append(statusWorkspace, statusDirty);
+  const statusMessage = el("span", "dw-status-message");
+  statusbar.append(statusWorkspace, statusDirty, statusMessage);
+  // 瞬态提示只进状态栏：活动文件标签始终显示当前文件，不被临时文案覆盖
+  function showStatus(message: string): void {
+    statusMessage.textContent = message;
+  }
 
   // ---- 编辑器 ----
   const canvas = el("canvas", "dw-editor-canvas");
   editorArea.appendChild(canvas);
-  const welcomeDoc = TextDocument.fromString(
-    "// 欢迎使用 DevWit\n// 打开文件夹后点击左侧文件开始编辑；右侧对话面板可请求 AI 修改代码。\n"
-  );
+  const welcomeDoc = TextDocument.fromString(t("editor.welcome"));
   const editor = new EditorView(canvas, welcomeDoc);
   const setActiveDoc = (file: OpenFile | null): void => {
     openFile = file;
@@ -118,7 +134,7 @@ function bootstrap(api: DevwitApi): void {
     refreshDirty();
   };
   const refreshDirty = (): void => {
-    statusDirty.textContent = openFile !== null && openFile.doc.isDirty ? "● 未保存" : "";
+    statusDirty.textContent = openFile !== null && openFile.doc.isDirty ? t("status.unsaved") : "";
   };
   window.addEventListener("resize", () => editor.resize());
 
@@ -136,6 +152,70 @@ function bootstrap(api: DevwitApi): void {
     }
   });
 
+  // ---- 统一设置页（AC12）：通用 / 模型 / 编辑器 / 模式 ----
+  const settingsDeps: SettingsDialogDeps = {
+    api,
+    onProvidersChanged: () => void reloadProviders(),
+    onModesChanged: () => void reloadModes(),
+  };
+
+  // ---- 外部编辑器（AC10 + 迭代 4：未配置弹引导小页，错误文案本地化）----
+  /** 主进程错误码 → 本地化文案；模式名经 modes 列表解析为当前语言显示名。 */
+  function toLocalError(raw: string): string {
+    return localizeError(raw, { resolveModeName });
+  }
+  function resolveModeName(modeId: string): string {
+    const mode = modes.find((candidate) => candidate.id === modeId);
+    return mode !== undefined ? displayModeName(mode) : modeId;
+  }
+
+  async function isExternalEditorConfigured(): Promise<boolean> {
+    const config = (await api.settings.get("externalEditor")) as { command?: string } | null;
+    return typeof config?.command === "string" && config.command.trim() !== "";
+  }
+
+  async function openExternal(filePath: string, line = 1, promptOnError = true): Promise<void> {
+    try {
+      await api.externalEditor.open(filePath, line);
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : String(error);
+      if (raw.includes("DW_EXTERNAL_EDITOR_NOT_CONFIGURED")) {
+        // 未配置：弹引导小页（引导优于报错），保存后立即重试打开
+        openEditorSetupDialog({ api, onSaved: () => void openExternal(filePath, line, false) });
+        return;
+      }
+      showStatus(toLocalError(raw));
+      if (promptOnError && raw.includes("DW_EXTERNAL_EDITOR_")) {
+        // 模板非法 / 启动失败：同一小页修正（重试不再循环弹窗）
+        openEditorSetupDialog({ api, onSaved: () => void openExternal(filePath, line, false) });
+      }
+    }
+  }
+  externalBtn.addEventListener("click", () => {
+    void (async () => {
+      // 未配置时无论是否有打开文件都先给引导（用户反馈：点了无反应）；
+      // 有打开文件时传 onSaved——「保存并打开」保存模板后直接打开当前文件
+      if (!(await isExternalEditorConfigured())) {
+        if (openFile === null) {
+          openEditorSetupDialog({ api });
+          return;
+        }
+        const pendingFile = openFile.path;
+        const primary = editor.getSelections().at(-1);
+        const pendingLine = primary !== undefined ? normalizeSelection(primary).start.line + 1 : 1;
+        openEditorSetupDialog({ api, onSaved: () => void openExternal(pendingFile, pendingLine, false) });
+        return;
+      }
+      if (openFile === null) {
+        showStatus(t("status.openFileFirst"));
+        return;
+      }
+      const primary = editor.getSelections().at(-1);
+      const line = primary !== undefined ? normalizeSelection(primary).start.line + 1 : 1;
+      await openExternal(openFile.path, line);
+    })();
+  });
+
   async function openFileByPath(filePath: string): Promise<void> {
     const content = await api.workspace.read(filePath);
     const doc = TextDocument.fromString(content);
@@ -147,6 +227,50 @@ function bootstrap(api: DevwitApi): void {
     editor.focus();
   }
 
+  // ---- 首次使用引导（AC11）：未打开工作区时主区显示三步引导 ----
+  const onboarding = el("div", "dw-onboarding");
+  function buildOnboarding(): void {
+    onboarding.textContent = "";
+    const card = el("div", "dw-onboarding-card");
+    card.appendChild(el("h2", undefined, t("onboarding.title")));
+    card.appendChild(el("p", "dw-onboarding-sub", t("onboarding.sub")));
+    const steps = el("ol", "dw-onboarding-steps");
+
+    const step1 = el("li");
+    const step1Btn = el("button", "dw-btn", t("onboarding.step1"));
+    step1Btn.addEventListener("click", () => openSettingsDialog(settingsDeps, "providers"));
+    step1.append(step1Btn, el("span", "dw-onboarding-hint", t("onboarding.step1.hint")));
+
+    const step2 = el("li");
+    const step2Btn = el("button", "dw-btn", t("onboarding.step2"));
+    step2Btn.addEventListener("click", () => void openWorkspace());
+    step2.append(step2Btn, el("span", "dw-onboarding-hint", t("onboarding.step2.hint")));
+
+    const step3 = el("li");
+    step3.appendChild(el("span", "dw-onboarding-hint", t("onboarding.step3.hint")));
+    const examples = el("div", "dw-onboarding-examples");
+    for (const example of ta("onboarding.examples")) {
+      const chip = el("button", "dw-onboarding-chip", example);
+      chip.addEventListener("click", () => {
+        switchForm("console");
+        newTaskInput.value = example;
+        newTaskInput.focus();
+      });
+      examples.appendChild(chip);
+    }
+    step3.appendChild(examples);
+
+    steps.append(step1, step2, step3);
+    card.appendChild(steps);
+    onboarding.appendChild(card);
+  }
+  function refreshOnboarding(): void {
+    onboarding.style.display = workspaceRoot === "" ? "flex" : "none";
+  }
+  buildOnboarding();
+  editorArea.appendChild(onboarding);
+  refreshOnboarding();
+
   // ---- 文件树 ----
   function renderTree(node: TreeNode, container: HTMLElement): void {
     const li = el("li");
@@ -155,6 +279,13 @@ function bootstrap(api: DevwitApi): void {
     label.title = node.path;
     if (node.type === "file") {
       label.addEventListener("click", () => void openFileByPath(node.path));
+      const externalLink = el("button", "dw-tree-external", "↗");
+      externalLink.title = t("tree.external");
+      externalLink.addEventListener("click", (event) => {
+        event.stopPropagation();
+        void openExternal(node.path);
+      });
+      label.appendChild(externalLink);
     }
     li.appendChild(label);
     if (node.type === "dir" && node.children !== undefined && node.children.length > 0) {
@@ -168,7 +299,10 @@ function bootstrap(api: DevwitApi): void {
   async function openWorkspace(): Promise<void> {
     const root = await api.workspace.openDialog();
     if (root === null) return;
+    workspaceRoot = root;
     chatController.setWorkspaceRoot(root);
+    taskCenter.setWorkspaceRoot(root);
+    refreshOnboarding();
     statusWorkspace.textContent = root;
     sidebar.textContent = "";
     const tree = (await api.workspace.tree(root)) as TreeNode;
@@ -177,12 +311,12 @@ function bootstrap(api: DevwitApi): void {
     sidebar.appendChild(ul);
   }
   openBtn.addEventListener("click", () => void openWorkspace());
-  sidebar.appendChild(el("div", "dw-sidebar-empty", "点击「打开文件夹」选择项目目录"));
+  sidebar.appendChild(el("div", "dw-sidebar-empty", t("sidebar.empty")));
 
   // ---- 右侧栏：对话 / 上下文 两个页签 ----
   const tabs = el("div", "dw-tabs");
-  const chatTab = el("div", "dw-tab dw-tab-active", "对话");
-  const contextTab = el("div", "dw-tab", "上下文");
+  const chatTab = el("div", "dw-tab dw-tab-active", t("tab.chat"));
+  const contextTab = el("div", "dw-tab", t("tab.context"));
   tabs.append(chatTab, contextTab);
   const sideBody = el("div", "dw-side-body");
   side.append(tabs, sideBody);
@@ -195,31 +329,34 @@ function bootstrap(api: DevwitApi): void {
     modeId: "chat",
   });
 
+  // 会话上下文快照采集（对话面板与指挥台任务共用）：活动文件 + 主选区
+  function collectContext(): { activeFile?: string; selection?: { text: string; startLine: number; endLine: number } } {
+    const snapshot: { activeFile?: string; selection?: { text: string; startLine: number; endLine: number } } = {};
+    if (openFile !== null) {
+      snapshot.activeFile = openFile.path;
+      const primary = editor.getSelections().at(-1);
+      if (primary !== undefined) {
+        const norm = normalizeSelection(primary);
+        const startOffset = openFile.doc.offsetAt(norm.start);
+        const endOffset = openFile.doc.offsetAt(norm.end);
+        if (endOffset > startOffset) {
+          snapshot.selection = {
+            text: openFile.doc.getTextInRange(startOffset, endOffset),
+            startLine: norm.start.line + 1,
+            endLine: norm.end.line + 1,
+          };
+        }
+      }
+    }
+    return snapshot;
+  }
+
   // 对话面板：发送时采集活动文件 + 主选区作为会话上下文快照
   const chatPanel = mountChatPanel(sideBody, {
     controller: chatController,
     listModes: () => modes,
     listProviders: () => providers,
-    collectContext: () => {
-      const snapshot: { activeFile?: string; selection?: { text: string; startLine: number; endLine: number } } = {};
-      if (openFile !== null) {
-        snapshot.activeFile = openFile.path;
-        const primary = editor.getSelections().at(-1);
-        if (primary !== undefined) {
-          const norm = normalizeSelection(primary);
-          const startOffset = openFile.doc.offsetAt(norm.start);
-          const endOffset = openFile.doc.offsetAt(norm.end);
-          if (endOffset > startOffset) {
-            snapshot.selection = {
-              text: openFile.doc.getTextInRange(startOffset, endOffset),
-              startLine: norm.start.line + 1,
-              endLine: norm.end.line + 1,
-            };
-          }
-        }
-      }
-      return snapshot;
-    },
+    collectContext,
     onProposalReview: (assistantText) => reviewProposal(assistantText),
   });
   chatPanel.root.style.display = "flex";
@@ -241,34 +378,208 @@ function bootstrap(api: DevwitApi): void {
     void contextController.refresh();
   });
 
+  // ==========================================================================
+  // 指挥台（AC9）：任务列表 | Agent 活动流 | 工作区视图（代码 / Diff 页签）
+  // ==========================================================================
+
+  const taskCenter = new TaskCenter({
+    api,
+    workspaceRoot: "",
+    defaultModeId: "agent",
+  });
+
+  // ---- 左栏：任务列表 ----
+  const taskColTitle = el("div", "dw-console-col-title", t("console.tasks"));
+  taskCol.appendChild(taskColTitle);
+  const newTaskRow = el("div", "dw-task-new");
+  const newTaskInput = el("input", "dw-input") as HTMLInputElement;
+  newTaskInput.placeholder = t("console.newTask.placeholder");
+  const newTaskBtn = el("button", "dw-btn dw-btn-primary", t("console.create"));
+  newTaskRow.append(newTaskInput, newTaskBtn);
+  taskCol.appendChild(newTaskRow);
+  const taskList = el("div", "dw-task-list");
+  taskCol.appendChild(taskList);
+
+  function renderTaskList(): void {
+    taskList.textContent = "";
+    const tasks = taskCenter.listTasks();
+    if (tasks.length === 0) {
+      taskList.appendChild(el("div", "dw-task-empty", t("console.task.empty")));
+      return;
+    }
+    for (const task of tasks) {
+      const row = el("div", "dw-task-row");
+      if (task.id === taskCenter.activeTaskId) row.classList.add("dw-task-active");
+      const title = el("span", "dw-task-title", task.title);
+      title.title = task.title;
+      const statusKey = TASK_STATUS_KEY[task.status as keyof typeof TASK_STATUS_KEY];
+      const badge = el(
+        "span",
+        `dw-task-badge dw-task-badge-${task.status}`,
+        statusKey !== undefined ? t(statusKey) : task.status
+      );
+      row.append(title, badge);
+      row.addEventListener("click", () => {
+        void taskCenter.activate(task.id).then(() => activityStream.resubscribe());
+      });
+      taskList.appendChild(row);
+    }
+  }
+
+  async function createTaskFromInput(): Promise<void> {
+    const text = newTaskInput.value;
+    if (text.trim() === "") return;
+    newTaskInput.value = "";
+    try {
+      await taskCenter.createTask(text, collectContext());
+      activityStream.resubscribe();
+    } catch (error) {
+      showStatus(toLocalError(error instanceof Error ? error.message : String(error)));
+    }
+  }
+  newTaskBtn.addEventListener("click", () => void createTaskFromInput());
+  newTaskInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.isComposing) {
+      event.preventDefault();
+      void createTaskFromInput();
+    }
+  });
+
+  // ---- 中栏：活动流 + 意图输入 ----
+  const activityBody = el("div", "dw-console-activity-body");
+  const activityStream = mountActivityStream(activityBody, {
+    getController: () => taskCenter.activeController(),
+    onProposalReview: (assistantText) => reviewProposal(assistantText),
+    resolveModeName,
+  });
+  const activityInputRow = el("div", "dw-chat-input");
+  const activityTextarea = el("textarea", "dw-chat-textarea") as HTMLTextAreaElement;
+  activityTextarea.placeholder = t("console.input.placeholder");
+  activityTextarea.rows = 2;
+  const activitySendBtn = el("button", "dw-btn dw-btn-primary", t("chat.send"));
+  const activityStopBtn = el("button", "dw-btn", t("chat.stop"));
+  activityStopBtn.style.display = "none";
+  activityInputRow.append(activityTextarea, activitySendBtn, activityStopBtn);
+  activityCol.append(activityBody, activityInputRow);
+
+  function refreshActivityInput(): void {
+    const controller = taskCenter.activeController();
+    const running = controller?.isRunning === true;
+    activityTextarea.disabled = controller === null || running;
+    activitySendBtn.style.display = controller !== null && !running ? "" : "none";
+    activityStopBtn.style.display = running ? "" : "none";
+  }
+
+  function sendActivityInput(): void {
+    const text = activityTextarea.value;
+    if (text.trim() === "") return;
+    activityTextarea.value = "";
+    void taskCenter.sendToActive(text, collectContext()).catch((error: unknown) => {
+      showStatus(toLocalError(error instanceof Error ? error.message : String(error)));
+    });
+  }
+  activitySendBtn.addEventListener("click", sendActivityInput);
+  activityStopBtn.addEventListener("click", () => taskCenter.cancelActive());
+  activityTextarea.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+      event.preventDefault();
+      sendActivityInput();
+    }
+  });
+
+  taskCenter.onChange(() => {
+    renderTaskList();
+    refreshActivityInput();
+    activityStream.resubscribe();
+  });
+  renderTaskList();
+  refreshActivityInput();
+
+  // ---- 右栏：工作区视图（代码 / Diff 页签）----
+  const wsTabs = el("div", "dw-tabs");
+  const codeTab = el("div", "dw-tab dw-tab-active", t("tab.code"));
+  const diffTab = el("div", "dw-tab", t("tab.diff"));
+  wsTabs.append(codeTab, diffTab);
+  const wsBody = el("div", "dw-side-body");
+  const codePane = el("div", "dw-console-code");
+  const diffPane = el("div", "dw-console-diff");
+  diffPane.style.display = "none";
+  diffPane.appendChild(el("div", "dw-sidebar-empty", t("console.diff.empty")));
+  wsBody.append(codePane, diffPane);
+  workspaceCol.append(wsTabs, wsBody);
+
+  codeTab.addEventListener("click", () => {
+    codeTab.classList.add("dw-tab-active");
+    diffTab.classList.remove("dw-tab-active");
+    codePane.style.display = "";
+    diffPane.style.display = "none";
+    editor.resize();
+  });
+  diffTab.addEventListener("click", () => {
+    diffTab.classList.add("dw-tab-active");
+    codeTab.classList.remove("dw-tab-active");
+    codePane.style.display = "none";
+    diffPane.style.display = "flex";
+  });
+
+  // ---- 双形态切换（AC8）----
+  function switchForm(next: "chat" | "console"): void {
+    if (form === next) return;
+    form = next;
+    if (next === "console") {
+      ide.style.display = "none";
+      consoleRoot.style.display = "grid";
+      codePane.appendChild(editorArea); // 同一编辑器实例迁入代码页签，状态保留
+      formBtn.textContent = t("chrome.form.chat");
+    } else {
+      consoleRoot.style.display = "none";
+      ide.style.display = "grid";
+      ide.insertBefore(editorArea, side);
+      formBtn.textContent = t("chrome.form.console");
+    }
+    editor.resize();
+  }
+  formBtn.addEventListener("click", () => switchForm(form === "chat" ? "console" : "chat"));
+
   // agent 事件流驱动一次后刷新上下文 manifest 展示
   api.agent.onEvent((event) => {
     if (event.type === "done" || event.type === "error") void contextController.refresh();
   });
 
-  // ---- WU013：diff 审查（对话提案 → 编辑器内 diff → 逐块接受/拒绝）----
+  // ---- WU013：diff 审查（对话提案 → diff → 逐块接受/拒绝）----
+  // 对话形态：编辑器内覆盖层；指挥台形态（AC9）：工作区视图的 Diff 页签
   function reviewProposal(assistantText: string): void {
     if (openFile === null) {
-      activeFileLabel.textContent = "请先打开一个文件再审查修改";
+      showStatus(t("review.openFileFirst"));
       return;
     }
     const proposal = extractEditProposal(assistantText);
     if (proposal === null) {
-      activeFileLabel.textContent = `${openFile.path}（回复中未找到唯一代码块，无法生成 diff）`;
+      showStatus(t("review.noBlock"));
       return;
     }
     if (diffOverlay !== null) return; // 已有审查进行中
     const controller = new DiffController(openFile.doc.getText(), proposal.code);
     if (!controller.hasChanges) {
-      activeFileLabel.textContent = `${openFile.path}（提案与当前内容一致）`;
+      showStatus(t("review.noChange"));
       return;
     }
     diffOverlay = el("div", "dw-diff-overlay");
-    editorArea.appendChild(diffOverlay);
+    if (form === "console") {
+      diffOverlay.style.position = "relative";
+      diffPane.textContent = "";
+      diffPane.appendChild(diffOverlay);
+      diffTab.classList.add("dw-tab-active");
+      codeTab.classList.remove("dw-tab-active");
+      codePane.style.display = "none";
+      diffPane.style.display = "flex";
+    } else {
+      editorArea.appendChild(diffOverlay);
+    }
     const target = openFile;
     mountDiffView(diffOverlay, {
       controller,
-      title: `变更审查 — ${target.path}`,
+      title: t("review.title", { path: target.path }),
       onApply: (result) => {
         target.doc.applyEdit({ offset: 0, length: target.doc.length, text: result });
         closeDiff();
@@ -298,360 +609,71 @@ function bootstrap(api: DevwitApi): void {
     if (key === "providers") void reloadProviders();
   });
 
-  // ---- 模型设置对话框（AC5）----
-  settingsBtn.addEventListener("click", () => openProviderDialog(api, providers, () => void reloadProviders()));
-  // ---- 模式管理对话框（AC6）----
-  modesBtn.addEventListener("click", () =>
-    openModeDialog(api, modes, providers, () => void reloadModes())
-  );
-}
+  // ---- 设置入口（AC12：统一设置页）----
+  settingsBtn.addEventListener("click", () => openSettingsDialog(settingsDeps));
 
-// ============================================================================
-// 模型设置对话框：providers CRUD + 凭证加密写入（明文永不回显）
-// ============================================================================
-
-function openProviderDialog(api: DevwitApi, providers: ProviderConfig[], onSaved: () => void): void {
-  const mask = el("div", "dw-modal-mask");
-  const modal = el("div", "dw-modal");
-  mask.appendChild(modal);
-  modal.appendChild(el("h2", undefined, "模型设置（Anthropic / OpenAI 兼容）"));
-  const list = el("div", "dw-modal-list");
-  modal.appendChild(list);
-
-  const form = el("div", "dw-form");
-  const idInput = input("text", "");
-  const typeSelect = select(["anthropic", "openai"]);
-  const labelInput = input("text", "");
-  const baseUrlInput = input("text", "");
-  const modelInput = input("text", "");
-  const secretInput = input("password", "");
-  const maxTokensInput = input("number", "4096");
-  const errorBox = el("div", "dw-form-error");
-  form.append(
-    el("label", undefined, "ID"),
-    idInput,
-    el("label", undefined, "类型"),
-    typeSelect,
-    el("label", undefined, "显示名"),
-    labelInput,
-    el("label", undefined, "Base URL"),
-    baseUrlInput,
-    el("label", undefined, "模型"),
-    modelInput,
-    el("label", undefined, "API Key"),
-    secretInput,
-    el("label", undefined, "最大 tokens"),
-    maxTokensInput,
-    errorBox
-  );
-  modal.appendChild(form);
-
-  function fillForm(config: ProviderConfig): void {
-    idInput.value = config.id;
-    idInput.disabled = true;
-    typeSelect.value = config.type;
-    labelInput.value = config.label;
-    baseUrlInput.value = config.baseUrl;
-    modelInput.value = config.model;
-    secretInput.value = "";
-    secretInput.placeholder = "留空 = 保留已存密钥";
-    maxTokensInput.value = String(config.maxTokens);
-    errorBox.textContent = "";
-  }
-  function newForm(): void {
-    idInput.value = `p-${Date.now().toString(36)}`;
-    idInput.disabled = false;
-    typeSelect.value = "anthropic";
-    labelInput.value = "";
-    baseUrlInput.value = "";
-    // AR002：渲染进程不硬编码任何 LLM API 域名，由用户显式填写（官方或代理 endpoint）
-    baseUrlInput.placeholder = "https://<你的 API endpoint>/v1";
-    modelInput.value = "";
-    secretInput.value = "";
-    secretInput.placeholder = "首次保存必填，加密存储";
-    maxTokensInput.value = "4096";
-    errorBox.textContent = "";
-  }
-  async function renderList(): Promise<void> {
-    const fresh = await api.providers.list();
-    providers.length = 0;
-    providers.push(...fresh);
-    list.textContent = "";
-    for (const config of fresh) {
-      const row = el("div", "dw-modal-list-item");
-      row.appendChild(el("span", "dw-grow", `${config.label} · ${config.type} · ${config.model}`));
-      const editBtn = el("button", "dw-btn dw-btn-small", "编辑");
-      editBtn.addEventListener("click", (event) => {
-        event.stopPropagation();
-        fillForm(config);
-      });
-      row.appendChild(editBtn);
-      row.addEventListener("click", () => fillForm(config));
-      list.appendChild(row);
+  // ---- 语言热生效（AC12）：静态文案重写 + 动态列表全量重绘 ----
+  function applyLocale(): void {
+    formBtn.textContent = form === "chat" ? t("chrome.form.console") : t("chrome.form.chat");
+    formBtn.title = t("chrome.form.tooltip");
+    openBtn.textContent = t("chrome.openFolder");
+    saveBtn.textContent = t("chrome.save");
+    externalBtn.textContent = t("chrome.external");
+    externalBtn.title = t("chrome.external.tooltip");
+    activeFileLabel.textContent = openFile?.path ?? t("chrome.noFile");
+    settingsBtn.textContent = t("chrome.settings");
+    if (workspaceRoot === "") statusWorkspace.textContent = t("status.noWorkspace");
+    refreshDirty();
+    if (workspaceRoot === "") {
+      sidebar.textContent = "";
+      sidebar.appendChild(el("div", "dw-sidebar-empty", t("sidebar.empty")));
+    } else {
+      // 文件树 ↗ 按钮 tooltip 随语言更新（树本身不重建，保留展开/选中状态）
+      for (const btn of sidebar.querySelectorAll<HTMLElement>(".dw-tree-external")) {
+        btn.title = t("tree.external");
+      }
+    }
+    chatTab.textContent = t("tab.chat");
+    contextTab.textContent = t("tab.context");
+    codeTab.textContent = t("tab.code");
+    diffTab.textContent = t("tab.diff");
+    taskColTitle.textContent = t("console.tasks");
+    newTaskInput.placeholder = t("console.newTask.placeholder");
+    newTaskBtn.textContent = t("console.create");
+    activityTextarea.placeholder = t("console.input.placeholder");
+    activitySendBtn.textContent = t("chat.send");
+    activityStopBtn.textContent = t("chat.stop");
+    renderTaskList();
+    if (diffOverlay === null) {
+      diffPane.textContent = "";
+      diffPane.appendChild(el("div", "dw-sidebar-empty", t("console.diff.empty")));
+    }
+    buildOnboarding();
+    // 欢迎文档仅在无打开文件时随语言重建（不触碰用户文件内容）
+    if (openFile === null) {
+      editor.setDocument(TextDocument.fromString(t("editor.welcome")));
     }
   }
-
-  const actions = el("div", "dw-modal-actions");
-  const newBtn = el("button", "dw-btn", "新建");
-  const saveProviderBtn = el("button", "dw-btn dw-btn-primary", "保存");
-  const closeBtn = el("button", "dw-btn", "关闭");
-  actions.append(newBtn, saveProviderBtn, closeBtn);
-  modal.appendChild(actions);
-
-  newBtn.addEventListener("click", newForm);
-  closeBtn.addEventListener("click", () => mask.remove());
-  saveProviderBtn.addEventListener("click", () => {
-    void (async () => {
-      errorBox.textContent = "";
-      const id = idInput.value.trim();
-      const baseUrl = baseUrlInput.value.trim();
-      const model = modelInput.value.trim();
-      if (id === "" || baseUrl === "" || model === "") {
-        errorBox.textContent = "ID / Base URL / 模型 必填";
-        return;
-      }
-      const credentialRef = `cred-${id}`;
-      if (secretInput.value !== "") {
-        await api.credentials.set(credentialRef, typeSelect.value, secretInput.value);
-      }
-      const existing = providers.find((p) => p.id === id);
-      if (existing === undefined && secretInput.value === "") {
-        errorBox.textContent = "新建 provider 必须填写 API Key";
-        return;
-      }
-      const config: ProviderConfig = {
-        id,
-        type: typeSelect.value as ProviderType,
-        label: labelInput.value.trim() || id,
-        baseUrl,
-        model,
-        credentialRef: existing?.credentialRef ?? credentialRef,
-        maxTokens: Number(maxTokensInput.value) || 4096,
-        ...(existing?.temperature !== undefined ? { temperature: existing.temperature } : {}),
-      };
-      await api.providers.upsert(config);
-      onSaved();
-      await renderList();
-      errorBox.textContent = "已保存（热生效，无需重启）";
-    })().catch((error: unknown) => {
-      errorBox.textContent = error instanceof Error ? error.message : String(error);
-    });
-  });
-
-  void renderList();
-  newForm();
-  document.body.appendChild(mask);
-}
-
-// ============================================================================
-// 模式管理对话框：创建/编辑/删除模式（系统提示 + 工具集 + 模型 + 上下文策略）
-// ============================================================================
-
-function openModeDialog(
-  api: DevwitApi,
-  modes: ModeDefinition[],
-  providers: ProviderConfig[],
-  onSaved: () => void
-): void {
-  const mask = el("div", "dw-modal-mask");
-  const modal = el("div", "dw-modal");
-  mask.appendChild(modal);
-  modal.appendChild(el("h2", undefined, "模式管理（修改热生效，下次请求即用）"));
-  const list = el("div", "dw-modal-list");
-  modal.appendChild(list);
-
-  const form = el("div", "dw-form");
-  const idInput = input("text", "");
-  const nameInput = input("text", "");
-  const descInput = input("text", "");
-  const promptInput = el("textarea", "dw-textarea") as HTMLTextAreaElement;
-  const toolChecks = new Map<AgentToolName, HTMLInputElement>();
-  const toolsBox = el("div", "dw-form-checks");
-  for (const tool of AGENT_TOOLS) {
-    const checkbox = input("checkbox", "") as HTMLInputElement;
-    toolChecks.set(tool, checkbox);
-    const item = el("label");
-    item.append(checkbox, document.createTextNode(tool));
-    toolsBox.appendChild(item);
-  }
-  const providerSelect = el("select", "dw-select") as HTMLSelectElement;
-  const policyChecks = new Map<ContextItemType, HTMLInputElement>();
-  const policyBox = el("div", "dw-form-checks");
-  for (const { type, label } of CONTEXT_TYPES) {
-    const checkbox = input("checkbox", "") as HTMLInputElement;
-    policyChecks.set(type, checkbox);
-    const item = el("label");
-    item.append(checkbox, document.createTextNode(label));
-    policyBox.appendChild(item);
-  }
-  const errorBox = el("div", "dw-form-error");
-  form.append(
-    el("label", undefined, "ID"),
-    idInput,
-    el("label", undefined, "名称"),
-    nameInput,
-    el("label", undefined, "描述"),
-    descInput,
-    el("label", undefined, "系统提示"),
-    promptInput,
-    el("label", undefined, "工具集"),
-    toolsBox,
-    el("label", undefined, "绑定模型"),
-    providerSelect,
-    el("label", undefined, "上下文策略"),
-    policyBox,
-    errorBox
-  );
-  modal.appendChild(form);
-
-  let editing: ModeDefinition | null = null;
-
-  function fillProviderSelect(selected: string): void {
-    providerSelect.textContent = "";
-    const none = document.createElement("option");
-    none.value = "";
-    none.textContent = "（未绑定）";
-    providerSelect.appendChild(none);
-    for (const p of providers) {
-      const option = document.createElement("option");
-      option.value = p.id;
-      option.textContent = `${p.label} · ${p.model}`;
-      option.selected = p.id === selected;
-      providerSelect.appendChild(option);
-    }
-  }
-
-  function fillForm(mode: ModeDefinition): void {
-    editing = mode;
-    idInput.value = mode.id;
-    idInput.disabled = true;
-    nameInput.value = mode.name;
-    descInput.value = mode.description;
-    promptInput.value = mode.systemPrompt;
-    for (const [tool, checkbox] of toolChecks) checkbox.checked = mode.tools.includes(tool);
-    fillProviderSelect(mode.providerId);
-    for (const [type, checkbox] of policyChecks) checkbox.checked = mode.contextPolicy[type] === true;
-    errorBox.textContent = mode.builtin ? "内置模式：可编辑，不可删除" : "";
-  }
-
-  function newForm(): void {
-    editing = null;
-    idInput.value = `mode-${Date.now().toString(36)}`;
-    idInput.disabled = false;
-    nameInput.value = "";
-    descInput.value = "";
-    promptInput.value = "";
-    for (const checkbox of toolChecks.values()) checkbox.checked = false;
-    fillProviderSelect("");
-    for (const checkbox of policyChecks.values()) checkbox.checked = false;
-    errorBox.textContent = "";
-  }
-
-  async function renderList(): Promise<void> {
-    const fresh = await api.modes.list();
-    modes.length = 0;
-    modes.push(...fresh);
-    list.textContent = "";
-    for (const mode of fresh) {
-      const row = el("div", "dw-modal-list-item");
-      row.appendChild(
-        el("span", "dw-grow", `${mode.name}${mode.builtin ? "（内置）" : ""} · 工具 ${mode.tools.length} 个`)
-      );
-      const editBtn = el("button", "dw-btn dw-btn-small", "编辑");
-      editBtn.addEventListener("click", (event) => {
-        event.stopPropagation();
-        fillForm(mode);
-      });
-      row.appendChild(editBtn);
-      if (!mode.builtin) {
-        const delBtn = el("button", "dw-btn dw-btn-small dw-btn-danger", "删除");
-        delBtn.addEventListener("click", (event) => {
-          event.stopPropagation();
-          void api.modes
-            .delete(mode.id)
-            .then(onSaved)
-            .then(() => renderList());
-        });
-        row.appendChild(delBtn);
-      }
-      row.addEventListener("click", () => fillForm(mode));
-      list.appendChild(row);
-    }
-  }
-
-  const actions = el("div", "dw-modal-actions");
-  const newBtn = el("button", "dw-btn", "新建");
-  const saveBtn = el("button", "dw-btn dw-btn-primary", "保存");
-  const closeBtn = el("button", "dw-btn", "关闭");
-  actions.append(newBtn, saveBtn, closeBtn);
-  modal.appendChild(actions);
-
-  newBtn.addEventListener("click", newForm);
-  closeBtn.addEventListener("click", () => mask.remove());
-  saveBtn.addEventListener("click", () => {
-    void (async () => {
-      errorBox.textContent = "";
-      const name = nameInput.value.trim();
-      if (name === "" || promptInput.value.trim() === "") {
-        errorBox.textContent = "名称与系统提示必填";
-        return;
-      }
-      const now = new Date().toISOString();
-      const contextPolicy: Partial<Record<ContextItemType, boolean>> = {};
-      for (const [type, checkbox] of policyChecks) contextPolicy[type] = checkbox.checked;
-      const mode: ModeDefinition = {
-        id: idInput.value.trim(),
-        name,
-        description: descInput.value.trim(),
-        systemPrompt: promptInput.value,
-        tools: AGENT_TOOLS.filter((tool) => toolChecks.get(tool)?.checked === true),
-        providerId: providerSelect.value,
-        contextPolicy,
-        builtin: editing?.builtin ?? false,
-        createdAt: editing?.createdAt ?? now,
-        updatedAt: now,
-      };
-      await api.modes.upsert(mode);
-      onSaved();
-      await renderList();
-      errorBox.textContent = "已保存（热生效）";
-    })().catch((error: unknown) => {
-      errorBox.textContent = error instanceof Error ? error.message : String(error);
-    });
-  });
-
-  void renderList();
-  newForm();
-  document.body.appendChild(mask);
-}
-
-function input(type: string, value: string): HTMLInputElement {
-  const node = document.createElement("input");
-  node.type = type;
-  node.value = value;
-  node.className = type === "checkbox" ? "" : "dw-input";
-  return node;
-}
-
-function select(options: string[]): HTMLSelectElement {
-  const node = document.createElement("select");
-  node.className = "dw-select";
-  for (const value of options) {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = value;
-    node.appendChild(option);
-  }
-  return node;
+  onDidChangeLocale(applyLocale);
+  applyLocale();
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-  const app = document.getElementById("app");
-  if (app === null) return;
-  const api = window.devwit;
-  if (api === undefined) {
-    app.textContent = "preload 未就绪：window.devwit 不存在";
-    return;
-  }
-  bootstrap(api);
+  void (async () => {
+    const app = document.getElementById("app");
+    if (app === null) return;
+    const api = window.devwit;
+    if (api === undefined) {
+      app.textContent = "preload not ready: window.devwit missing";
+      return;
+    }
+    // 恢复上次界面语言（AC12：持久化在 settings "ui.locale"；「跟随系统」或未设置时按系统语言解析）
+    const saved = await api.settings.get("ui.locale");
+    if (saved === "zh-CN" || saved === "en-US") {
+      setLocale(saved as Locale);
+    } else {
+      setLocale(resolveSystemLocale());
+    }
+    bootstrap(api);
+  })();
 });

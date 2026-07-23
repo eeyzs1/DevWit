@@ -1,0 +1,25 @@
+{
+  "steps": [
+    "应用启动（全新 userData：语言默认「跟随系统」）",
+    "语言选项: system=Follow System | zh-CN=中文 | en-US=English，默认=system",
+    "通用分区 hint 布局验证完成",
+    "「跟随系统」持久化与解析验证完成",
+    "英文界面全量文本 dump 完成",
+    "指挥台形态英文 dump 完成",
+    "恢复「跟随系统」验证完成"
+  ],
+  "assertions": [
+    "语言选项含「跟随系统」（实际: system=Follow System, zh-CN=中文, en-US=English)",
+    "新用户默认选中「跟随系统」（实际: system）",
+    "通用分区 hint 元素存在",
+    "hint 跨整行（宽 578.6666870117188px / 表单 578.6666870117188px）",
+    "hint 不逐词堆叠（高 38.395835876464844px，文本 119 字）",
+    "选择「跟随系统」后持久化为 \"system\"（实际: system）",
+    "界面语言跟随系统解析（navigator.language=en-GB → 期望英文，实际英文）",
+    "切英文后无 CJK 残留（按钮/选项/placeholder/title，实际残留: 无）",
+    "指挥台形态（英文）无 CJK 残留（实际: 无）",
+    "文件树 ↗ tooltip 随「跟随系统」恢复（实际: title: Switch main view: Chat / Console (each view keeps its own state) | title: Open current file in the configured external editor (command template in Settings → Editor)）",
+    "恢复系统语言后无反向残留（实际: 无）"
+  ],
+  "failures": []
+}

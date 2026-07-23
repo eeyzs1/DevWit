@@ -101,7 +101,7 @@ def run_check(check: dict, payload: dict, project_root: Path,
     try:
         result = subprocess.run(
             cmd, cwd=str(project_root), shell=True,
-            capture_output=True, text=True, timeout=300,
+            capture_output=True, text=True, timeout=300,  # qg-allow: hook 脚本最长 5 分钟，防挂死的安全闸
             encoding="utf-8", errors="replace",
         )
         passed = (result.returncode == 0)

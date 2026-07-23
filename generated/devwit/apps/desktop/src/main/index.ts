@@ -48,6 +48,13 @@ app.whenReady().then(() => {
     return;
   }
 
+  // E2E 隔离钩子：DEVWIT_USER_DATA_DIR 指定独立 userData（与 DEVWIT_E2E_OPEN_DIR 同类，
+  // 避免测试与用户真实配置互相污染；生产启动不设置即走默认路径）。
+  const e2eUserData = process.env.DEVWIT_USER_DATA_DIR;
+  if (e2eUserData !== undefined && e2eUserData !== "") {
+    app.setPath("userData", e2eUserData);
+  }
+
   const settings = new SettingsStore(new SafeStorageBackend(), app.getPath("userData"));
   workspace = new WorkspaceService();
   terminal = new TerminalService();

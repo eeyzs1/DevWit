@@ -49,25 +49,26 @@ export function resolveModeContextPolicy(mode: ModeDefinition): Record<ContextIt
 }
 
 export function validateModeDefinition(mode: ModeDefinition): void {
-  if (!mode || typeof mode !== "object") throw new Error("ModeDefinition 必须是对象");
-  if (typeof mode.id !== "string" || mode.id.trim() === "") throw new Error("mode id 不能为空");
-  if (typeof mode.name !== "string" || mode.name.trim() === "") throw new Error("mode name 不能为空");
-  if (typeof mode.description !== "string") throw new Error("mode description 必须是字符串");
-  if (typeof mode.systemPrompt !== "string") throw new Error("mode systemPrompt 必须是字符串");
+  // 校验消息保持 ASCII：这些错误会经 IPC 抛到主进程 stderr（GBK 终端防乱码）
+  if (!mode || typeof mode !== "object") throw new Error("ModeDefinition must be an object");
+  if (typeof mode.id !== "string" || mode.id.trim() === "") throw new Error("mode id must not be empty");
+  if (typeof mode.name !== "string" || mode.name.trim() === "") throw new Error("mode name must not be empty");
+  if (typeof mode.description !== "string") throw new Error("mode description must be a string");
+  if (typeof mode.systemPrompt !== "string") throw new Error("mode systemPrompt must be a string");
   if (!Array.isArray(mode.tools) || mode.tools.some((tool) => typeof tool !== "string" || tool.trim() === "")) {
-    throw new Error("mode tools 必须是非空字符串数组");
+    throw new Error("mode tools must be an array of non-empty strings");
   }
-  if (typeof mode.providerId !== "string") throw new Error("mode providerId 必须是字符串（空串表示未绑定）");
+  if (typeof mode.providerId !== "string") throw new Error("mode providerId must be a string (empty = unbound)");
   if (!mode.contextPolicy || typeof mode.contextPolicy !== "object" || Array.isArray(mode.contextPolicy)) {
-    throw new Error("mode contextPolicy 必须是对象");
+    throw new Error("mode contextPolicy must be an object");
   }
   for (const [key, value] of Object.entries(mode.contextPolicy)) {
-    if (!VALID_CONTEXT_TYPES.has(key)) throw new Error(`mode contextPolicy 含未知上下文类型: ${key}`);
-    if (typeof value !== "boolean") throw new Error(`mode contextPolicy.${key} 必须是布尔值`);
+    if (!VALID_CONTEXT_TYPES.has(key)) throw new Error(`mode contextPolicy has unknown context type: ${key}`);
+    if (typeof value !== "boolean") throw new Error(`mode contextPolicy.${key} must be a boolean`);
   }
-  if (typeof mode.builtin !== "boolean") throw new Error("mode builtin 必须是布尔值");
-  if (Number.isNaN(Date.parse(mode.createdAt))) throw new Error("mode createdAt 必须是可解析的时间串");
-  if (Number.isNaN(Date.parse(mode.updatedAt))) throw new Error("mode updatedAt 必须是可解析的时间串");
+  if (typeof mode.builtin !== "boolean") throw new Error("mode builtin must be a boolean");
+  if (Number.isNaN(Date.parse(mode.createdAt))) throw new Error("mode createdAt must be a parseable date string");
+  if (Number.isNaN(Date.parse(mode.updatedAt))) throw new Error("mode updatedAt must be a parseable date string");
 }
 
 /** 深拷贝模式（tools 数组与 contextPolicy 对象均隔离，外部改动不影响 store）。 */
@@ -119,7 +120,7 @@ export class ModeStore {
   delete(id: string): boolean {
     const existing = this.modes.get(id);
     if (!existing) return false;
-    if (existing.builtin) throw new Error(`内置模式不可删除: ${id}`);
+    if (existing.builtin) throw new Error(`builtin mode cannot be deleted: ${id}`);
     this.modes.delete(id);
     this.emitChange();
     return true;

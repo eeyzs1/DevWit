@@ -23,7 +23,7 @@ export class UndoStack {
   private undoEntries: EditOp[][] = [];
   private redoEntries: EditOp[][] = [];
 
-  constructor(limit = 10000) {
+  constructor(limit = 10000) {  // qg-allow: 撤销深度默认值，编辑器内核策略常量，构造时可注入覆盖
     this.limit = Math.max(1, limit);
   }
 

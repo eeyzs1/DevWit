@@ -4,6 +4,7 @@ import type {
   AuthorizationDecision,
   DevwitApi,
 } from "@devwit/contracts";
+import { t } from "@devwit/i18n";
 
 /**
  * ChatController（WU012）：对话面板的 headless 状态机。
@@ -112,7 +113,7 @@ export class ChatController {
   /** 发送一条用户消息并驱动一次 agent run（chat 模式 = 无写工具的模式定义）。 */
   async send(userText: string, context: ChatContextSnapshot = {}): Promise<void> {
     if (this.running) {
-      throw new Error("会话进行中：请先等待完成或取消");
+      throw new Error(t("chat.error.busy"));
     }
     const text = userText.trim();
     if (text.length === 0) {
@@ -158,6 +159,30 @@ export class ChatController {
     return () => {
       this.listeners.delete(listener);
     };
+  }
+
+  /**
+   * 回放持久化轨迹（api.agent.trace 的结果）重建消息列表（指挥台切换任务时用）。
+   * 轨迹不含 assistant_delta（瞬时事件），定稿文本由 assistant_message 承载。
+   */
+  ingestHistory(events: AgentTraceEvent[]): void {
+    this.items.length = 0;
+    this.running = false;
+    for (const event of events) {
+      if (event.sessionId !== this.deps.sessionId) continue;
+      // 实时路径中 user_message 跳过（本地已追加）；回放时本地无副本，需补上
+      if (event.type === "user_message") {
+        this.items.push({ kind: "user", text: event.summary });
+        continue;
+      }
+      this.onAgentEvent(event);
+    }
+    // 轨迹末尾若无 done/error，说明会话可能仍在进行（如应用重启后 agent 仍在跑）
+    const last = events.at(-1);
+    if (last !== undefined && last.type !== "done" && last.type !== "error") {
+      this.running = true;
+    }
+    this.emit();
   }
 
   dispose(): void {

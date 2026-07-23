@@ -77,6 +77,9 @@ const api: DevwitApi = {
     listManifests: (limit) => ipcRenderer.invoke(IPC.ContextManifestList, limit) as ReturnType<DevwitApi["context"]["listManifests"]>,
     getPolicy: () => ipcRenderer.invoke(IPC.ContextPolicyGet) as ReturnType<DevwitApi["context"]["getPolicy"]>,
     setItemEnabled: (type, enabled) => ipcRenderer.invoke(IPC.ContextPolicySet, type, enabled) as Promise<void>
+  },
+  externalEditor: {
+    open: (path, line) => ipcRenderer.invoke(IPC.ExternalEditorOpen, path, line) as Promise<void>
   }
 };
 

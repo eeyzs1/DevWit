@@ -49,8 +49,8 @@ def scan_endpoints(project_root: Path) -> list:
                 endpoints.append({"method": match.group(1).upper(), "path": match.group(2), "file": str(py_file.relative_to(project_root))})
             for match in re.finditer(r"(?:GET|POST|PUT|DELETE|PATCH)\s+[\"']?(/[^\s\"']+)", content):
                 endpoints.append({"method": match.group(0).split()[0], "path": match.group(1), "file": str(py_file.relative_to(project_root))})
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"WARNING: endpoint 扫描跳过 {py_file}: {exc}", file=sys.stderr)
 
     return endpoints
 
@@ -68,8 +68,8 @@ def scan_models(project_root: Path) -> list:
                 parent = match.group(2) or ""
                 if parent in ("BaseModel", "Model", "Schema", "Entity", "Document") or "models" in str(py_file):
                     models.append({"name": match.group(1), "parent": parent, "file": str(py_file.relative_to(project_root))})
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"WARNING: model 扫描跳过 {py_file}: {exc}", file=sys.stderr)
 
     return models
 
@@ -84,8 +84,8 @@ def scan_tests(project_root: Path) -> dict:
                     content = f.read_text(encoding="utf-8")
                     test_count = content.count("def test_") + content.count("async def test_")
                     test_files.append({"path": str(f.relative_to(project_root)), "test_count": test_count})
-                except Exception:
-                    pass
+                except Exception as exc:
+                    print(f"WARNING: 测试统计跳过 {f}: {exc}", file=sys.stderr)
 
     return {"has_tests": len(test_files) > 0, "test_files": test_files, "total_tests": sum(t["test_count"] for t in test_files)}
 

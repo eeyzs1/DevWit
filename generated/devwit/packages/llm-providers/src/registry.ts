@@ -41,7 +41,7 @@ export class ProviderRegistry {
   /** 按 id 查找配置并按类型分发到 Anthropic / OpenAI 兼容实现。 */
   createProvider(id: string): LLMProvider {
     const config = this.configs.get(id);
-    if (!config) throw new Error(`Provider 不存在: ${id}`);
+    if (!config) throw new Error(`provider not found: ${id}`);
     return createProvider(config, this.credentials);
   }
 
@@ -58,21 +58,22 @@ export class ProviderRegistry {
 }
 
 export function validateProviderConfig(config: ProviderConfig): void {
-  if (!config || typeof config !== "object") throw new Error("ProviderConfig 必须是对象");
-  if (typeof config.id !== "string" || config.id.trim() === "") throw new Error("provider id 不能为空");
+  // 校验消息保持 ASCII：这些错误会经 IPC 抛到主进程 stderr（GBK 终端防乱码）
+  if (!config || typeof config !== "object") throw new Error("ProviderConfig must be an object");
+  if (typeof config.id !== "string" || config.id.trim() === "") throw new Error("provider id must not be empty");
   if (config.type !== "anthropic" && config.type !== "openai") {
-    throw new Error(`不支持的 provider 类型: ${String(config.type)}`);
+    throw new Error(`unsupported provider type: ${String(config.type)}`);
   }
-  if (typeof config.label !== "string" || config.label.trim() === "") throw new Error("provider label 不能为空");
-  if (typeof config.baseUrl !== "string" || config.baseUrl.trim() === "") throw new Error("provider baseUrl 不能为空");
-  if (typeof config.model !== "string" || config.model.trim() === "") throw new Error("provider model 不能为空");
+  if (typeof config.label !== "string" || config.label.trim() === "") throw new Error("provider label must not be empty");
+  if (typeof config.baseUrl !== "string" || config.baseUrl.trim() === "") throw new Error("provider baseUrl must not be empty");
+  if (typeof config.model !== "string" || config.model.trim() === "") throw new Error("provider model must not be empty");
   if (typeof config.credentialRef !== "string" || config.credentialRef.trim() === "") {
-    throw new Error("provider credentialRef 不能为空");
+    throw new Error("provider credentialRef must not be empty");
   }
   if (typeof config.maxTokens !== "number" || !Number.isFinite(config.maxTokens) || config.maxTokens <= 0) {
-    throw new Error("provider maxTokens 必须是正数");
+    throw new Error("provider maxTokens must be a positive number");
   }
   if (config.temperature !== undefined && (typeof config.temperature !== "number" || !Number.isFinite(config.temperature))) {
-    throw new Error("provider temperature 必须是有限数字");
+    throw new Error("provider temperature must be a finite number");
   }
 }

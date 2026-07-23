@@ -60,12 +60,12 @@ def is_production_file(file_path: Path, project_root: Path) -> bool:
     parts = file_path.relative_to(project_root).parts
     if not parts:
         return False
-    top_dir = parts[0]
-    if top_dir in TEST_DIRS:
+    if any(p in TEST_DIRS for p in parts):
         return False
-    if top_dir in PRODUCTION_DIRS:
+    if parts[0] in PRODUCTION_DIRS:
         return True
-    if len(parts) > 1 and parts[0] == "src":
+    # monorepo 布局：apps/<app>/src/...、packages/<pkg>/src/... 亦为生产代码
+    if parts[0] in {"apps", "packages"} and "src" in parts[1:]:
         return True
     return False
 
@@ -142,14 +142,16 @@ def scan_project(project_root: Path, strict: bool = False) -> dict:
             continue
         if file_path.suffix.lower() not in CODE_EXTENSIONS:
             continue
-        if any(p in file_path.parts for p in [".git", "node_modules", "__pycache__", "venv", ".venv", "dist", "build", ".next", "generated"]):
+        rel_parts = file_path.relative_to(project_root).parts
+        # 按项目相对路径匹配跳过目录——用绝对路径 parts 会把位于 generated/
+        # 父目录下的整个项目全部跳过（虚假 PASS：scanned=0）
+        if any(p in rel_parts for p in [".git", "node_modules", "__pycache__", "venv", ".venv", "dist", "build", ".next", "generated"]):
             continue
 
         scanned += 1
-        rel_parts = file_path.relative_to(project_root).parts
         if any(d in TEST_DIRS for d in rel_parts):
             test_files += 1
-        elif rel_parts and rel_parts[0] in PRODUCTION_DIRS or (len(rel_parts) > 1 and rel_parts[0] == "src"):
+        elif is_production_file(file_path, project_root):
             production_files += 1
 
         file_violations = scan_file(file_path, project_root, strict)

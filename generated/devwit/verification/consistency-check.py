@@ -20,6 +20,12 @@ from pathlib import Path
 
 import yaml
 
+# Ensure UTF-8 stdout/stderr on Windows (prevents mojibake when output is
+# captured to evidence logs, and UnicodeEncodeError with emoji)
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 
 def check_architecture_rules(project_root: Path) -> list:
     violations = []
@@ -58,8 +64,8 @@ def check_architecture_rules(project_root: Path) -> list:
                         "file": str(src_file.relative_to(project_root)),
                         "message": rule.get("description", "Architecture rule violation"),
                     })
-            except Exception:
-                pass
+            except Exception as exc:
+                print(f"WARNING: 规则扫描跳过 {src_file}: {exc}", file=sys.stderr)
 
     return violations
 
@@ -80,8 +86,8 @@ def check_orphaned_references(project_root: Path) -> list:
                 imports.add(match.group(1))
             for match in re.finditer(r"(?:class|def)\s+(\w+)", content):
                 definitions.add(match.group(1))
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"WARNING: 孤儿引用扫描跳过 {py_file}: {exc}", file=sys.stderr)
 
     for imp in imports:
         if imp not in definitions and not imp.startswith("_"):

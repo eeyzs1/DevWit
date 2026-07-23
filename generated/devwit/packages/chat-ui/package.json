@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@devwit/contracts": "*",
+    "@devwit/i18n": "*",
     "diff": "^7.0.0"
   },
   "devDependencies": {

@@ -98,7 +98,7 @@ describe("IPC 白名单", () => {
     for (const ch of aiChannels) {
       const handler = table[ch];
       expect(handler, `${ch} 应已注册`).toBeDefined();
-      expect(() => handler?.(null)).toThrow("AI 子系统未初始化");
+      expect(() => handler?.(null)).toThrow("DW_AI_NOT_WIRED");
     }
   });
 

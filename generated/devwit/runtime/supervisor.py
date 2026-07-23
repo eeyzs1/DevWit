@@ -66,7 +66,7 @@ for _p in (str(_project_root), str(_runtime_dir)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-# 统一用 dotted import（runtime.xxx）——与 load_source 动态加载 adapter 的
+# 统一用 dotted import（runtime.<module>）——与 load_source 动态加载 adapter 的
 # `runtime.sources.<adapter>_source` 路径一致，避免 flat/dotted 双导入导致
 # isinstance(instance, WorkitemSource) 误判 TypeError。
 from runtime.workitem_source import WorkitemSource, load_source
@@ -131,7 +131,7 @@ class Supervisor:
         if stop_file.exists():
             return "manual_stop"
         if "queue_empty" in conditions and self.source:
-            pending = self.source.list_pending(limit=1)
+            pending = self.source.list_pending(limit=1)  # qg-allow: 存在性探测只需 1 条，非配置项
             if not pending:
                 # 当前也无 active workitem 时才算 empty
                 # （pending 为空但可能正在处理一个）
@@ -193,8 +193,8 @@ class Supervisor:
                 try:
                     proc.stdout.read() if proc.stdout else None
                     proc.stderr.read() if proc.stderr else None
-                except Exception:
-                    pass
+                except OSError:
+                    pass  # 进程已退出，管道关闭时无数据可排——正常路径
                 completed.append((wid, rc))
         return completed
 
@@ -387,7 +387,7 @@ class Supervisor:
             for wid in list(in_flight.keys()):
                 entry = in_flight[wid]
                 try:
-                    entry["proc"].wait(timeout=30)
+                    entry["proc"].wait(timeout=30)  # qg-allow: 优雅退出等待上限，超时即 kill，属流程逻辑非环境配置
                 except Exception:
                     entry["proc"].kill()
                 rc = entry["proc"].returncode or -1

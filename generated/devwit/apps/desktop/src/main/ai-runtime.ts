@@ -163,18 +163,19 @@ export class AiRuntime {
   async run(input: AgentRunInput): Promise<void> {
     const mode = this.modeStore.get(input.modeId);
     if (mode === undefined) {
-      throw new Error(`模式不存在: ${input.modeId}`);
+      // 错误码保持 ASCII：主进程 stderr 在 GBK 终端输出中文会乱码，文案由渲染端 localizeError 本地化
+      throw new Error(`DW_MODE_NOT_FOUND:${input.modeId}`);
     }
     const providerId = input.providerId ?? mode.providerId;
     if (providerId === "") {
-      throw new Error(`模式 ${mode.name} 未绑定模型：请在设置中配置 provider 或在会话中切换模型`);
+      throw new Error(`DW_MODE_UNBOUND:${mode.id}`);
     }
     const provider =
       this.deps.createProvider !== undefined ? this.deps.createProvider(providerId) : this.registry.createProvider(providerId);
 
     const session = this.ensureSession(input.sessionId, input.modeId);
     if (session.running) {
-      throw new Error("会话进行中：请先取消当前运行");
+      throw new Error("DW_SESSION_BUSY");
     }
     this.lastModeId = input.modeId;
     session.running = true;
@@ -247,7 +248,7 @@ export class AiRuntime {
   }
 
   /** 从落盘目录读取最近 N 份 manifest（审计列表；按时间倒序）。 */
-  async listManifests(limit = 20): Promise<ContextManifest[]> {
+  async listManifests(limit = 20): Promise<ContextManifest[]> {  // qg-allow: 审计列表默认页大小，调用方可覆盖
     let files: string[] = [];
     try {
       files = (await fs.readdir(this.deps.manifestsDir)).filter((name) => name.endsWith(".json"));

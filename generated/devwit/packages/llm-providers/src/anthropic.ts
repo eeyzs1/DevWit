@@ -157,7 +157,8 @@ export async function* parseAnthropicEvents(payloads: AsyncIterable<string>): As
   for await (const payload of payloads) {
     const event = parseJsonObject(payload);
     if (!event) {
-      yield { type: "error", error: `无法解析 Anthropic SSE 数据: ${payload.slice(0, 120)}`, retryable: false };
+      // 错误码保持 ASCII：消息经 trace→IPC 到渲染端，localizeError 按当前语言本地化
+      yield { type: "error", error: "DW_SSE_PARSE_FAILED:anthropic", retryable: false };
       continue;
     }
     const eventType = asString(event["type"]);
@@ -227,7 +228,8 @@ export async function* parseAnthropicEvents(payloads: AsyncIterable<string>): As
       }
       case "error": {
         const error = event["error"];
-        const message = isRecord(error) ? asString(error["message"]) ?? "未知 Anthropic 错误" : "未知 Anthropic 错误";
+        // API 返回的 message 原样透传；缺省时用 ASCII 错误码（渲染端本地化）
+        const message = isRecord(error) ? asString(error["message"]) ?? "DW_LLM_ERROR:anthropic" : "DW_LLM_ERROR:anthropic";
         yield { type: "error", error: message, retryable: false };
         break;
       }
@@ -262,7 +264,7 @@ export class AnthropicProvider implements LLMProvider {
   }
 
   async *streamChat(messages: ChatMessage[], tools: ToolDefinition[], signal?: AbortSignal): AsyncIterable<StreamEvent> {
-    if (!this.config.baseUrl) throw new Error("AnthropicProvider: ProviderConfig.baseUrl 为空");
+    if (!this.config.baseUrl) throw new Error("AnthropicProvider: ProviderConfig.baseUrl is empty");
     const apiKey = await this.credentials.resolve(this.config.credentialRef);
     const body = buildAnthropicRequest(this.config, messages, tools);
     const response = await fetch(joinUrl(this.config.baseUrl, "/v1/messages"), {
@@ -276,7 +278,7 @@ export class AnthropicProvider implements LLMProvider {
       ...(signal ? { signal } : {}),
     });
     await assertResponseOk(response);
-    if (!response.body) throw new Error("AnthropicProvider: 响应缺少可读取的 body 流");
+    if (!response.body) throw new Error("AnthropicProvider: response has no readable body stream");
     yield* parseAnthropicEvents(parseSseStream(response.body));
   }
 }

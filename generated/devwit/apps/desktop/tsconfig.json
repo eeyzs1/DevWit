@@ -20,6 +20,9 @@
       "path": "../../packages/contracts"
     },
     {
+      "path": "../../packages/i18n"
+    },
+    {
       "path": "../../packages/editor-core"
     },
     {

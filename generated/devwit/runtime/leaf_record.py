@@ -96,8 +96,8 @@ def _read_last_hash(events_file: Path) -> str:
                     last_hash = evt.get("hash", "")
                 except json.JSONDecodeError:
                     continue
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"WARNING: 读取事件尾哈希失败 {events_file}: {exc}", file=sys.stderr)
     return last_hash
 
 
@@ -122,8 +122,8 @@ def _is_duplicate(events_file: Path, workitem_id: str, work_unit_id: str,
                         return True
                 except json.JSONDecodeError:
                     continue
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"WARNING: 幂等检查读取失败 {events_file}: {exc}", file=sys.stderr)
     return False
 
 

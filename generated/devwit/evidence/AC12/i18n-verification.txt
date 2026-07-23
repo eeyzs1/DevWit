@@ -1,0 +1,4 @@
+统一设置页：左侧导航 通用/模型/编辑器/模式（截图 01）。
+通用分区语言下拉切到 English：顶栏 Open Folder/Console/Settings、设置页导航 General/Providers/Editor/Modes、对话空态英文主 Agent 说明（Plan/Authorize/Deliver）全部热生效无需重启（截图 02/03）；settings 键 "ui.locale" 持久化为 en-US（启动时 renderer 读取恢复）。
+切回 zh-CN：界面恢复中文，ui.locale 回写 zh-CN。
+词典结构与插值/回退的单元测试见 packages/i18n/tests/i18n.test.ts。

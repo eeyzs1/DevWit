@@ -69,7 +69,7 @@ describe("ModeStore CRUD", () => {
     expect(store.delete("review")).toBe(true);
     expect(store.get("review")).toBeUndefined();
     expect(store.delete("review")).toBe(false);
-    expect(() => store.delete("agent")).toThrow(/内置模式不可删除/);
+    expect(() => store.delete("agent")).toThrow(/builtin mode cannot be deleted/);
   });
 
   it("replaceAll：清空用户模式、保留内置、装入给定列表；含非法模式则整体拒绝", () => {
@@ -77,22 +77,22 @@ describe("ModeStore CRUD", () => {
     store.upsert(makeMode({ id: "temp" }));
     store.replaceAll([makeMode({ id: "a" }), makeMode({ id: "b" })]);
     expect(store.list().map((mode) => mode.id)).toEqual(["chat", "agent", "a", "b"]);
-    expect(() => store.replaceAll([makeMode({ id: "" })])).toThrow(/id 不能为空/);
+    expect(() => store.replaceAll([makeMode({ id: "" })])).toThrow(/mode id must not be empty/);
     expect(store.list().map((mode) => mode.id)).toEqual(["chat", "agent", "a", "b"]);
   });
 });
 
 describe("validateModeDefinition", () => {
   it("拒绝空 id/name、非法 tools、非法 contextPolicy", () => {
-    expect(() => validateModeDefinition(makeMode({ id: " " }))).toThrow(/id 不能为空/);
-    expect(() => validateModeDefinition(makeMode({ name: "" }))).toThrow(/name 不能为空/);
+    expect(() => validateModeDefinition(makeMode({ id: " " }))).toThrow(/mode id must not be empty/);
+    expect(() => validateModeDefinition(makeMode({ name: "" }))).toThrow(/mode name must not be empty/);
     expect(() => validateModeDefinition(makeMode({ tools: ["read", " "] }))).toThrow(/tools/);
     expect(() => validateModeDefinition(makeMode({ contextPolicy: { selection: "yes" as unknown as boolean } }))).toThrow(
-      /布尔值/
+      /must be a boolean/
     );
     expect(
       () => validateModeDefinition(makeMode({ contextPolicy: { nope: true } as ModeDefinition["contextPolicy"] }))
-    ).toThrow(/未知上下文类型/);
+    ).toThrow(/unknown context type/);
   });
 });
 

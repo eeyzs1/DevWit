@@ -43,8 +43,8 @@ def find_unused_imports(project_root: Path) -> list:
                             "module": module,
                             "fix": f"Remove unused import: {module}",
                         })
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"WARNING: 未使用导入扫描跳过 {py_file}: {exc}", file=sys.stderr)
 
     return issues
 
@@ -87,8 +87,8 @@ def find_orphaned_files(project_root: Path) -> list:
                 definitions.add(match.group(1))
             for match in re.finditer(r"\b(\w+)\b", content):
                 references.add(match.group(1))
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"WARNING: 死代码扫描跳过 {py_file}: {exc}", file=sys.stderr)
 
     unreferenced = definitions - references
     if unreferenced:

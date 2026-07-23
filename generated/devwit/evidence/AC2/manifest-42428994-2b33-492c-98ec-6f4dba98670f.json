@@ -1,0 +1,62 @@
+{
+  "id": "manifest-42428994-2b33-492c-98ec-6f4dba98670f",
+  "timestamp": "2026-07-23T03:33:45.286Z",
+  "sessionId": "session-1784777622937",
+  "modeId": "e2e-mode",
+  "providerId": "e2e-local-b",
+  "model": "e2e-model-b",
+  "items": [
+    {
+      "id": "item-84939301-df47-4269-851d-0ed89788840b",
+      "type": "system_prompt",
+      "label": "系统提示",
+      "enabled": true,
+      "tokens": 20,
+      "content": "你是 E2E 自定义模式，系统提示经热更新注入。",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-2cf92ac8-8c3f-4ae2-9c76-d95a8de355bf",
+      "type": "tool_definitions",
+      "label": "工具定义（1 个）",
+      "enabled": true,
+      "tokens": 90,
+      "content": "[\n  {\n    \"name\": \"read\",\n    \"description\": \"读取工作区内文件的全部内容\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"相对工作区根的路径\"\n        }\n      },\n      \"required\": [\n        \"path\"\n      ]\n    }\n  }\n]",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-ddc383f2-f150-4236-b251-1b3891a8d276",
+      "type": "conversation_history",
+      "label": "会话历史（1 条）",
+      "enabled": true,
+      "tokens": 6,
+      "content": "[user] 模式测试",
+      "source": "conversation",
+      "counting": "exact"
+    },
+    {
+      "id": "item-8ef362e1-df20-4783-8d0a-1497f99008f1",
+      "type": "file_fragment",
+      "label": "文件片段 hello.txt",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-i0MALD\\hello.txt",
+      "counting": "exact"
+    },
+    {
+      "id": "item-55403d5b-bec7-46e0-886f-778900259013",
+      "type": "git_status",
+      "label": "Git 状态",
+      "enabled": true,
+      "tokens": 8,
+      "content": "(非 git 仓库)",
+      "source": "git status",
+      "counting": "exact"
+    }
+  ],
+  "totalTokens": 124,
+  "systemPromptTokens": 20
+}

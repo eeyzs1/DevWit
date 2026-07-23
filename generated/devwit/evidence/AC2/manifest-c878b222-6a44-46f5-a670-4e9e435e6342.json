@@ -1,0 +1,62 @@
+{
+  "id": "manifest-c878b222-6a44-46f5-a670-4e9e435e6342",
+  "timestamp": "2026-07-23T03:33:44.419Z",
+  "sessionId": "session-1784777622937",
+  "modeId": "agent",
+  "providerId": "e2e-local-a",
+  "model": "e2e-model-a",
+  "items": [
+    {
+      "id": "item-029643f3-6561-406c-a69f-149d5b2e628c",
+      "type": "system_prompt",
+      "label": "系统提示",
+      "enabled": true,
+      "tokens": 86,
+      "content": "你是 DevWit 的编码 Agent，通过工具逐步完成用户任务。先用 read/grep/find/ls 了解现状，再用 write/edit 做最小修改，必要时用 bash 验证。修改文件前先读文件；一次只推进一小步；完成后用一句话说明做了什么。",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-91e6b5f9-2b75-4be1-9143-56c40c975058",
+      "type": "tool_definitions",
+      "label": "工具定义（7 个）",
+      "enabled": true,
+      "tokens": 963,
+      "content": "[\n  {\n    \"name\": \"read\",\n    \"description\": \"读取工作区内文件的全部内容\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"相对工作区根的路径\"\n        }\n      },\n      \"required\": [\n        \"path\"\n      ]\n    }\n  },\n  {\n    \"name\": \"write\",\n    \"description\": \"写入文件（覆盖式，自动创建父目录）。需用户授权\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"相对工作区根的路径\"\n        },\n        \"content\": {\n          \"type\": \"string\",\n          \"description\": \"完整文件内容\"\n        }\n      },\n      \"required\": [\n        \"path\",\n        \"content\"\n      ]\n    }\n  },\n  {\n    \"name\": \"edit\",\n    \"description\": \"对文件做精确的字符串替换（old_string 须唯一，除非 replace_all=true）。需用户授权\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"相对工作区根的路径\"\n        },\n        \"old_string\": {\n          \"type\": \"string\",\n          \"description\": \"被替换的原文（非空）\"\n        },\n        \"new_string\": {\n          \"type\": \"string\",\n          \"description\": \"替换后的文本（可为空串表示删除）\"\n        },\n        \"replace_all\": {\n          \"type\": \"boolean\",\n          \"description\": \"替换全部出现位置\"\n        }\n      },\n      \"required\": [\n        \"path\",\n        \"old_string\",\n        \"new_string\"\n      ]\n    }\n  },\n  {\n    \"name\": \"bash\",\n    \"description\": \"在工作区根目录执行 shell 命令并返回输出。需用户授权\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"command\": {\n          \"type\": \"string\",\n          \"description\": \"要执行的命令\"\n        },\n        \"timeout_ms\": {\n          \"type\": \"number\",\n          \"description\": \"超时毫秒数（可选）\"\n        }\n      },\n      \"required\": [\n        \"command\"\n      ]\n    }\n  },\n  {\n    \"name\": \"grep\",\n    \"description\": \"在工作区文件中按正则搜索，输出 文件:行号: 内容\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"pattern\": {\n          \"type\": \"string\",\n          \"description\": \"正则表达式\"\n        },\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"起始目录（默认工作区根）\"\n        },\n        \"glob\": {\n          \"type\": \"string\",\n          \"description\": \"文件名通配过滤，如 *.ts\"\n        },\n        \"case_sensitive\": {\n          \"type\": \"boolean\",\n          \"description\": \"大小写敏感（默认 true）\"\n        }\n      },\n      \"required\": [\n        \"pattern\"\n      ]\n    }\n  },\n  {\n    \"name\": \"find\",\n    \"description\": \"按文件名通配符（* / ?）查找文件与目录\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"pattern\": {\n          \"type\": \"string\",\n          \"description\": \"文件名通配符，如 *.ts\"\n        },\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"起始目录（默认工作区根）\"\n        }\n      },\n      \"required\": [\n        \"pattern\"\n      ]\n    }\n  },\n  {\n    \"name\": \"ls\",\n    \"description\": \"列出目录内容（目录名带 / 后缀）\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"目录路径（默认工作区根）\"\n        }\n      }\n    }\n  }\n]",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-5fd81412-fa19-462c-8cc2-003468d1387a",
+      "type": "conversation_history",
+      "label": "会话历史（1 条）",
+      "enabled": true,
+      "tokens": 7,
+      "content": "[user] 创建文件 agent-created.txt",
+      "source": "conversation",
+      "counting": "exact"
+    },
+    {
+      "id": "item-efff9d0e-45da-44ec-900f-8b4def710523",
+      "type": "file_fragment",
+      "label": "文件片段 hello.txt",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-i0MALD\\hello.txt",
+      "counting": "exact"
+    },
+    {
+      "id": "item-d186d027-e2ab-4714-ba69-7e071bc5b84e",
+      "type": "git_status",
+      "label": "Git 状态",
+      "enabled": true,
+      "tokens": 8,
+      "content": "(非 git 仓库)",
+      "source": "git status",
+      "counting": "exact"
+    }
+  ],
+  "totalTokens": 1064,
+  "systemPromptTokens": 86
+}

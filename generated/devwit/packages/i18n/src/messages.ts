@@ -1,0 +1,427 @@
+/**
+ * @devwit/i18n — 界面文案词典（迭代 3 / AC12）。
+ *
+ * zh-CN 是结构基准（typeof zhCN 即 Messages 类型），en-US 必须与之逐键同型
+ * （string 对 string、string[] 对 string[]），编译期强制两份词典不漂移。
+ * 插值占位符写作 {name}，由 t() 的 vars 替换。
+ */
+
+const zhCN = {
+  // ---- 顶栏 / 状态栏 ----
+  "chrome.form.console": "指挥台",
+  "chrome.form.chat": "对话",
+  "chrome.form.tooltip": "切换主界面形态：对话 / 指挥台（两种形态的工作状态各自保持）",
+  "chrome.openFolder": "打开文件夹",
+  "chrome.save": "保存 (Ctrl+S)",
+  "chrome.external": "外部编辑器 ↗",
+  "chrome.external.tooltip": "在配置的外部编辑器中打开当前文件（设置 → 编辑器 中配置命令模板）",
+  "chrome.noFile": "未打开文件",
+  "chrome.settings": "设置",
+  "status.noWorkspace": "未打开工作区",
+  "status.unsaved": "● 未保存",
+  "status.openFileFirst": "请先打开一个文件",
+  "editor.welcome":
+    "// 欢迎使用 DevWit\n// 打开文件夹后点击左侧文件开始编辑；右侧对话面板可请求 AI 修改代码。\n",
+  "sidebar.empty": "点击「打开文件夹」选择项目目录",
+  "tree.external": "在外部编辑器打开",
+
+  // ---- 首次使用引导（AC11）----
+  "onboarding.title": "欢迎使用 DevWit",
+  "onboarding.sub":
+    "AI 主导开发的本地工作台：你描述意图，Agent 规划、经你授权后执行，并交付可审查的修改与执行轨迹。",
+  "onboarding.step1": "① 配置模型",
+  "onboarding.step1.hint": "接入 Anthropic 或 OpenAI 兼容 API（密钥加密存储，可热更新）",
+  "onboarding.step2": "② 打开文件夹",
+  "onboarding.step2.hint": "选择你的项目目录，文件树即可浏览",
+  "onboarding.step3.hint": "③ 输入第一个意图（点击示例试试）：",
+  "onboarding.examples": [
+    "给当前文件加输入校验并解释改动",
+    "把 README 里的待办项拆成任务并逐项实现",
+    "审查这个项目里最大的文件，给出简化方案",
+  ],
+
+  // ---- 页签 ----
+  "tab.chat": "对话",
+  "tab.context": "上下文",
+  "tab.code": "代码",
+  "tab.diff": "Diff",
+
+  // ---- 任务指挥台（AC9）----
+  "console.tasks": "任务",
+  "console.newTask.placeholder": "新任务意图，如：给登录页加表单校验",
+  "console.create": "创建",
+  "console.task.empty": "还没有任务。输入一个意图创建一个。",
+  "console.input.placeholder": "向当前任务追加指令…（Enter 发送，Shift+Enter 换行）",
+  "console.diff.empty": "对话或活动流中出现「审查修改」时，diff 在这里打开。",
+  "task.status.running": "进行中",
+  "task.status.waiting_auth": "待授权",
+  "task.status.done": "完成",
+  "task.status.failed": "失败",
+  "task.intent.required": "任务意图不能为空",
+  "task.noActive": "没有激活的任务：请先创建任务",
+
+  // ---- 编辑提案审查 ----
+  "review.openFileFirst": "请先打开一个文件再审查修改",
+  "review.noBlock": "（回复中未找到唯一代码块，无法生成 diff）",
+  "review.noChange": "（提案与当前内容一致）",
+  "review.title": "变更审查 — {path}",
+
+  // ---- 统一设置页（AC12）----
+  "settings.title": "设置",
+  "settings.nav.general": "通用",
+  "settings.nav.providers": "模型",
+  "settings.nav.editor": "编辑器",
+  "settings.nav.modes": "模式",
+  "settings.close": "关闭",
+  "settings.general.language": "界面语言",
+  "settings.general.language.system": "跟随系统",
+  "settings.general.language.hint": "切换后立即生效并持久化保存，无需重启。「跟随系统」：系统为中文时用中文，否则用英文。",
+
+  // ---- 设置 · 模型 ----
+  "provider.title": "模型设置（Anthropic / OpenAI 兼容）",
+  "provider.type": "类型",
+  "provider.label": "显示名",
+  "provider.baseUrl": "Base URL",
+  "provider.apiKey": "API Key",
+  "provider.model": "模型",
+  "provider.maxTokens": "最大 tokens",
+  "provider.secret.keep": "留空 = 保留已存密钥",
+  "provider.secret.new": "首次保存必填，加密存储",
+  "provider.baseUrl.placeholder": "https://<你的 API endpoint>/v1",
+  "provider.new": "新建",
+  "provider.save": "保存",
+  "provider.edit": "编辑",
+  "provider.required": "ID / Base URL / 模型 必填",
+  "provider.needKey": "新建 provider 必须填写 API Key",
+  "provider.saved": "已保存（热生效，无需重启）",
+
+  // ---- 设置 · 模式 ----
+  "mode.title": "模式管理（修改热生效，下次请求即用）",
+  "mode.name": "名称",
+  "mode.description": "描述",
+  "mode.systemPrompt": "系统提示",
+  "mode.tools": "工具集",
+  "mode.provider": "绑定模型",
+  "mode.contextPolicy": "上下文策略",
+  "mode.unbound": "（未绑定）",
+  "mode.builtin.note": "内置模式：可编辑，不可删除",
+  "mode.builtin.tag": "（内置）",
+  "mode.tool.count": "工具 {n} 个",
+  "mode.delete": "删除",
+  "mode.required": "名称与系统提示必填",
+  "mode.saved": "已保存（热生效）",
+  // 内置模式显示名（数据层工厂名为英文常量，界面按当前语言显示；用户改名后尊重用户值）
+  "mode.builtin.chat.name": "对话",
+  "mode.builtin.agent.name": "智能体",
+
+  // ---- 设置 · 编辑器（AC10）----
+  "editor.title": "编辑器设置（外部编辑器命令模板）",
+  "editor.hint":
+    "占位符：{file} = 文件路径（必需），{line} = 行号（缺省 1）。文件树与顶栏「外部编辑器 ↗」会用此命令打开当前文件。",
+  "editor.command.placeholder": "如：code -g \"{file}:{line}\"",
+  "editor.missingFile": "命令模板缺少 {file} 占位符（或留空清空配置）",
+  "editor.cleared": "已清空外部编辑器配置",
+  "editor.saved": "已保存（热生效，无需重启）",
+
+  // ---- 外部编辑器引导小页（未配置时点击「外部编辑器 ↗」弹出）----
+  "editorSetup.title": "选择外部编辑器",
+  "editorSetup.desc":
+    "尚未配置外部编辑器。点选一个常用编辑器自动填入命令模板（可再修改），保存后「外部编辑器 ↗」即可打开文件。",
+  "editorSetup.command": "命令模板",
+  "editorSetup.custom": "自定义",
+  "editorSetup.save": "保存",
+  "editorSetup.saveOpen": "保存并打开",
+  "common.cancel": "取消",
+  "common.id": "ID",
+
+  // ---- 运行时错误（主进程抛 ASCII 错误码避免终端乱码，渲染端按当前语言本地化）----
+  "err.modeNotFound": "模式不存在：{id}",
+  "err.modeUnbound": "模式「{name}」未绑定模型：请在设置 · 模型中配置模型，或在对话顶部切换模型",
+  "err.externalNotConfigured": "未配置外部编辑器",
+  "err.templateEmpty": "外部编辑器命令模板为空",
+  "err.missingFilePlaceholder": "命令模板缺少 {file} 占位符",
+  "err.spawnFailed": "外部编辑器启动失败：{detail}",
+  "err.aiNotWired": "AI 子系统未初始化",
+  "err.sseParseFailed": "模型服务返回了无法解析的数据（{provider}）：请检查 Base URL 是否为有效的 {provider} 兼容端点",
+  "err.llmUnknown": "模型服务返回未知错误（{provider}）",
+
+  // ---- 上下文类型（设置 · 模式 与 上下文面板共用）----
+  "ctx.system_prompt": "系统提示",
+  "ctx.tool_definitions": "工具定义",
+  "ctx.file_fragment": "文件片段",
+  "ctx.git_status": "Git 状态",
+  "ctx.terminal_output": "终端输出",
+  "ctx.selection": "选区",
+  "ctx.conversation_history": "会话历史",
+  "ctx.custom": "自定义",
+
+  // ---- 对话面板 ----
+  "chat.mode": "模式",
+  "chat.provider": "模型",
+  "chat.provider.modeBound": "（模式绑定）",
+  "chat.input.placeholder": "描述你的需求…（Enter 发送，Shift+Enter 换行）",
+  "chat.send": "发送",
+  "chat.stop": "停止",
+  "chat.review": "审查修改",
+  "chat.tool": "工具",
+  "chat.auth.request": "授权请求：{reason}",
+  "chat.allow": "允许",
+  "chat.allowSession": "本会话允许",
+  "chat.deny": "拒绝",
+  "chat.decided": "已裁决：{decision}",
+  "chat.decision.allow": "允许",
+  "chat.decision.allow_session": "本会话允许",
+  "chat.decision.deny": "拒绝",
+  "chat.error": "错误：{text}",
+  "chat.error.busy": "会话进行中：请先等待完成或取消",
+  "chat.empty.title": "主 Agent 会这样工作",
+  "chat.empty.lines": [
+    "1. 规划：理解你的意图后拆解为可执行步骤",
+    "2. 授权：调用写文件 / 执行命令等工具前，先请求你裁决",
+    "3. 交付：产出可审查的修改（diff）与执行轨迹作为证据",
+    "",
+    "在下方输入你的需求开始；需要多步任务时可切换到「指挥台」形态。",
+  ],
+
+  // ---- Agent 活动流（AC9）----
+  "act.user": "用户",
+  "act.assistant": "助手",
+  "act.tool": "工具",
+  "act.authorization": "授权",
+  "act.error": "错误",
+  "act.done": "完成",
+  "act.tool.running": "执行中…",
+  "act.tool.ok": "成功",
+  "act.tool.failed": "失败/被拒",
+  "act.empty": "创建或选择一个任务后，这里实时展示 Agent 的执行轨迹。",
+
+  // ---- diff 审查视图（AC3）----
+  "diff.title": "变更审查",
+  "diff.acceptAll": "全部接受",
+  "diff.rejectAll": "全部拒绝",
+  "diff.apply": "应用并关闭",
+  "diff.cancel": "取消",
+  "diff.hunk": "变更块 #{id}（第 {line} 行起）",
+  "diff.accept": "接受",
+  "diff.reject": "拒绝",
+  "diff.progress": "{decided}/{total} 已裁决",
+
+  // ---- 上下文组成面板（AC2）----
+  "ctxpanel.title": "上下文组成",
+  "ctxpanel.refresh": "刷新",
+  "ctxpanel.empty": "尚无请求：发送一条消息后此处展示当次请求的完整上下文清单。",
+  "ctxpanel.total": "总计 {n} tokens",
+  "ctxpanel.estimated": "（估算）",
+  "ctxpanel.content": "内容",
+};
+
+export type Messages = typeof zhCN;
+export type MessageKey = keyof Messages;
+
+const enUS: Messages = {
+  "chrome.form.console": "Console",
+  "chrome.form.chat": "Chat",
+  "chrome.form.tooltip": "Switch main view: Chat / Console (each view keeps its own state)",
+  "chrome.openFolder": "Open Folder",
+  "chrome.save": "Save (Ctrl+S)",
+  "chrome.external": "External Editor ↗",
+  "chrome.external.tooltip":
+    "Open current file in the configured external editor (command template in Settings → Editor)",
+  "chrome.noFile": "No file open",
+  "chrome.settings": "Settings",
+  "status.noWorkspace": "No workspace opened",
+  "status.unsaved": "● Unsaved",
+  "status.openFileFirst": "Open a file first",
+  "editor.welcome":
+    "// Welcome to DevWit\n// Open a folder and click a file on the left to edit; ask AI to modify code in the chat panel.\n",
+  "sidebar.empty": 'Click "Open Folder" to choose a project directory',
+  "tree.external": "Open in external editor",
+
+  "onboarding.title": "Welcome to DevWit",
+  "onboarding.sub":
+    "A local workbench for AI-led development: you describe the intent; the Agent plans, executes with your approval, and delivers reviewable changes with an execution trace.",
+  "onboarding.step1": "① Configure a model",
+  "onboarding.step1.hint": "Connect Anthropic or an OpenAI-compatible API (keys encrypted, hot-reloadable)",
+  "onboarding.step2": "② Open a folder",
+  "onboarding.step2.hint": "Choose your project directory to browse the file tree",
+  "onboarding.step3.hint": "③ Type your first intent (try an example):",
+  "onboarding.examples": [
+    "Add input validation to the current file and explain the changes",
+    "Break README todo items into tasks and implement them one by one",
+    "Review the largest file in this project and propose simplifications",
+  ],
+
+  "tab.chat": "Chat",
+  "tab.context": "Context",
+  "tab.code": "Code",
+  "tab.diff": "Diff",
+
+  "console.tasks": "Tasks",
+  "console.newTask.placeholder": "New task intent, e.g.: add form validation to the login page",
+  "console.create": "Create",
+  "console.task.empty": "No tasks yet. Type an intent to create one.",
+  "console.input.placeholder": "Add an instruction to the current task… (Enter to send, Shift+Enter for newline)",
+  "console.diff.empty": 'When "Review changes" appears in chat or the activity stream, the diff opens here.',
+  "task.status.running": "Running",
+  "task.status.waiting_auth": "Waiting auth",
+  "task.status.done": "Done",
+  "task.status.failed": "Failed",
+  "task.intent.required": "Task intent must not be empty",
+  "task.noActive": "No active task: create one first",
+
+  "review.openFileFirst": "Open a file before reviewing changes",
+  "review.noBlock": " (no unique code block found in the reply; cannot build a diff)",
+  "review.noChange": " (proposal identical to current content)",
+  "review.title": "Review Changes — {path}",
+
+  "settings.title": "Settings",
+  "settings.nav.general": "General",
+  "settings.nav.providers": "Providers",
+  "settings.nav.editor": "Editor",
+  "settings.nav.modes": "Modes",
+  "settings.close": "Close",
+  "settings.general.language": "Language",
+  "settings.general.language.system": "Follow System",
+  "settings.general.language.hint":
+    "Applies immediately and is persisted; no restart needed. Follow System: Chinese for Chinese systems, English otherwise.",
+
+  "provider.title": "Providers (Anthropic / OpenAI-compatible)",
+  "provider.type": "Type",
+  "provider.label": "Label",
+  "provider.baseUrl": "Base URL",
+  "provider.apiKey": "API Key",
+  "provider.model": "Model",
+  "provider.maxTokens": "Max tokens",
+  "provider.secret.keep": "Leave empty = keep stored key",
+  "provider.secret.new": "Required on first save; stored encrypted",
+  "provider.baseUrl.placeholder": "https://<your API endpoint>/v1",
+  "provider.new": "New",
+  "provider.save": "Save",
+  "provider.edit": "Edit",
+  "provider.required": "ID / Base URL / Model are required",
+  "provider.needKey": "New provider requires an API Key",
+  "provider.saved": "Saved (hot-applied, no restart needed)",
+
+  "mode.title": "Modes (changes hot-apply to the next request)",
+  "mode.name": "Name",
+  "mode.description": "Description",
+  "mode.systemPrompt": "System prompt",
+  "mode.tools": "Tools",
+  "mode.provider": "Bind provider",
+  "mode.contextPolicy": "Context policy",
+  "mode.unbound": "(Unbound)",
+  "mode.builtin.note": "Built-in mode: editable, not deletable",
+  "mode.builtin.tag": " (built-in)",
+  "mode.tool.count": "{n} tools",
+  "mode.delete": "Delete",
+  "mode.required": "Name and system prompt are required",
+  "mode.saved": "Saved (hot-applied)",
+  "mode.builtin.chat.name": "Chat",
+  "mode.builtin.agent.name": "Agent",
+
+  "editor.title": "Editor (external editor command template)",
+  "editor.hint":
+    'Placeholders: {file} = file path (required), {line} = line number (default 1). The file tree and the "External Editor ↗" button use this command to open the current file.',
+  "editor.command.placeholder": "e.g.: code -g \"{file}:{line}\"",
+  "editor.missingFile": "Command template missing {file} placeholder (or leave empty to clear)",
+  "editor.cleared": "External editor config cleared",
+  "editor.saved": "Saved (hot-applied, no restart needed)",
+
+  "editorSetup.title": "Choose External Editor",
+  "editorSetup.desc":
+    'No external editor configured yet. Pick a common editor to fill its command template (editable); after saving, "External Editor ↗" can open files.',
+  "editorSetup.command": "Command template",
+  "editorSetup.custom": "Custom",
+  "editorSetup.save": "Save",
+  "editorSetup.saveOpen": "Save & open",
+  "common.cancel": "Cancel",
+  "common.id": "ID",
+
+  "err.modeNotFound": "Mode not found: {id}",
+  "err.modeUnbound":
+    'Mode "{name}" has no bound model: configure one in Settings → Providers, or pick one in the chat toolbar',
+  "err.externalNotConfigured": "No external editor configured",
+  "err.templateEmpty": "External editor command template is empty",
+  "err.missingFilePlaceholder": "Command template is missing the {file} placeholder",
+  "err.spawnFailed": "Failed to launch external editor: {detail}",
+  "err.aiNotWired": "AI subsystem not initialized",
+  "err.sseParseFailed":
+    "Unparseable data from model service ({provider}): check that the Base URL is a valid {provider}-compatible endpoint",
+  "err.llmUnknown": "Unknown error from model service ({provider})",
+
+  "ctx.system_prompt": "System prompt",
+  "ctx.tool_definitions": "Tool definitions",
+  "ctx.file_fragment": "File fragments",
+  "ctx.git_status": "Git status",
+  "ctx.terminal_output": "Terminal output",
+  "ctx.selection": "Selection",
+  "ctx.conversation_history": "Conversation history",
+  "ctx.custom": "Custom",
+
+  "chat.mode": "Mode",
+  "chat.provider": "Provider",
+  "chat.provider.modeBound": "(Mode-bound)",
+  "chat.input.placeholder": "Describe what you need… (Enter to send, Shift+Enter for newline)",
+  "chat.send": "Send",
+  "chat.stop": "Stop",
+  "chat.review": "Review changes",
+  "chat.tool": "Tool",
+  "chat.auth.request": "Authorization: {reason}",
+  "chat.allow": "Allow",
+  "chat.allowSession": "Allow for session",
+  "chat.deny": "Deny",
+  "chat.decided": "Decided: {decision}",
+  "chat.decision.allow": "allow",
+  "chat.decision.allow_session": "allow for session",
+  "chat.decision.deny": "deny",
+  "chat.error": "Error: {text}",
+  "chat.error.busy": "Session in progress: wait for completion or cancel first",
+  "chat.empty.title": "How the main Agent works",
+  "chat.empty.lines": [
+    "1. Plan: understands your intent and breaks it into executable steps",
+    "2. Authorize: asks for your decision before writing files or running commands",
+    "3. Deliver: produces reviewable changes (diff) and an execution trace as evidence",
+    "",
+    'Type your request below to start; switch to the "Console" view for multi-step tasks.',
+  ],
+
+  "act.user": "User",
+  "act.assistant": "Assistant",
+  "act.tool": "Tool",
+  "act.authorization": "Auth",
+  "act.error": "Error",
+  "act.done": "Done",
+  "act.tool.running": "Running…",
+  "act.tool.ok": "OK",
+  "act.tool.failed": "Failed/denied",
+  "act.empty": "Create or select a task to see the Agent's execution trace live here.",
+
+  "diff.title": "Review Changes",
+  "diff.acceptAll": "Accept all",
+  "diff.rejectAll": "Reject all",
+  "diff.apply": "Apply & close",
+  "diff.cancel": "Cancel",
+  "diff.hunk": "Hunk #{id} (from line {line})",
+  "diff.accept": "Accept",
+  "diff.reject": "Reject",
+  "diff.progress": "{decided}/{total} decided",
+
+  "ctxpanel.title": "Context composition",
+  "ctxpanel.refresh": "Refresh",
+  "ctxpanel.empty": "No requests yet: send a message to see the full context manifest here.",
+  "ctxpanel.total": "{n} tokens total",
+  "ctxpanel.estimated": " (est.)",
+  "ctxpanel.content": "Content",
+};
+
+export type Locale = "zh-CN" | "en-US";
+export const LOCALES: readonly Locale[] = ["zh-CN", "en-US"];
+export const LOCALE_LABEL: Record<Locale, string> = {
+  "zh-CN": "中文",
+  "en-US": "English",
+};
+
+export const DICTIONARIES: Record<Locale, Messages> = {
+  "zh-CN": zhCN,
+  "en-US": enUS,
+};

@@ -175,8 +175,8 @@ def get_tool_history(project_root: Path) -> list:
         try:
             data = json.loads(tool_log.read_text(encoding="utf-8"))
             history = data.get("tool_decisions", [])
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"WARNING: tool log 解析失败，按空历史处理: {exc}", file=sys.stderr)
     return history
 
 

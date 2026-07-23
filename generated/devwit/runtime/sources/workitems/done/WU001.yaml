@@ -1,0 +1,13 @@
+id: WU001
+title: 搭建 monorepo 工程骨架与构建流水线
+description: 建立 npm workspaces + TypeScript project references 骨架（apps/desktop + packages/editor-core、editor-render、syntax、workspace、terminal、settings、
+  llm-providers、context-engine、agent-runtime、modes、chat-ui），根级 npm run build / test
+  / lint 脚本可运行，electron-builder 配置可产出安装包。 详见 planning/work-units.yaml WU001。
+acceptance_criteria:
+- AC7
+effort: M
+priority: 1
+status: done
+result: passed
+summary: FACTORY 阶段经 agent-factory 直接生成路径完成（dispatcher 流未启用）；补归档消除 supervisor 重复派发风险
+archived_at: '2026-07-22T10:25:16.891253+00:00'

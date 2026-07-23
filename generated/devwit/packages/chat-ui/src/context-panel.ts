@@ -1,4 +1,5 @@
 import type { ContextItemType } from "@devwit/contracts";
+import { onDidChangeLocale, t } from "@devwit/i18n";
 import type { ContextPanelController } from "./context-panel-controller.js";
 
 /**
@@ -12,15 +13,16 @@ export interface ContextPanelHandle {
   dispose(): void;
 }
 
-const TYPE_LABELS: Record<ContextItemType, string> = {
-  system_prompt: "系统提示",
-  tool_definitions: "工具定义",
-  file_fragment: "文件片段",
-  git_status: "Git 状态",
-  terminal_output: "终端输出",
-  selection: "选区",
-  conversation_history: "会话历史",
-  custom: "自定义",
+/** 上下文类型 → 词典键（与 renderer 的模式对话框共用同一组 ctx.* 文案）。 */
+const TYPE_LABEL_KEY: Record<ContextItemType, `ctx.${ContextItemType}`> = {
+  system_prompt: "ctx.system_prompt",
+  tool_definitions: "ctx.tool_definitions",
+  file_fragment: "ctx.file_fragment",
+  git_status: "ctx.git_status",
+  terminal_output: "ctx.terminal_output",
+  selection: "ctx.selection",
+  conversation_history: "ctx.conversation_history",
+  custom: "ctx.custom",
 };
 
 const TYPE_ORDER: readonly ContextItemType[] = [
@@ -40,13 +42,11 @@ export function mountContextPanel(container: HTMLElement, controller: ContextPan
 
   const header = document.createElement("div");
   header.className = "dw-context-header";
-  header.textContent = "上下文组成";
   const refreshBtn = document.createElement("button");
   refreshBtn.className = "dw-btn dw-btn-small";
-  refreshBtn.textContent = "刷新";
   refreshBtn.addEventListener("click", () => void controller.refresh());
-  header.appendChild(refreshBtn);
   root.appendChild(header);
+  header.appendChild(refreshBtn);
 
   const toggleList = document.createElement("div");
   toggleList.className = "dw-context-toggles";
@@ -56,6 +56,12 @@ export function mountContextPanel(container: HTMLElement, controller: ContextPan
   manifestBox.className = "dw-context-manifest";
   root.appendChild(manifestBox);
   container.appendChild(root);
+
+  /** 静态文案随语言热更新（AC12）。 */
+  function applyLocale(): void {
+    header.textContent = t("ctxpanel.title");
+    refreshBtn.textContent = t("ctxpanel.refresh");
+  }
 
   function render(): void {
     const { policy, manifest } = controller.current;
@@ -69,7 +75,7 @@ export function mountContextPanel(container: HTMLElement, controller: ContextPan
       checkbox.checked = policy?.[type] ?? false;
       checkbox.addEventListener("change", () => void controller.setEnabled(type, checkbox.checked));
       const name = document.createElement("span");
-      name.textContent = TYPE_LABELS[type];
+      name.textContent = t(TYPE_LABEL_KEY[type]);
       row.append(checkbox, name);
       toggleList.appendChild(row);
     }
@@ -78,13 +84,13 @@ export function mountContextPanel(container: HTMLElement, controller: ContextPan
     if (manifest === null) {
       const empty = document.createElement("div");
       empty.className = "dw-context-empty";
-      empty.textContent = "尚无请求：发送一条消息后此处展示当次请求的完整上下文清单。";
+      empty.textContent = t("ctxpanel.empty");
       manifestBox.appendChild(empty);
       return;
     }
     const meta = document.createElement("div");
     meta.className = "dw-context-meta";
-    meta.textContent = `${manifest.model} · 总计 ${manifest.totalTokens} tokens · ${manifest.timestamp}`;
+    meta.textContent = `${manifest.model} · ${t("ctxpanel.total", { n: manifest.totalTokens })} · ${manifest.timestamp}`;
     manifestBox.appendChild(meta);
     for (const item of manifest.items) {
       const row = document.createElement("div");
@@ -94,13 +100,13 @@ export function mountContextPanel(container: HTMLElement, controller: ContextPan
       }
       const title = document.createElement("div");
       title.className = "dw-context-item-title";
-      const countingMark = item.counting === "estimated" ? "（估算）" : "";
+      const countingMark = item.counting === "estimated" ? t("ctxpanel.estimated") : "";
       title.textContent = `${item.enabled ? "●" : "○"} ${item.label} — ${item.tokens} tokens${countingMark}`;
       row.appendChild(title);
       if (item.enabled && item.content.length > 0) {
         const detail = document.createElement("details");
         const summary = document.createElement("summary");
-        summary.textContent = "内容";
+        summary.textContent = t("ctxpanel.content");
         const pre = document.createElement("pre");
         pre.className = "dw-context-item-content";
         pre.textContent = item.content;
@@ -112,6 +118,11 @@ export function mountContextPanel(container: HTMLElement, controller: ContextPan
   }
 
   const unsubscribe = controller.onChange(render);
+  const unsubscribeLocale = onDidChangeLocale(() => {
+    applyLocale();
+    render();
+  });
+  applyLocale();
   void controller.refresh();
   render();
 
@@ -119,6 +130,7 @@ export function mountContextPanel(container: HTMLElement, controller: ContextPan
     root,
     dispose(): void {
       unsubscribe();
+      unsubscribeLocale();
       root.remove();
     },
   };

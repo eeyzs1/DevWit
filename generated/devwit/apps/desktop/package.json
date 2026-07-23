@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@devwit/contracts": "*",
+    "@devwit/i18n": "*",
     "@devwit/editor-core": "*",
     "@devwit/editor-render": "*",
     "@devwit/syntax": "*",

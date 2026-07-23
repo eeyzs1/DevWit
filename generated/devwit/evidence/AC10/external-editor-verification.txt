@@ -1,0 +1,5 @@
+未配置：点击「外部编辑器 ↗」弹出「选择外部编辑器」引导小页（截图 03：预设一键填模板，真实 spawn 验证见截图 04）。
+配置模板: node -e "require('fs').writeFileSync(process.argv[1],'opened')" "{file}.ext-proof"
+点击后真实 spawn node 子进程，标记文件 hello.txt.ext-proof 在磁盘出现（占位符 {file} 被真实替换），验证后已清理。
+文件树每个文件节点含 ↗ 外部编辑器入口。
+单元测试另见 apps/desktop/tests/external-editor.test.ts（模板解析/占位符/错误路径）。

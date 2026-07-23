@@ -25,8 +25,8 @@ import { chromium } from "playwright";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 const EVIDENCE = path.join(ROOT, "evidence");
 const AC = (n) => path.join(EVIDENCE, `AC${n}`);
-// 每次运行重置证据目录，避免陈旧产物混入本轮验收
-fs.rmSync(EVIDENCE, { recursive: true, force: true });
+// 每次运行重置本轮证据目录（仅 AC1..AC7；迭代 2 的 AC8+ 由 iteration2.mjs 管理，互不干扰）
+for (let i = 1; i <= 7; i += 1) fs.rmSync(AC(i), { recursive: true, force: true });
 for (let i = 1; i <= 7; i += 1) fs.mkdirSync(AC(i), { recursive: true });
 fs.mkdirSync(path.join(AC(2), "policy"), { recursive: true });
 
@@ -124,8 +124,7 @@ fs.mkdirSync(path.join(fixture, "notes"));
 fs.writeFileSync(path.join(fixture, "hello.txt"), "hello devwit\nline2\n", "utf-8");
 fs.writeFileSync(path.join(fixture, "notes", "todo.md"), "- [ ] e2e\n", "utf-8");
 
-const userDataDir = path.join(process.env.APPDATA ?? os.tmpdir(), "devwit");
-const userDataPreExisted = fs.existsSync(userDataDir);
+const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "devwit-userdata-"));
 
 const report = { steps: [], startedAt: new Date().toISOString() };
 let failed = null;
@@ -137,9 +136,10 @@ let exitCode = 0;
 function launchElectron(cdpPort) {
   return new Promise((resolve, reject) => {
     const exe = path.join(ROOT, "node_modules", "electron", "dist", "electron.exe");
-    const proc = spawn(exe, [`--remote-debugging-port=${cdpPort}`, "."], {
+    // --lang=zh-CN：固定中文界面（迭代 5 起首启语言跟随系统，测试环境可能是英文系统）
+    const proc = spawn(exe, [`--remote-debugging-port=${cdpPort}`, "--lang=zh-CN", "."], {
       cwd: ROOT,
-      env: { ...process.env, DEVWIT_E2E_OPEN_DIR: fixture },
+      env: { ...process.env, DEVWIT_E2E_OPEN_DIR: fixture, DEVWIT_USER_DATA_DIR: userDataDir },
       stdio: ["ignore", "pipe", "pipe"],
     });
     electronProc = proc;
@@ -195,7 +195,7 @@ async function main() {
   await shot(page, AC(1), "app-launched");
 
   // ---- AC1：打开文件夹 → 文件树 → 打开/编辑/保存 ----
-  await page.click("text=打开文件夹");
+  await page.click(".dw-header >> text=打开文件夹");
   await page.waitForSelector(".dw-tree-node", { timeout: 15_000 });
   step("打开文件夹，文件树渲染");
   await shot(page, AC(1), "file-tree");
@@ -234,8 +234,8 @@ async function main() {
   await page.selectOption('select[title="模式"]', "chat");
 
   // ---- AC2：对话 + 上下文面板逐项可见/可裁剪 ----
-  await page.fill(".dw-chat-textarea", "你好");
-  await page.click("text=发送");
+  await page.fill(".dw-chat .dw-chat-textarea", "你好");
+  await page.click(".dw-chat >> text=发送");
   await page.waitForSelector('.dw-msg-assistant:has-text("DevWit")', { timeout: 30_000 });
   step("chat #1 完成（流式回复渲染）");
   await shot(page, AC(2), "chat-reply");
@@ -261,8 +261,8 @@ async function main() {
 
   // ---- AC3：编辑提案 → 编辑器内 diff → 接受并应用 ----
   await page.click('.dw-tab:has-text("对话")');
-  await page.fill(".dw-chat-textarea", "请把 hello.txt 加一行");
-  await page.click("text=发送");
+  await page.fill(".dw-chat .dw-chat-textarea", "请把 hello.txt 加一行");
+  await page.click(".dw-chat >> text=发送");
   await page.waitForSelector("text=审查修改", { timeout: 30_000 });
   step("chat #2 完成（含唯一代码块的编辑提案）");
   await page.click("text=审查修改");
@@ -283,8 +283,8 @@ async function main() {
 
   // ---- AC4：Agent 模式多步任务 + 授权门 ----
   await page.selectOption('select[title="模式"]', "agent");
-  await page.fill(".dw-chat-textarea", "创建文件 agent-created.txt");
-  await page.click("text=发送");
+  await page.fill(".dw-chat .dw-chat-textarea", "创建文件 agent-created.txt");
+  await page.click(".dw-chat >> text=发送");
   await page.waitForSelector(".dw-msg-authorization", { timeout: 30_000 });
   step("agent 请求 write 工具 → 授权门拦截（未经批准不执行）");
   await shot(page, AC(4), "authorization-request");
@@ -308,8 +308,8 @@ async function main() {
   }, baseUrl);
   await page.waitForFunction(() => [...document.querySelectorAll('select[title="模型"] option')].some((o) => o.value === "e2e-local-b"), null, { timeout: 5_000 });
   await page.selectOption('select[title="模型"]', "e2e-local-b");
-  await page.fill(".dw-chat-textarea", "ping");
-  await page.click("text=发送");
+  await page.fill(".dw-chat .dw-chat-textarea", "ping");
+  await page.click(".dw-chat >> text=发送");
   await page.waitForSelector('.dw-msg-assistant:has-text("模型 B")', { timeout: 30_000 });
   const manifestB = await page.evaluate(() => window.devwit.context.latestManifest());
   assert(manifestB.providerId === "e2e-local-b" && manifestB.model === "e2e-model-b", `切模型后 manifest 不符: ${manifestB.providerId}/${manifestB.model}`);
@@ -317,8 +317,9 @@ async function main() {
   await shot(page, AC(5), "provider-switched");
   writeJson(AC(5), "manifest-after-switch.json", manifestB);
 
-  await page.click("text=模型设置");
-  await page.waitForSelector(".dw-modal", { timeout: 5_000 });
+  await page.click(".dw-header >> text=设置");
+  await page.waitForSelector(".dw-modal-settings", { timeout: 5_000 });
+  await page.click(".dw-settings-nav >> text=模型");
   await shot(page, AC(5), "provider-dialog");
   await page.click('.dw-modal >> text=关闭');
   const providers = await page.evaluate(() => window.devwit.providers.list());
@@ -337,16 +338,17 @@ async function main() {
   await page.waitForFunction(() => [...document.querySelectorAll('select[title="模式"] option')].some((o) => o.value === "e2e-mode"), null, { timeout: 5_000 });
   step("新建模式即时出现在下拉框（无重启热更新）");
   await page.selectOption('select[title="模式"]', "e2e-mode");
-  await page.fill(".dw-chat-textarea", "模式测试");
-  await page.click("text=发送");
+  await page.fill(".dw-chat .dw-chat-textarea", "模式测试");
+  await page.click(".dw-chat >> text=发送");
   await page.waitForSelector('.dw-msg-assistant:has-text("自定义模式")', { timeout: 30_000 });
   step("以自定义模式发起请求 → 线侧 system prompt = 新模式提示");
   await shot(page, AC(6), "custom-mode-run");
   writeJson(AC(6), "modes-before.json", modesBefore);
   writeJson(AC(6), "modes-after-upsert.json", await page.evaluate(() => window.devwit.modes.list()));
 
-  await page.click("text=模式管理");
-  await page.waitForSelector(".dw-modal", { timeout: 5_000 });
+  await page.click(".dw-header >> text=设置");
+  await page.waitForSelector(".dw-modal-settings", { timeout: 5_000 });
+  await page.click(".dw-settings-nav >> text=模式");
   await shot(page, AC(6), "mode-dialog");
   await page.click('.dw-modal >> text=关闭');
 
@@ -403,8 +405,8 @@ try {
   report.finishedAt = new Date().toISOString();
   report.result = failed ? `FAILED: ${failed.message}` : "PASSED";
   writeJson(EVIDENCE, "e2e-report.json", report);
-  // 本次 E2E 新建的 userData 予以清理（预先存在则保留用户数据）
-  if (!userDataPreExisted && fs.existsSync(userDataDir)) {
+  // 本次 E2E 使用隔离的临时 userData（DEVWIT_USER_DATA_DIR），结束后清理
+  if (fs.existsSync(userDataDir)) {
     fs.rmSync(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
   }
   if (failed) {

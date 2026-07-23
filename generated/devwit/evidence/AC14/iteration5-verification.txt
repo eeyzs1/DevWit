@@ -1,0 +1,5 @@
+迭代 5（用户三反馈修复）验证：
+1. 设置·通用分区 hint 文字堆叠：.dw-form 两列 grid 中 hint 落 label 列被挤压——CSS 补 .dw-form > .dw-modal-hint { grid-column: 1 / -1 } 跨整行，并补 .dw-modal-hint 基础样式（dim 色/12px/1.6 行高）。
+2. 「跟随系统」语言选项：select 新增 value=system 置顶项（词典 settings.general.language.system），选中态以持久化值为准（getLocale() 无法区分「跟随系统」与显式选择）；i18n 新增 resolveSystemLocale()（navigator.language 前缀 zh → zh-CN，否则 en-US）；启动恢复逻辑：持久化值为 zh-CN/en-US 直接用，否则（system/未设置）按 resolveSystemLocale() 解析。
+3. 工具栏/下拉/tooltip 热切换：文件树 ↗ 按钮 tooltip（tree.external）在 applyLocale 中随语言重写（树不重建、保留展开状态）；切英文后按钮/页签/选项/placeholder/title 全量 dump 无 CJK 残留（对话 + 指挥台两种形态）。
+断言通过 11 项，失败 0 项。

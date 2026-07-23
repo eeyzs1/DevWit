@@ -13,6 +13,6 @@ export const createProvider: ProviderFactory = (config, credentials) => {
     case "openai":
       return new OpenAiCompatibleProvider(config, credentials);
     default:
-      throw new Error(`不支持的 provider 类型: ${String((config as ProviderConfig).type)}`);
+      throw new Error(`unsupported provider type: ${String((config as ProviderConfig).type)}`);
   }
 };
