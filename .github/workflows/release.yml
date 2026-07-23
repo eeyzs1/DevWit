@@ -47,6 +47,7 @@ jobs:
           files: |
             generated/devwit/release/*.exe
             generated/devwit/release/*.blockmap
+            generated/devwit/release/*.yml
           generate_release_notes: true
           # 默认预发布：本地试用反馈确认后，在 Release 页面手动转正
           prerelease: true

@@ -5,7 +5,7 @@
  * 全部界面文案经 @devwit/i18n 词典渲染；启动时从 settings "ui.locale" 恢复语言，
  * 订阅 onDidChangeLocale 全量重写静态文案与动态列表（语言热生效）。
  */
-import type { DevwitApi, ModeDefinition, ProviderConfig } from "@devwit/contracts";
+import type { DevwitApi, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, resolveSystemLocale, setLocale, t, ta, type Locale } from "@devwit/i18n";
 import { TextDocument } from "@devwit/editor-core";
 import { EditorView, normalizeSelection } from "@devwit/editor-render";
@@ -143,11 +143,36 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   const statusWorkspace = el("span", undefined, t("status.noWorkspace"));
   const statusDirty = el("span");
   const statusMessage = el("span", "dw-status-message");
-  statusbar.append(statusWorkspace, statusDirty, statusMessage);
+  // 更新提示区（AC16）：ready 状态常驻「重启更新」按钮，其余状态走瞬态提示
+  const updateBox = el("span", "dw-update");
+  statusbar.append(statusWorkspace, statusDirty, statusMessage, updateBox);
   // 瞬态提示只进状态栏：活动文件标签始终显示当前文件，不被临时文案覆盖
   function showStatus(message: string): void {
     statusMessage.textContent = message;
   }
+
+  // ---- 自动更新（AC16）：启动静默检查，发现新版本才提示 ----
+  let lastUpdateStatus: UpdateStatusInfo | null = null;
+  function renderUpdateBox(): void {
+    updateBox.textContent = "";
+    if (lastUpdateStatus?.state !== "ready") return;
+    updateBox.appendChild(el("span", "dw-update-text", t("update.ready", { version: lastUpdateStatus.version })));
+    const restartBtn = el("button", "dw-btn dw-btn-small dw-btn-primary", t("update.restart"));
+    restartBtn.addEventListener("click", () => api.update.install());
+    updateBox.appendChild(restartBtn);
+  }
+  api.update.onStatus((status) => {
+    lastUpdateStatus = status;
+    if (status.state === "available") {
+      showStatus(t("update.available", { version: status.version }));
+    } else if (status.state === "downloading") {
+      showStatus(t("update.downloading", { percent: status.percent }));
+    } else if (status.state === "ready") {
+      showStatus(t("update.ready", { version: status.version }));
+    }
+    // checking/none/error/disabled：静默检查不打扰（手动检查结果在设置页内联展示）
+    renderUpdateBox();
+  });
 
   // ---- 编辑器 ----
   const canvas = el("canvas", "dw-editor-canvas");
@@ -743,6 +768,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       diffPane.textContent = "";
       diffPane.appendChild(el("div", "dw-sidebar-empty", t("console.diff.empty")));
     }
+    renderUpdateBox();
     buildOnboarding();
     // 欢迎文档仅在无打开文件时随语言重建（不触碰用户文件内容）
     if (openFile === null) {

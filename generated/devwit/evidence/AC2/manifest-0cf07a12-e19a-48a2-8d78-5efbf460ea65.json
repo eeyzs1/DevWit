@@ -1,13 +1,13 @@
 {
-  "id": "manifest-24e18b9f-04c3-48f5-b7aa-14a6a04cfada",
-  "timestamp": "2026-07-23T09:07:17.777Z",
-  "sessionId": "session-1784797636125",
+  "id": "manifest-0cf07a12-e19a-48a2-8d78-5efbf460ea65",
+  "timestamp": "2026-07-23T09:49:41.920Z",
+  "sessionId": "session-1784800180185",
   "modeId": "agent",
   "providerId": "e2e-local-a",
   "model": "e2e-model-a",
   "items": [
     {
-      "id": "item-4ab4203d-244f-4c49-9983-78d11d709692",
+      "id": "item-46b4a725-6ff1-40c7-8096-25e6734ccbd1",
       "type": "system_prompt",
       "label": "系统提示",
       "enabled": true,
@@ -17,7 +17,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-a300b418-6ed7-47ba-99fd-c3f0e8a33233",
+      "id": "item-c72079a1-4844-472f-ab0d-5b4d89e5a0a1",
       "type": "tool_definitions",
       "label": "工具定义（7 个）",
       "enabled": true,
@@ -27,7 +27,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-b7e8911f-500e-48d0-9348-9ebc8b2c9214",
+      "id": "item-4492818c-cd6e-4c2e-a2f1-e554d605cba1",
       "type": "conversation_history",
       "label": "会话历史（5 条）",
       "enabled": true,
@@ -37,17 +37,17 @@
       "counting": "exact"
     },
     {
-      "id": "item-bd734d7f-6070-4c57-9b88-5c3d79435bdc",
+      "id": "item-175705f9-5220-488f-9576-a2b40982fc4b",
       "type": "file_fragment",
       "label": "文件片段 hello.txt",
       "enabled": false,
       "tokens": 0,
       "content": "",
-      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-mLnm5M\\hello.txt",
+      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-4ZFpl0\\hello.txt",
       "counting": "exact"
     },
     {
-      "id": "item-87ad291c-0ede-465c-8ad4-8f75b98a7511",
+      "id": "item-ed90a8a9-38af-469d-bac2-d45dbf804b0d",
       "type": "git_status",
       "label": "Git 状态",
       "enabled": true,

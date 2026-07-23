@@ -79,6 +79,20 @@ const zhCN = {
   "settings.general.language.system": "跟随系统",
   "settings.general.language.hint": "切换后立即生效并持久化保存，无需重启。「跟随系统」：系统为中文时用中文，否则用英文。",
 
+  // ---- 设置 · 通用 / 自动更新（AC16）----
+  "settings.general.update": "应用更新",
+  "settings.general.update.check": "检查更新",
+  "settings.general.update.current": "当前版本 v{version}",
+  "settings.general.update.hint": "启动时自动静默检查 GitHub Releases 新版本并后台下载，下载完成后状态栏提示重启生效。",
+  "update.checking": "正在检查更新…",
+  "update.available": "发现新版本 v{version}，正在后台下载…",
+  "update.downloading": "正在下载更新（{percent}%）…",
+  "update.ready": "新版本 v{version} 已就绪",
+  "update.restart": "重启更新",
+  "update.none": "当前已是最新版本",
+  "update.disabled": "开发模式不参与自动更新",
+  "update.error": "检查更新失败，请稍后重试（{code}）",
+
   // ---- 设置 · 模型 ----
   "provider.title": "模型设置（Anthropic / OpenAI 兼容）",
   "provider.type": "类型",
@@ -288,6 +302,20 @@ const enUS: Messages = {
   "settings.general.language.system": "Follow System",
   "settings.general.language.hint":
     "Applies immediately and is persisted; no restart needed. Follow System: Chinese for Chinese systems, English otherwise.",
+
+  "settings.general.update": "App updates",
+  "settings.general.update.check": "Check for updates",
+  "settings.general.update.current": "Current version v{version}",
+  "settings.general.update.hint":
+    "On startup, silently checks GitHub Releases for a new version and downloads it in the background; the status bar prompts you to restart when ready.",
+  "update.checking": "Checking for updates…",
+  "update.available": "New version v{version} found, downloading in background…",
+  "update.downloading": "Downloading update ({percent}%)…",
+  "update.ready": "Version v{version} is ready",
+  "update.restart": "Restart to update",
+  "update.none": "You're on the latest version",
+  "update.disabled": "Development mode does not auto-update",
+  "update.error": "Update check failed, please retry later ({code})",
 
   "provider.title": "Providers (Anthropic / OpenAI-compatible)",
   "provider.type": "Type",

@@ -841,6 +841,30 @@ body,
   white-space: nowrap;
 }
 
+/* ---- 自动更新（AC16）---- */
+.dw-update {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.dw-update-text {
+  color: #7ee787;
+}
+
+.dw-settings-update {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dw-settings-update-status {
+  color: var(--dw-fg-dim);
+  font-size: 12px;
+}
+
 /* ---- 模态框 ---- */
 .dw-modal-mask {
   position: fixed;

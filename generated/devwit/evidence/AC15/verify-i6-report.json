@@ -1,6 +1,6 @@
 {
   "steps": [
-    "本地 SSE 端点就绪 http://127.0.0.1:63113",
+    "本地 SSE 端点就绪 http://127.0.0.1:62648",
     "进程一启动（全新 userData）",
     "打开工作区 + provider 注册 + agent 模式热绑定",
     "任务 A：授权 → write 落盘 → 完成",
@@ -21,8 +21,8 @@
     "任务 B 持久化状态 running（实际: running）",
     "session.state 记录工作区路径",
     "session.state 记录形态为 console",
-    "traces/ 落盘 2 份会话轨迹（实际: task-session-1784797607795-1.jsonl, task-session-1784797608347-2.jsonl）",
-    "状态栏提示会话恢复（实际: C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-verify-i6-ZDA2hm已恢复上次会话（2 个任务））",
+    "traces/ 落盘 2 份会话轨迹（实际: task-session-1784800209789-1.jsonl, task-session-1784800210377-2.jsonl）",
+    "状态栏提示会话恢复（实际: C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-verify-i6-ldOKCL已恢复上次会话（2 个任务））",
     "任务 A 恢复为「完成」（实际: 完成）",
     "任务 B 恢复为「已中断」（实际: 已中断）",
     "任务 A 回放活动流含「用户」行",

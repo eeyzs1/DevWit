@@ -13,6 +13,8 @@ import { buildFileTree, WorkspaceService } from "@devwit/workspace";
 import { AiRuntime } from "./ai-runtime.js";
 import { registerIpcHandlers } from "./ipc.js";
 import { SafeStorageBackend } from "./safe-storage-backend.js";
+import { UpdateService } from "./updater.js";
+import type { UpdateStatusInfo } from "@devwit/contracts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -62,6 +64,20 @@ app.whenReady().then(() => {
   const send = (channel: string, ...args: unknown[]): void => {
     mainWindow?.webContents.send(channel, ...args);
   };
+
+  // 自动更新（AC16）：E2E 钩子 DEVWIT_E2E_FAKE_UPDATE 注入合成状态序列
+  // （真实加载 electron-updater 验证 bundle 完整性，但不联网检查、不下载）。
+  const fakeUpdate: UpdateStatusInfo[] | undefined =
+    process.env.DEVWIT_E2E_FAKE_UPDATE !== undefined && process.env.DEVWIT_E2E_FAKE_UPDATE !== ""
+      ? [
+          { state: "checking" },
+          { state: "available", version: "9.9.9" },
+          { state: "downloading", percent: 42 },
+          { state: "ready", version: "9.9.9" },
+        ]
+      : undefined;
+  const updater = new UpdateService({ send, isPackaged: app.isPackaged, ...(fakeUpdate !== undefined ? { fakeSequence: fakeUpdate } : {}) });
+
   // AI 子系统（WU008-WU012 接线）：manifest 落盘 userData/manifests（AC2 审计产物）
   const ai = new AiRuntime({
     settings,
@@ -93,9 +109,16 @@ app.whenReady().then(() => {
       send,
     },
     ai,
+    update: { service: updater, version: app.getVersion() },
   });
 
   createWindow();
+
+  // 启动静默检查（AC16）：渲染进程脚本加载完毕（onStatus 订阅就位）后再发起，
+  // 避免早期状态事件丢失；失败/无更新均不打扰用户（仅状态条瞬态提示）。
+  mainWindow?.webContents.on("did-finish-load", () => {
+    void updater.start();
+  });
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

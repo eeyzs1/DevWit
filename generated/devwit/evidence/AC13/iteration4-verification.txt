@@ -1,5 +1,5 @@
 迭代 4（用户三反馈修复）验证：
-1. 终端乱码：触发模式未绑定错误后，主进程 stderr 525B，UTF-8 解码含 CJK=false,非法 UTF-8 序列=0。机制：主进程抛 ASCII 错误码（DW_MODE_UNBOUND 等），渲染端 localizeError 按当前语言映射为词典文案。
+1. 终端乱码：触发模式未绑定错误后，主进程 stderr 527B，UTF-8 解码含 CJK=false,非法 UTF-8 序列=0。机制：主进程抛 ASCII 错误码（DW_MODE_UNBOUND 等），渲染端 localizeError 按当前语言映射为词典文案。
 2. 中英文切换：中文界面模式下拉框显示「对话/智能体」（内置模式工厂名经 displayModeName 本地化），设置·模型表单 label 全部经 t() 输出；切英文显示 Chat/Agent，切回中文恢复。
 3. 外部编辑器引导：未配置时点击「外部编辑器 ↗」弹出「选择外部编辑器」小页（预设一键填模板 + 自定义），「保存并打开」保存后立即重试打开——真实 spawn 子进程，标记文件 hello.txt.ext-proof 落盘证明（已清理）。
 断言通过 10 项，失败 0 项。

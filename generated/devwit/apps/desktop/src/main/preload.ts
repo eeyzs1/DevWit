@@ -80,6 +80,14 @@ const api: DevwitApi = {
   },
   externalEditor: {
     open: (path, line) => ipcRenderer.invoke(IPC.ExternalEditorOpen, path, line) as Promise<void>
+  },
+  update: {
+    check: () => ipcRenderer.invoke(IPC.UpdateCheck) as Promise<void>,
+    install: () => {
+      void ipcRenderer.invoke(IPC.UpdateInstall);
+    },
+    version: () => ipcRenderer.invoke(IPC.UpdateVersion) as Promise<string>,
+    onStatus: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.UpdateStatus, cb)
   }
 };
 

@@ -175,5 +175,22 @@ iteration_6:
   fixes: persistModes 全量持久化——内置模式可编辑（绑定模型/改提示词），此前只存非内置模式导致重启后内置 agent/chat 绑定丢失 DW_MODE_UNBOUND；replaceAll 水合保留内置标志与未来新内置种子
   e2e_report: evidence/AC15/verify-i6-report.json (23 项断言全 PASS) + smoke/iteration2/verify-i4 回归 PASSED
   unit_tests: 32 files / 259 tests passed
+iteration_7:
+  scope: 自动更新（AC16）：electron-updater 接 GitHub Releases，启动静默检查 + 后台下载 + 状态栏重启提示 + 设置页手动检查
+  acceptance_criteria:
+  - description: UpdateService 状态机：开发模式（isPackaged=false）只发 disabled 不加载 electron-updater；打包环境映射 checking/available/downloading/ready/none/error 六态；load 失败降级 error(DW_UPDATE_LOAD_FAILED)；check 并发去重；install 委托 quitAndInstall
+    id: AC16
+    status: completed
+    verifier: tests/updater.test.ts（9 项：含 E2E 合成序列真实加载回放 + install() 显式空操作防误触退出）
+  - description: 渲染端提示：启动静默检查不打扰（checking/none/error 静默），available/downloading/ready 走瞬态提示，ready 状态栏常驻「重启更新」按钮；设置·通用分区展示当前版本 + 手动「检查更新」+ 内联结果；中英文热切换无残留
+    id: AC16
+    status: completed
+    verifier: tests/e2e/verify-i7.mjs（DEVWIT_E2E_FAKE_UPDATE 合成序列，13 项断言全 PASS）+ evidence/AC16
+  - description: 发布链路：electron-builder.yml publish(github/eeyzs1/DevWit) 仅声明元数据；release.yml 上传 latest.yml + exe + blockmap（prerelease 默认）；build:main 加 createRequire banner 解决 electron-updater 在 ESM 主进程动态 require
+    id: AC16
+    status: completed
+    verifier: electron-builder.yml + .github/workflows/release.yml + npm run build（dist/main 6.0MB bundle 通过）
+  e2e_report: evidence/AC16/verify-i7-report.json (13 项断言全 PASS) + smoke/iteration2/verify-i4/verify-i6 回归 PASSED
+  unit_tests: 33 files / 268 tests passed
 status: complete
-updated_at: '2026-07-23T17:15:00.000000'
+updated_at: '2026-07-23T17:55:00.000000'

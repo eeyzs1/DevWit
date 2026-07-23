@@ -15,6 +15,7 @@ import type { TerminalService } from "@devwit/terminal";
 import type { WorkspaceService } from "@devwit/workspace";
 import type { AiRuntime } from "./ai-runtime.js";
 import { openInExternalEditor } from "./external-editor.js";
+import type { UpdateService } from "./updater.js";
 
 // ---------------------------------------------------------------------------
 // 依赖注入接口（electron 的结构子集）
@@ -51,17 +52,26 @@ export const PUSH_CHANNELS: readonly string[] = [
   IPC.TerminalOutput,
   IPC.SettingsChanged,
   IPC.AgentEvent,
-  IPC.ModesChanged
+  IPC.ModesChanged,
+  IPC.UpdateStatus
 ];
 
 const AI_NOT_WIRED = "DW_AI_NOT_WIRED";
+const UPDATE_NOT_WIRED = "DW_UPDATE_NOT_WIRED";
+
+/** 自动更新接线参数（迭代 7 / AC16）：service 由 index.ts 以 app.isPackaged 构造。 */
+export interface UpdateIpcDeps {
+  service: UpdateService;
+  /** app.getVersion() 值（渲染进程设置页展示当前版本）。 */
+  version: string;
+}
 
 // ---------------------------------------------------------------------------
 // handlers 表
 // ---------------------------------------------------------------------------
 
 /** 构建全部 invoke handler。key 集合 == IPC 常量全集 − PUSH_CHANNELS。 */
-export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: AiRuntime): Record<string, IpcHandler> {
+export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: AiRuntime, update?: UpdateIpcDeps): Record<string, IpcHandler> {
   const { workspace, terminal, settings } = services;
   const table: Record<string, IpcHandler> = {};
 
@@ -147,6 +157,22 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     settings.set("providers", list);
   };
 
+  // ---- 自动更新（AC16）：未接线时抛明确错误码（白名单通道恒在表内）----
+  if (update === undefined) {
+    const notWired = (): never => {
+      throw new Error(UPDATE_NOT_WIRED);
+    };
+    table[IPC.UpdateCheck] = notWired;
+    table[IPC.UpdateInstall] = notWired;
+    table[IPC.UpdateVersion] = notWired;
+  } else {
+    table[IPC.UpdateCheck] = async () => update.service.check();
+    table[IPC.UpdateInstall] = () => {
+      update.service.install();
+    };
+    table[IPC.UpdateVersion] = () => update.version;
+  }
+
   registerAiIpc(table, ai);
   return table;
 }
@@ -210,11 +236,13 @@ export interface RegisterIpcDeps {
   hooks: IpcHooks;
   /** 生产环境注入真实 AiRuntime；缺省则 AI 通道抛未接线错误。 */
   ai?: AiRuntime;
+  /** 生产环境注入 UpdateService + 版本号；缺省则 update 通道抛未接线错误。 */
+  update?: UpdateIpcDeps;
 }
 
 /** 注册全部 IPC handler 与主→渲染事件转发。 */
 export function registerIpcHandlers(deps: RegisterIpcDeps): void {
-  const table = buildHandlerTable(deps.services, deps.hooks, deps.ai);
+  const table = buildHandlerTable(deps.services, deps.hooks, deps.ai, deps.update);
   for (const [channel, handler] of Object.entries(table)) {
     deps.ipcMain.handle(channel, handler);
   }

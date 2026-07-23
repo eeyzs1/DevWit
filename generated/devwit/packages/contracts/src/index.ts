@@ -279,6 +279,24 @@ export interface ExternalEditorConfig {
 }
 
 // ============================================================================
+// 自动更新（迭代 7 / AC16）：electron-updater 接 GitHub Releases
+// ============================================================================
+
+/**
+ * 更新状态机（主→渲染推送）：
+ * checking → available → downloading → ready（用户点重启后 quitAndInstall）；
+ * none=已是最新；disabled=开发模式不参与；error=检查/下载失败（code 为 ASCII 错误码）。
+ */
+export type UpdateStatusInfo =
+  | { state: "checking" }
+  | { state: "available"; version: string }
+  | { state: "downloading"; percent: number }
+  | { state: "ready"; version: string }
+  | { state: "none" }
+  | { state: "disabled" }
+  | { state: "error"; code: string };
+
+// ============================================================================
 // 终端（WU006）
 // ============================================================================
 
@@ -327,6 +345,10 @@ export const IPC = {
   ContextPolicyGet: "context:policy:get",
   ContextPolicySet: "context:policy:set",
   ExternalEditorOpen: "external-editor:open",
+  UpdateCheck: "update:check",
+  UpdateInstall: "update:install",
+  UpdateVersion: "update:version",
+  UpdateStatus: "update:status",
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];
@@ -388,5 +410,15 @@ export interface DevwitApi {
      * 未配置时 reject 并附引导文案。line 缺省 1。
      */
     open(path: string, line?: number): Promise<void>;
+  };
+  update: {
+    /** 手动检查更新（设置页「检查更新」按钮）；启动静默检查由主进程自发。 */
+    check(): Promise<void>;
+    /** 下载完成后调用：退出并运行安装程序（quitAndInstall）。 */
+    install(): void;
+    /** 当前应用版本（app.getVersion()）。 */
+    version(): Promise<string>;
+    /** 订阅更新状态推送（主→渲染）。 */
+    onStatus(cb: (status: UpdateStatusInfo) => void): () => void;
   };
 }

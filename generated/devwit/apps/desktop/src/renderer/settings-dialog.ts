@@ -14,6 +14,7 @@ import type {
   ModeDefinition,
   ProviderConfig,
   ProviderType,
+  UpdateStatusInfo,
 } from "@devwit/contracts";
 import {
   LOCALES,
@@ -119,6 +120,10 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
     navBtns.set(id, btn);
   }
 
+  // 更新状态订阅（AC16）：对话框级单订阅，通用分区重渲染时只换接收端，不泄漏
+  let updateSink: ((status: UpdateStatusInfo) => void) | null = null;
+  const unsubUpdate = deps.api.update.onStatus((status) => updateSink?.(status));
+
   function applyLocale(): void {
     title.textContent = t("settings.title");
     closeBtn.textContent = t("settings.close");
@@ -134,9 +139,12 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
       btn.classList.toggle("dw-settings-nav-active", id === section);
     }
     content.textContent = "";
+    updateSink = null; // 离开/重渲染分区时摘除旧接收端
     switch (section) {
       case "general":
-        renderGeneral(content, deps);
+        renderGeneral(content, deps, (sink) => {
+          updateSink = sink;
+        });
         break;
       case "providers":
         renderProviders(content, deps);
@@ -157,6 +165,7 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
   });
   const close = (): void => {
     unsubscribe();
+    unsubUpdate();
     mask.remove();
   };
   closeBtn.addEventListener("click", close);
@@ -173,7 +182,7 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
 // 通用：界面语言（热生效 + 持久化）
 // ============================================================================
 
-function renderGeneral(content: HTMLElement, deps: SettingsDialogDeps): void {
+function renderGeneral(content: HTMLElement, deps: SettingsDialogDeps, onUpdateSink: (sink: (status: UpdateStatusInfo) => void) => void): void {
   const form = el("div", "dw-form");
   const label = el("label", undefined, t("settings.general.language"));
   const select = el("select", "dw-select") as HTMLSelectElement;
@@ -199,7 +208,37 @@ function renderGeneral(content: HTMLElement, deps: SettingsDialogDeps): void {
     void deps.api.settings.set("ui.locale", choice); // 持久化原始选择（含 "system"）：下次启动恢复
   });
   const hint = el("div", "dw-modal-hint", t("settings.general.language.hint"));
-  form.append(label, select, hint);
+
+  // ---- 应用更新（AC16）：当前版本 + 手动检查 + 内联结果 ----
+  const updateLabel = el("label", undefined, t("settings.general.update"));
+  const updateRow = el("div", "dw-settings-update");
+  const checkBtn = el("button", "dw-btn", t("settings.general.update.check"));
+  const updateStatus = el("span", "dw-settings-update-status");
+  updateRow.append(checkBtn, updateStatus);
+  const updateHint = el("div", "dw-modal-hint", t("settings.general.update.hint"));
+  void deps.api.update.version().then((version) => {
+    if (updateStatus.textContent === "" || updateStatus.dataset["kind"] === "version") {
+      updateStatus.dataset["kind"] = "version";
+      updateStatus.textContent = t("settings.general.update.current", { version });
+    }
+  });
+  checkBtn.addEventListener("click", () => {
+    updateStatus.dataset["kind"] = "status";
+    updateStatus.textContent = t("update.checking");
+    void deps.api.update.check();
+  });
+  onUpdateSink((status) => {
+    updateStatus.dataset["kind"] = "status";
+    if (status.state === "checking") updateStatus.textContent = t("update.checking");
+    else if (status.state === "available") updateStatus.textContent = t("update.available", { version: status.version });
+    else if (status.state === "downloading") updateStatus.textContent = t("update.downloading", { percent: status.percent });
+    else if (status.state === "ready") updateStatus.textContent = t("update.ready", { version: status.version });
+    else if (status.state === "none") updateStatus.textContent = t("update.none");
+    else if (status.state === "disabled") updateStatus.textContent = t("update.disabled");
+    else updateStatus.textContent = t("update.error", { code: status.code });
+  });
+
+  form.append(label, select, hint, updateLabel, updateRow, updateHint);
   content.appendChild(form);
 }
 

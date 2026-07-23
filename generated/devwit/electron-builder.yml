@@ -18,3 +18,9 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
 npmRebuild: false
+# 自动更新（AC16）：electron-updater 从 GitHub Releases 拉取 latest.yml 与安装包；
+# 仅声明元数据，electron-builder 不主动发布（发布由 release.yml 的 action-gh-release 完成）。
+publish:
+  provider: github
+  owner: eeyzs1
+  repo: DevWit

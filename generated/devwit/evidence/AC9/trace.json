@@ -1,8 +1,8 @@
 [
   {
     "seq": 1,
-    "timestamp": "2026-07-23T09:07:20.973Z",
-    "sessionId": "task-session-1784797640892-1",
+    "timestamp": "2026-07-23T09:49:45.556Z",
+    "sessionId": "task-session-1784800185476-1",
     "type": "user_message",
     "summary": "创建文件 task-note.txt",
     "detail": {
@@ -11,8 +11,8 @@
   },
   {
     "seq": 2,
-    "timestamp": "2026-07-23T09:07:21.159Z",
-    "sessionId": "task-session-1784797640892-1",
+    "timestamp": "2026-07-23T09:49:45.755Z",
+    "sessionId": "task-session-1784800185476-1",
     "type": "assistant_message",
     "summary": "（发起 1 个工具调用）",
     "detail": {
@@ -31,8 +31,8 @@
   },
   {
     "seq": 3,
-    "timestamp": "2026-07-23T09:07:21.159Z",
-    "sessionId": "task-session-1784797640892-1",
+    "timestamp": "2026-07-23T09:49:45.756Z",
+    "sessionId": "task-session-1784800185476-1",
     "type": "tool_call",
     "summary": "write({\"path\":\"task-note.txt\",\"content\":\"created by task console\\n\"})",
     "detail": {
@@ -44,12 +44,12 @@
   },
   {
     "seq": 4,
-    "timestamp": "2026-07-23T09:07:21.160Z",
-    "sessionId": "task-session-1784797640892-1",
+    "timestamp": "2026-07-23T09:49:45.763Z",
+    "sessionId": "task-session-1784800185476-1",
     "type": "authorization_request",
     "summary": "write: 写入文件: task-note.txt",
     "detail": {
-      "requestId": "auth-3babb19e-06f9-4a63-8f7f-0d8224c815d1",
+      "requestId": "auth-188ce6bc-14c8-4190-bc42-cbc83fc49027",
       "toolName": "write",
       "args": {
         "path": "task-note.txt",
@@ -60,19 +60,19 @@
   },
   {
     "seq": 5,
-    "timestamp": "2026-07-23T09:07:21.273Z",
-    "sessionId": "task-session-1784797640892-1",
+    "timestamp": "2026-07-23T09:49:45.861Z",
+    "sessionId": "task-session-1784800185476-1",
     "type": "authorization_decision",
     "summary": "write → allow",
     "detail": {
-      "requestId": "auth-3babb19e-06f9-4a63-8f7f-0d8224c815d1",
+      "requestId": "auth-188ce6bc-14c8-4190-bc42-cbc83fc49027",
       "decision": "allow"
     }
   },
   {
     "seq": 6,
-    "timestamp": "2026-07-23T09:07:21.275Z",
-    "sessionId": "task-session-1784797640892-1",
+    "timestamp": "2026-07-23T09:49:45.864Z",
+    "sessionId": "task-session-1784800185476-1",
     "type": "tool_result",
     "summary": "write 成功",
     "detail": {
@@ -84,15 +84,15 @@
   },
   {
     "seq": 0,
-    "timestamp": "2026-07-23T09:07:21.316Z",
-    "sessionId": "task-session-1784797640892-1",
+    "timestamp": "2026-07-23T09:49:45.913Z",
+    "sessionId": "task-session-1784800185476-1",
     "type": "assistant_delta",
     "summary": "已完成：创建 task-note.txt。"
   },
   {
     "seq": 7,
-    "timestamp": "2026-07-23T09:07:21.423Z",
-    "sessionId": "task-session-1784797640892-1",
+    "timestamp": "2026-07-23T09:49:46.015Z",
+    "sessionId": "task-session-1784800185476-1",
     "type": "assistant_message",
     "summary": "已完成：创建 task-note.txt。",
     "detail": {
@@ -101,8 +101,8 @@
   },
   {
     "seq": 8,
-    "timestamp": "2026-07-23T09:07:21.424Z",
-    "sessionId": "task-session-1784797640892-1",
+    "timestamp": "2026-07-23T09:49:46.016Z",
+    "sessionId": "task-session-1784800185476-1",
     "type": "done",
     "summary": "任务完成"
   }
