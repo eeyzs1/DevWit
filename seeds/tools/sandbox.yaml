@@ -1,0 +1,44 @@
+version: 1
+description: Sandbox configuration for tool execution
+allowed_commands:
+  - npm
+  - node
+  - python
+  - pip
+  - git
+  - pytest
+  - eslint
+  - tsc
+  - ruff
+  - mypy
+blocked_commands:
+  - rm -rf /
+  - sudo
+  - curl.*|.*sh
+  - wget.*|.*sh
+  - mkfs
+  - dd if=
+network_rules:
+  allow_outbound:
+    - "api.github.com"
+    - "registry.npmjs.org"
+    - "pypi.org"
+  block_outbound:
+    - "*"
+  allow_inbound: []
+file_access:
+  allow_paths:
+    - "./src"
+    - "./tests"
+    - "./config"
+    - "./scripts"
+  block_paths:
+    - "/etc"
+    - "/var"
+    - "~/.ssh"
+    - "~/.aws"
+    - "~/.gnupg"
+resource_limits:
+  max_memory_mb: 512
+  max_cpu_seconds: 300
+  max_file_size_mb: 50

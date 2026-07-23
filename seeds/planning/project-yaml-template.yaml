@@ -1,0 +1,123 @@
+# Meta-Harness 项目配置模板
+#
+# 这是框架唯一需要用户编辑的文件。
+# 所有项目特定信息都在这里，框架代码零硬编码。
+#
+# 最小配置：只需填写 project.name 和 repos 即可启动。
+# 未填写的 adapter 默认使用 file（本地JSON）和 noop（空操作）。
+
+project:
+  name: "{{PROJECT_NAME}}"
+  description: "{{PROJECT_DESCRIPTION}}"
+  schema_version: "2.0"  # project.yaml 结构版本，仅在 breaking change 时递增（与框架版本独立）
+
+# === 仓库 ===
+# 至少一个。language 用于自动选择正确的 lint/test 命令。
+repos:
+  - name: main
+    path: "."
+    language: "{{LANGUAGE}}"       # typescript | python | go | java | swift | rust | markdown
+    build_command: "{{BUILD_COMMAND}}"
+    typecheck_command: "{{TYPECHECK_COMMAND}}"
+    lint_command: "{{LINT_COMMAND}}"
+    test_command: "{{TEST_COMMAND}}"
+
+# === 适配器 ===
+# 不填 = 使用默认值 (file / noop / sub-agent)
+adapters:
+  # 工单系统: file | github-issues | jira | linear
+  work_item:
+    type: "file"                 # 默认：本地 JSON 文件
+
+  # CI/CD: noop | github-actions | gitlab-ci | jenkins
+  ci:
+    type: "noop"                 # 默认：不触发 CI
+
+  # 执行运行时: sub-agent | claude-goal | codex-task | shell
+  executor:
+    type: "sub-agent"            # 默认：子 Agent 派发
+
+# === 角色 ===
+# 定义项目中的角色。映射到 leaf agent 的 role 字段。
+# explorer / worker / tester / reviewer 是内置角色，始终可用。
+roles:
+  architect:
+    description: "系统架构设计"
+    extends: "explorer"
+  developer:
+    description: "功能开发"
+    extends: "worker"
+  reviewer:
+    description: "代码审查"
+    extends: "reviewer"
+
+# === Phase 类型 ===
+# 定义项目使用的 Phase 类型。按顺序执行。
+phases: [plan, implement, test]
+
+# === 分支 ===
+branch:
+  template: "feature/{work_item_id}"
+  base: "origin/main"
+  sync: "rebase"                 # rebase | merge
+
+# === 质量门 ===
+# 每个门指定应用到哪个 repo 和什么命令。
+# 如果 repo 字段为空，应用到所有 repo。
+quality_gates:
+  - name: lint
+    repo: "*"                    # 所有 repo
+    command: "lint_command"      # 引用 repos[].lint_command
+  - name: typecheck
+    repo: "*"
+    command: "typecheck_command"
+  - name: test
+    repo: "*"
+    command: "test_command"
+
+# === 证据 ===
+evidence:
+  required_kinds: [screenshot, log, test-report]
+  max_inline_size: 0             # 0 = 永不内联，始终保存为文件
+
+# === 运行模式 ===
+# fast: 跳过 brainstorm + code-review，适合小改动和 bugfix
+# full: 默认，完整 pipeline（默认）
+# deep: 额外 research + pair-review，适合复杂架构决策
+run_mode: "full"                 # fast | full | deep
+
+# === 技能-Phase 映射 ===
+# 每个 Phase 自动加载哪些技能。这是唯一权威来源。
+# executor 和 AGENTS.md 都从这里读取，不重复定义。
+phase_skills:
+  plan:
+    - brainstorming
+    - writing-plans
+  implement:
+    - tdd
+    - subagent-driven-dev
+    - executing-plans            # 不支持子代理时的回退策略
+  test:
+    - code-review
+    - verification
+    - systematic-debugging       # 失败时自动触发
+  post-audit:
+    - finishing-a-development-branch
+
+# === 跨阶段技能 ===
+# 不绑定特定 Phase，按需触发。
+cross_phase_skills:
+  - dispatching-parallel-agents
+
+# === 记忆 ===
+memory:
+  enabled: true
+  dir: ".meta-harness/memory"
+  max_files: 50
+
+# === 运行时目录 ===
+# 所有运行时产物存放在 .meta-harness/runs/<run-id>/ 下
+runtime:
+  dir: ".meta-harness"
+  runs_dir: ".meta-harness/runs"
+  worktree_dir: ".meta-harness/worktrees"

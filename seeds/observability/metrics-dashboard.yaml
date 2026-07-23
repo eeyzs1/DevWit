@@ -1,0 +1,74 @@
+version: 1
+description: Metrics dashboard configuration
+metrics:
+  - name: task_success_rate
+    type: gauge
+    description: "Percentage of tasks completed successfully"
+    unit: percent
+    target: 95
+    alert_threshold: 80
+
+  - name: error_rate_by_type
+    type: counter
+    description: "Error count grouped by error type"
+    labels: [error_type]
+    alert_threshold: 10
+
+  - name: request_latency_p50
+    type: histogram
+    description: "50th percentile request latency"
+    unit: milliseconds
+    target: 200
+
+  - name: request_latency_p95
+    type: histogram
+    description: "95th percentile request latency"
+    unit: milliseconds
+    target: 1000
+
+  - name: request_latency_p99
+    type: histogram
+    description: "99th percentile request latency"
+    unit: milliseconds
+    target: 2000
+
+  - name: token_consumption
+    type: counter
+    description: "Total tokens consumed"
+    labels: [agent_role, task_type]
+    budget: 100000
+
+  - name: verification_pass_rate
+    type: gauge
+    description: "Percentage of verification checks that pass"
+    unit: percent
+    target: 100
+
+  - name: constraint_violation_count
+    type: counter
+    description: "Number of constraint violations"
+    labels: [rule_id]
+    alert_threshold: 5
+
+  - name: evolution_fitness_score
+    type: gauge
+    description: "Current fitness score of the harness"
+    target: 0.8
+
+  - name: cost_per_task
+    type: histogram
+    description: "Cost per completed task"
+    unit: usd
+    budget: 1.0
+
+dashboard:
+  refresh_interval_seconds: 30
+  panels:
+    - title: "System Health"
+      metrics: [task_success_rate, error_rate_by_type, verification_pass_rate]
+    - title: "Performance"
+      metrics: [request_latency_p50, request_latency_p95, request_latency_p99]
+    - title: "Resources"
+      metrics: [token_consumption, cost_per_task]
+    - title: "Evolution"
+      metrics: [evolution_fitness_score, constraint_violation_count]

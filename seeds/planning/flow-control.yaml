@@ -1,0 +1,73 @@
+version: 2
+description: Mandatory execution flow control — ENFORCED, NOT SUGGESTED
+enforcement: STRICT
+guard_required: true
+
+workflows:
+  feature:
+    type: sequential
+    mandatory_pre_steps:
+      - name: guard_check
+        command: python guard.py --check
+        required: true
+        description: "MUST describe your plan and pass guard before any code"
+      - name: read_constraints
+        required: true
+        description: "Read constraints/architecture-rules.yaml"
+    steps:
+      - name: plan
+        next: [guard]
+      - name: guard
+        next: [implement]
+        command: python guard.py --check
+      - name: implement
+        next: [test]
+        constraint_check: true
+      - name: test
+        next: [review]
+        on_failure: [fix]
+        command: python orchestrator.py --verify
+      - name: fix
+        next: [test]
+        max_retries: 3
+      - name: review
+        next: [mark]
+        on_failure: [fix]
+      - name: mark
+        next: []
+        command: python orchestrator.py --mark-complete
+        description: "ONLY after verification passes"
+
+  bugfix:
+    type: sequential
+    mandatory_pre_steps:
+      - name: guard_check
+        command: python guard.py --check
+        required: true
+    steps:
+      - name: reproduce
+        next: [diagnose]
+      - name: diagnose
+        next: [guard]
+      - name: guard
+        next: [fix]
+        command: python guard.py --check
+      - name: fix
+        next: [test]
+      - name: test
+        next: [verify]
+        on_failure: [diagnose]
+        command: python orchestrator.py --verify
+      - name: verify
+        next: [prevent]
+      - name: prevent
+        next: []
+
+auto_enforcement:
+  before_code_change:
+    - python guard.py --check
+  after_code_change:
+    - python orchestrator.py --verify
+  before_mark_complete:
+    - python orchestrator.py --verify
+    - python guard.py --report

@@ -1,0 +1,47 @@
+version: 1
+description: Permission manifest per agent role
+roles:
+  planner:
+    can_read:
+      - "src/**"
+      - "schemas/**"
+      - "models/**"
+      - "docs/**"
+    can_write: []
+    can_execute:
+      - "git status"
+      - "git log"
+      - "git diff"
+
+  executor:
+    can_read:
+      - "src/**"
+      - "tests/**"
+      - "config/**"
+    can_write:
+      - "src/**"
+      - "tests/**"
+    can_execute:
+      - "npm install"
+      - "npm run build"
+      - "npm test"
+      - "python"
+      - "pip install"
+
+  verifier:
+    can_read:
+      - "src/**"
+      - "tests/**"
+      - "config/**"
+      - "coverage/**"
+    can_write:
+      - "test-results/**"
+      - "coverage/**"
+    can_execute:
+      - "npm test"
+      - "npm run lint"
+      - "npm run typecheck"
+      - "npm run build"
+      - "pytest"
+      - "ruff check"
+      - "mypy"

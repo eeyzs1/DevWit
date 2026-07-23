@@ -1,0 +1,95 @@
+version: 1
+description: |
+  Project code documentation contract.
+  定义 harness 生成项目代码后的项目文档（API doc / README / CHANGELOG / deployment guide）
+  的 schema、生成时机、版本化策略。
+
+  与 harness-doc-contract.yaml 区别：
+    - 本文件管项目代码的文档（最终交付给客户的）
+    - harness-doc-contract 管 harness 自身的文档
+
+  文档作为流水线产物：PROVE 阶段验证文档与代码一致，evolve 把"文档过时"作为
+  innovation 提案类别。
+
+documents:
+  - name: README.md
+    purpose: "项目入口文档"
+    generate_when: [after_factory, after_evolve]
+    required_fields:
+      - project_overview
+      - installation
+      - usage
+      - configuration
+      - architecture
+    versioned: true
+
+  - name: docs/API.md
+    purpose: "API 文档（自动从代码 schema 生成）"
+    generate_when: [after_factory, on_api_change]
+    auto_generated: true                    # 从 OpenAPI / type hints 提取
+    required_fields:
+      - endpoints
+      - request_schema
+      - response_schema
+      - error_codes
+      - authentication
+
+  - name: CHANGELOG.md
+    purpose: "项目变更历史"
+    generate_when: [after_evolve]
+    append_only: true
+    entry_schema:
+      - version
+      - date
+      - changes                             # added / changed / deprecated / removed / fixed / security
+      - acs_addressed                       # 本版本完成的 AC
+
+  - name: docs/DEPLOYMENT.md
+    purpose: "部署文档"
+    generate_when: [after_factory]
+    required_fields:
+      - prerequisites
+      - deployment_steps
+      - configuration_variables
+      - rollback_steps
+      - health_checks
+
+  - name: docs/SECURITY.md
+    purpose: "安全文档（如适用）"
+    generate_when: [after_factory, when_criticality_ge_4]
+    required_fields:
+      - threat_model
+      - security_controls
+      - audit_logging
+      - incident_response
+      - compliance
+
+evolution:
+  staleness_check:
+    enabled: true
+    max_age_days: 14                        # 项目文档比 harness 文档更新更频繁
+    trigger: "innovation_engine"
+    proposal_type: "project_doc_refresh"
+
+  versioning:
+    strategy: semver
+    bump_on:
+      - "breaking API change → major"
+      - "new feature → minor"
+      - "bug fix → patch"
+    sync_with:
+      - "harness CHANGELOG"
+      - "project CHANGELOG"
+
+verification:
+  # PROVE 阶段验证
+  doc_code_consistency:
+    enabled: true
+    checks:
+      - "API.md endpoints == code-defined routes"
+      - "README installation == package.json / pyproject.toml"
+      - "CHANGELOG acs_addressed ⊆ verified ACs"
+    on_inconsistency: "fail PROVE with diff"
+
+traces_to:
+  # 例：CHANGELOG.md → [AC2, AC3]（AC 完成记录在 changelog）

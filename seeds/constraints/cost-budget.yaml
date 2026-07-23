@@ -1,0 +1,28 @@
+version: 1
+description: Resource and cost constraints
+limits:
+  build:
+    max_build_time_seconds: 300
+    max_bundle_size_kb: 500
+  api:
+    max_response_time_seconds: 2
+    max_request_size_mb: 10
+  database:
+    max_query_time_seconds: 5
+    max_connection_pool_size: 20
+  runtime:
+    max_memory_mb: 512
+    max_cpu_percent: 80
+  cost:
+    max_monthly_infra_cost_usd: 50
+    max_monthly_api_cost_usd: 20
+    max_monthly_compute_cost_usd: 30
+circuit_breakers:
+  error_rate_threshold: 0.1
+  latency_threshold_seconds: 5
+  consecutive_failure_threshold: 5
+  cooldown_seconds: 60
+rate_limits:
+  api_calls_per_minute: 60
+  database_queries_per_minute: 120
+  file_operations_per_minute: 100

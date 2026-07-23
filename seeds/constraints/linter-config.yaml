@@ -1,0 +1,42 @@
+version: 1
+description: Custom linter configuration derived from constraints
+rules:
+  no_business_logic_in_routes:
+    severity: error
+    message: "Business logic should be in the service layer, not route handlers"
+    patterns:
+      - "route handler contains calculation logic"
+      - "route handler contains data transformation beyond request/response mapping"
+
+  no_direct_db_in_frontend:
+    severity: error
+    message: "Frontend must not directly access the database"
+    patterns:
+      - "SQL queries in frontend code"
+      - "ORM imports in frontend code"
+
+  explicit_error_types:
+    severity: warning
+    message: "Use explicit error types, not bare Exception"
+    patterns:
+      - "except Exception"
+      - "except:"
+
+  no_bare_catch:
+    severity: error
+    message: "Do not use bare catch/except without specific error type"
+    patterns:
+      - "except:"
+      - "catch (e) { }"
+
+  idempotency_annotation:
+    severity: warning
+    message: "Automation functions should declare idempotency"
+    check: "functions in automation/ should have @idempotent decorator or idempotency comment"
+
+  timeout_required:
+    severity: warning
+    message: "All external calls must have a timeout"
+    patterns:
+      - "HTTP request without timeout"
+      - "database query without timeout"

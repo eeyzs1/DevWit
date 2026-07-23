@@ -1,0 +1,139 @@
+version: 1
+description: "Web App domain advancement patterns — from basic to excellent"
+stages:
+  - name: "Basic"
+    description: "Meets user requirements"
+    indicators:
+      - "Core features implemented"
+      - "Basic tests pass"
+      - "Build succeeds"
+
+  - name: "Solid"
+    description: "Production-ready quality"
+    innovations:
+      - id: "WA-I001"
+        name: "Error boundary"
+        description: "Add error boundary components to prevent UI crashes from propagating"
+        category: "reliability"
+        effort: "low"
+        impact: "high"
+        trigger: "no error handling in frontend components"
+
+      - id: "WA-I002"
+        name: "Loading states"
+        description: "Add loading spinners/skeletons for all async operations"
+        category: "usability"
+        effort: "low"
+        impact: "medium"
+        trigger: "API calls without loading indicators"
+
+      - id: "WA-I003"
+        name: "Input validation feedback"
+        description: "Real-time form validation with clear error messages"
+        category: "usability"
+        effort: "low"
+        impact: "high"
+        trigger: "forms without inline validation"
+
+      - id: "WA-I004"
+        name: "Pagination"
+        description: "Add pagination to all list views"
+        category: "performance"
+        effort: "medium"
+        impact: "medium"
+        trigger: "list views loading all records"
+
+      - id: "WA-I005"
+        name: "Toast notifications"
+        description: "Success/error notifications for user actions"
+        category: "usability"
+        effort: "low"
+        impact: "medium"
+        trigger: "actions without user feedback"
+
+  - name: "Advanced"
+    description: "Competitive product quality"
+    innovations:
+      - id: "WA-I010"
+        name: "Offline support"
+        description: "Service worker for offline access and data sync"
+        category: "reliability"
+        effort: "high"
+        impact: "high"
+        trigger: "users on unstable connections"
+
+      - id: "WA-I011"
+        name: "Dark mode"
+        description: "Theme switching with system preference detection"
+        category: "usability"
+        effort: "medium"
+        impact: "medium"
+        trigger: "no theme support"
+
+      - id: "WA-I012"
+        name: "Keyboard shortcuts"
+        description: "Power-user keyboard shortcuts for common actions"
+        category: "usability"
+        effort: "medium"
+        impact: "medium"
+        trigger: "frequent manual operations"
+
+      - id: "WA-I013"
+        name: "Search and filter"
+        description: "Full-text search and advanced filtering on all data views"
+        category: "usability"
+        effort: "medium"
+        impact: "high"
+        trigger: "data views without search"
+
+      - id: "WA-I014"
+        name: "Audit trail"
+        description: "Track who changed what and when"
+        category: "governance"
+        effort: "medium"
+        impact: "high"
+        trigger: "multiple users editing same data"
+
+  - name: "Excellent"
+    description: "Market-leading quality"
+    innovations:
+      - id: "WA-I020"
+        name: "Real-time collaboration"
+        description: "WebSocket-based live updates when multiple users work simultaneously"
+        category: "collaboration"
+        effort: "high"
+        impact: "high"
+        trigger: "team-scale usage with concurrent edits"
+
+      - id: "WA-I021"
+        name: "Accessibility (WCAG 2.1 AA)"
+        description: "Full accessibility compliance with screen reader support"
+        category: "inclusivity"
+        effort: "high"
+        impact: "high"
+        trigger: "public-facing product"
+
+      - id: "WA-I022"
+        name: "Internationalization"
+        description: "Multi-language support with RTL layout"
+        category: "reach"
+        effort: "high"
+        impact: "high"
+        trigger: "multi-region user base"
+
+      - id: "WA-I023"
+        name: "Performance monitoring"
+        description: "Real-time performance metrics with alerting"
+        category: "observability"
+        effort: "medium"
+        impact: "high"
+        trigger: "production deployment"
+
+# stage_to_novelty: 将进阶阶段映射到 Novelty 因子，供 generate.py 的
+# preseed_long_term() 按 N 差异化预填 memory/long-term/。
+# N<=2 不预填；N==3 预填 Solid；N==4 预填 Solid+Advanced；N==5 全部。
+stage_to_novelty:
+  Basic: 1
+  Solid: 3
+  Advanced: 4
+  Excellent: 5

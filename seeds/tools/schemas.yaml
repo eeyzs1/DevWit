@@ -1,0 +1,45 @@
+version: 1
+description: Tool schema definitions for the harness
+tools:
+  - name: file_read
+    description: Read file contents
+    parameters:
+      path: { type: string, required: true, description: "File path to read" }
+    access_level: read
+
+  - name: file_write
+    description: Write file contents
+    parameters:
+      path: { type: string, required: true, description: "File path to write" }
+      content: { type: string, required: true, description: "Content to write" }
+    access_level: write
+
+  - name: shell_execute
+    description: Execute a shell command
+    parameters:
+      command: { type: string, required: true, description: "Command to execute" }
+      timeout: { type: integer, default: 300, description: "Timeout in seconds" }
+    access_level: execute
+
+  - name: http_request
+    description: Make an HTTP request
+    parameters:
+      url: { type: string, required: true, description: "URL to request" }
+      method: { type: string, default: GET, enum: [GET, POST, PUT, DELETE, PATCH] }
+      headers: { type: object, default: {} }
+      body: { type: string, default: "" }
+    access_level: network
+
+  - name: db_query
+    description: Execute a database query
+    parameters:
+      query: { type: string, required: true, description: "SQL query to execute" }
+      params: { type: array, default: [] }
+    access_level: data
+
+  - name: test_runner
+    description: Run test suite
+    parameters:
+      pattern: { type: string, default: "", description: "Test file pattern" }
+      coverage: { type: boolean, default: false, description: "Enable coverage" }
+    access_level: execute

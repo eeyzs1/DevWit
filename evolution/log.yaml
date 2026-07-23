@@ -1,0 +1,9 @@
+mutations:
+- description: Strengthen generation completeness constraint
+  evidence: 1 incomplete generations
+  fitness_after: 0.7956
+  status: accepted
+  timestamp: '2026-06-22T08:48:12.642084'
+  trigger: periodic
+  type: STRENGTHEN_CONSTRAINT
+version: 1

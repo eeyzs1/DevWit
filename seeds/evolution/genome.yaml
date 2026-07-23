@@ -1,0 +1,52 @@
+version: 1
+description: Initial evolution genome seed
+harness_genome:
+  constraints:
+    - id: C001
+      rule: "every task must have acceptance criteria"
+      source: "initial design"
+      last_triggered: null
+      trigger_count: 0
+    - id: C002
+      rule: "no agent self-certifies"
+      source: "initial design"
+      last_triggered: null
+      trigger_count: 0
+    - id: C003
+      rule: "every mistake produces a new constraint"
+      source: "initial design"
+      last_triggered: null
+      trigger_count: 0
+  workflows:
+    - id: W001
+      name: "base flow"
+      steps: [define, plan, execute, verify, record]
+      source: "initial design"
+  skills:
+    - id: S001
+      name: "self-verify"
+      source: "initial design"
+    - id: S002
+      name: "task-decompose"
+      source: "initial design"
+agent_genome:
+  topology_rules:
+    - "always add verifier"
+    - "merge tightly coupled roles"
+    - "split when context exceeds budget"
+  default_scope:
+    max_context_lines: 60
+    handoff_format: "structured YAML"
+evolution_genome:
+  fitness_weights:
+    evidence_satisfaction_rate: 0.35
+    loop_efficiency: 0.25
+    root_cause_hit_rate: 0.2
+    goal_drift_rate: 0.2
+  mutation_rate: 0.1
+  selection_threshold: "fitness must improve or complexity must decrease"
+  safety_constraints:
+    - "never remove verification layer"
+    - "never remove evolution system"
+    - "mutation rate <= 30%"
+    - "all mutations reversible"

@@ -1,0 +1,55 @@
+version: 1
+description: Security guardrails — sensitive data filters and dangerous operation blockers
+sensitive_data_filters:
+  pii_patterns:
+    - name: email
+      pattern: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+      action: mask
+    - name: phone
+      pattern: "\\b\\d{3}[-.]?\\d{3}[-.]?\\d{4}\\b"
+      action: mask
+    - name: ssn
+      pattern: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+      action: block
+    - name: credit_card
+      pattern: "\\b\\d{4}[-\\s]?\\d{4}[-\\s]?\\d{4}[-\\s]?\\d{4}\\b"
+      action: block
+
+  secret_patterns:
+    - name: api_key
+      pattern: "(?i)(api_key|apikey|api-key)\\s*[:=]\\s*['\"]?[^'\"\\s]+"
+      action: block
+    - name: password
+      pattern: "(?i)password\\s*[:=]\\s*['\"]?[^'\"\\s]+"
+      action: block
+    - name: private_key
+      pattern: "-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----"
+      action: block
+    - name: token
+      pattern: "(?i)(bearer|auth_token|access_token)\\s*[:=]\\s*['\"]?[^'\"\\s]+"
+      action: block
+
+dangerous_operations:
+  blocked_commands:
+    - pattern: "rm\\s+-rf\\s+/"
+      reason: "Recursive force delete from root"
+    - pattern: "git\\s+push\\s+--force"
+      reason: "Force push can overwrite history"
+    - pattern: "DROP\\s+(TABLE|DATABASE)"
+      reason: "Destructive database operation"
+    - pattern: "TRUNCATE\\s+TABLE"
+      reason: "Destructive database operation"
+    - pattern: "DELETE\\s+FROM\\s+\\w+\\s*;"
+      reason: "Delete without WHERE clause"
+    - pattern: "chmod\\s+777"
+      reason: "Overly permissive file access"
+    - pattern: "curl.*\\|.*sh"
+      reason: "Piping remote content to shell"
+
+  blocked_file_operations:
+    - pattern: "writing to /etc/"
+      reason: "System configuration modification"
+    - pattern: "writing to ~/.ssh/"
+      reason: "SSH configuration modification"
+    - pattern: "writing to ~/.aws/"
+      reason: "AWS credentials modification"

@@ -1,0 +1,27 @@
+version: 1
+description: Version and configuration management for reproducibility
+versioning:
+  harness_version: "1.0.0"
+  config_version: 1
+  last_updated: null
+
+  version_control:
+    type: git
+    branch_strategy: feature_branches
+    tag_pattern: "v*"
+
+  config_management:
+    track_changes: true
+    change_log: "memory/decisions.md"
+    require_reason: true
+
+  reproducibility:
+    pin_dependencies: true
+    lock_file: "requirements-lock.txt"
+    environment_file: ".python-version"
+    record_platform: true
+
+  compatibility:
+    breaking_change_policy: "major version bump"
+    deprecation_notice_periods_days: 30
+    migration_guide_required: true

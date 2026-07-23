@@ -1,0 +1,41 @@
+version: 1
+description: |
+  Branch merge policy.
+  LLM 在 GENERATE 阶段从 architecture-rules + criticality 派生：
+    - criticality >= 4 → rebase_only（强制，不可 merge）
+    - criticality < 4 + team_size > 1 → rebase_preferred（rebase 优先，merge 兜底）
+    - 单人项目 → squash（合并 PR 时压扁历史）
+
+  合并子 agent（merge sub-agent）**可选**——rebase-only 策略下不需要：
+  rebase 冲突由 supervisor 标 blocked 转人工，不自动 merge。
+
+policy: rebase_only                # rebase_only / rebase_preferred / merge_allowed / squash
+
+rules:
+  - id: MP001
+    description: "workitem 分支只 rebase 到 base，从不 merge base 到 feature 分支"
+    applies_when: "policy == rebase_only"
+    enforcement: "runtime/rebase_sync.py sync 在每次 workitem 完成后执行"
+
+  - id: MP002
+    description: "rebase 冲突由 supervisor 标 blocked，不自动 merge 解决"
+    applies_when: "policy in [rebase_only, rebase_preferred]"
+    enforcement: "supervisor._dispatch_workitem_agent 后调 rebase_sync.sync，conflicts 非空则 update_status=blocked"
+
+  - id: MP003
+    description: "merge 子 agent 仅在 merge_allowed 策略下启用"
+    applies_when: "policy == merge_allowed"
+    enforcement: "sub-agent-dispatch.yaml 含 merge-coordinator prototype，仅此策略激活"
+
+  - id: MP004
+    description: "squash 策略在 PR merge 时执行 git merge --squash"
+    applies_when: "policy == squash"
+    enforcement: "runtime/rebase_sync.py 不适用，需 LLM 生成 runtime/squash_merger.py"
+
+dual_approval:
+  required: false                   # criticality >= 4 启用
+  reviewers: []                     # LLM 填实际 reviewer 角色（如 security-engineer, db-engineer）
+  applies_to: []                    # 哪些操作需双签（如 merge to main, schema migration）
+
+traces_to:
+  # 例：MP001 → [AC4]（审计可追溯）

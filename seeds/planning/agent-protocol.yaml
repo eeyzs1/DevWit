@@ -1,0 +1,70 @@
+version: 1
+description: |
+  Leaf agent protocol configuration.
+  LLM 在 GENERATE 阶段从 sub-agent-dispatch.yaml 的 prototypes 派生 role 枚举 +
+  每个 role 的 gate / forbidden_side_effects / timeout / effort→budget 映射。
+
+  本文件被 runtime/leaf_prepare.py 读取，合成 task.json 给 leaf helper。
+
+roles:
+  explorer:
+    gates: [pre-implement]          # 何时触发此 leaf
+    forbidden_side_effects:
+      - "write any file"
+      - "modify audit_log"
+      - "ALTER TABLE"
+    timeout_seconds: 300
+    effort_budget:                   # effort → token 预算
+      S: 2000
+      M: 5000
+      L: 10000
+
+  worker:
+    gates: [implement]
+    forbidden_side_effects:
+      - "modify audit_log"
+      - "DROP TABLE"
+      - "ALTER TABLE DISABLE ROW LEVEL SECURITY"
+    timeout_seconds: 600
+    effort_budget:
+      S: 4000
+      M: 8000
+      L: 15000
+
+  tester:
+    gates: [test]
+    forbidden_side_effects:
+      - "write to production database"
+      - "publish to live"
+    timeout_seconds: 600
+    effort_budget:
+      S: 3000
+      M: 6000
+      L: 12000
+
+  reviewer:
+    gates: [pre-deploy, pre-advance]
+    forbidden_side_effects:
+      - "write any file"
+      - "execute migrations"
+    timeout_seconds: 300
+    effort_budget:
+      S: 2000
+      M: 5000
+      L: 10000
+
+gates:
+  # gate 顺序（supervisor 按 workitem 进度推进）
+  - plan
+  - pre-implement           # explorer leaf
+  - implement               # worker leaf
+  - test                    # tester leaf
+  - pre-deploy              # reviewer leaf
+  - deploy
+  - pre-advance            # reviewer leaf（推进 phase 前）
+  - report
+
+  # LLM 据 task 实际增减，如工业控制可能加 safety-review gate
+
+default_role: worker
+default_gate: implement

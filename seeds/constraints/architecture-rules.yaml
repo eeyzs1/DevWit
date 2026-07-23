@@ -1,0 +1,80 @@
+version: 2
+description: Architecture constraint rules — AUTO-ENFORCED by guard.py
+enforcement: AUTOMATIC
+guard_integration: true
+
+auto_check_script: guard.py
+
+rules:
+  - id: AR001
+    description: "No business logic in presentation layer"
+    pattern: "(?:(?:def|class)\\s+\\w+.*(?:business|calculate|process|validate)_)"
+    file_pattern: "src/(?:components|views|pages)/**"
+    severity: error
+    auto_block: true
+
+  - id: AR002
+    description: "No direct database access from frontend"
+    pattern: "(?:import.*(?:sql|database|db|prisma|sequelize|typeorm).*from)"
+    file_pattern: "src/(?:components|views|pages)/**"
+    severity: error
+    auto_block: true
+
+  - id: AR003
+    description: "API layer must not contain business logic"
+    pattern: "(?:def|function)\\s+(?:calculate|process|validate|transform)"
+    file_pattern: "src/(?:routes|controllers|handlers)/**"
+    severity: error
+    auto_block: true
+
+  - id: AR004
+    description: "All API endpoints must have input validation"
+    pattern: ""
+    file_pattern: "src/(?:routes|controllers|handlers)/**"
+    check: "every endpoint function must call a validation function"
+    severity: error
+    auto_block: true
+
+  - id: AR005
+    description: "No circular dependencies between modules"
+    check: "import graph must be a DAG"
+    severity: error
+    auto_block: true
+
+  - id: AR006
+    description: "Guard must pass before any code change"
+    check: "guard.py --check must return PASS"
+    severity: error
+    auto_block: true
+
+  - id: AR007
+    description: "Verification must pass before marking complete"
+    check: "orchestrator.py --verify must return PASS"
+    severity: error
+    auto_block: true
+
+  - id: AR008
+    description: "One criterion at a time — no batch implementation"
+    check: "only one pending criterion should be in progress"
+    severity: warning
+
+dependency_direction:
+  allowed:
+    - "frontend → api"
+    - "api → service"
+    - "service → repository"
+    - "repository → database"
+  forbidden:
+    - "database → repository"
+    - "repository → service"
+    - "service → api"
+    - "api → frontend"
+    - "frontend → database"
+
+pre_commit_checks:
+  - id: PC001
+    command: python guard.py --check "pre-commit validation"
+    required: true
+  - id: PC002
+    command: python orchestrator.py --verify
+    required: true

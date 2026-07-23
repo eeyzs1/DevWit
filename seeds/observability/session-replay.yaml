@@ -1,0 +1,37 @@
+version: 1
+description: Session replay configuration for debugging and issue reproduction
+replay:
+  enabled: true
+  storage:
+    type: file
+    path: "logs/replays/"
+    format: jsonl
+    rotation: daily
+    retention_days: 14
+
+  capture:
+    - category: conversation
+      fields: [role, content, timestamp]
+      reason: "Full conversation for context reconstruction"
+
+    - category: decisions
+      fields: [decision, rationale, alternatives, timestamp]
+      reason: "Decision trail for understanding why"
+
+    - category: tool_calls
+      fields: [tool, parameters, result, duration_ms, timestamp]
+      reason: "Tool usage for reproducing issues"
+
+    - category: errors
+      fields: [error_type, message, stack_trace, context, timestamp]
+      reason: "Error context for debugging"
+
+    - category: verification_results
+      fields: [check_type, passed, details, timestamp]
+      reason: "Verification outcomes for quality analysis"
+
+  replay_mode:
+    allow_step_through: true
+    allow_fast_forward: true
+    allow_branching: false
+    max_replay_sessions: 5

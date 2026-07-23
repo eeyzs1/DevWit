@@ -1,0 +1,13 @@
+version: 1
+description: Reasoning budget configuration
+limits:
+  max_steps_per_task: 15
+  max_tokens_per_step: 8000
+  max_total_tokens: 100000
+  max_retries: 3
+  max_verification_loops: 3
+  max_evolution_cycles: 5
+escalation:
+  on_budget_exceeded: "escalate to human with summary of progress"
+  on_max_retries: "log as meta-mistake and try alternative approach"
+  on_verification_loop_exhausted: "flag as BLOCKER in meta-mistakes.md"

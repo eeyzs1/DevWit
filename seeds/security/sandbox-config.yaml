@@ -1,0 +1,62 @@
+version: 1
+description: Security sandbox configuration
+environment:
+  type: container
+  base_image: "python:3.12-slim"
+  isolation_level: process
+network:
+  allow_outbound:
+    - "api.github.com:443"
+    - "registry.npmjs.org:443"
+    - "pypi.org:443"
+  block_outbound:
+    - "0.0.0.0/0"
+  allow_inbound: []
+  dns_allowlist:
+    - "api.github.com"
+    - "registry.npmjs.org"
+    - "pypi.org"
+filesystem:
+  read_only_paths:
+    - "/usr"
+    - "/lib"
+    - "/opt"
+  read_write_paths:
+    - "/workspace"
+    - "/tmp"
+  blocked_paths:
+    - "/etc/shadow"
+    - "/etc/passwd"
+    - "/root/.ssh"
+    - "/root/.aws"
+    - "/root/.gnupg"
+capabilities:
+  drop_all: true
+  add:
+    - NET_BIND_SERVICE
+seccomp:
+  profile: default
+  allow_syscalls:
+    - read
+    - write
+    - open
+    - close
+    - stat
+    - fstat
+    - lstat
+    - poll
+    - lseek
+    - mmap
+    - mprotect
+    - munmap
+    - brk
+    - rt_sigaction
+    - rt_sigprocmask
+    - ioctl
+    - access
+    - pipe
+    - select
+    - sched_yield
+    - mremap
+    - nanosleep
+    - clock_gettime

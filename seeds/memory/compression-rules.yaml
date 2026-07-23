@@ -1,0 +1,31 @@
+version: 1
+description: Memory compression rules — what to keep, summarize, or forget
+rules:
+  keep_verbatim:
+    - "constraints/**"
+    - "decisions/**"
+    - "architecture-rules.yaml"
+    - "genome.yaml"
+  keep_verbatim_reason: "Core rules and decisions must never be compressed"
+
+  summarize:
+    - pattern: "execution-logs/**"
+      max_age_days: 7
+      method: "extract key decisions and outcomes, discard step-by-step details"
+    - pattern: "test-results/**"
+      max_age_days: 3
+      method: "keep pass/fail summary, discard individual test output"
+    - pattern: "session-state.yaml"
+      max_age_days: 30
+      method: "keep final status and completion evidence, discard intermediate states"
+
+  forget:
+    - pattern: "temp/**"
+      max_age_days: 1
+      reason: "Temporary files have no lasting value"
+    - pattern: "build-output/**"
+      max_age_days: 1
+      reason: "Build artifacts can be regenerated"
+    - pattern: "cache/**"
+      max_age_days: 0
+      reason: "Cache is disposable by definition"

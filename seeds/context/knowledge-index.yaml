@@ -1,0 +1,35 @@
+version: 2
+description: >-
+  Maps file paths to knowledge domains for context loading (v2: tagged).
+  Each mapping carries a description and a controlled-vocabulary tag set,
+  enabling multi-signal ranked retrieval (path-prefix + tags + keywords)
+  in loader.py instead of boolean keyword matching.
+
+mappings:
+  src/api/:
+    description: API contracts and endpoint definitions
+    tags: [api, contract, endpoint, rest, graphql, route]
+  src/components/:
+    description: UI component patterns
+    tags: [ui, component, frontend, view, render]
+  src/services/:
+    description: Business logic and service layer
+    tags: [service, business, logic, domain]
+  src/repositories/:
+    description: Data access and repository layer
+    tags: [data, persistence, db, sql, orm, repository]
+  src/models/:
+    description: Data models and type definitions
+    tags: [model, type, schema, entity, dto]
+  src/utils/:
+    description: Utility functions and helpers
+    tags: [util, helper, common, shared]
+  tests/:
+    description: Test specifications and fixtures
+    tags: [test, spec, fixture, qa]
+  config/:
+    description: Configuration files
+    tags: [config, settings, env]
+  schemas/:
+    description: Data schema definitions
+    tags: [schema, definition, validation, json-schema]

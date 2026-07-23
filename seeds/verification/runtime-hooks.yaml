@@ -1,0 +1,169 @@
+version: 1
+description: >-
+  Runtime Hook Schema —— 描述宿主 runtime（Trae Task tool / Claude Code subagent /
+  Cursor composer）应在哪些事件点调用 harness 的检查器。
+
+  第一性原理分工：
+  - hook 事件的 schema 与触发逻辑 = 硬约束（本文件，所有项目共享）
+  - hook 触发的 check command 内容 = LLM 在 architecture-rules / linter-config /
+    security-guardrails 等 slot 里声明（项目特定）
+
+  harness 不能强制宿主 runtime 实现这些 hook——但 harness 可以：
+  1. 声明期望的 hook 点（本文件）
+  2. 提供 hook-executor.py 作为统一入口（宿主调用本脚本即可）
+  3. 在 validate-harness.py 里校验 hook 配置完整性
+
+  宿主 runtime 集成契约：
+  - 在 hook 点调用 `python verification/hook-executor.py --event <name>
+    --project-root <root> [--payload '<json>']`
+  - 检查 exit code（完整语义见 hook-executor.py docstring）：
+      0 = PASS（继续操作）
+      1 = FAIL（severity=block 失败，必须阻止后续操作，把 stderr 返回 LLM）
+      2 = NO_HOOKS_CONFIGURED（项目无 runtime-hooks.yaml，宿主可选继续或告警）
+      3 = INVALID_EVENT（事件名不在 schema 里，或 payload 非 JSON，宿主应告警）
+  - audit_log 写入（可选但推荐）：
+      方式 A（结构化链式）：在 post_tool_call 后调
+          `python verification/audit-append.py --event hook_call \
+             --payload '<hook stdout>' --check-id <HOOK_ID> \
+             --result <PASS|FAIL> --actor <runtime>`
+        （写入 audit_log.yaml 项目根，含 sha256 哈希链，篡改可检测；
+        注意：security/audit-log.yaml 是配置 dict，不是日志本身）
+      方式 B（简单追加）：把 hook-executor 的 stdout 直接 `>>` 到 logs/hook.log
+        （无防篡改保证，仅用于排查）
+
+# ===== Hook 事件 Schema =====
+events:
+  pre_tool_call:
+    description: "任何工具调用前触发（如文件写、命令执行、API 调用）"
+    triggers:
+      - "LLM 即将执行工具调用"
+    payload_schema:
+      tool_name: {type: string, required: true}
+      tool_args: {type: object, required: true}
+      target_path: {type: string, required: false}
+    checks:
+      - id: HOOK_GUARD_FILE
+        command: "python guard.py --check-file {{target_path}}"
+        description: "校验目标文件不在 forbidden_paths / read_only_paths"
+        severity: block
+        on_fail: "拒绝工具调用，向 LLM 返回错误"
+
+  post_tool_call:
+    description: "任何工具调用后触发"
+    triggers:
+      - "LLM 完成工具调用"
+    payload_schema:
+      tool_name: {type: string, required: true}
+      result: {type: object, required: true}
+      modified_files: {type: "list[string]", required: true}
+    checks:
+      - id: HOOK_LINT
+        command: "python verification/lint-check.py --files {{modified_files}}"
+        description: "对修改文件跑 linter-config.yaml 的规则"
+        severity: warn
+        on_fail: "向 LLM 返回警告，但不阻止"
+      - id: HOOK_AUDIT_LOG_APPEND
+        command: "python verification/audit-append.py --event tool_call --payload '{{payload}}' --check-id HOOK_AUDIT_LOG_APPEND --actor runtime"
+        description: "把工具调用追加到 audit_log（不可篡改）"
+        severity: block
+        on_fail: "拒绝——审计不可写=不可信，阻止后续"
+
+  pre_work_unit_start:
+    description: "dispatcher 派发 work_unit 给 subagent 前触发"
+    triggers:
+      - "dispatcher.py 准备派发 task card"
+    payload_schema:
+      task_card: {type: object, required: true}
+    checks:
+      - id: HOOK_GUARD_CHECK
+        command: "python guard.py --check"
+        description: "全局架构约束检查（pre-派发）"
+        severity: block
+        on_fail: "不派发该 work_unit——架构被违反时不能开始新工作"
+
+  post_work_unit_complete:
+    description: "subagent 完成 work_unit 后触发"
+    triggers:
+      - "subagent 写出 output card 后"
+    payload_schema:
+      task_id: {type: string, required: true}
+      output_card_path: {type: string, required: true}
+    checks:
+      - id: HOOK_DISPATCH_VERIFY
+        command: "python verification/dispatch-verifier.py --project-root {{project_root}} --strict"
+        description: "校验 output card 真实性（sha256 / status / evidence）"
+        severity: block
+        on_fail: "标记 work_unit 为不可信，不派发下游 work_unit"
+      - id: HOOK_AC_VERIFY
+        command: "python verification/self-check.py --verify-ac {{task_id}}"
+        description: "对该 task card 关联的 acceptance_criteria 跑独立验证"
+        severity: block
+        on_fail: "标记 work_unit 为不可信"
+
+  pre_commit:
+    description: "git commit 前触发"
+    triggers:
+      - "LLM 即将 git commit"
+    payload_schema:
+      staged_files: {type: "list[string]", required: true}
+      commit_message: {type: string, required: true}
+    checks:
+      - id: HOOK_PRE_COMMIT
+        command: "python guard.py --check 'pre-commit validation'"
+        description: "pre_commit_checks 全量执行（architecture-rules.yaml.pre_commit_checks）"
+        severity: block
+        on_fail: "拒绝 commit"
+
+  pre_mark_complete:
+    description: "LLM 即将标记 task / acceptance_criteria 完成前触发"
+    triggers:
+      - "orchestrator.py --mark-complete"
+      - "LLM 声明某条 acceptance_criteria 已满足"
+    payload_schema:
+      criterion_id: {type: string, required: false}
+      task_id: {type: string, required: false}
+    checks:
+      - id: HOOK_FULL_VERIFY
+        command: "python orchestrator.py --verify && python guard.py --report"
+        description: "全量校验 + 守门报告"
+        severity: block
+        on_fail: "拒绝标记完成——必须先修复所有违规"
+      - id: HOOK_DISPATCH_COMPLETE
+        command: "python verification/dispatch-verifier.py --project-root {{project_root}}"
+        description: "校验所有 task card 都 completed 或 needs_human_review"
+        severity: block
+        on_fail: "拒绝——还有 pending 的 work_unit"
+
+  pre_advance_phase:
+    description: "meta-orchestrator.py --advance 前触发"
+    triggers:
+      - "python meta/meta-orchestrator.py --advance"
+    payload_schema:
+      from_phase: {type: string, required: true}
+      to_phase: {type: string, required: true}
+    checks:
+      - id: HOOK_PHASE_GATE
+        command: "python guard.py --check pre-advance-sanity"
+        description: >-
+          项目内 sanity check：guard.py 通过是 advance 的必要条件。
+          真正的 GENERATE→FACTORY harness 完整性 gate 由 meta-orchestrator
+          内部 _run_generate_advance_gate 处理（直接跑
+          scripts/validate-harness.py，在框架根而非项目根）；
+          宿主 runtime 无需重复执行 validate-harness.py。
+        severity: block
+        on_fail: "拒绝 advance——架构约束被违反"
+        condition: "from_phase == 'GENERATE'"
+
+# ===== 不变量 =====
+invariants:
+  - "hook check 必须 fail-fast：severity=block 时立即拒绝后续操作"
+  - "hook check 不得修改业务代码（只读校验 + 写 audit_log）"
+  - "所有 hook 调用必须记录到 audit_log，含 event / payload / check_id / result"
+  - "hook 不得被 LLM 绕过——这是宿主 runtime 的责任"
+  - "pre_mark_complete 与 pre_advance_phase 是 critical gate，失败时禁止 advance"
+
+# ===== 兼容性 =====
+compatibility:
+  minimal_runtime_support: "宿主至少实现 pre_tool_call + pre_mark_complete"
+  full_runtime_support: "全部 6 个事件"
+  fallback_when_unsupported: "LLM 必须自觉调用 guard.py --check（无强制保证）"

@@ -1,0 +1,38 @@
+version: 1
+description: Distributed tracing configuration
+tracing:
+  enabled: true
+  provider: opentelemetry
+  sampling_rate: 1.0
+  propagation_format: w3c_trace_context
+
+spans:
+  - name: api_request
+    attributes: [method, path, status_code, duration_ms]
+    kind: SERVER
+
+  - name: database_query
+    attributes: [query_type, table, duration_ms, rows_affected]
+    kind: CLIENT
+
+  - name: external_call
+    attributes: [service, endpoint, status_code, duration_ms]
+    kind: CLIENT
+
+  - name: agent_execution
+    attributes: [agent_role, task_type, steps_taken, tokens_used]
+    kind: INTERNAL
+
+  - name: verification
+    attributes: [check_type, passed, violations_count]
+    kind: INTERNAL
+
+  - name: evolution_mutation
+    attributes: [mutation_type, target, fitness_delta]
+    kind: INTERNAL
+
+export:
+  format: json
+  path: "logs/traces/"
+  rotation: daily
+  retention_days: 30

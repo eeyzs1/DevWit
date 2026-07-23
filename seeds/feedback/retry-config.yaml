@@ -1,0 +1,35 @@
+version: 1
+description: Retry strategies per error type
+strategies:
+  transient_error:
+    error_types: [timeout, connection_reset, service_unavailable]
+    strategy: exponential_backoff
+    max_retries: 3
+    initial_delay_seconds: 1
+    max_delay_seconds: 30
+    backoff_multiplier: 2
+
+  validation_error:
+    error_types: [type_error, syntax_error, schema_mismatch]
+    strategy: immediate_with_fix_hint
+    max_retries: 1
+    action: "apply fix hint from error capture, then retry once"
+
+  auth_error:
+    error_types: [permission_denied, authentication_failed, token_expired]
+    strategy: no_retry
+    max_retries: 0
+    action: "escalate to human — do not retry authentication failures"
+
+  resource_error:
+    error_types: [file_not_found, resource_not_found]
+    strategy: retry_with_alternative
+    max_retries: 2
+    action: "try alternative resource path or source, then retry"
+
+  rate_limit:
+    error_types: [rate_limited, too_many_requests]
+    strategy: wait_and_retry
+    max_retries: 3
+    initial_delay_seconds: 60
+    action: "wait for rate limit window, then retry"

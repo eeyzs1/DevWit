@@ -1,0 +1,72 @@
+version: 1
+description: |
+  Harness self-documentation contract.
+  定义 harness 自身文档（README/AGENTS.md/CLAUDE.md/CHANGELOG）的 schema、生成时机、版本化策略。
+
+  与 project-doc-contract.yaml 区别：
+    - 本文件管 harness 自身的文档（如何用 harness、harness 的设计决策）
+    - project-doc-contract 管 harness 生成项目代码后的项目文档（API doc / README / CHANGELOG）
+
+  文档纳入 evolution loop：genome.yaml 含 doc 演进约束，innovation-engine 把"文档过时"
+  作为创新提案类别。
+
+documents:
+  - name: README.md
+    purpose: "harness 入口文档——快速上手 + 关键命令"
+    generate_when: [scaffold, after_evolve]   # scaffold 时生成初版，evolve 后更新
+    required_fields:
+      - quick_start
+      - commands
+      - architecture_overview
+    versioned: true
+    version_field: "harness_version"
+
+  - name: AGENTS.md
+    purpose: "agent 操作指令（每个 IDE 读不同文件名，内容相同）"
+    generate_when: [scaffold]
+    copy_to: [CLAUDE.md, .cursorrules]
+    required_fields:
+      - startup_steps
+      - workflow
+      - hard_constraints
+      - completion_check
+
+  - name: CHANGELOG.md
+    purpose: "harness 演进历史——每次 evolve 追加一条"
+    generate_when: [after_evolve]
+    append_only: true                     # 不删旧条目，只追加
+    entry_schema:
+      - version
+      - date
+      - mutations                         # evolve 的 mutation 列表
+      - fitness_before
+      - fitness_after
+      - traces_to_acs
+
+  - name: docs/DESIGN-DECISIONS.md
+    purpose: "harness 关键设计决策记录（ADR 风格）"
+    generate_when: [scaffold, when_decision_made]
+    required_fields:
+      - decision_id
+      - context
+      - decision
+      - consequences
+      - status                             # proposed / accepted / deprecated / superseded
+
+evolution:
+  # 文档演进约束（genome.yaml 引用）
+  staleness_check:
+    enabled: true
+    max_age_days: 30                       # 超 30 天没更新 = 过时，触发 innovation 提案
+    trigger: "innovation_engine"
+    proposal_type: "doc_refresh"
+
+  versioning:
+    strategy: semver                        # major.minor.patch
+    bump_on:
+      - "slot schema change → major"
+      - "new AC added → minor"
+      - "typo / clarification → patch"
+
+traces_to:
+  # 例：CHANGELOG.md → [AC4]（审计可追溯）

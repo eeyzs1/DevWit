@@ -1,0 +1,37 @@
+version: 1
+description: >-
+  Fixer registry — 把 retry-config 的 strategy 绑定到可执行 fixer。
+  apply_fixes (verification/self-check.py) 加载本文件，按 fix['type'](=retry strategy)
+  + fix['error_type'] 双键查 fixer，命中且 safe=true 则 importlib 动态调用 handler。
+  通用 fixer (ruff_autofix) 由 scaffold 原样复制；项目特定 fixer 必须由 LLM 据
+  task.yaml + work-units + retry-config 推演追加到本文件，并在 feedback/fixers/ 生成实现。
+
+fixers:
+  # 通用 fixer（scaffold 复制 ruff-fixer.py，所有项目共享，LLM 不改本条）
+  ruff_autofix:
+    match:
+      strategy: [immediate_with_fix_hint]
+      error_types: [syntax_error, import_error]
+    handler: "feedback/fixers/ruff-fixer.py"
+    entry: "fix"
+    safe: true
+    description: "ruff --fix 处理可机械修复的 lint/格式/unused import 问题"
+
+  # ↓↓↓ 项目特定 fixer 由 LLM 在 GENERATE 阶段据 retry-config 推演追加 ↓↓↓
+  # 推演方法：读 feedback/retry-config.yaml 的每个 strategy 条目，对其中"可机械修复"
+  # 的 error_type 绑定定向 fixer。不可机械修复的（如认证失败、安全联锁拒绝）不绑 fixer，
+  # 让 apply_fixes 走 pending 转人工。
+  #
+  # 例子（工业控制项目，按 retry-config 推演）：
+  #
+  # audit_hash_repair:
+  #   match:
+  #     strategy: [no_retry]                    # retry-config 里 audit_write_failed 的 strategy
+  #     error_types: [audit_hash_mismatch]
+  #   handler: "feedback/fixers/audit-hash-fixer.py"
+  #   entry: "fix"
+  #   safe: false                               # 审计哈希修复需人工确认，不自动改
+  #   description: "重算 audit_log 哈希链（需人工 review）"
+  #
+  # 每条 fixer 必须同时在 feedback/fixers/<name>.py 生成实现（统一 fix 接口）。
+  # validate-harness.py check #8 校验 handler 路径存在，缺失=ERROR 阻断 GENERATE→FACTORY。

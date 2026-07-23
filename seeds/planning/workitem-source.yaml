@@ -1,0 +1,57 @@
+version: 1
+description: |
+  Workitem source adapter configuration.
+  LLM 在 GENERATE 阶段决定用什么 source——meta-harness 不预设。
+
+  必填字段：
+    adapter: 模块名（runtime/sources/<adapter>_source.py）
+    class_name: 类名（继承 WorkitemSource）
+
+  可选 adapter（LLM 据 task.work_source 选）：
+    - yunxiao         云效 API
+    - github_issues   GitHub Issues
+    - local_file      本地 file watcher / task.yaml
+    - jira            Jira REST API
+    - azure_boards    Azure DevOps Boards
+    - manual          人工指定（无 source 系统）
+
+  LLM 必须同时在 runtime/sources/<adapter>_source.py 生成具体实现，
+  继承 runtime/workitem_source.py 的 WorkitemSource 基类，实现全部 4 个抽象方法：
+    claim_next(policy) -> Optional[str]
+    fetch_brief(workitem_id) -> dict
+    update_status(workitem_id, status) -> None
+    archive(workitem_id, result, summary) -> None
+
+# === LLM 填写区 ===
+adapter: local_file                # 默认 local_file（最简，不依赖外部系统）
+class_name: LocalFileSource        # 类名
+
+# adapter 特定配置（local_file 示例，LLM 改写为实际 adapter 的字段）
+config:
+  source_dir: .meta-harness/workitems/   # workitem 来源目录
+  pending_dir: pending/                   # 待领 workitem 目录
+  in_progress_dir: in_progress/          # 处理中目录
+  done_dir: done/                         # 已完成目录
+  blocked_dir: blocked/                   # 阻塞目录
+
+  # workitem 文件 schema（每个 .yaml 一个 workitem）：
+  #   id: CCTT-123
+  #   title: ...
+  #   description: ...
+  #   acceptance_criteria: [AC1, AC2]
+  #   effort: M
+  #   priority: high
+
+# 示例：yunxiao adapter（LLM 改写时参考）
+# adapter: yunxiao
+# class_name: YunxiaoSource
+# config:
+#   api_base: https://yunxiao.aliyun.com/api/v1
+#   project_id: <project-id>
+#   auth_token_env: YUNXIAO_TOKEN   # 从环境变量读，不硬编码
+#   poll_interval_seconds: 30
+#   claim_strategy: state_transition  # claimed → in_progress
+#   page_size: 50
+
+traces_to:
+  # 本 source 服务的 AC（LLM 填，如 [AC1, AC2]）

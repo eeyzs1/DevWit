@@ -1,0 +1,28 @@
+version: 1
+description: Human intervention interface configuration
+approval_queue:
+  requires_approval:
+    - action: "publish to production"
+      reason: "Production changes must be reviewed"
+    - action: "schema-breaking change"
+      reason: "Breaking changes affect downstream consumers"
+    - action: "authentication change"
+      reason: "Security-critical modification"
+    - action: "delete data"
+      reason: "Irreversible operation"
+    - action: "modify constraints"
+      reason: "Constraint changes affect all agents"
+
+escalation_rules:
+  - condition: "3 consecutive failures on same task"
+    action: "escalate to human with failure summary"
+  - condition: "verification loop exhausted"
+    action: "escalate to human with partial results"
+  - condition: "budget exceeded"
+    action: "escalate to human with progress summary"
+  - condition: "security guardrail triggered"
+    action: "escalate to human immediately — do not auto-retry"
+
+notification:
+  channels: ["console"]
+  format: "structured YAML with decision context"
