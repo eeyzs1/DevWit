@@ -17,6 +17,14 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+# macOS（迭代 9）：dmg（用户安装）+ zip（electron-updater macOS 只认 zip）。
+# 未配置签名身份时 electron-builder 自动跳过签名（开发分发）；
+# macOS 自动更新要求签名包，未签名时 update 通道提示但不强升——手动下载 dmg 覆盖即可。
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - dmg
+    - zip
 npmRebuild: false
 # 自动更新（AC16）：electron-updater 从 GitHub Releases 拉取 latest.yml 与安装包；
 # 仅声明元数据，electron-builder 不主动发布（发布由 release.yml 的 action-gh-release 完成）。

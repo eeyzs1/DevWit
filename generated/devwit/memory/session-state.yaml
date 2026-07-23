@@ -210,5 +210,17 @@ iteration_8:
   notes: preload 暴露 mcp 段（list/upsert/delete/onChanged）；ipc-whitelist 测试补 MCP 三通道未接线断言；tsconfig 根与 apps/desktop 双处 references 补 packages/mcp；i18n 新增 mcp.* 键 21 个（中英同型）
   e2e_report: evidence/AC17/verify-i8-report.json (12 项断言全 PASS) + smoke/iteration2/verify-i4/verify-i6/verify-i7 回归 PASSED
   unit_tests: 35 files / 286 tests passed
+iteration_9:
+  scope: macOS 构建（AC18）：electron-builder mac target + release.yml macos runner
+  acceptance_criteria:
+  - description: electron-builder.yml 新增 mac 段（category=public.app-category.developer-tools，target=dmg+zip——zip 为 electron-updater macOS 必需格式，dmg 供用户安装；未配置签名身份自动跳过签名，未签名包不自动更新、手动下载覆盖）
+    id: AC18
+    status: completed
+    verifier: js-yaml 静态校验（mac.target=[dmg,zip]、publish=github 不变）+ electron-builder.yml 注释说明
+  - description: release.yml 新增 build-macos job（macos-latest）：npm ci → 显式恢复 Electron darwin 二进制（uname -m 自适应 arm64/x64，ditto 解包 + path.txt，与 Windows 同策略规避 postinstall 残缺）→ npm run dist → action-gh-release 追加 *.dmg/*.zip/*.blockmap/*.yml（latest-mac.yml）到同一 prerelease
+    id: AC18
+    status: completed
+    verifier: js-yaml 静态校验（jobs=[build-windows,build-macos]、macos 6 步）；真实 macOS 构建由下一 tag CI 运行确认
+  notes: 两 job 并行向同一 tag 追加产物（action-gh-release 处理已存在 release）；latest.yml(win)/latest-mac.yml 文件名不冲突
 status: complete
-updated_at: '2026-07-23T19:35:00.000000'
+updated_at: '2026-07-23T19:50:00.000000'

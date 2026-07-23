@@ -51,3 +51,48 @@ jobs:
           generate_release_notes: true
           # 默认预发布：本地试用反馈确认后，在 Release 页面手动转正
           prerelease: true
+
+  build-macos:
+    name: Build & Publish macOS Release
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: generated/devwit
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: generated/devwit/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore Electron binary
+        run: |
+          set -euo pipefail
+          ver=$(node -p "require('./node_modules/electron/package.json').version")
+          machine=$(uname -m)
+          if [ "$machine" = "arm64" ]; then earch="darwin-arm64"; else earch="darwin-x64"; fi
+          curl -sSL -o /tmp/electron.zip "https://github.com/electron/electron/releases/download/v${ver}/electron-v${ver}-${earch}.zip"
+          mkdir -p node_modules/electron/dist
+          ditto -x -k /tmp/electron.zip node_modules/electron/dist
+          printf 'Electron.app/Contents/MacOS/Electron' > node_modules/electron/path.txt
+          test -x node_modules/electron/dist/Electron.app/Contents/MacOS/Electron
+          echo "electron $ver ($earch) 二进制就绪"
+
+      - name: Build dmg + zip
+        run: npm run dist
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            generated/devwit/release/*.dmg
+            generated/devwit/release/*.zip
+            generated/devwit/release/*.blockmap
+            generated/devwit/release/*.yml
+          generate_release_notes: true
+          prerelease: true
