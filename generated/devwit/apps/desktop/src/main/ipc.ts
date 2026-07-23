@@ -53,7 +53,8 @@ export const PUSH_CHANNELS: readonly string[] = [
   IPC.SettingsChanged,
   IPC.AgentEvent,
   IPC.ModesChanged,
-  IPC.UpdateStatus
+  IPC.UpdateStatus,
+  IPC.McpChanged
 ];
 
 const AI_NOT_WIRED = "DW_AI_NOT_WIRED";
@@ -199,6 +200,9 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime)
     table[IPC.ContextManifestList] = notWired;
     table[IPC.ContextPolicyGet] = notWired;
     table[IPC.ContextPolicySet] = notWired;
+    table[IPC.McpList] = notWired;
+    table[IPC.McpUpsert] = notWired;
+    table[IPC.McpDelete] = notWired;
     return;
   }
   table[IPC.AgentRun] = async (_e, input) => ai.run(input as AgentRunInput);
@@ -218,6 +222,13 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime)
   table[IPC.ContextPolicyGet] = () => ai.getContextPolicy();
   table[IPC.ContextPolicySet] = (_e, type, enabled) => {
     ai.setContextItemEnabled(type as ContextItemType, enabled === true);
+  };
+  table[IPC.McpList] = () => ai.listMcpServers();
+  table[IPC.McpUpsert] = (_e, config) => {
+    ai.upsertMcpServer(config as Parameters<AiRuntime["upsertMcpServer"]>[0]);
+  };
+  table[IPC.McpDelete] = (_e, id) => {
+    ai.deleteMcpServer(String(id));
   };
 }
 

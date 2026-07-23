@@ -1,0 +1,29 @@
+{
+  "steps": [
+    "本地 SSE 端点就绪 http://127.0.0.1:55486",
+    "应用启动（默认中文）",
+    "打开文件夹 → 文件树渲染",
+    "UI 表单新增 MCP 服务器（真实 node 子进程 + fake-mcp-server）",
+    "状态徽标 就绪 + 工具 3 个（initialize/tools/list 全链路真实）",
+    "热停用 → 已停用徽标（工具即刻下线）",
+    "热启用 → 就绪恢复（配置热生效，无需重启）",
+    "凭证写入 + provider 注册 + agent 模式热绑定模型",
+    "agent 请求 mcp__e2e__write_marker → 授权门拦截（活动流授权行）",
+    "授权允许 → MCP 工具经 stdio 真实调用 → MARKER_FILE 落盘",
+    "删除服务器 → 列表清空（子进程停止）"
+  ],
+  "assertions": [
+    "设置页导航缺少 MCP 分区: 通用模型编辑器模式MCP",
+    "MCP 分区标题缺失: MCP 服务器（stdio · 修改热生效）",
+    "服务器未达到就绪状态（stdio 握手/tools/list 失败）",
+    "工具计数应为 3（实际: 3）",
+    "工具全名前缀化缺失 mcp__e2e__write_marker",
+    "列表行徽标/计数缺失: 就绪E2E Fake Server · 工具 3 个删除",
+    "停用后应为已停用且工具下线",
+    "重新启用后未恢复就绪",
+    "授权行应含 MCP 工具全名: 授权mcp__e2e__write_marker：调用 MCP 工具: mcp__e2e__write_marker {\"text\":\"mcp-proof-1\"}允许本会话允许拒绝",
+    "MARKER_FILE 未含 mcp-proof-1（MCP 工具未真实执行）",
+    "活动流缺少 MCP 工具成功行"
+  ],
+  "failures": []
+}

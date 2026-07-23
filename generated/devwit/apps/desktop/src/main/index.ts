@@ -21,6 +21,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 let mainWindow: BrowserWindow | null = null;
 let workspace: WorkspaceService | null = null;
 let terminal: TerminalService | null = null;
+let aiRuntime: AiRuntime | null = null;
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -85,6 +86,7 @@ app.whenReady().then(() => {
     send,
     manifestsDir: path.join(app.getPath("userData"), "manifests"),
   });
+  aiRuntime = ai;
 
   registerIpcHandlers({
     ipcMain,
@@ -136,4 +138,6 @@ app.on("window-all-closed", () => {
 app.on("will-quit", () => {
   terminal?.disposeAll();
   workspace?.close();
+  // AC17：退出前停止全部 MCP 子进程，避免孤儿进程驻留
+  if (aiRuntime !== null) void aiRuntime.dispose();
 });

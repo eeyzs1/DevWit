@@ -191,7 +191,8 @@ export type AuthorizationDecision = "allow" | "allow_session" | "deny";
 
 export interface AuthorizationRequest {
   id: string;
-  toolName: AgentToolName;
+  /** 内置工具名或 MCP 全名（mcp__<serverId>__<tool>，迭代 8 起放宽为 string）。 */
+  toolName: string;
   args: Record<string, unknown>;
   reason: string;
 }
@@ -297,6 +298,48 @@ export type UpdateStatusInfo =
   | { state: "error"; code: string };
 
 // ============================================================================
+// MCP 工具接入（迭代 8 / AC17）：stdio MCP 服务器配置与运行视图
+// ============================================================================
+
+/** MCP 工具全名前缀：mcp__<serverId>__<toolName>（防与内置工具/跨服务器重名）。 */
+export const MCP_TOOL_PREFIX = "mcp__";
+
+/**
+ * 一个 stdio MCP 服务器配置（存 settings 的 "mcpServers" 键，热更新）。
+ * command/args 为本地可执行命令（如 npx -y @modelcontextprotocol/server-filesystem）。
+ */
+export interface McpServerConfig {
+  id: string;
+  name: string;
+  command: string;
+  args: string[];
+  /** 附加环境变量（并入子进程环境；API token 等经此传入）。 */
+  env?: Record<string, string>;
+  enabled: boolean;
+}
+
+/** MCP 工具信息（UI 列表与轨迹可读名）。 */
+export interface McpToolInfo {
+  serverId: string;
+  /** 服务器原始工具名。 */
+  name: string;
+  /** 对模型暴露的全名（mcp__<serverId>__<name>）。 */
+  fullName: string;
+  description: string;
+}
+
+/** 服务器运行状态：connecting=握手/列举工具中；ready=可用；error=启动/连接失败（code 为 ASCII 错误码）；disabled=配置停用。 */
+export type McpServerState = "connecting" | "ready" | "error" | "disabled";
+
+/** 设置页展示用的服务器完整视图。 */
+export interface McpServerView {
+  config: McpServerConfig;
+  state: McpServerState;
+  tools: McpToolInfo[];
+  errorCode?: string;
+}
+
+// ============================================================================
 // 终端（WU006）
 // ============================================================================
 
@@ -349,6 +392,10 @@ export const IPC = {
   UpdateInstall: "update:install",
   UpdateVersion: "update:version",
   UpdateStatus: "update:status",
+  McpList: "mcp:list",
+  McpUpsert: "mcp:upsert",
+  McpDelete: "mcp:delete",
+  McpChanged: "mcp:changed",
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];
@@ -420,5 +467,14 @@ export interface DevwitApi {
     version(): Promise<string>;
     /** 订阅更新状态推送（主→渲染）。 */
     onStatus(cb: (status: UpdateStatusInfo) => void): () => void;
+  };
+  mcp: {
+    /** 全部服务器配置 + 运行状态 + 已注册工具（设置页 MCP 分区）。 */
+    list(): Promise<McpServerView[]>;
+    /** 新建/更新服务器配置（热生效：主进程即时启动/重启/停止对应进程）。 */
+    upsert(config: McpServerConfig): Promise<void>;
+    delete(id: string): Promise<void>;
+    /** 订阅任一服务器状态变化（主→渲染推送，设置页实时刷新徽标）。 */
+    onChanged(cb: () => void): () => void;
   };
 }

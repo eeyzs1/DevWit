@@ -1,0 +1,6 @@
+迭代 8（AC17 MCP 工具接入）验证：
+1. 设置页 MCP 分区：UI 表单新增 stdio 服务器（node + fake-mcp-server.mjs，env 传 MARKER_FILE），状态徽标 连接中→就绪 + 「工具 3 个」（initialize/tools/list 经 IPC→McpManager→stdio 子进程全链路真实）。
+2. 热同步：停用→已停用徽标且工具下线，重新启用→就绪恢复（settings onChanged → syncConfigs 差量同步，无需重启）。
+3. 授权门：agent 请求 mcp__e2e__write_marker → 活动流授权行含工具全名（截图 03），允许后真实 tools/call 经 stdio 到达服务器，MARKER_FILE 落盘 mcp-proof-1（截图 04，真实副作用证据）。
+4. 删除服务器 → mcp.list() 清空（子进程停止）。
+断言通过 11 项，失败 0 项。

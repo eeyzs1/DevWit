@@ -4,11 +4,12 @@ import type {
   LLMProvider,
   ModeDefinition,
   ToolCall,
+  ToolDefinition,
   ToolResult,
 } from "@devwit/contracts";
 import type { ContextEngine } from "@devwit/context-engine";
 import { Authorizer, buildAuthorizationReason } from "./authorizer.js";
-import { executeTool, isAgentToolName, toolDefinitionsFor, type ToolEnvironment } from "./tools.js";
+import { executeTool, isAgentToolName, toolDefinitionsFor, type ToolContext, type ToolEnvironment } from "./tools.js";
 import { AgentTrace } from "./trace.js";
 
 export interface AgentLoopDeps {
@@ -26,6 +27,13 @@ export interface AgentLoopDeps {
   maxIterations?: number;
   /** assistant 文本块实时回调（流式渲染；apps 层经 IPC 转发为 assistant_delta 瞬时事件）。 */
   onAssistantDelta?: (delta: string) => void;
+  /**
+   * 动态工具源（迭代 8 / AC17，MCP）：每轮迭代组上下文时取当前可用的
+   * 外部工具定义——服务器热启停即刻反映到下一轮请求，无需重建会话。
+   */
+  extraTools?: () => ToolDefinition[];
+  /** 动态工具执行（MCP 等非内置工具的路由入口；缺省时非内置工具报未知工具）。 */
+  executeExtraTool?: (call: ToolCall, ctx: ToolContext) => Promise<ToolResult>;
 }
 
 export type AgentFinishReason = "completed" | "max_iterations" | "cancelled" | "error";
@@ -113,7 +121,8 @@ export class AgentLoop {
         providerId: this.deps.provider.config.id,
         model: this.deps.provider.config.model,
         systemPrompt: this.deps.mode.systemPrompt,
-        tools: toolDefinitionsFor(this.deps.mode.tools),
+        // 内置工具（模式声明）+ 动态工具（MCP 等，按服务器当前状态热聚合）
+        tools: [...toolDefinitionsFor(this.deps.mode.tools), ...(this.deps.extraTools?.() ?? [])],
         contextPolicy: { ...this.deps.mode.contextPolicy, conversation_history: true },
         workspaceRoot: input.workspaceRoot,
         ...(input.activeFile !== undefined ? { activeFile: input.activeFile } : {}),
@@ -193,7 +202,8 @@ export class AgentLoop {
   ): Promise<ToolResult> {
     trace.record("tool_call", `${call.name}(${summarizeArgs(call.args)})`, { args: call.args });
 
-    if (isAgentToolName(call.name) && this.authorizer.needsAuthorization(call.name)) {
+    // 授权门：内置写工具（write/edit/bash）与全部 MCP 工具（AC17）执行前必经裁决
+    if (this.authorizer.needsAuthorization(call.name)) {
       const reason = buildAuthorizationReason(call.name, call.args);
       const { request, decision } = await this.authorizer.requestAuthorization(
         call.name,
@@ -216,15 +226,27 @@ export class AgentLoop {
       }
     }
 
-    const result = await executeTool(call, this.deps.env, {
-      workspaceRoot,
-      ...(signal ? { signal } : {}),
-    });
+    const ctx: ToolContext = { workspaceRoot, ...(signal ? { signal } : {}) };
+    const result = isAgentToolName(call.name)
+      ? await executeTool(call, this.deps.env, ctx)
+      : await this.executeExternal(call, ctx);
     trace.record(
       "tool_result",
       result.ok ? `${call.name} 成功` : `${call.name} 失败: ${result.error ?? "未知错误"}`,
       { result }
     );
     return result;
+  }
+
+  /** 非内置工具（MCP 等）执行：经注入路由；未注入时报未知工具（不静默吞掉）。 */
+  private async executeExternal(call: ToolCall, ctx: ToolContext): Promise<ToolResult> {
+    if (this.deps.executeExtraTool === undefined) {
+      return { ok: false, output: "", error: `未知工具: ${call.name}` };
+    }
+    try {
+      return await this.deps.executeExtraTool(call, ctx);
+    } catch (error) {
+      return { ok: false, output: "", error: error instanceof Error ? error.message : String(error) };
+    }
   }
 }

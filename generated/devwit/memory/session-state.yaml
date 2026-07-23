@@ -192,5 +192,23 @@ iteration_7:
     verifier: electron-builder.yml + .github/workflows/release.yml + npm run build（dist/main 6.0MB bundle 通过）
   e2e_report: evidence/AC16/verify-i7-report.json (13 项断言全 PASS) + smoke/iteration2/verify-i4/verify-i6 回归 PASSED
   unit_tests: 33 files / 268 tests passed
+iteration_8:
+  scope: MCP 工具接入（AC17）：stdio 客户端 + 服务器生命周期管理 + 工具聚合路由 + 授权门扩展 + 设置页 MCP 分区
+  acceptance_criteria:
+  - description: '@devwit/mcp 包：McpStdioClient（换行分隔 JSON-RPC 2.0，initialize 握手 + tools/list + tools/call，容忍非 JSON 行污染，请求超时拒绝 DW_MCP_TIMEOUT，进程退出拒绝全部挂起）；McpManager 按 settings "mcpServers" 差量同步（新增→启动/删除→停止/指纹变更→重启/停用→下线），状态机 connecting/ready/error/disabled + onDidChange'
+    id: AC17
+    status: completed
+    verifier: packages/mcp/tests（mcp-client 8 项 + mcp-manager 10 项，真实子进程回环 + fake-mcp-server fixture）
+  - description: 授权门扩展：mcp__<serverId>__<tool> 全名一律需授权（外部服务器能力不可预知默认最严）；agent-loop 新增 extraTools/executeExtraTool 依赖，每轮迭代热聚合 ready 服务器工具，调用按全名前缀路由；MCP 调用失败返回 DW_MCP_* ASCII 错误码
+    id: AC17
+    status: completed
+    verifier: agent-runtime authorizer/agent-loop 测试 + tests/e2e/verify-i8.mjs（授权行含工具全名 + MARKER_FILE 真实落盘）
+  - description: 设置页 MCP 分区：服务器 CRUD 表单（id/name/command/args/env/enabled，渲染端先校验走 i18n）+ 状态徽标（McpChanged 推送实时刷新 连接中/就绪/错误/已停用）+ 工具计数；配置持久化 settings "mcpServers"，热生效无需重启；应用退出 will-quit 停止全部 MCP 子进程
+    id: AC17
+    status: completed
+    verifier: tests/e2e/verify-i8.mjs（12 项断言全 PASS：UI 新增→就绪/热停用→热启用/授权→真实调用落盘/删除清空）+ evidence/AC17
+  notes: preload 暴露 mcp 段（list/upsert/delete/onChanged）；ipc-whitelist 测试补 MCP 三通道未接线断言；tsconfig 根与 apps/desktop 双处 references 补 packages/mcp；i18n 新增 mcp.* 键 21 个（中英同型）
+  e2e_report: evidence/AC17/verify-i8-report.json (12 项断言全 PASS) + smoke/iteration2/verify-i4/verify-i6/verify-i7 回归 PASSED
+  unit_tests: 35 files / 286 tests passed
 status: complete
-updated_at: '2026-07-23T17:55:00.000000'
+updated_at: '2026-07-23T19:35:00.000000'

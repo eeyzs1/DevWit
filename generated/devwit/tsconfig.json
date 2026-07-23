@@ -13,6 +13,7 @@
     { "path": "packages/context-engine" },
     { "path": "packages/modes" },
     { "path": "packages/agent-runtime" },
+    { "path": "packages/mcp" },
     { "path": "packages/chat-ui" },
     { "path": "apps/desktop" }
   ]

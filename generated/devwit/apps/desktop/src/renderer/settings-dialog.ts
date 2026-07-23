@@ -11,6 +11,9 @@ import type {
   AgentToolName,
   ContextItemType,
   DevwitApi,
+  McpServerConfig,
+  McpServerState,
+  McpServerView,
   ModeDefinition,
   ProviderConfig,
   ProviderType,
@@ -26,7 +29,7 @@ import {
   type Locale,
 } from "@devwit/i18n";
 
-export type SettingsSection = "general" | "providers" | "editor" | "modes";
+export type SettingsSection = "general" | "providers" | "editor" | "modes" | "mcp";
 
 export interface SettingsDialogDeps {
   api: DevwitApi;
@@ -44,6 +47,7 @@ const SECTION_NAV: ReadonlyArray<{ id: SettingsSection; key: StringMessageKey }>
   { id: "providers", key: "settings.nav.providers" },
   { id: "editor", key: "settings.nav.editor" },
   { id: "modes", key: "settings.nav.modes" },
+  { id: "mcp", key: "settings.nav.mcp" },
 ];
 
 const AGENT_TOOLS: AgentToolName[] = ["read", "write", "edit", "bash", "grep", "find", "ls"];
@@ -124,6 +128,10 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
   let updateSink: ((status: UpdateStatusInfo) => void) | null = null;
   const unsubUpdate = deps.api.update.onStatus((status) => updateSink?.(status));
 
+  // MCP 状态订阅（AC17）：同上模式——任一服务器状态变化只刷新当前 MCP 分区
+  let mcpSink: (() => void) | null = null;
+  const unsubMcp = deps.api.mcp.onChanged(() => mcpSink?.());
+
   function applyLocale(): void {
     title.textContent = t("settings.title");
     closeBtn.textContent = t("settings.close");
@@ -140,6 +148,7 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
     }
     content.textContent = "";
     updateSink = null; // 离开/重渲染分区时摘除旧接收端
+    mcpSink = null;
     switch (section) {
       case "general":
         renderGeneral(content, deps, (sink) => {
@@ -155,6 +164,11 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
       case "modes":
         void renderModes(content, deps);
         break;
+      case "mcp":
+        renderMcp(content, deps, (sink) => {
+          mcpSink = sink;
+        });
+        break;
     }
   }
 
@@ -166,6 +180,7 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
   const close = (): void => {
     unsubscribe();
     unsubUpdate();
+    unsubMcp();
     mask.remove();
   };
   closeBtn.addEventListener("click", close);
@@ -612,5 +627,165 @@ async function renderModes(content: HTMLElement, deps: SettingsDialogDeps): Prom
   });
 
   await renderList();
+  newForm();
+}
+
+// ============================================================================
+// MCP：外部工具服务器 CRUD + 状态徽标实时刷新（AC17）
+// ============================================================================
+
+/** 与 manager 侧 MCP_ID_PATTERN 一致：渲染端先校验，错误消息才能走 i18n。 */
+const MCP_ID_PATTERN = /^[\w-]+$/;
+
+const MCP_STATE_KEY: Record<McpServerState, StringMessageKey> = {
+  connecting: "mcp.state.connecting",
+  ready: "mcp.state.ready",
+  error: "mcp.state.error",
+  disabled: "mcp.state.disabled",
+};
+
+function renderMcp(content: HTMLElement, deps: SettingsDialogDeps, onMcpSink: (sink: () => void) => void): void {
+  const { api } = deps;
+  content.appendChild(el("h3", "dw-settings-subtitle", t("mcp.title")));
+  content.appendChild(el("p", "dw-modal-hint", t("mcp.hint")));
+  const list = el("div", "dw-modal-list");
+  content.appendChild(list);
+
+  const form = el("div", "dw-form");
+  const idInput = fieldInput("text", "");
+  const nameInput = fieldInput("text", "");
+  const commandInput = fieldInput("text", "");
+  commandInput.placeholder = t("mcp.command.placeholder");
+  const argsInput = fieldInput("text", "");
+  argsInput.placeholder = t("mcp.args.placeholder");
+  const envInput = el("textarea", "dw-textarea") as HTMLTextAreaElement;
+  envInput.rows = 3;
+  const enabledInput = fieldInput("checkbox", "");
+  enabledInput.checked = true;
+  const enabledLabel = el("label");
+  enabledLabel.append(enabledInput, document.createTextNode(t("mcp.enabled")));
+  const errorBox = el("div", "dw-form-error");
+  form.append(
+    el("label", undefined, t("common.id")),
+    idInput,
+    el("label", undefined, t("mcp.name")),
+    nameInput,
+    el("label", undefined, t("mcp.command")),
+    commandInput,
+    el("label", undefined, t("mcp.args")),
+    argsInput,
+    el("label", undefined, t("mcp.env")),
+    envInput,
+    enabledLabel,
+    errorBox
+  );
+  content.appendChild(form);
+
+  function fillForm(view: McpServerView): void {
+    idInput.value = view.config.id;
+    idInput.disabled = true;
+    nameInput.value = view.config.name;
+    commandInput.value = view.config.command;
+    argsInput.value = view.config.args.join(" ");
+    envInput.value = Object.entries(view.config.env ?? {})
+      .map(([key, value]) => `${key}=${value}`)
+      .join("\n");
+    enabledInput.checked = view.config.enabled;
+    errorBox.textContent = "";
+  }
+
+  function newForm(): void {
+    idInput.value = `mcp-${Date.now().toString(36)}`;
+    idInput.disabled = false;
+    nameInput.value = "";
+    commandInput.value = "";
+    argsInput.value = "";
+    envInput.value = "";
+    enabledInput.checked = true;
+    errorBox.textContent = "";
+  }
+
+  async function renderList(): Promise<void> {
+    const views = await api.mcp.list();
+    list.textContent = "";
+    for (const view of views) {
+      const row = el("div", "dw-modal-list-item");
+      const badge = el("span", `dw-mcp-state dw-mcp-state-${view.state}`, t(MCP_STATE_KEY[view.state]));
+      if (view.state === "error" && view.errorCode !== undefined) badge.title = view.errorCode;
+      const summary = el(
+        "span",
+        "dw-grow",
+        `${view.config.name} · ${view.tools.length > 0 ? t("mcp.tool.count", { n: view.tools.length }) : t("mcp.tools.none")}`
+      );
+      row.append(badge, summary);
+      const delBtn = el("button", "dw-btn dw-btn-small dw-btn-danger", t("mode.delete"));
+      delBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        void api.mcp.delete(view.config.id).then(() => {
+          errorBox.textContent = t("mcp.deleted");
+          return renderList();
+        });
+      });
+      row.appendChild(delBtn);
+      row.addEventListener("click", () => fillForm(view));
+      list.appendChild(row);
+    }
+  }
+
+  const actions = el("div", "dw-modal-actions");
+  const newBtn = el("button", "dw-btn", t("provider.new"));
+  const saveBtn = el("button", "dw-btn dw-btn-primary", t("provider.save"));
+  actions.append(newBtn, saveBtn);
+  content.appendChild(actions);
+
+  newBtn.addEventListener("click", newForm);
+  saveBtn.addEventListener("click", () => {
+    void (async () => {
+      errorBox.textContent = "";
+      const id = idInput.value.trim();
+      const name = nameInput.value.trim();
+      const command = commandInput.value.trim();
+      if (id === "" || name === "" || command === "") {
+        errorBox.textContent = t("mcp.required");
+        return;
+      }
+      if (!MCP_ID_PATTERN.test(id)) {
+        errorBox.textContent = t("mcp.idPattern");
+        return;
+      }
+      const env: Record<string, string> = {};
+      const lines = envInput.value.split("\n");
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]?.trim() ?? "";
+        if (line === "") continue;
+        const sep = line.indexOf("=");
+        if (sep <= 0) {
+          errorBox.textContent = t("mcp.env.invalid", { n: i + 1 });
+          return;
+        }
+        env[line.slice(0, sep).trim()] = line.slice(sep + 1).trim();
+      }
+      const config: McpServerConfig = {
+        id,
+        name,
+        command,
+        args: argsInput.value.split(/\s+/).filter((arg) => arg !== ""),
+        ...(Object.keys(env).length > 0 ? { env } : {}),
+        enabled: enabledInput.checked,
+      };
+      await api.mcp.upsert(config);
+      await renderList();
+      errorBox.textContent = t("mcp.saved");
+    })().catch((error: unknown) => {
+      errorBox.textContent = error instanceof Error ? error.message : String(error);
+    });
+  });
+
+  // 服务器状态推送（连接中→就绪/错误）实时刷新徽标；仅停留 MCP 分区期间挂接
+  onMcpSink(() => {
+    void renderList();
+  });
+
+  void renderList();
   newForm();
 }

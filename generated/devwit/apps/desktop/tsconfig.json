@@ -53,6 +53,9 @@
       "path": "../../packages/agent-runtime"
     },
     {
+      "path": "../../packages/mcp"
+    },
+    {
       "path": "../../packages/chat-ui"
     }
   ]

@@ -865,6 +865,31 @@ body,
   font-size: 12px;
 }
 
+/* ---- 设置 · MCP 状态徽标（AC17）---- */
+.dw-mcp-state {
+  flex: none;
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 9px;
+  border: 1px solid var(--dw-border);
+  color: var(--dw-fg-dim);
+}
+
+.dw-mcp-state-ready {
+  color: #3fb950;
+  border-color: #3fb950;
+}
+
+.dw-mcp-state-connecting {
+  color: #d29922;
+  border-color: #d29922;
+}
+
+.dw-mcp-state-error {
+  color: #f85149;
+  border-color: #f85149;
+}
+
 /* ---- 模态框 ---- */
 .dw-modal-mask {
   position: fixed;

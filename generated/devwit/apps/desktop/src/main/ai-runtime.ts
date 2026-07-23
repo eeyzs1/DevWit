@@ -19,6 +19,8 @@ import type {
   ContextItemType,
   ContextManifest,
   LLMProvider,
+  McpServerConfig,
+  McpServerView,
   ModeDefinition,
   ProviderConfig,
 } from "@devwit/contracts";
@@ -27,6 +29,7 @@ import { AgentLoop, AgentTrace, Authorizer, createNodeEnvironment, historyFromTr
 import type { ToolEnvironment } from "@devwit/agent-runtime";
 import { ContextEngine, fileFragmentSource, gitStatusSource, selectionSource } from "@devwit/context-engine";
 import { ProviderRegistry } from "@devwit/llm-providers";
+import { McpManager, validateMcpServerConfig } from "@devwit/mcp";
 import { ModeStore } from "@devwit/modes";
 import type { SettingsStore } from "@devwit/settings";
 import { getGitStatus } from "@devwit/workspace";
@@ -36,6 +39,8 @@ import type { WorkspaceService } from "@devwit/workspace";
 const CONTEXT_OVERRIDES_KEY = "contextOverrides";
 const PROVIDERS_KEY = "providers";
 const MODES_KEY = "modes";
+/** settings 键：MCP 服务器配置列表（迭代 8 / AC17，热更新）。 */
+const MCP_SERVERS_KEY = "mcpServers";
 
 interface SessionState {
   engine: ContextEngine;
@@ -68,6 +73,8 @@ export class AiRuntime {
   private readonly modeStore = new ModeStore();
   private readonly sessions = new Map<string, SessionState>();
   private readonly env: ToolEnvironment;
+  /** MCP 服务器生命周期管理（AC17）：配置热同步，工具聚合注入 agent-loop。 */
+  private readonly mcpManager: McpManager;
   private latestManifest: ContextManifest | null = null;
   private lastModeId = "chat";
   /** hydrate 期间抑制 persist，打断 settings→store→settings 回环。 */
@@ -82,13 +89,19 @@ export class AiRuntime {
     this.env = deps.env ?? createNodeEnvironment();
     // 凭证解析：settings 实现 CredentialResolver（密钥仅在请求时读取，换 key 不重启）
     this.registry = new ProviderRegistry(this.settings);
+    this.mcpManager = new McpManager();
+    this.mcpManager.onDidChange(() => {
+      this.deps.send(IPC.McpChanged);
+    });
     this.hydrateProviders();
     this.hydrateModes();
-    // 热更新：settings 变更即重读（providers 键 / modes 持久化键 / 上下文开关）
+    this.hydrateMcpServers();
+    // 热更新：settings 变更即重读（providers 键 / modes 持久化键 / 上下文开关 / MCP 配置）
     this.settings.onChanged((key) => {
       if (key === PROVIDERS_KEY) this.hydrateProviders();
       if (key === MODES_KEY) this.hydrateModes();
       if (key === CONTEXT_OVERRIDES_KEY) this.applyContextOverridesToSessions();
+      if (key === MCP_SERVERS_KEY) this.hydrateMcpServers();
     });
     this.modeStore.onDidChange(() => {
       this.persistModes();
@@ -165,6 +178,54 @@ export class AiRuntime {
   }
 
   // --------------------------------------------------------------------------
+  // MCP 服务器（迭代 8 / AC17）：配置存 settings "mcpServers"，热更新
+  // --------------------------------------------------------------------------
+
+  listMcpServers(): McpServerView[] {
+    return this.mcpManager.listViews();
+  }
+
+  upsertMcpServer(config: McpServerConfig): void {
+    validateMcpServerConfig(config);
+    const list = this.readMcpServerConfigs();
+    const index = list.findIndex((entry) => entry.id === config.id);
+    if (index >= 0) {
+      list[index] = config;
+    } else {
+      list.push(config);
+    }
+    // settings.set 触发 onChanged → hydrateMcpServers → manager 差量同步（热生效）
+    this.settings.set(MCP_SERVERS_KEY, list);
+  }
+
+  deleteMcpServer(id: string): void {
+    const list = this.readMcpServerConfigs().filter((entry) => entry.id !== id);
+    this.settings.set(MCP_SERVERS_KEY, list);
+  }
+
+  /** 应用退出（will-quit）：停止全部 MCP 子进程。 */
+  async dispose(): Promise<void> {
+    await this.mcpManager.dispose();
+  }
+
+  private readMcpServerConfigs(): McpServerConfig[] {
+    const raw = this.settings.get(MCP_SERVERS_KEY);
+    return Array.isArray(raw) ? (raw as McpServerConfig[]) : [];
+  }
+
+  private hydrateMcpServers(): void {
+    const list = this.readMcpServerConfigs().filter((entry) => {
+      try {
+        validateMcpServerConfig(entry);
+        return true;
+      } catch {
+        return false; // 非法配置项不同步（设置面板保存前已校验）；不阻断其余项
+      }
+    });
+    this.mcpManager.syncConfigs(list);
+  }
+
+  // --------------------------------------------------------------------------
   // agent 会话
   // --------------------------------------------------------------------------
 
@@ -199,6 +260,9 @@ export class AiRuntime {
       authorizer: session.authorizer,
       trace: session.trace,
       onAssistantDelta: (delta) => this.emitDelta(input.sessionId, delta),
+      // AC17：MCP 工具热聚合（每轮迭代取当前 ready 服务器工具集）与调用路由
+      extraTools: () => this.mcpManager.toolDefinitions(),
+      executeExtraTool: (call) => this.mcpManager.callTool(call),
     });
     // AC15：本轮之前的轨迹重建为对话历史（跨轮次/跨重启连续记忆）；
     // 在 loop 记录本轮 user_message 之前快照，避免重复计入本轮输入。

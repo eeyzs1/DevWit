@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   AUTHORIZED_TOOLS,
-  type AgentToolName,
+  MCP_TOOL_PREFIX,
   type AuthorizationDecision,
   type AuthorizationRequest,
 } from "@devwit/contracts";
@@ -15,7 +15,7 @@ interface PendingAuthorization {
 }
 
 /** 生成人类可读的授权理由（授权弹窗与轨迹共用）。 */
-export function buildAuthorizationReason(toolName: AgentToolName, args: Record<string, unknown>): string {
+export function buildAuthorizationReason(toolName: string, args: Record<string, unknown>): string {
   const pathArg = typeof args["path"] === "string" ? args["path"] : undefined;
   const commandArg = typeof args["command"] === "string" ? args["command"] : undefined;
   switch (toolName) {
@@ -26,6 +26,12 @@ export function buildAuthorizationReason(toolName: AgentToolName, args: Record<s
     case "bash":
       return `执行命令: ${commandArg ?? "(未知命令)"}`;
     default:
+      // MCP 工具（迭代 8）：全名 mcp__<serverId>__<tool>，参数摘要截断附后
+      if (toolName.startsWith(MCP_TOOL_PREFIX)) {
+        const argsJson = JSON.stringify(args);
+        const summary = argsJson.length > 120 ? `${argsJson.slice(0, 120)}…` : argsJson;
+        return `调用 MCP 工具: ${toolName} ${summary}`;
+      }
       return `执行工具 ${toolName}`;
   }
 }
@@ -33,6 +39,7 @@ export function buildAuthorizationReason(toolName: AgentToolName, args: Record<s
 /**
  * Authorizer：授权门（AC4）。
  * - AUTHORIZED_TOOLS（write/edit/bash）需授权；read/grep/find/ls 只读免授权；
+ * - MCP 工具（mcp__ 前缀，迭代 8）一律需授权——外部服务器能力不可预知，默认最严；
  * - 裁决三态：allow（本次）/ allow_session（本会话内该工具免再问）/ deny；
  * - 两种驱动方式：构造时注入 handler（直接裁决），或不注入时进入 pending
  *   队列由 decide(requestId, decision) 外部裁决（IPC 弹窗路径）。
@@ -48,7 +55,8 @@ export class Authorizer {
 
   /** 该工具此刻是否需要询问用户（会话级放行后免问）。 */
   needsAuthorization(toolName: string): boolean {
-    return AUTHORIZED_TOOLS.has(toolName) && !this.sessionAllowed.has(toolName);
+    if (this.sessionAllowed.has(toolName)) return false;
+    return AUTHORIZED_TOOLS.has(toolName) || toolName.startsWith(MCP_TOOL_PREFIX);
   }
 
   /** 当前挂起等待裁决的请求（供 UI 渲染授权队列）。 */
@@ -57,7 +65,7 @@ export class Authorizer {
   }
 
   async requestAuthorization(
-    toolName: AgentToolName,
+    toolName: string,
     args: Record<string, unknown>,
     reason: string,
     onCreated?: (request: AuthorizationRequest) => void

@@ -88,6 +88,12 @@ const api: DevwitApi = {
     },
     version: () => ipcRenderer.invoke(IPC.UpdateVersion) as Promise<string>,
     onStatus: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.UpdateStatus, cb)
+  },
+  mcp: {
+    list: () => ipcRenderer.invoke(IPC.McpList) as ReturnType<DevwitApi["mcp"]["list"]>,
+    upsert: (config) => ipcRenderer.invoke(IPC.McpUpsert, config) as Promise<void>,
+    delete: (id) => ipcRenderer.invoke(IPC.McpDelete, id) as Promise<void>,
+    onChanged: (cb) => subscribe<[]>(IPC.McpChanged, cb)
   }
 };
 
