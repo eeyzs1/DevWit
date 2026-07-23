@@ -1,6 +1,6 @@
 import type { AgentRunInput, AgentTraceEvent, DevwitApi } from "@devwit/contracts";
 import { describe, expect, it } from "vitest";
-import { TaskCenter } from "../src/task-center.js";
+import { TaskCenter, type TaskInfo } from "../src/task-center.js";
 
 /**
  * TaskCenter（AC9）单元测试。DevwitApi 最小自写替身（DI test double）：
@@ -140,6 +140,81 @@ describe("TaskCenter（AC9 任务指挥台状态机）", () => {
     fake.emit(event(center.listTasks()[0]!.sessionId, "done", "完成"));
     await center.sendToActive("继续");
     expect(fake.runInputs.at(-1)).toMatchObject({ workspaceRoot: "D:\\new", userText: "继续" });
+    center.dispose();
+  });
+});
+
+describe("TaskCenter 重启恢复（迭代 6 / AC15）", () => {
+  function restoredTask(id: string, status: TaskInfo["status"]): TaskInfo {
+    return { id, title: `标题${id}`, sessionId: `sess-${id}`, status, createdAt: "2026-07-23T00:00:00.000Z" };
+  }
+
+  it("restore：running/waiting_auth 归一为 interrupted，终态保留", () => {
+    const fake = new FakeDevwitApi();
+    const center = new TaskCenter({ api: fake.api, workspaceRoot: "", defaultModeId: "agent" });
+    center.restore({
+      tasks: [
+        restoredTask("task-1", "running"),
+        restoredTask("task-2", "waiting_auth"),
+        restoredTask("task-3", "done"),
+        restoredTask("task-4", "failed"),
+      ],
+      activeTaskId: "task-3",
+      taskCounter: 4,
+    });
+    expect(center.listTasks().map((task) => task.status)).toEqual(["interrupted", "interrupted", "done", "failed"]);
+    expect(center.activeTaskId).toBe("task-3");
+    center.dispose();
+  });
+
+  it("restore：taskCounter 回填，新任务 id 不与历史冲突", async () => {
+    const fake = new FakeDevwitApi();
+    const center = new TaskCenter({ api: fake.api, workspaceRoot: "", defaultModeId: "agent" });
+    center.restore({ tasks: [restoredTask("task-2", "done")], activeTaskId: null, taskCounter: 2 });
+    const id = await center.createTask("新任务");
+    expect(id).toBe("task-3");
+    center.dispose();
+  });
+
+  it("restore：快照 activeTaskId 失效时回退到第一个任务", () => {
+    const fake = new FakeDevwitApi();
+    const center = new TaskCenter({ api: fake.api, workspaceRoot: "", defaultModeId: "agent" });
+    center.restore({
+      tasks: [restoredTask("task-1", "done"), restoredTask("task-2", "done")],
+      activeTaskId: "task-不存在",
+      taskCounter: 2,
+    });
+    expect(center.activeTaskId).toBe("task-1");
+    center.dispose();
+  });
+
+  it("中断任务被续发：user_message 事件使其复活为 running", async () => {
+    const fake = new FakeDevwitApi();
+    const center = new TaskCenter({ api: fake.api, workspaceRoot: "", defaultModeId: "agent" });
+    center.restore({ tasks: [restoredTask("task-1", "running")], activeTaskId: "task-1", taskCounter: 1 });
+    expect(center.listTasks()[0]!.status).toBe("interrupted");
+    await center.sendToActive("接着做");
+    fake.emit(event("sess-task-1", "user_message", "接着做"));
+    expect(center.listTasks()[0]!.status).toBe("running");
+    center.dispose();
+  });
+
+  it("activate 中断任务：轨迹回放不标 running（agent 已随退出终止）", async () => {
+    const fake = new FakeDevwitApi();
+    const center = new TaskCenter({ api: fake.api, workspaceRoot: "", defaultModeId: "agent" });
+    center.restore({ tasks: [restoredTask("task-1", "waiting_auth")], activeTaskId: null, taskCounter: 1 });
+    fake.traces.set("sess-task-1", [
+      event("sess-task-1", "user_message", "意图", { text: "意图" }),
+      event("sess-task-1", "authorization_request", "write: 写入", {
+        requestId: "r1",
+        toolName: "write",
+        reason: "写入",
+      }),
+    ]);
+    await center.activate("task-1");
+    expect(center.activeController()!.isRunning).toBe(false);
+    // 授权请求项重建，等待用户重新裁决
+    expect(center.activeController()!.listItems().some((item) => item.kind === "authorization")).toBe(true);
     center.dispose();
   });
 });

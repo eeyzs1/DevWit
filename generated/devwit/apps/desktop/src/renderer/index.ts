@@ -19,6 +19,7 @@ import {
   mountChatPanel,
   mountContextPanel,
   mountDiffView,
+  type TaskInfo,
 } from "@devwit/chat-ui";
 import { openSettingsDialog, type SettingsDialogDeps } from "./settings-dialog.js";
 import { openEditorSetupDialog } from "./editor-setup-dialog.js";
@@ -43,7 +44,33 @@ const TASK_STATUS_KEY = {
   waiting_auth: "task.status.waiting_auth",
   done: "task.status.done",
   failed: "task.status.failed",
+  interrupted: "task.status.interrupted",
 } as const;
+
+/** 会话持久化快照（迭代 6 / AC15）：存于 settings "session.state"，重启后恢复现场。 */
+interface SessionStateSnapshot {
+  chatSessionId: string;
+  tasks: TaskInfo[];
+  activeTaskId: string | null;
+  taskCounter: number;
+  form: "chat" | "console";
+  workspaceRoot: string;
+}
+
+/** 从 settings 读取的值做形状校验（损坏/旧版本数据返回 null 按无历史处理）。 */
+function parseSessionSnapshot(raw: unknown): SessionStateSnapshot | null {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
+  const candidate = raw as Record<string, unknown>;
+  if (typeof candidate["chatSessionId"] !== "string" || !Array.isArray(candidate["tasks"])) return null;
+  return {
+    chatSessionId: candidate["chatSessionId"],
+    tasks: candidate["tasks"] as TaskInfo[],
+    activeTaskId: typeof candidate["activeTaskId"] === "string" ? candidate["activeTaskId"] : null,
+    taskCounter: typeof candidate["taskCounter"] === "number" ? candidate["taskCounter"] : 0,
+    form: candidate["form"] === "console" ? "console" : "chat",
+    workspaceRoot: typeof candidate["workspaceRoot"] === "string" ? candidate["workspaceRoot"] : "",
+  };
+}
 
 /** 编辑器会话：一个打开的文件 = 一个 TextDocument。 */
 interface OpenFile {
@@ -62,7 +89,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-function bootstrap(api: DevwitApi): void {
+async function bootstrap(api: DevwitApi): Promise<void> {
   const app = document.getElementById("app");
   if (app === null) return;
   app.textContent = "";
@@ -75,6 +102,8 @@ function bootstrap(api: DevwitApi): void {
   let workspaceRoot = "";
   /** 主界面形态（AC8）：chat = 对话形态；console = 指挥台形态。两形态 DOM 各自保持。 */
   let form: "chat" | "console" = "chat";
+  /** AC15：上次退出的会话快照（无/损坏时为 null，按全新会话处理）。 */
+  const savedSession = parseSessionSnapshot(await api.settings.get("session.state"));
 
   // ---- 布局骨架：header / main（两种形态之一）/ statusbar ----
   const header = el("div", "dw-header");
@@ -296,9 +325,8 @@ function bootstrap(api: DevwitApi): void {
     container.appendChild(li);
   }
 
-  async function openWorkspace(): Promise<void> {
-    const root = await api.workspace.openDialog();
-    if (root === null) return;
+  /** 进入工作区：设置根目录 + 构建文件树（打开对话框与 AC15 启动恢复共用）。 */
+  async function enterWorkspace(root: string): Promise<void> {
     workspaceRoot = root;
     chatController.setWorkspaceRoot(root);
     taskCenter.setWorkspaceRoot(root);
@@ -309,6 +337,13 @@ function bootstrap(api: DevwitApi): void {
     const ul = el("ul", "dw-tree");
     for (const child of tree.children ?? []) renderTree(child, ul);
     sidebar.appendChild(ul);
+  }
+
+  async function openWorkspace(): Promise<void> {
+    const root = await api.workspace.openDialog();
+    if (root === null) return;
+    await enterWorkspace(root);
+    schedulePersist();
   }
   openBtn.addEventListener("click", () => void openWorkspace());
   sidebar.appendChild(el("div", "dw-sidebar-empty", t("sidebar.empty")));
@@ -324,7 +359,8 @@ function bootstrap(api: DevwitApi): void {
   const contextController = new ContextPanelController(api);
   const chatController = new ChatController({
     api,
-    sessionId: `session-${Date.now()}`,
+    // AC15：恢复上次对话会话（轨迹在主进程落盘，可回放续聊）；无历史则开新会话
+    sessionId: savedSession?.chatSessionId ?? `session-${Date.now()}`,
     workspaceRoot: "",
     modeId: "chat",
   });
@@ -539,7 +575,66 @@ function bootstrap(api: DevwitApi): void {
     }
     editor.resize();
   }
-  formBtn.addEventListener("click", () => switchForm(form === "chat" ? "console" : "chat"));
+  formBtn.addEventListener("click", () => {
+    switchForm(form === "chat" ? "console" : "chat");
+    schedulePersist();
+  });
+
+  // ---- 会话持久化（迭代 6 / AC15）：状态变更防抖落盘 settings "session.state" ----
+  let persistTimer: number | undefined;
+  function persistSession(): void {
+    const snapshot: SessionStateSnapshot = {
+      chatSessionId: chatController.sessionId,
+      tasks: taskCenter.listTasks(),
+      activeTaskId: taskCenter.activeTaskId,
+      taskCounter: taskCenter.taskCounter,
+      form,
+      workspaceRoot,
+    };
+    void api.settings.set("session.state", snapshot);
+  }
+  function schedulePersist(): void {
+    window.clearTimeout(persistTimer);
+    persistTimer = window.setTimeout(persistSession, 300);
+  }
+
+  // ---- AC15 启动恢复：工作区 → 任务列表 → 对话/激活任务轨迹回放 → 形态 ----
+  if (savedSession !== null) {
+    if (savedSession.workspaceRoot !== "") {
+      try {
+        await enterWorkspace(savedSession.workspaceRoot);
+      } catch {
+        // 目录已被移动/删除：按未打开工作区处理，不阻断其余恢复
+        workspaceRoot = "";
+        refreshOnboarding();
+        statusWorkspace.textContent = t("status.noWorkspace");
+      }
+    }
+    if (savedSession.tasks.length > 0) {
+      taskCenter.restore({
+        tasks: savedSession.tasks,
+        activeTaskId: savedSession.activeTaskId,
+        taskCounter: savedSession.taskCounter,
+      });
+    }
+    try {
+      const chatTrace = await api.agent.trace(chatController.sessionId);
+      if (chatTrace.length > 0) chatController.ingestHistory(chatTrace, { resumed: true });
+    } catch {
+      // 轨迹读取失败不阻断启动（全新会话体验）
+    }
+    if (taskCenter.activeTaskId !== null) {
+      await taskCenter.activate(taskCenter.activeTaskId);
+    }
+    if (savedSession.form === "console") switchForm("console");
+    if (savedSession.tasks.length > 0) {
+      showStatus(t("session.restored", { tasks: String(savedSession.tasks.length) }));
+    }
+  }
+  // 恢复完成后再订阅持久化（避免恢复过程中的中间态覆盖历史快照）
+  taskCenter.onChange(schedulePersist);
+  chatController.onChange(schedulePersist);
+  persistSession();
 
   // agent 事件流驱动一次后刷新上下文 manifest 展示
   api.agent.onEvent((event) => {
@@ -674,6 +769,6 @@ window.addEventListener("DOMContentLoaded", () => {
     } else {
       setLocale(resolveSystemLocale());
     }
-    bootstrap(api);
+    await bootstrap(api);
   })();
 });

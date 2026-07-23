@@ -10,6 +10,7 @@
  * - 会话中切模型：AgentRunInput.providerId 覆盖模式绑定（AC5）。
  */
 import { promises as fs } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import type {
   AgentRunInput,
@@ -22,7 +23,7 @@ import type {
   ProviderConfig,
 } from "@devwit/contracts";
 import { IPC } from "@devwit/contracts";
-import { AgentLoop, AgentTrace, Authorizer, createNodeEnvironment } from "@devwit/agent-runtime";
+import { AgentLoop, AgentTrace, Authorizer, createNodeEnvironment, historyFromTrace } from "@devwit/agent-runtime";
 import type { ToolEnvironment } from "@devwit/agent-runtime";
 import { ContextEngine, fileFragmentSource, gitStatusSource, selectionSource } from "@devwit/context-engine";
 import { ProviderRegistry } from "@devwit/llm-providers";
@@ -52,6 +53,8 @@ export interface AiRuntimeDeps {
   send(channel: string, ...args: unknown[]): void;
   /** manifest 落盘目录（AC2 审计产物）。 */
   manifestsDir: string;
+  /** 轨迹落盘目录（迭代 6 / AC15：sessionId.jsonl 逐行追加，重启可恢复）。缺省取 manifestsDir 同级 traces/。 */
+  tracesDir?: string;
   /** 测试注入：替换真实工具环境（生产缺省 createNodeEnvironment）。 */
   env?: ToolEnvironment;
   /** 测试注入：替换 provider 工厂（生产缺省 registry.createProvider）。 */
@@ -69,10 +72,13 @@ export class AiRuntime {
   private lastModeId = "chat";
   /** hydrate 期间抑制 persist，打断 settings→store→settings 回环。 */
   private hydratingModes = false;
+  /** 轨迹落盘目录（AC15）。 */
+  private readonly tracesDir: string;
 
   constructor(deps: AiRuntimeDeps) {
     this.deps = deps;
     this.settings = deps.settings;
+    this.tracesDir = deps.tracesDir ?? path.join(path.dirname(deps.manifestsDir), "traces");
     this.env = deps.env ?? createNodeEnvironment();
     // 凭证解析：settings 实现 CredentialResolver（密钥仅在请求时读取，换 key 不重启）
     this.registry = new ProviderRegistry(this.settings);
@@ -151,8 +157,11 @@ export class AiRuntime {
 
   private persistModes(): void {
     if (this.hydratingModes) return;
-    const userModes = this.modeStore.list().filter((mode) => !mode.builtin);
-    this.settings.set(MODES_KEY, userModes);
+    // 全量持久化（迭代 6 修复：内置模式可编辑，绑定模型/改提示词等修改必须跨重启
+    // 保留——此前只存非内置模式，重启后内置 agent/chat 模式的绑定丢失，DW_MODE_UNBOUND）。
+    // 水合侧 replaceAll 对内置 id 冲突保留 builtin 标志；未来版本新增的内置模式
+    // 不在持久化列表中，构造时的种子值保留，自动出现。
+    this.settings.set(MODES_KEY, this.modeStore.list());
   }
 
   // --------------------------------------------------------------------------
@@ -191,8 +200,11 @@ export class AiRuntime {
       trace: session.trace,
       onAssistantDelta: (delta) => this.emitDelta(input.sessionId, delta),
     });
+    // AC15：本轮之前的轨迹重建为对话历史（跨轮次/跨重启连续记忆）；
+    // 在 loop 记录本轮 user_message 之前快照，避免重复计入本轮输入。
+    const priorHistory = historyFromTrace(session.trace.list());
     try {
-      await loop.run(input, session.abort.signal);
+      await loop.run(input, session.abort.signal, priorHistory);
     } finally {
       session.running = false;
     }
@@ -213,7 +225,10 @@ export class AiRuntime {
   }
 
   trace(sessionId: string): AgentTraceEvent[] {
-    return this.sessions.get(sessionId)?.trace.list() ?? [];
+    const session = this.sessions.get(sessionId);
+    if (session !== undefined) return session.trace.list();
+    // AC15：进程内无此会话（如重启后）→ 从磁盘轨迹文件读回
+    return this.readPersistedTrace(sessionId);
   }
 
   // --------------------------------------------------------------------------
@@ -280,8 +295,11 @@ export class AiRuntime {
       engine.setTypeEnabled(type, enabled);
     }
     const trace = new AgentTrace(sessionId);
+    // AC15：先水合磁盘历史（重启后续跑同一会话），再订阅新事件实时落盘
+    trace.loadPersisted(this.readPersistedTrace(sessionId));
     trace.onRecord((event) => {
       this.deps.send(IPC.AgentEvent, event);
+      this.persistTraceEvent(event);
     });
     const session: SessionState = {
       engine,
@@ -332,6 +350,46 @@ export class AiRuntime {
       summary: delta,
     };
     this.deps.send(IPC.AgentEvent, event);
+  }
+
+  // --------------------------------------------------------------------------
+  // 轨迹持久化（迭代 6 / AC15）：traces/<sessionId>.jsonl 逐行追加
+  // --------------------------------------------------------------------------
+
+  /** sessionId 经白名单字符化后作文件名（渲染进程可控此值，防路径穿越）。 */
+  private traceFile(sessionId: string): string {
+    return path.join(this.tracesDir, `${sessionId.replace(/[^\w.-]/g, "_")}.jsonl`);
+  }
+
+  private persistTraceEvent(event: AgentTraceEvent): void {
+    try {
+      mkdirSync(this.tracesDir, { recursive: true });
+      appendFileSync(this.traceFile(event.sessionId), `${JSON.stringify(event)}\n`, "utf-8");
+    } catch {
+      // 落盘失败不阻断会话：轨迹仍在内存中，重启后仅丢失持久副本
+    }
+  }
+
+  private readPersistedTrace(sessionId: string): AgentTraceEvent[] {
+    const file = this.traceFile(sessionId);
+    if (!existsSync(file)) return [];
+    let raw: string;
+    try {
+      raw = readFileSync(file, "utf-8");
+    } catch {
+      return [];
+    }
+    const events: AgentTraceEvent[] = [];
+    for (const line of raw.split("\n")) {
+      const trimmed = line.trim();
+      if (trimmed === "") continue;
+      try {
+        events.push(JSON.parse(trimmed) as AgentTraceEvent);
+      } catch {
+        // 单行损坏（如异常断电写了一半）跳过，不阻断整体恢复
+      }
+    }
+    return events;
   }
 
   private anySession(): SessionState | undefined {

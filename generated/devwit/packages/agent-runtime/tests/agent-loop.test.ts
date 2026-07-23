@@ -191,3 +191,28 @@ describe("AgentLoop", () => {
     expect(provider.calls).toHaveLength(0);
   });
 });
+
+describe("AgentLoop 会话持久化（迭代 6 / AC15）", () => {
+  it("priorHistory 注入：历史消息排在当前输入之前进入 transcript", async () => {
+    const { loop, provider } = makeHarness([textThenDone("好")]);
+    await loop.run(INPUT, undefined, [
+      { role: "user", content: "上一轮的提问" },
+      { role: "assistant", content: "上一轮的答复" },
+    ]);
+    const messages = provider.calls[0]!.messages;
+    // transcript 末尾三段：历史两条 + 本轮 user；前文可能有 system 提示
+    expect(messages.at(-3)).toEqual({ role: "user", content: "上一轮的提问" });
+    expect(messages.at(-2)).toEqual({ role: "assistant", content: "上一轮的答复" });
+    expect(messages.at(-1)).toEqual({ role: "user", content: INPUT.userText });
+  });
+
+  it("user_message 事件以 detail.text 存档完整原文（summary 截断不丢正文）", async () => {
+    const longText = "长".repeat(500);
+    const { loop, trace } = makeHarness([textThenDone("收到")]);
+    await loop.run({ ...INPUT, userText: longText });
+    const userEvent = trace.list().find((event) => event.type === "user_message");
+    expect(userEvent).toBeDefined();
+    expect((userEvent!.detail as { text: string }).text).toBe(longText);
+    expect(userEvent!.summary.length).toBeLessThan(longText.length);
+  });
+});

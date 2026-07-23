@@ -13,7 +13,7 @@ import type { ChatContextSnapshot } from "./chat-controller.js";
  * 不碰 DOM——视图（renderer 的指挥台列）订阅 onChange 渲染。
  */
 
-export type TaskStatus = "running" | "waiting_auth" | "done" | "failed";
+export type TaskStatus = "running" | "waiting_auth" | "done" | "failed" | "interrupted";
 
 export interface TaskInfo {
   id: string;
@@ -53,6 +53,11 @@ export class TaskCenter {
 
   get activeTaskId(): string | null {
     return this.activeId;
+  }
+
+  /** 任务计数器（迭代 6 / AC15 持久化）：恢复时回填，保证新任务 id 不与历史冲突。 */
+  get taskCounter(): number {
+    return this.counter;
   }
 
   listTasks(): TaskInfo[] {
@@ -123,11 +128,36 @@ export class TaskCenter {
     try {
       const trace = await this.deps.api.agent.trace(entry.sessionId);
       if (trace.length > 0) {
-        entry.controller.ingestHistory(trace);
+        // 中断恢复的任务不标 running（agent 进程已随上次退出而终止）
+        entry.controller.ingestHistory(trace, { resumed: entry.status === "interrupted" });
       }
     } catch {
       // 轨迹读取失败不阻塞激活：实时事件仍会到达（可能是一次全新会话尚无轨迹）
     }
+  }
+
+  /**
+   * 从持久化快照恢复任务列表（迭代 6 / AC15 应用重启后）。
+   * 上次退出时处于 running/waiting_auth 的任务归一为 interrupted（agent 已终止），
+   * 激活任务的轨迹回放由调用方随后触发（activate）。
+   */
+  restore(snapshot: { tasks: TaskInfo[]; activeTaskId: string | null; taskCounter: number }): void {
+    for (const task of snapshot.tasks) {
+      const status: TaskStatus =
+        task.status === "running" || task.status === "waiting_auth" ? "interrupted" : task.status;
+      const controller = new ChatController({
+        api: this.deps.api,
+        sessionId: task.sessionId,
+        workspaceRoot: this.workspaceRoot,
+        modeId: this.defaultModeId,
+      });
+      this.tasks.push({ ...task, status, controller });
+    }
+    this.counter = Math.max(this.counter, snapshot.taskCounter);
+    this.activeId = snapshot.activeTaskId !== null && this.tasks.some((task) => task.id === snapshot.activeTaskId)
+      ? snapshot.activeTaskId
+      : (this.tasks[0]?.id ?? null);
+    this.emit();
   }
 
   /** 向激活任务追加一条用户意图。 */
@@ -168,6 +198,10 @@ export class TaskCenter {
     const entry = this.tasks.find((task) => task.sessionId === event.sessionId);
     if (entry === undefined) return;
     switch (event.type) {
+      case "user_message":
+        // 中断任务被续发（新一轮 run 开始）→ 复活为进行中
+        entry.status = "running";
+        break;
       case "authorization_request":
         entry.status = "waiting_auth";
         break;

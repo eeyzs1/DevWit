@@ -80,12 +80,18 @@ export class AgentLoop {
     return this.injectedTrace ?? this.lastRunTrace ?? null;
   }
 
-  async run(input: AgentRunInput, signal?: AbortSignal): Promise<AgentRunResult> {
+  /**
+   * 驱动一次 run。priorHistory（迭代 6 / AC15）：本轮之前的会话历史
+   * （由 AiRuntime 从持久化轨迹重建），作为 transcript 种子注入，
+   * 使跨轮次/跨重启的对话对模型可见。
+   */
+  async run(input: AgentRunInput, signal?: AbortSignal, priorHistory?: ChatMessage[]): Promise<AgentRunResult> {
     const trace = this.injectedTrace ?? new AgentTrace(input.sessionId);
     this.lastRunTrace = trace;
     const maxIterations = this.deps.maxIterations ?? DEFAULT_MAX_ITERATIONS;
-    const transcript: ChatMessage[] = [{ role: "user", content: input.userText }];
-    trace.record("user_message", input.userText);
+    const transcript: ChatMessage[] = [...(priorHistory ?? []), { role: "user", content: input.userText }];
+    // detail.text 存档完整原文（summary 超 200 字截断），供 historyFromTrace 保真重建
+    trace.record("user_message", input.userText, { text: input.userText });
 
     let iterations = 0;
     let finalText = "";
@@ -163,7 +169,7 @@ export class AgentLoop {
       trace.record(
         "assistant_message",
         assistantText.length > 0 ? assistantText : `（发起 ${toolCalls.length} 个工具调用）`,
-        toolCalls.length > 0 ? { toolCalls } : undefined
+        { text: assistantText, ...(toolCalls.length > 0 ? { toolCalls } : {}) }
       );
 
       if (toolCalls.length === 0) {

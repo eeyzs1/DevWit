@@ -1,13 +1,13 @@
 {
-  "id": "manifest-85f165dc-fc37-41a4-8fb3-a1ca73135aea",
-  "timestamp": "2026-07-23T03:33:44.740Z",
-  "sessionId": "session-1784777622937",
+  "id": "manifest-24e18b9f-04c3-48f5-b7aa-14a6a04cfada",
+  "timestamp": "2026-07-23T09:07:17.777Z",
+  "sessionId": "session-1784797636125",
   "modeId": "agent",
   "providerId": "e2e-local-a",
   "model": "e2e-model-a",
   "items": [
     {
-      "id": "item-849eee34-1e21-4005-971b-98d250ebb5d6",
+      "id": "item-4ab4203d-244f-4c49-9983-78d11d709692",
       "type": "system_prompt",
       "label": "系统提示",
       "enabled": true,
@@ -17,7 +17,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-ec4ec16b-f038-427e-b532-005b71739ddb",
+      "id": "item-a300b418-6ed7-47ba-99fd-c3f0e8a33233",
       "type": "tool_definitions",
       "label": "工具定义（7 个）",
       "enabled": true,
@@ -27,27 +27,27 @@
       "counting": "exact"
     },
     {
-      "id": "item-5b044e77-5ebb-4334-8872-a9589758f532",
+      "id": "item-b7e8911f-500e-48d0-9348-9ebc8b2c9214",
       "type": "conversation_history",
-      "label": "会话历史（3 条）",
+      "label": "会话历史（5 条）",
       "enabled": true,
-      "tokens": 27,
-      "content": "[user] 创建文件 agent-created.txt\n[assistant] \n[tool] 已写入 agent-created.txt（24 字符）",
+      "tokens": 84,
+      "content": "[user] 你好\n[assistant] 你好！我是 DevWit，简洁上下文的 AI 编程助手。\n[user] 请把 hello.txt 加一行\n[assistant] 这是修改后的 hello.txt：\n\n```\nE2E hello devwit\nline2\nadded by agent proposal\n```\n[user] 创建文件 agent-created.txt",
       "source": "conversation",
       "counting": "exact"
     },
     {
-      "id": "item-056edc6d-cace-4949-83bf-5191ed8cf505",
+      "id": "item-bd734d7f-6070-4c57-9b88-5c3d79435bdc",
       "type": "file_fragment",
       "label": "文件片段 hello.txt",
       "enabled": false,
       "tokens": 0,
       "content": "",
-      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-i0MALD\\hello.txt",
+      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-mLnm5M\\hello.txt",
       "counting": "exact"
     },
     {
-      "id": "item-d4c8b8e4-d3bb-44c8-be2a-a5cc402acc8f",
+      "id": "item-87ad291c-0ede-465c-8ad4-8f75b98a7511",
       "type": "git_status",
       "label": "Git 状态",
       "enabled": true,
@@ -57,6 +57,6 @@
       "counting": "exact"
     }
   ],
-  "totalTokens": 1084,
+  "totalTokens": 1141,
   "systemPromptTokens": 86
 }

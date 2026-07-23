@@ -171,6 +171,42 @@ describe("ChatController", () => {
   });
 });
 
+describe("ChatController 会话恢复（迭代 6 / AC15）", () => {
+  it("ingestHistory 正文优先 detail.text：超长消息不被 summary 截断", () => {
+    const fake = new FakeDevwitApi();
+    const controller = new ChatController({ api: fake.api, sessionId: "s1", workspaceRoot: "", modeId: "chat" });
+    const fullText = "完".repeat(500);
+    controller.ingestHistory([
+      event("s1", "user_message", `${"完".repeat(200)}…`, { text: fullText }),
+      event("s1", "assistant_message", "已收到", { text: "已收到" }),
+      event("s1", "done", "完成"),
+    ]);
+    const items = controller.listItems();
+    expect(items[0]).toEqual({ kind: "user", text: fullText });
+    expect(items[1]).toEqual({ kind: "assistant", text: "已收到", streaming: false });
+    controller.dispose();
+  });
+
+  it("resumed=true（重启恢复）：轨迹末尾无 done 也不标 running", () => {
+    const fake = new FakeDevwitApi();
+    const controller = new ChatController({ api: fake.api, sessionId: "s1", workspaceRoot: "", modeId: "chat" });
+    controller.ingestHistory(
+      [event("s1", "user_message", "跑到一半", { text: "跑到一半" }), event("s1", "tool_call", 'bash({"cmd":"t"})')],
+      { resumed: true }
+    );
+    expect(controller.isRunning).toBe(false);
+    controller.dispose();
+  });
+
+  it("resumed 缺省（同进程切换回放）：轨迹末尾无 done 视为仍在运行", () => {
+    const fake = new FakeDevwitApi();
+    const controller = new ChatController({ api: fake.api, sessionId: "s1", workspaceRoot: "", modeId: "chat" });
+    controller.ingestHistory([event("s1", "user_message", "在跑", { text: "在跑" })]);
+    expect(controller.isRunning).toBe(true);
+    controller.dispose();
+  });
+});
+
 describe("ContextPanelController", () => {
   const MANIFEST: ContextManifest = {
     id: "manifest-1",

@@ -157,5 +157,23 @@ iteration_5:
   notes: 根因——文件树构建后语言切换不重建导致 ↗ tooltip 停留旧语言；通用分区 hint 落在 110px label 列被挤压（CSS 补 .dw-form > .dw-modal-hint { grid-column: 1 / -1 } + .dw-modal-hint 基础样式）。首启语言改为跟随系统后，smoke/iteration2/verify-i4 三个 e2e 脚本统一加 --lang=zh-CN 固定中文测试环境
   e2e_report: evidence/AC14/verify-i5-report.json (11 项断言全 PASS) + smoke/iteration2/verify-i4 回归 PASSED
   unit_tests: 30 files / 239 tests passed
+iteration_6:
+  scope: 会话持久化（AC15）：对话 + Agent 任务历史落盘，应用重启后恢复现场并保留跨重启记忆
+  acceptance_criteria:
+  - description: 轨迹落盘：AgentTrace 事件实时 JSONL 追加 userData/traces/<sessionId>.jsonl（detail.text 存完整原文，summary 截断仅兜底）；会话快照（工作区/任务列表/激活任务/形态/对话 sessionId）防抖 300ms 写 settings "session.state"；sessionId 白名单字符化防路径穿越
+    id: AC15
+    status: completed
+    verifier: tests/ai-runtime-trace.test.ts（真实 tmp fs 回环）+ tests/e2e/verify-i6.mjs + evidence/AC15
+  - description: 重启恢复：工作区/任务列表/形态自动恢复；running/waiting_auth 归一为 interrupted（新状态 + 徽标样式 + i18n）；对话与激活任务轨迹磁盘回放（resumed=true 不标 running）；状态栏提示「已恢复上次会话（N 个任务）」
+    id: AC15
+    status: completed
+    verifier: tests/e2e/verify-i6.mjs（双进程 kill→重启回环）+ chat-ui tests + evidence/AC15
+  - description: 跨重启记忆：ensureSession 先 loadPersisted 水合磁盘轨迹，run 前 historyFromTrace 重建 priorHistory 注入 transcript（含 toolCalls）；中断任务续发复活为 running，轨迹追加 seq 连续
+    id: AC15
+    status: completed
+    verifier: tests/e2e/verify-i6.mjs（服务端请求体含首轮意图断言）+ agent-runtime trace.test.ts + evidence/AC15/traces-after-restart.json
+  fixes: persistModes 全量持久化——内置模式可编辑（绑定模型/改提示词），此前只存非内置模式导致重启后内置 agent/chat 绑定丢失 DW_MODE_UNBOUND；replaceAll 水合保留内置标志与未来新内置种子
+  e2e_report: evidence/AC15/verify-i6-report.json (23 项断言全 PASS) + smoke/iteration2/verify-i4 回归 PASSED
+  unit_tests: 32 files / 259 tests passed
 status: complete
-updated_at: '2026-07-23T11:45:00.000000'
+updated_at: '2026-07-23T17:15:00.000000'

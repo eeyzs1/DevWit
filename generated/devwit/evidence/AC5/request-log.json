@@ -12,7 +12,7 @@
     "model": "e2e-model-a",
     "tools": [],
     "systemPrompt": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。",
-    "messageCount": 3,
+    "messageCount": 5,
     "lastRole": "user"
   },
   {
@@ -28,7 +28,7 @@
       "ls"
     ],
     "systemPrompt": "你是 DevWit 的编码 Agent，通过工具逐步完成用户任务。先用 read/grep/find/ls 了解现状，再用 write/edit 做最小修改，必要时用 bash 验证。修改文件前先读文件；一次只推进一小步；完成后用一句话说明做了什么。",
-    "messageCount": 3,
+    "messageCount": 7,
     "lastRole": "user"
   },
   {
@@ -44,7 +44,7 @@
       "ls"
     ],
     "systemPrompt": "你是 DevWit 的编码 Agent，通过工具逐步完成用户任务。先用 read/grep/find/ls 了解现状，再用 write/edit 做最小修改，必要时用 bash 验证。修改文件前先读文件；一次只推进一小步；完成后用一句话说明做了什么。",
-    "messageCount": 5,
+    "messageCount": 9,
     "lastRole": "tool"
   },
   {
@@ -60,7 +60,7 @@
       "ls"
     ],
     "systemPrompt": "你是 DevWit 的编码 Agent，通过工具逐步完成用户任务。先用 read/grep/find/ls 了解现状，再用 write/edit 做最小修改，必要时用 bash 验证。修改文件前先读文件；一次只推进一小步；完成后用一句话说明做了什么。",
-    "messageCount": 3,
+    "messageCount": 10,
     "lastRole": "user"
   },
   {
@@ -70,7 +70,7 @@
       "read"
     ],
     "systemPrompt": "你是 E2E 自定义模式，系统提示经热更新注入。",
-    "messageCount": 3,
+    "messageCount": 12,
     "lastRole": "user"
   }
 ]

@@ -1,0 +1,149 @@
+[
+  {
+    "name": "task-session-1784797607795-1.jsonl",
+    "events": [
+      {
+        "seq": 1,
+        "timestamp": "2026-07-23T09:06:47.869Z",
+        "sessionId": "task-session-1784797607795-1",
+        "type": "user_message",
+        "summary": "创建文件 ac15-note.txt",
+        "detail": {
+          "text": "创建文件 ac15-note.txt"
+        }
+      },
+      {
+        "seq": 2,
+        "timestamp": "2026-07-23T09:06:48.063Z",
+        "sessionId": "task-session-1784797607795-1",
+        "type": "assistant_message",
+        "summary": "（发起 1 个工具调用）",
+        "detail": {
+          "text": "",
+          "toolCalls": [
+            {
+              "id": "call_i6_1",
+              "name": "write",
+              "args": {
+                "path": "ac15-note.txt",
+                "content": "persisted across restart\n"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "seq": 3,
+        "timestamp": "2026-07-23T09:06:48.064Z",
+        "sessionId": "task-session-1784797607795-1",
+        "type": "tool_call",
+        "summary": "write({\"path\":\"ac15-note.txt\",\"content\":\"persisted across restart\\n\"})",
+        "detail": {
+          "args": {
+            "path": "ac15-note.txt",
+            "content": "persisted across restart\n"
+          }
+        }
+      },
+      {
+        "seq": 4,
+        "timestamp": "2026-07-23T09:06:48.065Z",
+        "sessionId": "task-session-1784797607795-1",
+        "type": "authorization_request",
+        "summary": "write: 写入文件: ac15-note.txt",
+        "detail": {
+          "requestId": "auth-33017d40-d7e1-444e-a642-bae618bc62e1",
+          "toolName": "write",
+          "args": {
+            "path": "ac15-note.txt",
+            "content": "persisted across restart\n"
+          },
+          "reason": "写入文件: ac15-note.txt"
+        }
+      },
+      {
+        "seq": 5,
+        "timestamp": "2026-07-23T09:06:48.130Z",
+        "sessionId": "task-session-1784797607795-1",
+        "type": "authorization_decision",
+        "summary": "write → allow",
+        "detail": {
+          "requestId": "auth-33017d40-d7e1-444e-a642-bae618bc62e1",
+          "decision": "allow"
+        }
+      },
+      {
+        "seq": 6,
+        "timestamp": "2026-07-23T09:06:48.133Z",
+        "sessionId": "task-session-1784797607795-1",
+        "type": "tool_result",
+        "summary": "write 成功",
+        "detail": {
+          "result": {
+            "ok": true,
+            "output": "已写入 ac15-note.txt（25 字符）"
+          }
+        }
+      },
+      {
+        "seq": 7,
+        "timestamp": "2026-07-23T09:06:48.284Z",
+        "sessionId": "task-session-1784797607795-1",
+        "type": "assistant_message",
+        "summary": "已创建 ac15-note.txt。",
+        "detail": {
+          "text": "已创建 ac15-note.txt。"
+        }
+      },
+      {
+        "seq": 8,
+        "timestamp": "2026-07-23T09:06:48.284Z",
+        "sessionId": "task-session-1784797607795-1",
+        "type": "done",
+        "summary": "任务完成"
+      }
+    ]
+  },
+  {
+    "name": "task-session-1784797608347-2.jsonl",
+    "events": [
+      {
+        "seq": 1,
+        "timestamp": "2026-07-23T09:06:48.407Z",
+        "sessionId": "task-session-1784797608347-2",
+        "type": "user_message",
+        "summary": "分析项目结构（长任务）",
+        "detail": {
+          "text": "分析项目结构（长任务）"
+        }
+      },
+      {
+        "seq": 2,
+        "timestamp": "2026-07-23T09:06:52.213Z",
+        "sessionId": "task-session-1784797608347-2",
+        "type": "user_message",
+        "summary": "继续分析",
+        "detail": {
+          "text": "继续分析"
+        }
+      },
+      {
+        "seq": 3,
+        "timestamp": "2026-07-23T09:06:52.412Z",
+        "sessionId": "task-session-1784797608347-2",
+        "type": "assistant_message",
+        "summary": "项目结构分析完成。",
+        "detail": {
+          "text": "项目结构分析完成。"
+        }
+      },
+      {
+        "seq": 4,
+        "timestamp": "2026-07-23T09:06:52.414Z",
+        "sessionId": "task-session-1784797608347-2",
+        "type": "done",
+        "summary": "任务完成"
+      }
+    ]
+  }
+]

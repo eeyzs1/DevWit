@@ -188,6 +188,13 @@ body,
   border-color: var(--dw-danger);
 }
 
+/* 中断（重启恢复）：弱化的警告色，区别于失败 */
+.dw-task-badge-interrupted {
+  color: #e5b567;
+  border-color: #e5b567;
+  opacity: 0.75;
+}
+
 .dw-task-empty {
   color: var(--dw-fg-dim);
   padding: 12px 6px;

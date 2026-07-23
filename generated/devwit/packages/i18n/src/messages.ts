@@ -57,8 +57,10 @@ const zhCN = {
   "task.status.waiting_auth": "待授权",
   "task.status.done": "完成",
   "task.status.failed": "失败",
+  "task.status.interrupted": "已中断",
   "task.intent.required": "任务意图不能为空",
   "task.noActive": "没有激活的任务：请先创建任务",
+  "session.restored": "已恢复上次会话（{tasks} 个任务）",
 
   // ---- 编辑提案审查 ----
   "review.openFileFirst": "请先打开一个文件再审查修改",
@@ -266,8 +268,10 @@ const enUS: Messages = {
   "task.status.waiting_auth": "Waiting auth",
   "task.status.done": "Done",
   "task.status.failed": "Failed",
+  "task.status.interrupted": "Interrupted",
   "task.intent.required": "Task intent must not be empty",
   "task.noActive": "No active task: create one first",
+  "session.restored": "Previous session restored ({tasks} tasks)",
 
   "review.openFileFirst": "Open a file before reviewing changes",
   "review.noBlock": " (no unique code block found in the reply; cannot build a diff)",

@@ -56,6 +56,12 @@ function isAuthorizationDetail(detail: unknown): detail is AuthorizationDetail {
   );
 }
 
+/** 事件正文：detail.text 为完整原文（迭代 6 起由 agent-loop 存档），summary 超 200 字会截断仅作兜底。 */
+function eventText(event: AgentTraceEvent): string {
+  const detail = event.detail as { text?: unknown } | undefined;
+  return typeof detail?.text === "string" ? detail.text : event.summary;
+}
+
 export class ChatController {
   private readonly deps: ChatControllerDeps;
   private readonly items: ChatItem[] = [];
@@ -164,22 +170,24 @@ export class ChatController {
   /**
    * 回放持久化轨迹（api.agent.trace 的结果）重建消息列表（指挥台切换任务时用）。
    * 轨迹不含 assistant_delta（瞬时事件），定稿文本由 assistant_message 承载。
+   * resumed=true（迭代 6 / AC15 应用重启后恢复）：agent 进程已退出，
+   * 即使轨迹末尾无 done/error 也不标 running（会话已中断，等待用户续发）。
    */
-  ingestHistory(events: AgentTraceEvent[]): void {
+  ingestHistory(events: AgentTraceEvent[], opts: { resumed?: boolean } = {}): void {
     this.items.length = 0;
     this.running = false;
     for (const event of events) {
       if (event.sessionId !== this.deps.sessionId) continue;
       // 实时路径中 user_message 跳过（本地已追加）；回放时本地无副本，需补上
       if (event.type === "user_message") {
-        this.items.push({ kind: "user", text: event.summary });
+        this.items.push({ kind: "user", text: eventText(event) });
         continue;
       }
       this.onAgentEvent(event);
     }
-    // 轨迹末尾若无 done/error，说明会话可能仍在进行（如应用重启后 agent 仍在跑）
+    // 轨迹末尾若无 done/error，说明会话可能仍在进行（同进程切换任务回放时）
     const last = events.at(-1);
-    if (last !== undefined && last.type !== "done" && last.type !== "error") {
+    if (opts.resumed !== true && last !== undefined && last.type !== "done" && last.type !== "error") {
       this.running = true;
     }
     this.emit();
@@ -210,12 +218,13 @@ export class ChatController {
       }
       case "assistant_message": {
         const last = this.items[this.items.length - 1];
+        const fullText = eventText(event);
         if (last?.kind === "assistant" && last.streaming) {
           // 定稿：以轨迹存档的完整文本为准（delta 是瞬时通道）
-          last.text = event.summary;
+          last.text = fullText;
           last.streaming = false;
         } else {
-          this.items.push({ kind: "assistant", text: event.summary, streaming: false });
+          this.items.push({ kind: "assistant", text: fullText, streaming: false });
         }
         break;
       }
