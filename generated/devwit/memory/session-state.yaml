@@ -264,11 +264,12 @@ iteration_12:
   - description: 'electron-builder.yml 新增 linux 段：AppImage（electron-updater 在 Linux 唯一支持的自动更新格式）+ deb（Debian/Ubuntu 安装包，无自动更新——手动下载覆盖，与未签名 mac 同策略），category=Development；latest-linux.yml 与 latest.yml/latest-mac.yml 同名无冲突'
     id: AC21
     status: completed
-    verifier: js-yaml 静态校验通过（linux.target=["AppImage","deb"]）；真实 Linux 构建待下一 tag CI 运行确认
+    verifier: CI run 30075590128 实证（build-linux 2m18s success）——v0.1.1 prerelease 资产含 DevWit-0.1.1.AppImage (118.7MB) + devwit_0.1.1_amd64.deb (81.6MB) + latest-linux.yml
   - description: 'release.yml 新增 build-linux job（ubuntu-latest）：npm ci → uname -m 自适应 linux-x64/arm64 二进制恢复（unzip + path.txt=electron）→ npm run dist → artifacts 追加同一 prerelease（*.AppImage/*.deb/*.blockmap/*.yml）'
     id: AC21
     status: completed
-    verifier: js-yaml 静态校验通过（jobs=build-windows,build-macos,build-linux）
-  notes: 本地为 Windows 环境无法实机构建 Linux 包，与迭代 9 macOS 同口径——静态校验 + CI 实证。推送 main 不触发 release.yml（tags: v*），三平台验证需打 tag。
+    verifier: CI run 30075590128 四 job 全 success（prepare-release/windows/macOS/linux）——v0.1.1 prerelease 共 12 资产：exe+blockmap+latest.yml / dmg+zip+blockmap+latest-mac.yml / AppImage+deb+latest-linux.yml
+  notes: 本地为 Windows 环境无法实机构建 Linux 包，静态校验 + CI 实证（与迭代 9 macOS 同口径，已闭环）。v0.1.1 发布实测修复三处——(1) 三平台并行收尾竞争 create release 致 already_exists：新增 prepare-release 前置 job 统一建空 prerelease，构建 job needs 依赖只追加上传；(2) Linux 构建元数据缺失：package.json 补 homepage + author 带 email（deb 必需）；(3) dist 脚本补 --publish never 防 electron-builder 本地/CI 构建时误尝试发布。残留 v0.1.1 release 经 gh api 枚举全量删除后 rerun 成功。
+  ci_evidence: run 30075590128 (success) — https://github.com/eeyzs1/DevWit/releases/tag/v0.1.1
 status: complete
-updated_at: '2026-07-24T12:10:00.000000'
+updated_at: '2026-07-24T18:05:00.000000'
