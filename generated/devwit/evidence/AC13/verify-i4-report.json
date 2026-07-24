@@ -16,7 +16,7 @@
     "「保存并打开」保存模板后立即重试打开（真实 spawn，标记文件落盘）",
     "UI 错误为本地化中文且模式名已本地化（实际: 错误：模式「对话」未绑定模型：请在设置 · 模型中配置模型，或在对话顶部切换模型）",
     "UI 错误不暴露内部错误码（实际: 错误：模式「对话」未绑定模型：请在设置 · 模型中配置模型，或在对话顶部切换模型）",
-    "设置·模型表单 label 已本地化（实际: ID|类型|显示名|Base URL|模型|API Key|最大 tokens）",
+    "设置·模型表单 label 已本地化（实际: 预设|ID|类型|显示名|Base URL|模型|API Key|最大 tokens）",
     "英文界面模式下拉框显示 Chat/Agent（实际: Chat, Agent, Orchestrator)",
     "切回中文后模式下拉框恢复「对话/智能体」（实际: 对话, 智能体, 编排)",
     "主进程 stderr 无 CJK 字符（527B，UTF-8 解码）",
@@ -27,6 +27,6 @@
     "bytes": 527,
     "hasCjk": false,
     "invalidUtf8": 0,
-    "tail": "\r\nDevTools listening on ws://127.0.0.1:21578/devtools/browser/1ec93b36-9b38-429f-b62e-fccc3fa02829\r\nError occurred in handler for 'agent:run': Error: DW_MODE_UNBOUND:chat\n    at AiRuntime.run (file:///E:/AI_Generated_Projects/DevWit/generated/devwit/apps/desktop/dist/main/index.js:20083:13)\n    at table.<computed> (file:///E:/AI_Generated_Projects/DevWit/generated/devwit/apps/desktop/dist/main/index.js:20522:49)\n    at Session.<anonymous> (node:electron/js2c/browser_init:2:107269)\n    at Session.emit (node:events:519:28)\n"
+    "tail": "\r\nDevTools listening on ws://127.0.0.1:21124/devtools/browser/af6096b3-563a-4f5c-9a9c-bd1690c19810\r\nError occurred in handler for 'agent:run': Error: DW_MODE_UNBOUND:chat\n    at AiRuntime.run (file:///E:/AI_Generated_Projects/DevWit/generated/devwit/apps/desktop/dist/main/index.js:20195:13)\n    at table.<computed> (file:///E:/AI_Generated_Projects/DevWit/generated/devwit/apps/desktop/dist/main/index.js:20644:49)\n    at Session.<anonymous> (node:electron/js2c/browser_init:2:107269)\n    at Session.emit (node:events:519:28)\n"
   }
 }

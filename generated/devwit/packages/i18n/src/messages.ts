@@ -132,6 +132,11 @@ const zhCN = {
   "mode.delete": "删除",
   "mode.required": "名称与系统提示必填",
   "mode.saved": "已保存（热生效）",
+  "mode.export": "导出",
+  "mode.import": "导入",
+  "mode.export.done": "已导出：{path}",
+  "mode.import.done": "已导入「{name}」（新自定义模式）",
+  "mode.share.hint": "模式可导出为 JSON 文件分享给他人；导入的文件会落为新自定义模式。",
   // 内置模式显示名（数据层工厂名为英文常量，界面按当前语言显示；用户改名后尊重用户值）
   "mode.builtin.chat.name": "对话",
   "mode.builtin.agent.name": "智能体",
@@ -183,6 +188,10 @@ const zhCN = {
 
   // ---- 运行时错误（主进程抛 ASCII 错误码避免终端乱码，渲染端按当前语言本地化）----
   "err.modeNotFound": "模式不存在：{id}",
+  "err.modeImportInvalidJson": "导入失败：文件不是有效的 JSON",
+  "err.modeImportNotDevwitMode": "导入失败：不是 DevWit 模式文件（kind 不匹配）",
+  "err.modeImportVersion": "导入失败：不支持的模式文件版本（{version}）",
+  "err.modeImportSchema": "导入失败：模式文件缺少必填字段（{detail}）",
   "err.modeUnbound": "模式「{name}」未绑定模型：请在设置 · 模型中配置模型，或在对话顶部切换模型",
   "err.externalNotConfigured": "未配置外部编辑器",
   "err.templateEmpty": "外部编辑器命令模板为空",
@@ -401,6 +410,11 @@ const enUS: Messages = {
   "mode.delete": "Delete",
   "mode.required": "Name and system prompt are required",
   "mode.saved": "Saved (hot-applied)",
+  "mode.export": "Export",
+  "mode.import": "Import",
+  "mode.export.done": "Exported: {path}",
+  "mode.import.done": "Imported \"{name}\" (new custom mode)",
+  "mode.share.hint": "Modes can be exported as JSON files to share with others; imported files become new custom modes.",
   "mode.builtin.chat.name": "Chat",
   "mode.builtin.agent.name": "Agent",
   "mode.builtin.orchestrator.name": "Orchestrator",
@@ -447,6 +461,10 @@ const enUS: Messages = {
   "mcp.env.invalid": "Invalid env line {n}: missing \"=\"",
 
   "err.modeNotFound": "Mode not found: {id}",
+  "err.modeImportInvalidJson": "Import failed: the file is not valid JSON",
+  "err.modeImportNotDevwitMode": "Import failed: not a DevWit mode file (kind mismatch)",
+  "err.modeImportVersion": "Import failed: unsupported mode file version ({version})",
+  "err.modeImportSchema": "Import failed: the mode file is missing required fields ({detail})",
   "err.modeUnbound":
     'Mode "{name}" has no bound model: configure one in Settings → Providers, or pick one in the chat toolbar',
   "err.externalNotConfigured": "No external editor configured",

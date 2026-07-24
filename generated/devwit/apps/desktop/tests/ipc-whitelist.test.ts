@@ -45,6 +45,8 @@ function fakeServices(): IpcServices {
 function fakeHooks(): IpcHooks {
   return {
     openDirectoryDialog: vi.fn(async () => null),
+    saveJsonFile: vi.fn(async () => null),
+    openJsonFile: vi.fn(async () => null),
     buildTree: vi.fn(() => ({ name: "root", path: "/", type: "dir", children: [] })),
     send: vi.fn()
   };
@@ -92,6 +94,8 @@ describe("IPC 白名单", () => {
       IPC.ModesList,
       IPC.ModesUpsert,
       IPC.ModesDelete,
+      IPC.ModesExport,
+      IPC.ModesImport,
       IPC.ContextManifestLatest,
       IPC.ContextManifestList,
       IPC.McpList,

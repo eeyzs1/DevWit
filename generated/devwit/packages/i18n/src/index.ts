@@ -105,6 +105,13 @@ export function localizeError(raw: string, opts?: LocalizeErrorOptions): string 
   }
   const notFound = /DW_MODE_NOT_FOUND:([\w-]+)/.exec(raw);
   if (notFound !== null) return t("err.modeNotFound", { id: notFound[1] ?? "" });
+  // 迭代 14 / AC23 模式导入错误码
+  if (raw.includes("DW_MODE_IMPORT_INVALID_JSON")) return t("err.modeImportInvalidJson");
+  if (raw.includes("DW_MODE_IMPORT_NOT_A_DEVWIT_MODE")) return t("err.modeImportNotDevwitMode");
+  const importVersion = /DW_MODE_IMPORT_UNSUPPORTED_VERSION:([^\n]*)/.exec(raw);
+  if (importVersion !== null) return t("err.modeImportVersion", { version: (importVersion[1] ?? "").trim() });
+  const importSchema = /DW_MODE_IMPORT_INVALID_SCHEMA:([^\n]*)/.exec(raw);
+  if (importSchema !== null) return t("err.modeImportSchema", { detail: (importSchema[1] ?? "").trim() });
   if (raw.includes("DW_SESSION_BUSY")) return t("chat.error.busy");
   if (raw.includes("DW_EXTERNAL_EDITOR_NOT_CONFIGURED")) return t("err.externalNotConfigured");
   if (raw.includes("DW_EXTERNAL_EDITOR_TEMPLATE_EMPTY")) return t("err.templateEmpty");

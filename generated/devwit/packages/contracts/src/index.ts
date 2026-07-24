@@ -482,6 +482,8 @@ export const IPC = {
   ModesList: "modes:list",
   ModesUpsert: "modes:upsert",
   ModesDelete: "modes:delete",
+  ModesExport: "modes:export",
+  ModesImport: "modes:import",
   ModesChanged: "modes:changed",
   ContextManifestLatest: "context:manifest:latest",
   ContextManifestList: "context:manifest:list",
@@ -547,6 +549,16 @@ export interface DevwitApi {
     list(): Promise<ModeDefinition[]>;
     upsert(mode: ModeDefinition): Promise<void>;
     delete(id: string): Promise<void>;
+    /**
+     * 导出模式为 JSON 文件（迭代 14 / AC23：无账号的社区分享方式）。
+     * 主进程弹保存对话框；返回写入的文件路径，用户取消返回 null。
+     */
+    export(id: string): Promise<string | null>;
+    /**
+     * 从 JSON 文件导入模式：主进程弹打开对话框 → 校验 → 以新 id 落为自定义模式。
+     * 返回导入后的模式，用户取消返回 null；文件非法抛 DW_MODE_IMPORT_* 错误码。
+     */
+    import(): Promise<ModeDefinition | null>;
     onChanged(cb: () => void): () => void;
   };
   context: {

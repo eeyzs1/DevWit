@@ -71,6 +71,8 @@ const api: DevwitApi = {
     list: () => ipcRenderer.invoke(IPC.ModesList) as ReturnType<DevwitApi["modes"]["list"]>,
     upsert: (mode) => ipcRenderer.invoke(IPC.ModesUpsert, mode) as Promise<void>,
     delete: (id) => ipcRenderer.invoke(IPC.ModesDelete, id) as Promise<void>,
+    export: (id) => ipcRenderer.invoke(IPC.ModesExport, id) as ReturnType<DevwitApi["modes"]["export"]>,
+    import: () => ipcRenderer.invoke(IPC.ModesImport) as ReturnType<DevwitApi["modes"]["import"]>,
     onChanged: (cb) => subscribe<[]>(IPC.ModesChanged, cb)
   },
   context: {

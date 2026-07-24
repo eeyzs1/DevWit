@@ -8,9 +8,11 @@
  * AI 子系统通道（agent:* / modes:* / context:*）先注册、handler 抛
  * "AI 子系统未初始化"——这是明确的未接线错误，不是 mock 数据（WU008-WU011 接线）。
  */
+import { readFile, writeFile } from "node:fs/promises";
 import { IPC } from "@devwit/contracts";
 import type { AgentRunInput, AuthorizationDecision, ContextItemType, ExternalEditorConfig, ProviderConfig } from "@devwit/contracts";
 import { PROVIDER_PRESETS } from "@devwit/llm-providers";
+import { materializeImport, parseExportFile, toExportFile } from "@devwit/modes";
 import type { SettingsStore } from "@devwit/settings";
 import type { TerminalService } from "@devwit/terminal";
 import type { WorkspaceService } from "@devwit/workspace";
@@ -41,6 +43,10 @@ export interface IpcServices {
 export interface IpcHooks {
   /** 打开目录选择对话框，取消返回 null */
   openDirectoryDialog(): Promise<string | null>;
+  /** JSON 保存对话框（迭代 14 / AC23 模式导出）：返回目标路径，取消返回 null */
+  saveJsonFile(defaultName: string): Promise<string | null>;
+  /** JSON 打开对话框（迭代 14 / AC23 模式导入）：返回源路径，取消返回 null */
+  openJsonFile(): Promise<string | null>;
   /** 构建文件树（由 index.ts 注入 buildFileTree，保持本文件无包运行时依赖） */
   buildTree(root: string): unknown;
   /** 向渲染进程推送事件 */
@@ -180,8 +186,14 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     table[IPC.UpdateVersion] = () => update.version;
   }
 
-  registerAiIpc(table, ai);
+  registerAiIpc(table, ai, services, hooks);
   return table;
+}
+
+/** 模式导出建议文件名：剔除 Windows 非法文件名字符，兜底 "mode"。 */
+function modeExportFileName(name: string): string {
+  const safe = name.replace(/[\\/:*?"<>|]/g, "-").trim();
+  return `${safe === "" ? "mode" : safe}.json`;
 }
 
 /**
@@ -190,7 +202,7 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
  * 无 ai（如白名单测试的最小替身环境）：handler 抛明确的未接线错误——
  * 调用方立即感知，不会拿到伪造数据。
  */
-export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime): void {
+export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime, services?: IpcServices, hooks?: IpcHooks): void {
   if (ai === undefined) {
     const notWired = (): never => {
       throw new Error(AI_NOT_WIRED);
@@ -202,6 +214,8 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime)
     table[IPC.ModesList] = notWired;
     table[IPC.ModesUpsert] = notWired;
     table[IPC.ModesDelete] = notWired;
+    table[IPC.ModesExport] = notWired;
+    table[IPC.ModesImport] = notWired;
     table[IPC.ContextManifestLatest] = notWired;
     table[IPC.ContextManifestList] = notWired;
     table[IPC.ContextPolicyGet] = notWired;
@@ -226,6 +240,27 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime)
     ai.upsertMode(mode as Parameters<AiRuntime["upsertMode"]>[0]);
   };
   table[IPC.ModesDelete] = (_e, id) => ai.deleteMode(String(id));
+  // ---- 模式导出/导入（迭代 14 / AC23）：对话框路径由 hooks 注入，文件 IO 在主进程 ----
+  table[IPC.ModesExport] = async (_e, id) => {
+    if (hooks === undefined) throw new Error(AI_NOT_WIRED);
+    const mode = ai.listModes().find((candidate) => candidate.id === String(id));
+    if (mode === undefined) throw new Error(`DW_MODE_NOT_FOUND:${String(id)}`);
+    const target = await hooks.saveJsonFile(modeExportFileName(mode.name));
+    if (target === null) return null;
+    await writeFile(target, `${JSON.stringify(toExportFile(mode), null, 2)}\n`, "utf-8");
+    return target;
+  };
+  table[IPC.ModesImport] = async () => {
+    if (hooks === undefined || services === undefined) throw new Error(AI_NOT_WIRED);
+    const source = await hooks.openJsonFile();
+    if (source === null) return null;
+    const parsed = parseExportFile(await readFile(source, "utf-8"));
+    const providerIds = new Set(readProviders(services.settings).map((provider) => provider.id));
+    const existingIds = new Set(ai.listModes().map((mode) => mode.id));
+    const mode = materializeImport(parsed, { existingIds, providerIds });
+    ai.upsertMode(mode);
+    return mode;
+  };
   table[IPC.ContextManifestLatest] = () => ai.getLatestManifest();
   table[IPC.ContextManifestList] = (_e, limit) => ai.listManifests(typeof limit === "number" ? limit : undefined);
   table[IPC.ContextPolicyGet] = () => ai.getContextPolicy();

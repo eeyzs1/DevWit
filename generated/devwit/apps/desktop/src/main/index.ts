@@ -107,6 +107,35 @@ app.whenReady().then(() => {
         });
         return result.canceled || result.filePaths.length === 0 ? null : (result.filePaths[0] ?? null);
       },
+      // 迭代 14 / AC23 模式导出/导入对话框；E2E 钩子跳过原生框（同 DEVWIT_E2E_OPEN_DIR 口径）
+      saveJsonFile: async (defaultName) => {
+        const e2ePath = process.env.DEVWIT_E2E_EXPORT_PATH;
+        if (e2ePath !== undefined && e2ePath !== "") {
+          return e2ePath;
+        }
+        if (!mainWindow) {
+          return null;
+        }
+        const result = await dialog.showSaveDialog(mainWindow, {
+          defaultPath: defaultName,
+          filters: [{ name: "DevWit Mode", extensions: ["json"] }]
+        });
+        return result.canceled || result.filePath === undefined || result.filePath === "" ? null : result.filePath;
+      },
+      openJsonFile: async () => {
+        const e2ePath = process.env.DEVWIT_E2E_IMPORT_PATH;
+        if (e2ePath !== undefined && e2ePath !== "") {
+          return e2ePath;
+        }
+        if (!mainWindow) {
+          return null;
+        }
+        const result = await dialog.showOpenDialog(mainWindow, {
+          properties: ["openFile"],
+          filters: [{ name: "DevWit Mode", extensions: ["json"] }]
+        });
+        return result.canceled || result.filePaths.length === 0 ? null : (result.filePaths[0] ?? null);
+      },
       buildTree: (root) => buildFileTree(root),
       send,
     },

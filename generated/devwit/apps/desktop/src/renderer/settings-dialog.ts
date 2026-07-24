@@ -24,6 +24,7 @@ import type {
 import {
   LOCALES,
   LOCALE_LABEL,
+  localizeError,
   onDidChangeLocale,
   resolveSystemLocale,
   setLocale,
@@ -608,6 +609,8 @@ function renderEditor(content: HTMLElement, deps: SettingsDialogDeps): void {
 async function renderModes(content: HTMLElement, deps: SettingsDialogDeps): Promise<void> {
   const { api } = deps;
   content.appendChild(el("h3", "dw-settings-subtitle", t("mode.title")));
+  // 迭代 14 / AC23：无账号社区分享方式——导出/导入 JSON
+  content.appendChild(el("p", "dw-modal-hint", t("mode.share.hint")));
   const list = el("div", "dw-modal-list");
   content.appendChild(list);
 
@@ -713,6 +716,17 @@ async function renderModes(content: HTMLElement, deps: SettingsDialogDeps): Prom
           `${mode.name}${mode.builtin ? t("mode.builtin.tag") : ""} · ${t("mode.tool.count", { n: mode.tools.length })}`
         )
       );
+      const exportBtn = el("button", "dw-btn dw-btn-small", t("mode.export"));
+      exportBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        void (async () => {
+          const saved = await api.modes.export(mode.id);
+          if (saved !== null) errorBox.textContent = t("mode.export.done", { path: saved });
+        })().catch((error: unknown) => {
+          errorBox.textContent = localizeError(error instanceof Error ? error.message : String(error));
+        });
+      });
+      row.appendChild(exportBtn);
       const editBtn = el("button", "dw-btn dw-btn-small", t("provider.edit"));
       editBtn.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -736,10 +750,26 @@ async function renderModes(content: HTMLElement, deps: SettingsDialogDeps): Prom
   }
 
   const actions = el("div", "dw-modal-actions");
+  const importBtn = el("button", "dw-btn", t("mode.import"));
   const newBtn = el("button", "dw-btn", t("provider.new"));
   const saveBtn = el("button", "dw-btn dw-btn-primary", t("provider.save"));
-  actions.append(newBtn, saveBtn);
+  actions.append(importBtn, newBtn, saveBtn);
   content.appendChild(actions);
+
+  importBtn.addEventListener("click", () => {
+    void (async () => {
+      errorBox.textContent = "";
+      const imported = await api.modes.import();
+      if (imported !== null) {
+        deps.onModesChanged();
+        await renderList();
+        fillForm(imported); // 导入结果直接入表单：用户可立即检查/重绑模型
+        errorBox.textContent = t("mode.import.done", { name: imported.name });
+      }
+    })().catch((error: unknown) => {
+      errorBox.textContent = localizeError(error instanceof Error ? error.message : String(error));
+    });
+  });
 
   newBtn.addEventListener("click", newForm);
   saveBtn.addEventListener("click", () => {

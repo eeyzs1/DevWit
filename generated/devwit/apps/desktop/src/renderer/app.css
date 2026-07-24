@@ -926,6 +926,10 @@ body,
   gap: 4px;
   max-height: 180px;
   overflow: auto;
+  /* flex 列父容器（.dw-settings-content 限高 60vh）中禁止压缩：否则 overflow:auto 使
+     min-height:auto=0，空间不足时列表被压塌成 0 高、行内按钮被裁剪不可见不可点；
+     空间不足统一由外层 settings-content 滚动承载 */
+  flex-shrink: 0;
 }
 
 .dw-modal-list-item {
