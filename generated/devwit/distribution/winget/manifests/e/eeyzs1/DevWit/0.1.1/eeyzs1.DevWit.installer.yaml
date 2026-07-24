@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.10.0.schema.json
+PackageIdentifier: eeyzs1.DevWit
+PackageVersion: 0.1.1
+InstallerType: nullsoft
+Scope: user
+InstallModes:
+  - interactive
+  - silent
+InstallerSwitches:
+  Silent: /S
+  SilentWithProgress: /S
+UpgradeBehavior: install
+ReleaseDate: 2026-07-24
+# 以本机真实安装实证：/S 静默装至 HKCU（per-user），注册表项值如下，卸载 /S 后 0 残留
+AppsAndFeaturesEntries:
+  - Publisher: eeyzs1
+    DisplayVersion: 0.1.1
+    ProductCode: 8de26b52-cf1c-58c4-8f9f-a7b471bba36e
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/eeyzs1/DevWit/releases/download/v0.1.1/DevWit.Setup.0.1.1.exe
+    InstallerSha256: 9417C4D03D1E49222D1A59622B2EF71C8C0585BE25ACF118602C8BE0AC3F0419
+ManifestType: installer
+ManifestVersion: 1.10.0

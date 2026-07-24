@@ -4,6 +4,45 @@
 
 DevWit is a self-built AI-native desktop IDE. It combines VSCode-grade editing, Cursor-style conversational coding, Claude Code-style agent execution, and a pi-agent-inspired minimal context design that avoids long-context bloat — delivering an efficient, transparent, and auditable AI development experience.
 
+## Download & Install
+
+**Latest v0.1.1 · Free software · MIT license** (all build artifacts on the [Releases](https://github.com/eeyzs1/DevWit/releases) page)
+
+### Windows (x64)
+
+Direct download: [DevWit.Setup.0.1.1.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.1.1/DevWit.Setup.0.1.1.exe) (NSIS installer, custom install directory, supports `/S` silent install).
+
+winget (manifest validated against the real installer; available once submitted to winget-pkgs):
+
+```powershell
+winget install eeyzs1.DevWit
+```
+
+### macOS (Apple Silicon)
+
+Homebrew (recommended, available now):
+
+```bash
+brew install --cask eeyzs1/tap/devwit
+xattr -dr com.apple.quarantine /Applications/DevWit.app   # unsigned distribution; de-quarantine once
+```
+
+Or download directly: [DevWit-0.1.1-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.1.1/DevWit-0.1.1-arm64.dmg) (no Intel Mac build yet).
+
+### Linux (x64)
+
+- AppImage (in-app auto-update): [DevWit-0.1.1.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.1.1/DevWit-0.1.1.AppImage) — `chmod +x` and run
+- Debian/Ubuntu: [devwit_0.1.1_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.1.1/devwit_0.1.1_amd64.deb) — install with `sudo dpkg -i`
+
+### Auto-Update
+
+| Platform | How updates work |
+|----------|------------------|
+| Windows | In-app auto-update (electron-updater; manual check under Settings → General) |
+| macOS | Unsigned builds skip auto-update: `brew upgrade --cask eeyzs1/tap/devwit`, or overwrite manually with the new dmg |
+| Linux AppImage | In-app auto-update |
+| Linux deb | Manually install the newer deb |
+
 ## Key Features
 
 | Feature | Description |

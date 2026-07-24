@@ -4,6 +4,45 @@
 
 DevWit 是一款自研的 AI 原生桌面 IDE：融合 VSCode 的编辑器能力、Cursor 的对话式编程、Claude Code 的 Agent 任务执行与 pi agent 的简洁上下文设计，避免长上下文膨胀，提供高效、透明、可审计的 AI 开发体验。
 
+## 下载安装
+
+**最新版本 v0.1.1 · 免费软件 · MIT 协议**（全部构建产物见 [Releases](https://github.com/eeyzs1/DevWit/releases)）
+
+### Windows（x64）
+
+直接下载：[DevWit.Setup.0.1.1.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.1.1/DevWit.Setup.0.1.1.exe)（NSIS 安装包，可选安装目录，支持 `/S` 静默安装）。
+
+winget（清单已完成实证验证，待提交 winget-pkgs 后可用）：
+
+```powershell
+winget install eeyzs1.DevWit
+```
+
+### macOS（Apple Silicon）
+
+Homebrew（推荐，已可用）：
+
+```bash
+brew install --cask eeyzs1/tap/devwit
+xattr -dr com.apple.quarantine /Applications/DevWit.app   # 未签名分发，首次运行前去一次隔离
+```
+
+或直接下载：[DevWit-0.1.1-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.1.1/DevWit-0.1.1-arm64.dmg)（Intel Mac 暂无构建）。
+
+### Linux（x64）
+
+- AppImage（支持应用内自动更新）：[DevWit-0.1.1.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.1.1/DevWit-0.1.1.AppImage)，下载后 `chmod +x` 直接运行
+- Debian/Ubuntu：[devwit_0.1.1_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.1.1/devwit_0.1.1_amd64.deb)，`sudo dpkg -i` 安装
+
+### 自动更新
+
+| 平台 | 更新方式 |
+|------|----------|
+| Windows | 应用内自动更新（electron-updater；设置 → 通用 中可手动检查） |
+| macOS | 未签名包不走自动更新：`brew upgrade --cask eeyzs1/tap/devwit`，或手动下载 dmg 覆盖 |
+| Linux AppImage | 应用内自动更新 |
+| Linux deb | 手动下载新版 deb 覆盖安装 |
+
 ## 核心特性
 
 | 特性 | 说明 |

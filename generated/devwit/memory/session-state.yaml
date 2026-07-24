@@ -289,5 +289,35 @@ iteration_13:
   notes: 顺手清零 6 项 ESLint 存量错误——orchestrator.test.ts this 别名（重构为类私有 async generator consume）、orchestrator.ts/i18n.test.ts/ai-runtime-trace.test.ts 未用导入与形参、iteration2.mjs/verify-i8.mjs raw 未消费改 req.resume() 排空。P0-1 配套：根仓库与 generated/devwit 双份 MIT LICENSE（copyright eeyzs1）随包分发。
   e2e_report: evidence/AC22/verify-i12-report.json (16 项断言全 PASS) + verify-i8/iteration2 回归 PASSED
   unit_tests: 42 files / 343 tests passed
+iteration_14:
+  scope: 模式导出/导入 JSON（AC23）——无账号的社区分享方式（免费软件定位下的传播闭环配套）
+  acceptance_criteria:
+  - description: '导出：设置·模式分区行内「导出」→ 主进程写 JSON，kind=devwit-mode/version=1 信封，负载剥离 id/builtin/createdAt/updatedAt 机器本地字段，内容保真'
+    id: AC23
+    status: completed
+    verifier: packages/modes/src/mode-port.ts + tests/e2e/verify-i13.mjs + evidence/AC23
+  - description: '导入：删除后导入同名模式恢复（新 id + builtin=false + 工具/提示词全保真，直接入表单）；篡改 kind 拒绝并本地化报错「不是 DevWit 模式文件」；非 JSON 报「不是有效的 JSON」；文件内 providerId 本机不存在→导入后清空未绑定（跨机分享语义，可重绑）'
+    id: AC23
+    status: completed
+    verifier: tests/e2e/verify-i13.mjs（17 项断言全 PASS）+ evidence/AC23（2 截图 + verify-i13-report.json）
+  notes: 修复设置页布局缺陷——.dw-modal-list 在限高 flex 列父容器中被压缩至 0 高导致行内导出按钮不可见不可点，补 flex-shrink:0（空间不足由外层 settings-content 滚动承载）
+  e2e_report: evidence/AC23/verify-i13-report.json (17 项断言全 PASS)
+iteration_15:
+  scope: 免费分发渠道（AC24）——包管理器（winget/Homebrew）+ README 双语下载指引；用户明确定位：免费软件，不做商业化基建
+  acceptance_criteria:
+  - description: 'winget 清单四分件（version/installer/locale en-US/zh-CN）：真实 v0.1.1 exe URL + SHA256=9417C4D0…F0419；AppsAndFeaturesEntries（Publisher=eeyzs1/DisplayVersion=0.1.1/ProductCode=8de26b52-cf1c-58c4-8f9f-a7b471bba36e）取自本机 NSIS /S 真实安装注册表实证；winget validate 通过；/S 静默装至 HKCU per-user、/S 卸载零残留实证'
+    id: AC24
+    status: completed
+    verifier: distribution/winget/manifests/**（待提交 microsoft/winget-pkgs，README 已诚实标注状态）
+  - description: 'Homebrew tap 上线：创建 eeyzs1/homebrew-tap 并推送 Casks/devwit.rb（sha256=768b6d3a…8874 实证自 Release dmg 资产；depends_on arm64——v0.1.1 仅 Apple Silicon 构建；未签名 caveats 含 xattr 去隔离与 brew upgrade 路径），brew install --cask eeyzs1/tap/devwit 即刻可用'
+    id: AC24
+    status: completed
+    verifier: gh api repos/eeyzs1/homebrew-tap/contents/Casks/devwit.rb 实证在线（https://github.com/eeyzs1/homebrew-tap/blob/main/Casks/devwit.rb）
+  - description: 'README 双语下载指引：分平台直接下载链接（exe/dmg/AppImage/deb 文件名经 Releases API 枚举核实）+ brew/winget 命令 + 分平台自动更新说明表（Win/AppImage 应用内自动更新；未签名 mac 走 brew upgrade 或手动 dmg；deb 手动覆盖）'
+    id: AC24
+    status: completed
+    verifier: README.md / README_EN.md「下载安装 / Download & Install」段 + Releases API v0.1.1 资产枚举（12 资产）
+  notes: distribution/hash-assets.mjs 留存为版本升级重算校验和工具；tap 经 SSH 推送（HTTPS 凭据提示挂起，gh auth git protocol=ssh）；实证用临时下载件（dmg/exe/API 响应 JSON）已清理不入库；winget-pkgs 提交需 CLA 签署，留待用户亲自操作
+  distribution_evidence: https://github.com/eeyzs1/homebrew-tap + https://github.com/eeyzs1/DevWit/releases/tag/v0.1.1
 status: complete
-updated_at: '2026-07-24T17:50:00.000000'
+updated_at: '2026-07-24T18:59:40.000000'
