@@ -319,5 +319,26 @@ iteration_15:
     verifier: README.md / README_EN.md「下载安装 / Download & Install」段 + Releases API v0.1.1 资产枚举（12 资产）
   notes: distribution/hash-assets.mjs 留存为版本升级重算校验和工具；tap 经 SSH 推送（HTTPS 凭据提示挂起，gh auth git protocol=ssh）；实证用临时下载件（dmg/exe/API 响应 JSON）已清理不入库；winget-pkgs 提交需 CLA 签署，留待用户亲自操作
   distribution_evidence: https://github.com/eeyzs1/homebrew-tap + https://github.com/eeyzs1/DevWit/releases/tag/v0.1.1
+iteration_16:
+  scope: 社区模式生态（AC25）——零账号分享飞轮：官方索引仓库 + 一键导入 + 状态归并
+  acceptance_criteria:
+  - description: '索引客户端（modes/community.ts）：GET <base>/index.json，kind/version 校验（DW_MODES_INDEX_NOT_AN_INDEX / UNSUPPORTED_VERSION），file 字段防路径穿越；base 可经 DEVWIT_MODES_INDEX_URL 覆盖（e2e 本地 server），缺省 raw.githubusercontent.com/eeyzs1/devwit-modes/main'
+    id: AC25
+    status: completed
+    verifier: packages/modes community 单测 + tests/e2e/verify-i14.mjs
+  - description: '设置·模式分区「社区模式」区：索引加载→条目渲染（名称/双语描述/作者/标签）→一键导入（经 mode-port 同一信封校验管线，新 id + builtin=false）→已导入归并（按名称匹配本地，按钮 disabled 显示「已导入」）；索引拉取失败本地化报错'
+    id: AC25
+    status: completed
+    verifier: tests/e2e/verify-i14.mjs（断言全 PASS：渲染/导入/归并/错误路径）
+  notes: e2e 修复——waitForFunction 浏览器端只认标准 DOM，Playwright nth=/has-text 语法改 querySelectorAll 文本遍历。官方索引仓库 eeyzs1/devwit-modes 上线：5 个首发模式（code-reviewer/commit-scribe/test-writer/doc-writer/refactor-advisor），index.json v1 信封
+  index_evidence: https://github.com/eeyzs1/devwit-modes（index.json + modes/ 五件）
+v020_release:
+  scope: v0.2.0 发版 + 包管理器升版
+  facts:
+  - tag v0.2.0（1e2cb89）CI 三平台构建成功，Release 12 资产（exe/dmg/zip/AppImage/deb + blockmap + latest*.yml）
+  - 资产完整性实证：exe MZ 头 + dmg koly 尾，大小与 Release 元数据一致；sha256 重算 exe=4A38F963…C4B47 / dmg=27bc9cba…6327
+  - 主仓库清单升版 adf390a：winget 0.2.0 四分件 + homebrew cask version/sha256
+  - homebrew-tap 6cbf5be「devwit 0.2.0」已推送，brew install --cask eeyzs1/tap/devwit 即装 0.2.0
+  - winget PR 已提交 microsoft/winget-pkgs#407506（New package eeyzs1.DevWit 0.2.0，首次入库直接以最新版）；CLA 检查排队中，验证管线自动运行
 status: complete
-updated_at: '2026-07-24T18:59:40.000000'
+updated_at: '2026-07-25T02:40:00.000000'
