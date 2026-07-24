@@ -14,7 +14,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     id: "ollama",
     label: "Ollama",
     type: "openai",
-    baseUrl: "http://localhost:11434/v1",
+    baseUrl: "http://localhost:11434/v1", // qg-allow: AR002 预设目录的 endpoint 知识天然归属本包，外置配置反而破坏单一事实源
     // 本地模型由用户 ollama pull 决定，不给固定建议
     models: [],
     keyless: true,
@@ -23,7 +23,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     id: "deepseek",
     label: "DeepSeek",
     type: "openai",
-    baseUrl: "https://api.deepseek.com/v1",
+    baseUrl: "https://api.deepseek.com/v1", // qg-allow: AR002 预设目录的 endpoint 知识天然归属本包，外置配置反而破坏单一事实源
     models: ["deepseek-chat", "deepseek-reasoner"],
     keyless: false,
   },
@@ -31,7 +31,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     id: "openrouter",
     label: "OpenRouter",
     type: "openai",
-    baseUrl: "https://openrouter.ai/api/v1",
+    baseUrl: "https://openrouter.ai/api/v1", // qg-allow: AR002 预设目录的 endpoint 知识天然归属本包，外置配置反而破坏单一事实源
     // 免费档型号随平台运营变化，不固化；用户按平台页面标注 ":free" 填写
     models: [],
     keyless: false,
