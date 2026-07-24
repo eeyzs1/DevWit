@@ -107,6 +107,7 @@ export type ContextItemType =
   | "terminal_output"
   | "selection"
   | "conversation_history"
+  | "codebase_match"
   | "custom";
 
 /**
@@ -124,6 +125,14 @@ export interface ContextItem {
   source?: string;
   /** token 计数方式："exact"=BPE 精确计数；"estimated"=估算（需在 UI 标注） */
   counting: "exact" | "estimated";
+  /**
+   * 稳定标识（迭代 10 / AC19）：同类型多项时逐项开关的稳定 key。
+   * codebase_match 项取 chunkId（内容哈希），跨 build 稳定；
+   * 无 key 的项仅受类型级开关控制。
+   */
+  key?: string;
+  /** 检索相似度（codebase_match 专用，UI 展示排序依据）。 */
+  score?: number;
 }
 
 /**
@@ -154,7 +163,51 @@ export interface ContextCollectInput {
   selection?: { text: string; startLine: number; endLine: number };
   terminalTail?: string;
   conversationHistory: ChatMessage[];
+  /** 本轮用户意图原文（迭代 10 / AC19：codebase_match 源的检索查询）。 */
+  query?: string;
 }
+
+// ============================================================================
+// 透明 RAG / 代码库检索（迭代 10 / AC19）
+// ============================================================================
+
+/**
+ * 文本嵌入接口（llm-providers 实现，rag 包依赖）：
+ * OpenAI 兼容 /v1/embeddings；Anthropic 无对应 API，createEmbedder 抛
+ * DW_EMBED_UNSUPPORTED——此时索引不可用，UI 优雅降级为纯显式注入。
+ */
+export interface Embedder {
+  readonly model: string;
+  /** 批量嵌入，返回与输入等长的向量数组。 */
+  embed(texts: string[]): Promise<number[][]>;
+}
+
+/** 代码索引配置（存 settings 的 "rag" 键，热更新）。 */
+export interface RagConfig {
+  enabled: boolean;
+  /** 用于 embedding 的 provider id（必须 openai 类型）；缺省自动选第一个 openai provider。 */
+  providerId?: string;
+  /** 检索模型名（独立于 chat 模型，如 text-embedding-3-small）。 */
+  embedModel: string;
+  /** 单次注入的最大命中块数。 */
+  topK: number;
+  /** 单次注入的 token 预算（按引擎 counter 计数截断）。 */
+  budgetTokens: number;
+}
+
+export const DEFAULT_RAG_CONFIG: RagConfig = {
+  enabled: false,
+  embedModel: "text-embedding-3-small",
+  topK: 8,
+  budgetTokens: 1500,
+};
+
+/** 索引运行状态（主→渲染推送 + 设置页展示）。 */
+export type RagStatusInfo =
+  | { state: "disabled" }
+  | { state: "indexing"; indexedFiles: number; totalFiles: number }
+  | { state: "ready"; fileCount: number; chunkCount: number }
+  | { state: "error"; code: string };
 
 // ============================================================================
 // 模式系统（WU011）
@@ -173,6 +226,12 @@ export interface ModeDefinition {
   tools: string[];
   providerId: string;
   contextPolicy: Partial<Record<ContextItemType, boolean>>;
+  /**
+   * 多 Agent 编排（AC20）：true 时该模式的 run 走 AgentOrchestrator——
+   * Planner 先把意图分解为子任务，并行子 Agent 执行（共享授权门），最后综合结论。
+   * 缺省 false 走单 AgentLoop。
+   */
+  orchestrate?: boolean;
   builtin: boolean;
   createdAt: string;
   updatedAt: string;
@@ -205,6 +264,9 @@ export type AgentTraceEventType =
   | "authorization_request"
   | "authorization_decision"
   | "tool_result"
+  | "plan"
+  | "subagent_start"
+  | "subagent_done"
   | "error"
   | "done";
 
@@ -212,6 +274,13 @@ export type AgentTraceEventType =
  * assistant_delta 是流式渲染的瞬时事件（provider 文本块实时转发，AC: 流式渲染），
  * 不写入 AgentTrace 存档（trace list() 不含 delta）；seq 固定为 0 以示非存档事件。
  * 其余类型均为持久轨迹事件（seq 自增）。
+ *
+ * 多 Agent 编排（AC20）：
+ * - plan：Planner 分解结果（detail.subtasks 为子任务列表，fallback=true 表示分解失败退化为单任务）；
+ * - subagent_start / subagent_done：子 Agent 生命周期（detail.subagentId/title/finishReason）；
+ * - 子 Agent 内部事件（user_message/assistant_message/tool_call 等）转发进父轨迹时
+ *   detail.subagentId 携带子代理标识——活动流按标记归属展示，historyFromTrace 跳过
+ *   这些事件避免污染下一轮对话历史（综合消息已承载子任务结论）。
  */
 
 export interface AgentTraceEvent {
@@ -241,6 +310,16 @@ export interface ToolResult {
   ok: boolean;
   output: string;
   error?: string;
+}
+
+/** 编排子任务（AC20）：Planner 分解产出，一个子任务由一个并行子 Agent 执行。 */
+export interface SubTask {
+  /** 稳定标识（S1/S2/…，由编排器指派）。 */
+  id: string;
+  /** 一行标题（活动流/任务归属展示）。 */
+  title: string;
+  /** 子 Agent 的完整执行指令（应自足：含上下文与验收口径）。 */
+  prompt: string;
 }
 
 // ============================================================================
@@ -387,6 +466,10 @@ export const IPC = {
   ContextManifestList: "context:manifest:list",
   ContextPolicyGet: "context:policy:get",
   ContextPolicySet: "context:policy:set",
+  ContextItemOverrideSet: "context:item-override:set",
+  RagGetStatus: "rag:get-status",
+  RagRebuild: "rag:rebuild",
+  RagStatus: "rag:status",
   ExternalEditorOpen: "external-editor:open",
   UpdateCheck: "update:check",
   UpdateInstall: "update:install",
@@ -450,6 +533,16 @@ export interface DevwitApi {
     getPolicy(): Promise<Record<ContextItemType, boolean>>;
     /** 逐项开关（用户覆盖，实时生效；AC2）。 */
     setItemEnabled(type: ContextItemType, enabled: boolean): Promise<void>;
+    /** 稳定 key 项的逐项开关（迭代 10 / AC19：codebase_match 单块剔除/恢复）。 */
+    setItemOverride(key: string, enabled: boolean): Promise<void>;
+  };
+  rag: {
+    /** 当前索引状态（设置·通用分区状态行）。 */
+    getStatus(): Promise<RagStatusInfo>;
+    /** 手动全量重建索引。 */
+    rebuild(): Promise<void>;
+    /** 订阅索引状态推送（indexing 进度 / ready / error）。 */
+    onStatus(cb: (status: RagStatusInfo) => void): () => void;
   };
   externalEditor: {
     /**

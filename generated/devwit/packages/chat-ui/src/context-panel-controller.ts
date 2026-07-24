@@ -41,6 +41,12 @@ export class ContextPanelController {
     await this.refresh();
   }
 
+  /** 稳定 key 项的逐项开关（AC19 codebase_match 单块剔除/恢复）。 */
+  async setItemOverride(key: string, enabled: boolean): Promise<void> {
+    await this.api.context.setItemOverride(key, enabled);
+    await this.refresh();
+  }
+
   onChange(listener: () => void): () => void {
     this.listeners.add(listener);
     return () => {

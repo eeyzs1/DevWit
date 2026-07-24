@@ -135,6 +135,22 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
         row.textContent = `[${t("chat.tool")} ${badge}] ${item.summary}`;
         break;
       }
+      case "plan": {
+        // AC20：编排分解可见（子任务清单；fallback 为退化说明）
+        if (item.fallback) {
+          row.textContent = `[${t("act.plan")}] ${t("act.plan.fallback")}`;
+        } else {
+          row.textContent = `[${t("act.plan")}] ${item.subtasks.map((sub) => `${sub.id} ${sub.title}`).join("；")}`;
+        }
+        break;
+      }
+      case "subagent": {
+        row.textContent =
+          item.phase === "start"
+            ? `[${t("act.subagent")}] ${t("act.subagent.start", { id: item.subagentId, title: item.title })}`
+            : `[${t("act.subagent")}] ${t("act.subagent.done", { id: item.subagentId, title: item.title, reason: item.finishReason ?? "completed" })}`;
+        break;
+      }
       case "authorization": {
         const title = document.createElement("div");
         title.textContent = t("chat.auth.request", { reason: item.reason });

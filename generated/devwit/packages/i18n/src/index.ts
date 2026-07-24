@@ -69,10 +69,11 @@ export function ta(key: ArrayMessageKey): string[] {
 // 内置模式显示名（迭代 4）：数据层工厂名为英文常量，界面按当前语言显示
 // ---------------------------------------------------------------------------
 
-const BUILTIN_MODE_FACTORY_NAME: Record<string, string> = { chat: "Chat", agent: "Agent" };
+const BUILTIN_MODE_FACTORY_NAME: Record<string, string> = { chat: "Chat", agent: "Agent", orchestrator: "Orchestrator" };
 const BUILTIN_MODE_NAME_KEY: Record<string, StringMessageKey> = {
   chat: "mode.builtin.chat.name",
   agent: "mode.builtin.agent.name",
+  orchestrator: "mode.builtin.orchestrator.name",
 };
 
 /** 内置模式显示名：工厂默认名按当前语言本地化；用户改名后尊重用户值。 */

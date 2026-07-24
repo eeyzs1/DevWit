@@ -30,5 +30,26 @@
     "builtin": true,
     "createdAt": "2026-01-01T00:00:00.000Z",
     "updatedAt": "2026-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "orchestrator",
+    "name": "Orchestrator",
+    "description": "多 Agent 编排：意图分解为子任务，并行子 Agent 执行后综合结论",
+    "systemPrompt": "你是 DevWit 的编排协调者。你的任务由编排器分解后交给并行子 Agent 执行，你负责理解用户原始意图，并在收到各子任务结论后给出准确、完整的最终综合答复。",
+    "tools": [
+      "read",
+      "write",
+      "edit",
+      "bash",
+      "grep",
+      "find",
+      "ls"
+    ],
+    "providerId": "",
+    "contextPolicy": {},
+    "orchestrate": true,
+    "builtin": true,
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-01T00:00:00.000Z"
   }
 ]

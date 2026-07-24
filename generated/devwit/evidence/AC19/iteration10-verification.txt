@@ -1,0 +1,7 @@
+迭代 10（AC19 透明 RAG）验证：
+1. settings rag 键启用（热更新）→ CodebaseIndex 全量构建：walkIndexableFiles 枚举 → chunkSource 分块 → 真实 POST /embeddings（本地端点关键词向量）→ JSONL 原子落盘；rag.getStatus() 到 ready（2 文件 / ≥2 块）。
+2. 设置页通用分区状态行「已就绪：2 个文件 / N 个代码块」（截图 01）。
+3. 发送 login 意图 → agent-loop 以 query=userText 调 context-engine → codebaseMatchSource 余弦全扫描 → manifest 含 codebase_match 命中项（稳定 key=chunkId、score、路径行区间、token 计数），login.ts 命中且排序优于 button.ts（manifest-chat1.json 落盘，截图 02 上下文面板）。
+4. context.setItemOverride(chunkId, false) → 下一次 manifest 该块 enabled=false/tokens=0/content 空（逐项可裁剪，manifest-chat2-excluded.json 落盘）；setItemOverride(key, true) 恢复。
+5. 关闭 rag.enabled → refreshRag 热 teardown → 状态 disabled（无需重启）。
+断言通过 18 项，失败 0 项。

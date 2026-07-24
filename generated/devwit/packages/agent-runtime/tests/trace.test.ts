@@ -86,4 +86,19 @@ describe("historyFromTrace", () => {
     expect(messages[0]).toEqual({ role: "assistant", content: "调用工具", toolCalls });
     expect(messages[1]).toEqual({ role: "assistant", content: "纯文本" });
   });
+
+  it("AC20：带 subagentId 的子代理内部事件不进入对话历史（综合消息已承载结论）", () => {
+    const messages = historyFromTrace([
+      event("user_message", "原始意图", { text: "原始意图" }),
+      event("plan", "分解为 2 个子任务", { subtasks: [{ id: "S1", title: "甲", prompt: "做甲" }] }),
+      event("user_message", "[S1] 做甲", { text: "做甲", subagentId: "S1", subagentTitle: "甲" }),
+      event("assistant_message", "[S1] 甲完成", { text: "甲完成", subagentId: "S1", subagentTitle: "甲" }),
+      event("assistant_message", "综合结论", { text: "综合结论" }),
+      event("done", "任务完成（1 个子任务）"),
+    ]);
+    expect(messages).toEqual([
+      { role: "user", content: "原始意图" },
+      { role: "assistant", content: "综合结论" },
+    ]);
+  });
 });

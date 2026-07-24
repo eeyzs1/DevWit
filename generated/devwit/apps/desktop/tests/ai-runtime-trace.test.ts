@@ -64,7 +64,7 @@ let tmpRoot = "";
 function makeRuntime(provider: ScriptedProvider): { runtime: AiRuntime; sent: AgentTraceEvent[] } {
   const sent: AgentTraceEvent[] = [];
   const settings = new SettingsStore(new NodeCryptoBackend(), path.join(tmpRoot, "settings"));
-  const workspace = { readFile: async () => "" } as unknown as WorkspaceService;
+  const workspace = { readFile: async () => "", onDidChange: () => () => {} } as unknown as WorkspaceService;
   const runtime = new AiRuntime({
     settings,
     workspace,

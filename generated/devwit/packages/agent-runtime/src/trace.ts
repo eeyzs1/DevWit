@@ -64,11 +64,14 @@ export class AgentTrace {
  * user_message / assistant_message 按序映射为 ChatMessage；assistant 携带的
  * toolCalls 一并恢复。正文优先取 detail.text（完整文本），缺省回退 summary
  * （summary 超 200 字被截断，仅作兜底）。其余事件类型不构成对话消息，跳过。
+ * AC20：带 detail.subagentId 的事件是子 Agent 内部轨迹（编排结果已由父级
+ * 综合消息承载），跳过以避免子任务细节污染下一轮对话历史。
  */
 export function historyFromTrace(events: AgentTraceEvent[]): ChatMessage[] {
   const messages: ChatMessage[] = [];
   for (const event of events) {
-    const detail = event.detail as { text?: unknown; toolCalls?: unknown } | undefined;
+    const detail = event.detail as { text?: unknown; toolCalls?: unknown; subagentId?: unknown } | undefined;
+    if (typeof detail?.subagentId === "string") continue;
     const fullText = typeof detail?.text === "string" ? detail.text : undefined;
     if (event.type === "user_message") {
       messages.push({ role: "user", content: fullText ?? event.summary });

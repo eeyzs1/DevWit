@@ -171,6 +171,88 @@ describe("ChatController", () => {
   });
 });
 
+describe("ChatController 多 Agent 编排（AC20）", () => {
+  it("plan 事件归约为计划项（子任务清单 + fallback 标志）", async () => {
+    const fake = new FakeDevwitApi();
+    const controller = new ChatController({ api: fake.api, sessionId: "s1", workspaceRoot: "C:\\repo", modeId: "orchestrator" });
+    await controller.send("重构两个模块");
+    fake.emit(
+      event("s1", "plan", "分解为 2 个子任务", {
+        subtasks: [
+          { id: "S1", title: "重构登录", prompt: "做登录" },
+          { id: "S2", title: "重构按钮", prompt: "做按钮" },
+        ],
+      })
+    );
+    const plan = controller.listItems().find((item) => item.kind === "plan");
+    expect(plan).toEqual({
+      kind: "plan",
+      subtasks: [
+        { id: "S1", title: "重构登录" },
+        { id: "S2", title: "重构按钮" },
+      ],
+      fallback: false,
+    });
+    controller.dispose();
+  });
+
+  it("plan 畸形 detail 不产生计划项；fallback 标志透传", async () => {
+    const fake = new FakeDevwitApi();
+    const controller = new ChatController({ api: fake.api, sessionId: "s1", workspaceRoot: "C:\\repo", modeId: "orchestrator" });
+    await controller.send("意图");
+    fake.emit(event("s1", "plan", "坏数据", { nope: true }));
+    expect(controller.listItems().some((item) => item.kind === "plan")).toBe(false);
+    fake.emit(
+      event("s1", "plan", "分解失败，按单任务执行", {
+        subtasks: [{ id: "S1", title: "意图", prompt: "意图" }],
+        fallback: true,
+      })
+    );
+    expect(controller.listItems().find((item) => item.kind === "plan")).toMatchObject({ fallback: true });
+    controller.dispose();
+  });
+
+  it("subagent_start/done 归约为子代理项；子代理授权请求 reason 带归属前缀", async () => {
+    const fake = new FakeDevwitApi();
+    const controller = new ChatController({ api: fake.api, sessionId: "s1", workspaceRoot: "C:\\repo", modeId: "orchestrator" });
+    await controller.send("编排任务");
+    fake.emit(event("s1", "subagent_start", "[S1] 写甲文件", { subagentId: "S1", title: "写甲文件" }));
+    fake.emit(
+      event("s1", "authorization_request", "[S1] write: 写入文件: out.txt", {
+        requestId: "auth-s1",
+        toolName: "write",
+        reason: "写入文件: out.txt",
+        subagentId: "S1",
+        subagentTitle: "写甲文件",
+      })
+    );
+    fake.emit(
+      event("s1", "subagent_done", "[S1] 写甲文件 → completed", {
+        subagentId: "S1",
+        title: "写甲文件",
+        finishReason: "completed",
+        finalText: "甲已写",
+        iterations: 2,
+      })
+    );
+    const items = controller.listItems();
+    const subagentItems = items.filter((item) => item.kind === "subagent");
+    expect(subagentItems).toEqual([
+      { kind: "subagent", subagentId: "S1", title: "写甲文件", phase: "start" },
+      { kind: "subagent", subagentId: "S1", title: "写甲文件", phase: "done", finishReason: "completed" },
+    ]);
+    expect(items.find((item) => item.kind === "authorization")).toMatchObject({
+      requestId: "auth-s1",
+      reason: "[S1] 写入文件: out.txt",
+    });
+    // 子代理事件不影响 running 终态判定（终态只由整体 done/error 决定）
+    expect(controller.isRunning).toBe(true);
+    fake.emit(event("s1", "done", "任务完成（2 个子任务）"));
+    expect(controller.isRunning).toBe(false);
+    controller.dispose();
+  });
+});
+
 describe("ChatController 会话恢复（迭代 6 / AC15）", () => {
   it("ingestHistory 正文优先 detail.text：超长消息不被 summary 截断", () => {
     const fake = new FakeDevwitApi();

@@ -14,6 +14,7 @@
     { "path": "packages/modes" },
     { "path": "packages/agent-runtime" },
     { "path": "packages/mcp" },
+    { "path": "packages/rag" },
     { "path": "packages/chat-ui" },
     { "path": "apps/desktop" }
   ]

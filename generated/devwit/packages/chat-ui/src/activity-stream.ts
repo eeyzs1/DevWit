@@ -23,11 +23,13 @@ export interface ActivityStreamHandle {
   dispose(): void;
 }
 
-const KIND_BADGE: Record<ChatItem["kind"], "act.user" | "act.assistant" | "act.tool" | "act.authorization" | "act.error" | "act.done"> = {
+const KIND_BADGE: Record<ChatItem["kind"], "act.user" | "act.assistant" | "act.tool" | "act.authorization" | "act.plan" | "act.subagent" | "act.error" | "act.done"> = {
   user: "act.user",
   assistant: "act.assistant",
   tool: "act.tool",
   authorization: "act.authorization",
+  plan: "act.plan",
+  subagent: "act.subagent",
   error: "act.error",
   done: "act.done",
 };
@@ -90,6 +92,29 @@ export function mountActivityStream(
       case "tool": {
         const state = item.ok === null ? t("act.tool.running") : item.ok ? t("act.tool.ok") : t("act.tool.failed");
         body.textContent = `${item.summary}（${state}）`;
+        break;
+      }
+      case "plan": {
+        // AC20 分解可见：子任务清单逐项列出；fallback 标记分解失败的退化
+        if (item.fallback) {
+          body.textContent = t("act.plan.fallback");
+        } else {
+          const list = document.createElement("ol");
+          list.className = "dw-plan-list";
+          for (const sub of item.subtasks) {
+            const li = document.createElement("li");
+            li.textContent = `${sub.id} ${sub.title}`;
+            list.appendChild(li);
+          }
+          body.appendChild(list);
+        }
+        break;
+      }
+      case "subagent": {
+        body.textContent =
+          item.phase === "start"
+            ? t("act.subagent.start", { id: item.subagentId, title: item.title })
+            : t("act.subagent.done", { id: item.subagentId, title: item.title, reason: item.finishReason ?? "completed" });
         break;
       }
       case "authorization": {

@@ -1,0 +1,42 @@
+{
+  "steps": [
+    "本地 SSE 端点就绪 http://127.0.0.1:55287（Planner/子Agent/综合 三路分流）",
+    "应用启动（默认中文）",
+    "打开文件夹（fixture 工作区）",
+    "provider 注册 + 模型选中 + onEvent 轨迹订阅",
+    "模式下拉框选中「编排」（内置 orchestrator 模式）",
+    "Planner 分解为 2 个子任务（.dw-msg-plan 展示 S1/S2 清单）",
+    "子 Agent S1/S2 开始行可见；S1 write 授权请求带归属前缀（截图 01）",
+    "「本会话允许」一次 → S1/S2 双文件真实落盘，S2 授权免问（继承证据）",
+    "S1/S2 结束行（completed）+ 综合结论 + done（2 个子任务）（截图 02）",
+    "轨迹事件落盘 trace-events.json：plan/subagent/tool_call 归属标记全量",
+    "Planner 非 JSON → fallback 单任务跑完（截图 03）"
+  ],
+  "assertions": [
+    "内置编排模式显示名应为「编排」（实际: 编排）",
+    "计划项缺 S1 子任务: [计划] S1 写入甲标记；S2 写入乙标记",
+    "计划项缺 S2 子任务: [计划] S1 写入甲标记；S2 写入乙标记",
+    "授权请求缺 [S1] 归属前缀: 授权请求：[S1] 写入文件: alpha-i11.txt允许本会话允许拒绝",
+    "授权请求缺 write 理由: 授权请求：[S1] 写入文件: alpha-i11.txt允许本会话允许拒绝",
+    "缺 S1 子代理开始行",
+    "缺 S2 子代理开始行",
+    "授权行应为 1（S2 继承免问，实际: 1）",
+    "alpha-i11.txt 未写入 alpha-done（S1 未真实执行）",
+    "beta-i11.txt 未写入 beta-done（S2 未真实执行）",
+    "子代理开始行应为 2",
+    "子代理结束行应为 2",
+    "缺 S2 完成结束行",
+    "缺综合阶段流式最终答复",
+    "done 行缺子任务计数: — 任务完成（2 个子任务） —",
+    "plan 事件应含 2 个子任务明细",
+    "subagent_start 应为 2",
+    "subagent_done 应为 2",
+    "子代理 tool_call 应带 detail.subagentId 归属标记",
+    "授权请求事件应带 subagentId",
+    "S1 结束态应为 completed（实际: completed）",
+    "第二轮应触发 fallback 计划项: [计划] 分解失败，按单任务执行原始意图",
+    "fallback 单任务无写操作，授权行应仍为 1（实际: 1）",
+    "fallback done 应为 1 个子任务: — 任务完成（1 个子任务） —"
+  ],
+  "failures": []
+}

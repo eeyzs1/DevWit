@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   BUILTIN_AGENT_MODE,
   BUILTIN_CHAT_MODE,
+  BUILTIN_ORCHESTRATOR_MODE,
   ModeStore,
   resolveModeContextPolicy,
   validateModeDefinition,
@@ -25,19 +26,30 @@ function makeMode(overrides: Partial<ModeDefinition> = {}): ModeDefinition {
 }
 
 describe("内置模式", () => {
-  it("store 构造即种入 chat/agent 两个内置模式", () => {
+  it("store 构造即种入 chat/agent/orchestrator 三个内置模式", () => {
     const store = new ModeStore();
     const ids = store.list().map((mode) => mode.id);
-    expect(ids).toEqual(["chat", "agent"]);
+    expect(ids).toEqual(["chat", "agent", "orchestrator"]);
     expect(store.get("chat")?.builtin).toBe(true);
     expect(store.get("agent")?.builtin).toBe(true);
     expect(store.get("agent")?.tools).toEqual(["read", "write", "edit", "bash", "grep", "find", "ls"]);
     expect(store.get("chat")?.tools).toEqual([]);
   });
 
+  it("AC20：内置 orchestrator 模式 orchestrate=true 且带全量工具集", () => {
+    const store = new ModeStore();
+    const orchestrator = store.get("orchestrator");
+    expect(orchestrator?.builtin).toBe(true);
+    expect(orchestrator?.orchestrate).toBe(true);
+    expect(orchestrator?.tools).toEqual(["read", "write", "edit", "bash", "grep", "find", "ls"]);
+    expect(store.get("chat")?.orchestrate).toBeUndefined();
+    expect(store.get("agent")?.orchestrate).toBeUndefined();
+  });
+
   it("内置模式定义本身通过 schema 校验", () => {
     expect(() => validateModeDefinition(BUILTIN_CHAT_MODE)).not.toThrow();
     expect(() => validateModeDefinition(BUILTIN_AGENT_MODE)).not.toThrow();
+    expect(() => validateModeDefinition(BUILTIN_ORCHESTRATOR_MODE)).not.toThrow();
   });
 });
 
@@ -49,7 +61,7 @@ describe("ModeStore CRUD", () => {
     expect(fetched?.name).toBe("代码审查");
     fetched?.tools.push("bash");
     expect(store.get("review")?.tools).toEqual(["read", "grep"]);
-    expect(store.list().map((mode) => mode.id)).toEqual(["chat", "agent", "review"]);
+    expect(store.list().map((mode) => mode.id)).toEqual(["chat", "agent", "orchestrator", "review"]);
   });
 
   it("upsert 编辑已有模式：createdAt 保留、updatedAt 刷新、builtin 不可被覆盖", () => {
@@ -76,9 +88,9 @@ describe("ModeStore CRUD", () => {
     const store = new ModeStore();
     store.upsert(makeMode({ id: "temp" }));
     store.replaceAll([makeMode({ id: "a" }), makeMode({ id: "b" })]);
-    expect(store.list().map((mode) => mode.id)).toEqual(["chat", "agent", "a", "b"]);
+    expect(store.list().map((mode) => mode.id)).toEqual(["chat", "agent", "orchestrator", "a", "b"]);
     expect(() => store.replaceAll([makeMode({ id: "" })])).toThrow(/mode id must not be empty/);
-    expect(store.list().map((mode) => mode.id)).toEqual(["chat", "agent", "a", "b"]);
+    expect(store.list().map((mode) => mode.id)).toEqual(["chat", "agent", "orchestrator", "a", "b"]);
   });
 });
 
@@ -93,6 +105,14 @@ describe("validateModeDefinition", () => {
     expect(
       () => validateModeDefinition(makeMode({ contextPolicy: { nope: true } as ModeDefinition["contextPolicy"] }))
     ).toThrow(/unknown context type/);
+  });
+
+  it("orchestrate 字段：缺省合法；非 boolean 拒绝", () => {
+    expect(() => validateModeDefinition(makeMode())).not.toThrow();
+    expect(() => validateModeDefinition(makeMode({ orchestrate: true }))).not.toThrow();
+    expect(() => validateModeDefinition(makeMode({ orchestrate: "yes" as unknown as boolean }))).toThrow(
+      /orchestrate must be a boolean/
+    );
   });
 });
 

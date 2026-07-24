@@ -1,0 +1,76 @@
+{
+  "id": "manifest-3e672cbd-2c60-47dc-8b42-f144aa840923",
+  "timestamp": "2026-07-24T03:23:32.656Z",
+  "sessionId": "session-1784863411806",
+  "modeId": "chat",
+  "providerId": "i10-local",
+  "model": "i10-model",
+  "items": [
+    {
+      "id": "item-11f82c16-fa64-4c6d-bcac-6cc0b026b695",
+      "type": "system_prompt",
+      "label": "系统提示",
+      "enabled": true,
+      "tokens": 65,
+      "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-0601aa7d-ba17-456a-a3b2-4de6e5212fb6",
+      "type": "tool_definitions",
+      "label": "工具定义（0 个）",
+      "enabled": true,
+      "tokens": 1,
+      "content": "[]",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-ccaab0a5-f339-4eb9-9a2b-777d41aeb099",
+      "type": "conversation_history",
+      "label": "会话历史（1 条）",
+      "enabled": true,
+      "tokens": 12,
+      "content": "[user] login token 登录逻辑在哪",
+      "source": "conversation",
+      "counting": "exact"
+    },
+    {
+      "id": "item-1952b880-9a11-4a92-9ad4-1b4d4bf752ed",
+      "type": "git_status",
+      "label": "Git 状态",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "git status",
+      "counting": "exact"
+    },
+    {
+      "id": "item-3a4cacd4-b105-41f1-9568-9718eec28f4d",
+      "type": "codebase_match",
+      "label": "login.ts L1-4 · 0.632",
+      "enabled": true,
+      "tokens": 28,
+      "content": "export function login(user, token) {\n  // auth user with token against the session store\n  return checkSession(user, token);\n}",
+      "source": "login.ts",
+      "counting": "exact",
+      "key": "9e470e1b36dbbc3f",
+      "score": 0.6324555320336759
+    },
+    {
+      "id": "item-c9deb529-a125-4ea2-9850-1a595ac61402",
+      "type": "codebase_match",
+      "label": "button.ts L1-4 · 0.000",
+      "enabled": true,
+      "tokens": 22,
+      "content": "export function renderButton() {\n  // render a button widget on the panel\n  return domNode;\n}",
+      "source": "button.ts",
+      "counting": "exact",
+      "key": "42d9868c0928ccdb",
+      "score": 0
+    }
+  ],
+  "totalTokens": 128,
+  "systemPromptTokens": 65
+}

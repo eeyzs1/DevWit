@@ -39,7 +39,24 @@ export const BUILTIN_AGENT_MODE: ModeDefinition = {
   updatedAt: BUILTIN_TIMESTAMP,
 };
 
-export const BUILTIN_MODES: readonly ModeDefinition[] = [BUILTIN_CHAT_MODE, BUILTIN_AGENT_MODE];
+/** 内置 orchestrator 模式（AC20）：Planner 分解 + 并行子 Agent + 授权门继承 + 综合。 */
+export const BUILTIN_ORCHESTRATOR_MODE: ModeDefinition = {
+  id: "orchestrator",
+  name: "Orchestrator",
+  description: "多 Agent 编排：意图分解为子任务，并行子 Agent 执行后综合结论",
+  systemPrompt:
+    "你是 DevWit 的编排协调者。你的任务由编排器分解后交给并行子 Agent 执行，" +
+    "你负责理解用户原始意图，并在收到各子任务结论后给出准确、完整的最终综合答复。",
+  tools: ["read", "write", "edit", "bash", "grep", "find", "ls"],
+  providerId: "",
+  contextPolicy: {},
+  orchestrate: true,
+  builtin: true,
+  createdAt: BUILTIN_TIMESTAMP,
+  updatedAt: BUILTIN_TIMESTAMP,
+};
+
+export const BUILTIN_MODES: readonly ModeDefinition[] = [BUILTIN_CHAT_MODE, BUILTIN_AGENT_MODE, BUILTIN_ORCHESTRATOR_MODE];
 
 const VALID_CONTEXT_TYPES: ReadonlySet<string> = new Set<string>(Object.keys(DEFAULT_CONTEXT_POLICY));
 
@@ -67,6 +84,9 @@ export function validateModeDefinition(mode: ModeDefinition): void {
     if (typeof value !== "boolean") throw new Error(`mode contextPolicy.${key} must be a boolean`);
   }
   if (typeof mode.builtin !== "boolean") throw new Error("mode builtin must be a boolean");
+  if (mode.orchestrate !== undefined && typeof mode.orchestrate !== "boolean") {
+    throw new Error("mode orchestrate must be a boolean when present");
+  }
   if (Number.isNaN(Date.parse(mode.createdAt))) throw new Error("mode createdAt must be a parseable date string");
   if (Number.isNaN(Date.parse(mode.updatedAt))) throw new Error("mode updatedAt must be a parseable date string");
 }

@@ -154,3 +154,74 @@ describe("resolveItemEnabled 优先级", () => {
     expect(resolveItemEnabled("system_prompt", new Map(), undefined)).toBe(true);
   });
 });
+
+describe("setItemOverride 逐项开关（AC19 codebase_match 单块剔除）", () => {
+  /** 产出两个带稳定 key 的 codebase_match 项的测试源。 */
+  function keyedSource() {
+    return {
+      type: "codebase_match" as const,
+      async collect() {
+        return [
+          { id: "i1", type: "codebase_match" as const, label: "a.ts L1-5", enabled: true, tokens: 0, content: "AAA", source: "a.ts", counting: "exact" as const, key: "chunk-a", score: 0.9 },
+          { id: "i2", type: "codebase_match" as const, label: "b.ts L1-5", enabled: true, tokens: 0, content: "BBB", source: "b.ts", counting: "exact" as const, key: "chunk-b", score: 0.8 },
+        ];
+      },
+    };
+  }
+
+  function enabledEngine() {
+    const engine = new ContextEngine({ sessionId: "s1" });
+    engine.registerSource(keyedSource());
+    engine.setTypeEnabled("codebase_match", true);
+    return engine;
+  }
+
+  it("剔除单块：该块零注入（tokens=0/content 空），其余块不受影响", async () => {
+    const engine = enabledEngine();
+    engine.setItemOverride("chunk-a", false);
+    const { manifest, messages } = await engine.build(makeInput());
+    const a = manifest.items.find((item) => item.key === "chunk-a");
+    const b = manifest.items.find((item) => item.key === "chunk-b");
+    expect(a?.enabled).toBe(false);
+    expect(a?.tokens).toBe(0);
+    expect(a?.content).toBe(""); // 剔除后内容不留在 manifest（与类型关闭语义一致）
+    expect(b?.enabled).toBe(true);
+    expect(b?.tokens).toBeGreaterThan(0);
+    // 消息只注入 BBB
+    const injected = messages.filter((m) => m.role === "user").map((m) => m.content).join("\n");
+    expect(injected).toContain("BBB");
+    expect(injected).not.toContain("AAA");
+  });
+
+  it("恢复单块：clearItemOverride 后重新注入", async () => {
+    const engine = enabledEngine();
+    engine.setItemOverride("chunk-a", false);
+    engine.clearItemOverride("chunk-a");
+    const { manifest } = await engine.build(makeInput());
+    expect(manifest.items.find((item) => item.key === "chunk-a")?.enabled).toBe(true);
+  });
+
+  it("类型是总闸：codebase_match 类型关闭时 item override 无法复活单块", async () => {
+    const engine = new ContextEngine({ sessionId: "s1" });
+    engine.registerSource(keyedSource());
+    engine.setItemOverride("chunk-a", true); // 显式开
+    engine.setTypeEnabled("codebase_match", false); // 类型关
+    const { manifest, messages } = await engine.build(makeInput());
+    expect(manifest.items.find((item) => item.key === "chunk-a")?.enabled).toBe(false);
+    expect(messages).toHaveLength(1); // 零注入
+  });
+
+  it("无 key 项不受 itemOverrides 影响（占位项仅受类型开关控制）", async () => {
+    const engine = new ContextEngine({ sessionId: "s1" });
+    engine.registerSource({
+      type: "custom",
+      async collect() {
+        return [{ id: "x", type: "custom" as const, label: "占位", enabled: true, tokens: 0, content: "PLACE", counting: "exact" as const }];
+      },
+    });
+    engine.setTypeEnabled("custom", true);
+    engine.setItemOverride("nonexistent-key", false);
+    const { manifest } = await engine.build(makeInput());
+    expect(manifest.items.find((item) => item.type === "custom")?.enabled).toBe(true);
+  });
+});

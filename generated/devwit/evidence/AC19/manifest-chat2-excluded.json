@@ -1,0 +1,76 @@
+{
+  "id": "manifest-5e8a3cde-75fb-4174-b9aa-3f82df1b1983",
+  "timestamp": "2026-07-24T03:23:32.915Z",
+  "sessionId": "session-1784863411806",
+  "modeId": "chat",
+  "providerId": "i10-local",
+  "model": "i10-model",
+  "items": [
+    {
+      "id": "item-d007c5d5-d618-46a3-93e5-6e035b1b27c3",
+      "type": "system_prompt",
+      "label": "系统提示",
+      "enabled": true,
+      "tokens": 65,
+      "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-dc471c56-f794-4aea-86ca-a5d05b7a8adc",
+      "type": "tool_definitions",
+      "label": "工具定义（0 个）",
+      "enabled": true,
+      "tokens": 1,
+      "content": "[]",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-2551127c-6d39-453f-b890-c5052f8cc960",
+      "type": "conversation_history",
+      "label": "会话历史（3 条）",
+      "enabled": true,
+      "tokens": 47,
+      "content": "[user] login token 登录逻辑在哪\n[assistant] 收到，已参考代码库上下文。\n[user] login token 登录逻辑在哪（再问一次）",
+      "source": "conversation",
+      "counting": "exact"
+    },
+    {
+      "id": "item-b47297ca-9d46-438e-b681-b7badd54f7c8",
+      "type": "git_status",
+      "label": "Git 状态",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "git status",
+      "counting": "exact"
+    },
+    {
+      "id": "item-52c56f85-f52e-49c8-821d-bdaf39d063b1",
+      "type": "codebase_match",
+      "label": "login.ts L1-4 · 0.632",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "login.ts",
+      "counting": "exact",
+      "key": "9e470e1b36dbbc3f",
+      "score": 0.6324555320336759
+    },
+    {
+      "id": "item-5c005afa-22fc-4f9c-b077-4d46bd200ab7",
+      "type": "codebase_match",
+      "label": "button.ts L1-4 · 0.000",
+      "enabled": true,
+      "tokens": 22,
+      "content": "export function renderButton() {\n  // render a button widget on the panel\n  return domNode;\n}",
+      "source": "button.ts",
+      "counting": "exact",
+      "key": "42d9868c0928ccdb",
+      "score": 0
+    }
+  ],
+  "totalTokens": 135,
+  "systemPromptTokens": 65
+}

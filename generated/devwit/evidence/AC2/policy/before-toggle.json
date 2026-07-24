@@ -6,5 +6,6 @@
   "terminal_output": false,
   "selection": false,
   "conversation_history": false,
+  "codebase_match": false,
   "custom": false
 }

@@ -22,6 +22,7 @@ const TYPE_LABEL_KEY: Record<ContextItemType, `ctx.${ContextItemType}`> = {
   terminal_output: "ctx.terminal_output",
   selection: "ctx.selection",
   conversation_history: "ctx.conversation_history",
+  codebase_match: "ctx.codebase_match",
   custom: "ctx.custom",
 };
 
@@ -31,6 +32,7 @@ const TYPE_ORDER: readonly ContextItemType[] = [
   "conversation_history",
   "selection",
   "file_fragment",
+  "codebase_match",
   "git_status",
   "terminal_output",
   "custom",
@@ -101,7 +103,19 @@ export function mountContextPanel(container: HTMLElement, controller: ContextPan
       const title = document.createElement("div");
       title.className = "dw-context-item-title";
       const countingMark = item.counting === "estimated" ? t("ctxpanel.estimated") : "";
-      title.textContent = `${item.enabled ? "●" : "○"} ${item.label} — ${item.tokens} tokens${countingMark}`;
+      // AC19：带稳定 key 的项（codebase_match 命中块）渲染逐项开关，
+      // 其余项维持类型级开关（面板顶部 toggles），此处仅状态点展示
+      if (item.key !== undefined) {
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = item.enabled;
+        checkbox.className = "dw-context-item-check";
+        checkbox.addEventListener("change", () => void controller.setItemOverride(item.key!, checkbox.checked));
+        title.appendChild(checkbox);
+      }
+      const titleText = document.createElement("span");
+      titleText.textContent = `${item.key === undefined ? (item.enabled ? "●" : "○") + " " : ""}${item.label} — ${item.tokens} tokens${countingMark}`;
+      title.appendChild(titleText);
       row.appendChild(title);
       if (item.enabled && item.content.length > 0) {
         const detail = document.createElement("details");

@@ -23,6 +23,8 @@ export const DEFAULT_CONTEXT_POLICY: Readonly<Record<ContextItemType, boolean>> 
   terminal_output: false,
   selection: false,
   conversation_history: false,
+  // 默认关闭：需先在设置中启用代码索引（AC19），启用时由 AiRuntime 自动打开本类型开关
+  codebase_match: false,
   custom: false,
 };
 
@@ -36,6 +38,7 @@ const ALL_CONTEXT_TYPES = Object.keys(DEFAULT_CONTEXT_POLICY) as ContextItemType
 const INJECTED_AS_USER_CONTEXT: readonly ContextItemType[] = [
   "selection",
   "file_fragment",
+  "codebase_match",
   "git_status",
   "terminal_output",
   "custom",
@@ -67,6 +70,8 @@ export interface ContextBuildInput {
   selection?: { text: string; startLine: number; endLine: number };
   terminalTail?: string;
   conversationHistory: ChatMessage[];
+  /** 本轮用户意图原文（AC19：透传给 codebase_match 检索源）。 */
+  query?: string;
 }
 
 /** 一次上下文构建的完整产物：可审计 manifest + 实际发往 provider 的 messages/tools。 */
@@ -111,6 +116,8 @@ export class ContextEngine {
   private readonly manifestStore?: ManifestStore;
   private readonly sources: ContextSource[] = [];
   private readonly userOverrides = new Map<ContextItemType, boolean>();
+  /** 稳定 key 项的逐项开关（AC19）：优先级高于类型级开关，仅对带 key 的项生效。 */
+  private readonly itemOverrides = new Map<string, boolean>();
   private latestManifest: ContextManifest | null = null;
 
   constructor(options: ContextEngineOptions) {
@@ -136,6 +143,19 @@ export class ContextEngine {
   /** 清除某项的用户开关，回落到 模式策略 → 引擎默认。 */
   clearTypeOverride(type: ContextItemType): void {
     this.userOverrides.delete(type);
+  }
+
+  /**
+   * 稳定 key 项的逐项开关（AC19 codebase_match 单块剔除/恢复）。
+   * 生效条件：项带 key 且其类型级解析结果为开启——类型关闭时全部零注入，
+   * item override 无法复活（类型是总闸，保持 AC2 的"一键全关"语义）。
+   */
+  setItemOverride(key: string, enabled: boolean): void {
+    this.itemOverrides.set(key, enabled);
+  }
+
+  clearItemOverride(key: string): void {
+    this.itemOverrides.delete(key);
   }
 
   /** 当前生效的完整策略视图（默认 ← 模式策略 ← 用户开关），供 UI 面板渲染。 */
@@ -175,7 +195,10 @@ export class ContextEngine {
 
     const counting: ContextItem["counting"] = this.counter.exact ? "exact" : "estimated";
     const items: ContextItem[] = rawItems.map((item) => {
-      const enabled = resolveItemEnabled(item.type, this.userOverrides, input.contextPolicy);
+      const typeEnabled = resolveItemEnabled(item.type, this.userOverrides, input.contextPolicy);
+      // 类型是总闸：类型关闭 → 恒不注入；类型开启时带 key 项可被逐项剔除（AC19）
+      const itemOverride = item.key !== undefined ? this.itemOverrides.get(item.key) : undefined;
+      const enabled = typeEnabled && (itemOverride ?? true);
       return {
         ...item,
         enabled,

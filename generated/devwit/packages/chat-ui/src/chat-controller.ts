@@ -24,6 +24,8 @@ export type ChatItem =
   | { kind: "assistant"; text: string; streaming: boolean }
   | { kind: "tool"; summary: string; ok: boolean | null }
   | { kind: "authorization"; requestId: string; toolName: string; reason: string; decision: AuthorizationDecision | null }
+  | { kind: "plan"; subtasks: { id: string; title: string }[]; fallback: boolean }
+  | { kind: "subagent"; subagentId: string; title: string; phase: "start" | "done"; finishReason?: string }
   | { kind: "error"; text: string }
   | { kind: "done"; text: string };
 
@@ -60,6 +62,33 @@ function isAuthorizationDetail(detail: unknown): detail is AuthorizationDetail {
 function eventText(event: AgentTraceEvent): string {
   const detail = event.detail as { text?: unknown } | undefined;
   return typeof detail?.text === "string" ? detail.text : event.summary;
+}
+
+/** plan 事件 detail 的防御性解析（AC20：分解列表在活动流可见）。 */
+function planDetail(detail: unknown): { subtasks: { id: string; title: string }[]; fallback: boolean } | null {
+  if (typeof detail !== "object" || detail === null) return null;
+  const record = detail as Record<string, unknown>;
+  if (!Array.isArray(record["subtasks"])) return null;
+  const subtasks: { id: string; title: string }[] = [];
+  for (const entry of record["subtasks"]) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const candidate = entry as Record<string, unknown>;
+    if (typeof candidate["id"] !== "string" || typeof candidate["title"] !== "string") continue;
+    subtasks.push({ id: candidate["id"], title: candidate["title"] });
+  }
+  return { subtasks, fallback: record["fallback"] === true };
+}
+
+/** subagent_start/done 事件 detail 的防御性解析。 */
+function subagentDetail(detail: unknown): { subagentId: string; title: string; finishReason?: string } | null {
+  if (typeof detail !== "object" || detail === null) return null;
+  const record = detail as Record<string, unknown>;
+  if (typeof record["subagentId"] !== "string" || typeof record["title"] !== "string") return null;
+  return {
+    subagentId: record["subagentId"],
+    title: record["title"],
+    ...(typeof record["finishReason"] === "string" ? { finishReason: record["finishReason"] } : {}),
+  };
 }
 
 export class ChatController {
@@ -241,11 +270,13 @@ export class ChatController {
       }
       case "authorization_request": {
         if (isAuthorizationDetail(event.detail)) {
+          // 子 Agent 发起的授权（AC20）：reason 前缀子任务标识，归属可见
+          const sub = (event.detail as unknown as Record<string, unknown>)["subagentId"];
           this.items.push({
             kind: "authorization",
             requestId: event.detail.requestId,
             toolName: event.detail.toolName,
-            reason: event.detail.reason,
+            reason: typeof sub === "string" ? `[${sub}] ${event.detail.reason}` : event.detail.reason,
             decision: null,
           });
         }
@@ -272,6 +303,33 @@ export class ChatController {
         this.items.push({ kind: "done", text: event.summary });
         this.running = false;
         break;
+      case "plan": {
+        const plan = planDetail(event.detail);
+        if (plan !== null) {
+          this.items.push({ kind: "plan", subtasks: plan.subtasks, fallback: plan.fallback });
+        }
+        break;
+      }
+      case "subagent_start": {
+        const started = subagentDetail(event.detail);
+        if (started !== null) {
+          this.items.push({ kind: "subagent", subagentId: started.subagentId, title: started.title, phase: "start" });
+        }
+        break;
+      }
+      case "subagent_done": {
+        const finished = subagentDetail(event.detail);
+        if (finished !== null) {
+          this.items.push({
+            kind: "subagent",
+            subagentId: finished.subagentId,
+            title: finished.title,
+            phase: "done",
+            ...(finished.finishReason !== undefined ? { finishReason: finished.finishReason } : {}),
+          });
+        }
+        break;
+      }
       case "user_message":
         break; // 本地已追加，轨迹回放时跳过
     }

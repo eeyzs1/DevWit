@@ -129,6 +129,9 @@ export class AgentLoop {
         ...(input.selection !== undefined ? { selection: input.selection } : {}),
         ...(input.terminalTail !== undefined ? { terminalTail: input.terminalTail } : {}),
         conversationHistory: transcript,
+        // AC19：用户意图原文作为 codebase_match 源的检索查询（恒定为本轮意图，
+        // 工具回填后的后续迭代仍按原始意图检索，保证注入代码块与任务相关）
+        query: input.userText,
       });
 
       let assistantText = "";

@@ -11,6 +11,7 @@
  */
 import { promises as fs } from "node:fs";
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import type {
   AgentRunInput,
@@ -18,29 +19,37 @@ import type {
   AuthorizationDecision,
   ContextItemType,
   ContextManifest,
+  Embedder,
   LLMProvider,
   McpServerConfig,
   McpServerView,
   ModeDefinition,
   ProviderConfig,
+  RagConfig,
+  RagStatusInfo,
 } from "@devwit/contracts";
-import { IPC } from "@devwit/contracts";
-import { AgentLoop, AgentTrace, Authorizer, createNodeEnvironment, historyFromTrace } from "@devwit/agent-runtime";
+import { DEFAULT_RAG_CONFIG, IPC } from "@devwit/contracts";
+import { AgentLoop, AgentOrchestrator, AgentTrace, Authorizer, createNodeEnvironment, historyFromTrace } from "@devwit/agent-runtime";
 import type { ToolEnvironment } from "@devwit/agent-runtime";
-import { ContextEngine, fileFragmentSource, gitStatusSource, selectionSource } from "@devwit/context-engine";
-import { ProviderRegistry } from "@devwit/llm-providers";
+import { ContextEngine, fileFragmentSource, gitStatusSource, selectionSource, TiktokenCounter } from "@devwit/context-engine";
+import { createEmbedder, ProviderRegistry } from "@devwit/llm-providers";
 import { McpManager, validateMcpServerConfig } from "@devwit/mcp";
 import { ModeStore } from "@devwit/modes";
+import { CodebaseIndex, codebaseMatchSource } from "@devwit/rag";
 import type { SettingsStore } from "@devwit/settings";
 import { getGitStatus } from "@devwit/workspace";
 import type { WorkspaceService } from "@devwit/workspace";
 
 /** settings 键：用户逐项上下文开关（全局，对每个新会话引擎生效）。 */
 const CONTEXT_OVERRIDES_KEY = "contextOverrides";
+/** settings 键：稳定 key 项的逐项开关（AC19：codebase_match 单块剔除/恢复）。 */
+const CONTEXT_ITEM_OVERRIDES_KEY = "contextItemOverrides";
 const PROVIDERS_KEY = "providers";
 const MODES_KEY = "modes";
 /** settings 键：MCP 服务器配置列表（迭代 8 / AC17，热更新）。 */
 const MCP_SERVERS_KEY = "mcpServers";
+/** settings 键：代码索引配置（迭代 10 / AC19，热更新）。 */
+const RAG_KEY = "rag";
 
 interface SessionState {
   engine: ContextEngine;
@@ -64,6 +73,10 @@ export interface AiRuntimeDeps {
   env?: ToolEnvironment;
   /** 测试注入：替换 provider 工厂（生产缺省 registry.createProvider）。 */
   createProvider?: (id: string) => LLMProvider;
+  /** 测试注入：替换 embedder 工厂（生产缺省 createEmbedder 走真实 /v1/embeddings）。 */
+  createEmbedder?: (providerId: string, embedModel: string) => Embedder;
+  /** 代码索引根目录（AC19：每个工作区一个 hash 子目录）。缺省取 manifestsDir 同级 rag/。 */
+  ragDir?: string;
 }
 
 export class AiRuntime {
@@ -81,11 +94,18 @@ export class AiRuntime {
   private hydratingModes = false;
   /** 轨迹落盘目录（AC15）。 */
   private readonly tracesDir: string;
+  /** 代码索引（AC19）：null=未启用/不可用；状态经 RagStatus 推送。 */
+  private ragIndex: CodebaseIndex | null = null;
+  private ragStatus: RagStatusInfo = { state: "disabled" };
+  private ragRoot: string | null = null;
+  private readonly ragDir: string;
+  private readonly tokenCounter = new TiktokenCounter();
 
   constructor(deps: AiRuntimeDeps) {
     this.deps = deps;
     this.settings = deps.settings;
     this.tracesDir = deps.tracesDir ?? path.join(path.dirname(deps.manifestsDir), "traces");
+    this.ragDir = deps.ragDir ?? path.join(path.dirname(deps.manifestsDir), "rag");
     this.env = deps.env ?? createNodeEnvironment();
     // 凭证解析：settings 实现 CredentialResolver（密钥仅在请求时读取，换 key 不重启）
     this.registry = new ProviderRegistry(this.settings);
@@ -96,16 +116,26 @@ export class AiRuntime {
     this.hydrateProviders();
     this.hydrateModes();
     this.hydrateMcpServers();
-    // 热更新：settings 变更即重读（providers 键 / modes 持久化键 / 上下文开关 / MCP 配置）
+    // 热更新：settings 变更即重读（providers 键 / modes 持久化键 / 上下文开关 / MCP 配置 / RAG 配置）
     this.settings.onChanged((key) => {
-      if (key === PROVIDERS_KEY) this.hydrateProviders();
+      if (key === PROVIDERS_KEY) {
+        this.hydrateProviders();
+        this.refreshRag(); // provider 增删影响 embedder 可用性
+      }
       if (key === MODES_KEY) this.hydrateModes();
       if (key === CONTEXT_OVERRIDES_KEY) this.applyContextOverridesToSessions();
+      if (key === CONTEXT_ITEM_OVERRIDES_KEY) this.applyItemOverridesToSessions();
       if (key === MCP_SERVERS_KEY) this.hydrateMcpServers();
+      if (key === RAG_KEY) this.refreshRag();
     });
     this.modeStore.onDidChange(() => {
       this.persistModes();
       this.deps.send(IPC.ModesChanged);
+    });
+    // AC19 增量索引：工作区文件事件 → 单文件重嵌入（保存/外部变更/删除）
+    this.deps.workspace.onDidChange((event) => {
+      if (this.ragIndex === null || this.ragRoot === null) return;
+      void this.ragIndex.syncFile(path.join(this.ragRoot, event.path));
     });
   }
 
@@ -203,8 +233,9 @@ export class AiRuntime {
     this.settings.set(MCP_SERVERS_KEY, list);
   }
 
-  /** 应用退出（will-quit）：停止全部 MCP 子进程。 */
+  /** 应用退出（will-quit）：停止全部 MCP 子进程 + 关闭代码索引。 */
   async dispose(): Promise<void> {
+    this.teardownRag();
     await this.mcpManager.dispose();
   }
 
@@ -226,6 +257,149 @@ export class AiRuntime {
   }
 
   // --------------------------------------------------------------------------
+  // 代码索引 / 透明 RAG（迭代 10 / AC19）：settings "rag" 键热更新
+  // --------------------------------------------------------------------------
+
+  getRagStatus(): RagStatusInfo {
+    return this.ragStatus;
+  }
+
+  /** 手动全量重建（设置页「重建索引」按钮）；索引未启用时为无操作。 */
+  async rebuildRag(): Promise<void> {
+    if (this.ragIndex === null) return;
+    await this.ragIndex.buildAll();
+  }
+
+  /**
+   * 评估 RAG 配置与工作区状态，建/重建/关闭索引。
+   * 触发点：settings rag/providers 键变更、IPC 打开工作区后（ipc.ts 调用）、run() 兜底。
+   */
+  refreshRag(): void {
+    const config = this.readRagConfig();
+    const root = this.deps.workspace.rootPath;
+    if (!config.enabled || root === null) {
+      this.teardownRag();
+      return;
+    }
+    if (this.ragIndex !== null && this.ragRoot === root) return; // 已就当前根就绪
+    this.teardownRag();
+
+    let embedder: Embedder;
+    try {
+      embedder = this.createEmbedderFor(config);
+    } catch (error) {
+      // 无 OpenAI 兼容 provider / 无凭证 / anthropic 类型：优雅降级（AC19）
+      const message = error instanceof Error ? error.message : String(error);
+      this.setRagStatus({ state: "error", code: message.startsWith("DW_") ? message.split(":")[0]! : "DW_RAG_NO_EMBED_PROVIDER" });
+      return;
+    }
+    this.ragRoot = root;
+    const indexDir = path.join(this.ragDir, hashWorkspaceRoot(root));
+    const index = new CodebaseIndex({
+      root,
+      indexDir,
+      embedder,
+      onStatus: (status) => this.setRagStatus(status),
+    });
+    this.ragIndex = index;
+    this.autoEnableCodebaseMatch(config);
+    void index.buildAll();
+  }
+
+  /** 启用索引时自动打开 codebase_match 类型开关（一次性；之后用户可自由开关）。 */
+  private autoEnableCodebaseMatch(config: RagConfig): void {
+    if (!config.enabled) return;
+    const overrides = this.readContextOverrides();
+    if (overrides.get("codebase_match") === true) return;
+    this.setContextItemEnabled("codebase_match", true);
+  }
+
+  private teardownRag(): void {
+    if (this.ragIndex !== null) {
+      this.ragIndex.dispose();
+      this.ragIndex = null;
+    }
+    this.ragRoot = null;
+    this.setRagStatus({ state: "disabled" });
+  }
+
+  private setRagStatus(status: RagStatusInfo): void {
+    this.ragStatus = status;
+    this.deps.send(IPC.RagStatus, status);
+  }
+
+  private readRagConfig(): RagConfig {
+    const raw = this.settings.get(RAG_KEY);
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return { ...DEFAULT_RAG_CONFIG };
+    const record = raw as Record<string, unknown>;
+    return {
+      enabled: record["enabled"] === true,
+      ...(typeof record["providerId"] === "string" && record["providerId"] !== ""
+        ? { providerId: record["providerId"] }
+        : {}),
+      embedModel:
+        typeof record["embedModel"] === "string" && record["embedModel"] !== ""
+          ? record["embedModel"]
+          : DEFAULT_RAG_CONFIG.embedModel,
+      topK: typeof record["topK"] === "number" && record["topK"] > 0 ? Math.floor(record["topK"]) : DEFAULT_RAG_CONFIG.topK,
+      budgetTokens:
+        typeof record["budgetTokens"] === "number" && record["budgetTokens"] > 0
+          ? Math.floor(record["budgetTokens"])
+          : DEFAULT_RAG_CONFIG.budgetTokens,
+    };
+  }
+
+  /** 选 embedder  provider：配置的 providerId 或第一个 openai 类型；凭证缺失抛 DW_RAG_NO_CREDENTIAL。 */
+  private createEmbedderFor(config: RagConfig): Embedder {
+    const providers = this.registry.list();
+    const provider =
+      (config.providerId !== undefined ? providers.find((entry) => entry.id === config.providerId) : undefined) ??
+      providers.find((entry) => entry.type === "openai");
+    if (provider === undefined) {
+      throw new Error("DW_RAG_NO_EMBED_PROVIDER");
+    }
+    const hasCredential = this.settings.listCredentials().some((meta) => meta.ref === provider.credentialRef);
+    if (!hasCredential) {
+      throw new Error("DW_RAG_NO_CREDENTIAL");
+    }
+    if (this.deps.createEmbedder !== undefined) {
+      return this.deps.createEmbedder(provider.id, config.embedModel);
+    }
+    return createEmbedder(provider, config.embedModel, this.settings);
+  }
+
+  /** 逐项（稳定 key）开关：写 settings（全局持久）+ 应用到全部存活会话引擎（热生效）。 */
+  setContextItemOverride(key: string, enabled: boolean): void {
+    const raw = this.settings.get(CONTEXT_ITEM_OVERRIDES_KEY);
+    const record =
+      typeof raw === "object" && raw !== null && !Array.isArray(raw) ? { ...(raw as Record<string, unknown>) } : {};
+    record[key] = enabled;
+    this.settings.set(CONTEXT_ITEM_OVERRIDES_KEY, record);
+    for (const session of this.sessions.values()) {
+      session.engine.setItemOverride(key, enabled);
+    }
+  }
+
+  private readItemOverrides(): Map<string, boolean> {
+    const raw = this.settings.get(CONTEXT_ITEM_OVERRIDES_KEY);
+    const map = new Map<string, boolean>();
+    if (typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
+      for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+        if (typeof value === "boolean") map.set(key, value);
+      }
+    }
+    return map;
+  }
+
+  private applyItemOverridesToSessions(): void {
+    for (const session of this.sessions.values()) {
+      for (const [key, enabled] of this.readItemOverrides()) {
+        session.engine.setItemOverride(key, enabled);
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
   // agent 会话
   // --------------------------------------------------------------------------
 
@@ -240,6 +414,8 @@ export class AiRuntime {
     if (providerId === "") {
       throw new Error(`DW_MODE_UNBOUND:${mode.id}`);
     }
+    // AC19 兜底：root 经其他路径（如会话恢复）变更时，run 前重新评估索引
+    this.refreshRag();
     const provider =
       this.deps.createProvider !== undefined ? this.deps.createProvider(providerId) : this.registry.createProvider(providerId);
 
@@ -252,23 +428,39 @@ export class AiRuntime {
     session.abort = new AbortController();
     session.modeId = input.modeId;
 
-    const loop = new AgentLoop({
-      provider,
-      engine: session.engine,
-      mode,
-      env: this.env,
-      authorizer: session.authorizer,
-      trace: session.trace,
-      onAssistantDelta: (delta) => this.emitDelta(input.sessionId, delta),
-      // AC17：MCP 工具热聚合（每轮迭代取当前 ready 服务器工具集）与调用路由
-      extraTools: () => this.mcpManager.toolDefinitions(),
-      executeExtraTool: (call) => this.mcpManager.callTool(call),
-    });
     // AC15：本轮之前的轨迹重建为对话历史（跨轮次/跨重启连续记忆）；
     // 在 loop 记录本轮 user_message 之前快照，避免重复计入本轮输入。
     const priorHistory = historyFromTrace(session.trace.list());
     try {
-      await loop.run(input, session.abort.signal, priorHistory);
+      if (mode.orchestrate === true) {
+        // AC20 多 Agent 编排：Planner 分解 → 并行子 Agent（共享授权门）→ 综合
+        const orchestrator = new AgentOrchestrator({
+          provider,
+          mode,
+          env: this.env,
+          authorizer: session.authorizer,
+          trace: session.trace,
+          createSubEngine: () => this.createSubEngine(input.sessionId),
+          onAssistantDelta: (delta) => this.emitDelta(input.sessionId, delta),
+          extraTools: () => this.mcpManager.toolDefinitions(),
+          executeExtraTool: (call) => this.mcpManager.callTool(call),
+        });
+        await orchestrator.run(input, session.abort.signal, priorHistory);
+      } else {
+        const loop = new AgentLoop({
+          provider,
+          engine: session.engine,
+          mode,
+          env: this.env,
+          authorizer: session.authorizer,
+          trace: session.trace,
+          onAssistantDelta: (delta) => this.emitDelta(input.sessionId, delta),
+          // AC17：MCP 工具热聚合（每轮迭代取当前 ready 服务器工具集）与调用路由
+          extraTools: () => this.mcpManager.toolDefinitions(),
+          executeExtraTool: (call) => this.mcpManager.callTool(call),
+        });
+        await loop.run(input, session.abort.signal, priorHistory);
+      }
     } finally {
       session.running = false;
     }
@@ -358,6 +550,9 @@ export class AiRuntime {
     for (const [type, enabled] of this.readContextOverrides()) {
       engine.setTypeEnabled(type, enabled);
     }
+    for (const [key, enabled] of this.readItemOverrides()) {
+      engine.setItemOverride(key, enabled);
+    }
     const trace = new AgentTrace(sessionId);
     // AC15：先水合磁盘历史（重启后续跑同一会话），再订阅新事件实时落盘
     trace.loadPersisted(this.readPersistedTrace(sessionId));
@@ -373,7 +568,26 @@ export class AiRuntime {
       running: false,
       modeId,
     };
-    // 会话级上下文源：选区（AgentRunInput 注入）、活动文件片段、git 状态
+    this.registerSessionSources(engine);
+    this.sessions.set(sessionId, session);
+    return session;
+  }
+
+  /** AC20 子 Agent 引擎：与会话引擎同源（含 RAG/逐项开关），并发 build 互不竞争。 */
+  private createSubEngine(sessionId: string): ContextEngine {
+    const engine = this.createEngine(sessionId);
+    for (const [type, enabled] of this.readContextOverrides()) {
+      engine.setTypeEnabled(type, enabled);
+    }
+    for (const [key, enabled] of this.readItemOverrides()) {
+      engine.setItemOverride(key, enabled);
+    }
+    this.registerSessionSources(engine);
+    return engine;
+  }
+
+  /** 会话级上下文源注册：选区/活动文件片段/git 状态/透明 RAG（会话引擎与编排子引擎共用）。 */
+  private registerSessionSources(engine: ContextEngine): void {
     engine.registerSource(selectionSource());
     engine.registerSource(fileFragmentSource((filePath) => this.deps.workspace.readFile(filePath)));
     engine.registerSource(
@@ -384,8 +598,21 @@ export class AiRuntime {
         return [`分支 ${status.branch}`, ...lines].join("\n");
       })
     );
-    this.sessions.set(sessionId, session);
-    return session;
+    // AC19：透明 RAG 源。getIndex 动态取——索引热启停即刻反映到下次请求，
+    // 未启用/构建中/错误时源产出占位项（透明性：为什么这次没有代码库上下文）。
+    const ragConfig = () => this.readRagConfig();
+    engine.registerSource(
+      codebaseMatchSource({
+        getIndex: () => this.ragIndex,
+        get topK() {
+          return ragConfig().topK;
+        },
+        get budgetTokens() {
+          return ragConfig().budgetTokens;
+        },
+        countTokens: (text) => this.tokenCounter.count(text),
+      })
+    );
   }
 
   private createEngine(sessionId: string): ContextEngine {
@@ -479,4 +706,9 @@ export class AiRuntime {
       }
     }
   }
+}
+
+/** 工作区根 → 索引目录名（防路径穿越：渲染可控 root 字符串，哈希后作目录名）。 */
+function hashWorkspaceRoot(root: string): string {
+  return createHash("sha1").update(path.resolve(root)).digest("hex").slice(0, 12);
 }

@@ -1,0 +1,9 @@
+迭代 11（AC20 多 Agent 编排）验证：
+1. 内置「编排」模式：模式下拉框 option[value=orchestrator] 文案「编排」（displayModeName 本地化）；选中后发送意图，AgentOrchestrator 接管（ai-runtime orchestrate 分支）。
+2. Planner 分解：PLANNER_SYSTEM_PROMPT 非流式调用返回 2 子任务 JSON → parsePlannedTasks 解析 → plan 事件入轨迹（detail.subtasks 全量），对话区 .dw-msg-plan 展示 S1/S2 清单（截图 01）。
+3. 并行子 Agent：S1(alpha)/S2(beta) 各自完整 AgentLoop（独立子引擎工厂 createSubEngine，worker 系统提示后缀明确角色），write 工具真实写盘 alpha-i11.txt/beta-i11.txt（文件内容证据）；.dw-msg-subagent 开始/结束行带 S1/S2 归属徽标与 finishReason。
+4. 授权门共享继承：S1 write 授权请求 reason 带 [S1] 前缀（chat-controller 按 detail.subagentId 前缀化）；点「本会话允许」→ sessionAllowed 加 write → S2 write 免问（服务端门控保证 S2 授权检查严格在 S1 写盘后，断言无竞态），全程授权行恒为 1。
+5. 综合阶段：唯一走 onAssistantDelta 通道的流式回复 → .dw-msg-assistant 含「综合结论」；trace.record(assistant_message) 存档；done 事件「任务完成（2 个子任务）」。
+6. 轨迹事件：onEvent 订阅全量落盘 trace-events.json——plan×1（subtasks=2）/subagent_start×2/subagent_done×2（finishReason=completed）/子代理 tool_call 带 detail.subagentId/授权请求带 subagentId。
+7. 退化路径：第二次意图 Planner 返回非 JSON → parsePlannedTasks null → fallback 单任务（plan 事件 fallback=true，.dw-msg-plan「分解失败，按单任务执行原始意图」），单 AgentLoop 跑完，done「任务完成（1 个子任务）」，无新增授权行（截图 03）。
+断言通过 24 项，失败 0 项。

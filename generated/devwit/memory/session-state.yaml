@@ -222,5 +222,41 @@ iteration_9:
     status: completed
     verifier: js-yaml 静态校验（jobs=[build-windows,build-macos]、macos 6 步）；真实 macOS 构建由下一 tag CI 运行确认
   notes: 两 job 并行向同一 tag 追加产物（action-gh-release 处理已存在 release）；latest.yml(win)/latest-mac.yml 文件名不冲突
+iteration_10:
+  scope: 透明 RAG（AC19）：代码库语义索引 + 检索命中入上下文 manifest 可审计 + 逐项开关 + 设置页代码索引区
+  acceptance_criteria:
+  - description: '@devwit/rag 包：chunker（语法感知启发式分块，chunkId=内容哈希稳定 id）+ IndexStore（JSONL 全量原子重写，无 native 依赖的诚实选型）+ CodebaseIndex（全量构建/mtime+size 增量同步/余弦全扫描 topK+token 预算；embedding 失败置 error 态不 throw，队列 catch 自愈不毒化后续同步；dispose 保留磁盘索引）+ codebaseMatchSource（占位项说明未启用/构建中/错误/无命中/检索失败五种无上下文原因，可见性不依赖可用性）'
+    id: AC19
+    status: completed
+    verifier: packages/rag/tests（chunker 6 + index-store 5 + codebase-index 8 + codebase-match-source 7）
+  - description: 检索入上下文可审计可裁剪：agent-loop 以 query=userText 调 context-engine（恒定原始意图，工具回填迭代仍按意图检索）；命中块=独立 ContextItem（key=chunkId/score/路径行区间 label），manifest 落盘；context-engine 新增 itemOverrides 逐项开关（类型是总闸，剔除项 tokens=0/content 空），面板复选框剔除/恢复单块
+    id: AC19
+    status: completed
+    verifier: context-engine tests（setItemOverride 4 项新增）+ tests/e2e/verify-i10.mjs（login.ts 命中 score 0.632 优于 button.ts；剔除后 manifest 零注入）+ evidence/AC19
+  - description: 设置·通用分区「代码索引」：启用开关（settings "rag" 键热更新触发 refreshRag）+ 状态行（未启用/构建中 done/total/已就绪 N 文件 M 块/错误码，RagStatus 推送实时刷新）+ 手动重建按钮；embedder 经 OpenAI 兼容 /v1/embeddings（anthropic 类型优雅降级 DW_EMBED_UNSUPPORTED）；启用时自动打开 codebase_match 类型开关（一次性）；工作区文件事件驱动单文件增量同步；i18n 新增 rag.* 键 7 个 + ctx.codebase_match（中英同型）
+    id: AC19
+    status: completed
+    verifier: tests/e2e/verify-i10.mjs（初始 disabled→启用→ready fileCount=2→设置页「已就绪」→关闭→disabled 热生效）+ evidence/AC19
+  notes: 修复三处接线——node_modules/@devwit 缺 rag workspace 符号链接（npm install 补建）；enqueue 返回 void 致 buildAll 不等待完成且任务失败毒化 Promise 链（改返回 Promise + 队列 catch 自愈 + buildAll/syncFile 内部兜底置 error 态，errorCodeOf 不再是死代码）；ai-runtime-trace 测试 workspace mock 补 onDidChange。preload 暴露 rag 段（getStatus/rebuild/onStatus），IPC 三通道（RagGetStatus/RagRebuild/RagStatus）
+  e2e_report: evidence/AC19/verify-i10-report.json (16 项断言全 PASS) + smoke/iteration2/verify-i4/verify-i6/verify-i7/verify-i8 回归 PASSED
+  unit_tests: 43 files / 317 tests passed
+iteration_11:
+  scope: 多 Agent 编排（AC20）：内置「编排」模式——Planner 意图分解 → 并行子 Agent 执行 → 综合结论，全程活动流归属可见
+  acceptance_criteria:
+  - description: 'AgentOrchestrator（packages/agent-runtime/src/orchestrator.ts）：Planner 非流式调用分解子任务（严格 JSON 解析 parsePlannedTasks，失败/为空退化单任务 fallback=true 透明标注）；子任务 S1..Sn（上限 4）按并发上限 3 并行，每个子 Agent 是完整 AgentLoop（worker 系统提示后缀 + 独立子引擎 createSubEngine 防并发竞争 + 子轨迹事件转发父轨迹带 subagentId/subagentTitle 归属标记，终态事件不转发防误判）；综合阶段汇总各子任务结论流式输出（唯一走 delta 通道）；单子任务失败不拖垮整体（finishReason 在 subagent_done 与综合输入可见）'
+    id: AC20
+    status: completed
+    verifier: packages/agent-runtime/tests/orchestrator.test.ts（10 项：完整编排/并发上限峰值=2/授权共享继承/fallback/取消）+ tests/e2e/verify-i11.mjs
+  - description: '授权门共享继承：全部子 Agent 共用同一 Authorizer——allow_session 裁决跨子任务继承（S1 write 本会话允许后 S2 write 免问）；子 Agent 授权请求 reason 经 chat-controller 按 detail.subagentId 前缀化（[S1] 写入文件: …）归属可见'
+    id: AC20
+    status: completed
+    verifier: tests/e2e/verify-i11.mjs（服务端门控保证 S2 授权检查严格在 S1 写盘后，授权行恒为 1，无竞态）+ orchestrator.test.ts 授权共享用例
+  - description: '模式与 UI：内置 orchestrator 模式（orchestrate=true，全量工具集，displayModeName「编排/Orchestrator」）；ModeDefinition.orchestrate 字段校验（非 boolean 拒绝）；ai-runtime.run 按 mode.orchestrate 分流 AgentOrchestrator/AgentLoop；chat-ui 新增 plan（子任务清单/fallback 说明）与 subagent（开始/结束 + finishReason）活动项，对话区 .dw-msg-plan/.dw-msg-subagent 与指挥台活动流双形态渲染；historyFromTrace 过滤带 subagentId 的子代理内部事件不进对话历史（综合消息已承载结论）；i18n 新增 act.plan/act.subagent/mode.builtin.orchestrator.name 键（中英同型）'
+    id: AC20
+    status: completed
+    verifier: mode-store/chat-controller/trace 单测 + tests/e2e/verify-i11.mjs（29 项断言全 PASS：编排模式选中→plan 清单→子代理开始/结束行→授权继承→综合结论→trace-events.json 全量归属标记→fallback 退化）
+  notes: 修复 e2e 分流碰撞——orchestrator 模式系统提示含「子 Agent」字样致综合阶段请求被误路由 worker 分支，改用 WORKER_PROMPT_SUFFIX 精确短语「你现在是多 Agent 编排中的一个子 Agent」分流。contracts 新增 AgentTraceEventType=plan/subagent_start/subagent_done + SubTask 接口 + ModeDefinition.orchestrate。agent-loop 增 extraTools/executeExtraTool/maxIterations 依赖注入口子（子 Agent 透传 MCP 工具热聚合）
+  e2e_report: evidence/AC20/verify-i11-report.json (29 项断言全 PASS) + smoke/iteration2/verify-i4/verify-i6/verify-i7/verify-i8/verify-i10 回归 PASSED
+  unit_tests: 40 files / 333 tests passed
 status: complete
-updated_at: '2026-07-23T19:50:00.000000'
+updated_at: '2026-07-24T11:30:00.000000'

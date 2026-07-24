@@ -76,7 +76,13 @@ const api: DevwitApi = {
     latestManifest: () => ipcRenderer.invoke(IPC.ContextManifestLatest) as ReturnType<DevwitApi["context"]["latestManifest"]>,
     listManifests: (limit) => ipcRenderer.invoke(IPC.ContextManifestList, limit) as ReturnType<DevwitApi["context"]["listManifests"]>,
     getPolicy: () => ipcRenderer.invoke(IPC.ContextPolicyGet) as ReturnType<DevwitApi["context"]["getPolicy"]>,
-    setItemEnabled: (type, enabled) => ipcRenderer.invoke(IPC.ContextPolicySet, type, enabled) as Promise<void>
+    setItemEnabled: (type, enabled) => ipcRenderer.invoke(IPC.ContextPolicySet, type, enabled) as Promise<void>,
+    setItemOverride: (key, enabled) => ipcRenderer.invoke(IPC.ContextItemOverrideSet, key, enabled) as Promise<void>
+  },
+  rag: {
+    getStatus: () => ipcRenderer.invoke(IPC.RagGetStatus) as ReturnType<DevwitApi["rag"]["getStatus"]>,
+    rebuild: () => ipcRenderer.invoke(IPC.RagRebuild) as Promise<void>,
+    onStatus: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.RagStatus, cb)
   },
   externalEditor: {
     open: (path, line) => ipcRenderer.invoke(IPC.ExternalEditorOpen, path, line) as Promise<void>

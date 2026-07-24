@@ -54,7 +54,8 @@ export const PUSH_CHANNELS: readonly string[] = [
   IPC.AgentEvent,
   IPC.ModesChanged,
   IPC.UpdateStatus,
-  IPC.McpChanged
+  IPC.McpChanged,
+  IPC.RagStatus
 ];
 
 const AI_NOT_WIRED = "DW_AI_NOT_WIRED";
@@ -82,6 +83,7 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     if (dir) {
       await workspace.openRoot(dir);
       workspace.watch();
+      ai?.refreshRag(); // AC19：工作区确定后立即评估/构建代码索引
     }
     return dir;
   };
@@ -89,6 +91,7 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     const rootPath = String(root);
     await workspace.openRoot(rootPath);
     workspace.watch();
+    ai?.refreshRag();
     return hooks.buildTree(rootPath);
   };
   table[IPC.WorkspaceRead] = (_e, filePath) => workspace.readFile(String(filePath));
@@ -200,6 +203,9 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime)
     table[IPC.ContextManifestList] = notWired;
     table[IPC.ContextPolicyGet] = notWired;
     table[IPC.ContextPolicySet] = notWired;
+    table[IPC.ContextItemOverrideSet] = notWired;
+    table[IPC.RagGetStatus] = notWired;
+    table[IPC.RagRebuild] = notWired;
     table[IPC.McpList] = notWired;
     table[IPC.McpUpsert] = notWired;
     table[IPC.McpDelete] = notWired;
@@ -223,6 +229,11 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime)
   table[IPC.ContextPolicySet] = (_e, type, enabled) => {
     ai.setContextItemEnabled(type as ContextItemType, enabled === true);
   };
+  table[IPC.ContextItemOverrideSet] = (_e, key, enabled) => {
+    ai.setContextItemOverride(String(key), enabled === true);
+  };
+  table[IPC.RagGetStatus] = () => ai.getRagStatus();
+  table[IPC.RagRebuild] = async () => ai.rebuildRag();
   table[IPC.McpList] = () => ai.listMcpServers();
   table[IPC.McpUpsert] = (_e, config) => {
     ai.upsertMcpServer(config as Parameters<AiRuntime["upsertMcpServer"]>[0]);

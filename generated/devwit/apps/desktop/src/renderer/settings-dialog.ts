@@ -17,6 +17,7 @@ import type {
   ModeDefinition,
   ProviderConfig,
   ProviderType,
+  RagStatusInfo,
   UpdateStatusInfo,
 } from "@devwit/contracts";
 import {
@@ -61,12 +62,14 @@ const CONTEXT_TYPE_KEY: Record<ContextItemType, `ctx.${ContextItemType}`> = {
   terminal_output: "ctx.terminal_output",
   selection: "ctx.selection",
   conversation_history: "ctx.conversation_history",
+  codebase_match: "ctx.codebase_match",
   custom: "ctx.custom",
 };
 const CONTEXT_TYPE_ORDER: readonly ContextItemType[] = [
   "system_prompt",
   "tool_definitions",
   "file_fragment",
+  "codebase_match",
   "git_status",
   "terminal_output",
   "selection",
@@ -132,6 +135,10 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
   let mcpSink: (() => void) | null = null;
   const unsubMcp = deps.api.mcp.onChanged(() => mcpSink?.());
 
+  // RAG 状态订阅（AC19）：索引进度/就绪/错误只刷新通用分区的状态行
+  let ragSink: ((status: RagStatusInfo) => void) | null = null;
+  const unsubRag = deps.api.rag.onStatus((status) => ragSink?.(status));
+
   function applyLocale(): void {
     title.textContent = t("settings.title");
     closeBtn.textContent = t("settings.close");
@@ -149,10 +156,13 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
     content.textContent = "";
     updateSink = null; // 离开/重渲染分区时摘除旧接收端
     mcpSink = null;
+    ragSink = null;
     switch (section) {
       case "general":
         renderGeneral(content, deps, (sink) => {
           updateSink = sink;
+        }, (sink) => {
+          ragSink = sink;
         });
         break;
       case "providers":
@@ -181,6 +191,7 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
     unsubscribe();
     unsubUpdate();
     unsubMcp();
+    unsubRag();
     mask.remove();
   };
   closeBtn.addEventListener("click", close);
@@ -197,7 +208,12 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
 // 通用：界面语言（热生效 + 持久化）
 // ============================================================================
 
-function renderGeneral(content: HTMLElement, deps: SettingsDialogDeps, onUpdateSink: (sink: (status: UpdateStatusInfo) => void) => void): void {
+function renderGeneral(
+  content: HTMLElement,
+  deps: SettingsDialogDeps,
+  onUpdateSink: (sink: (status: UpdateStatusInfo) => void) => void,
+  onRagSink: (sink: (status: RagStatusInfo) => void) => void
+): void {
   const form = el("div", "dw-form");
   const label = el("label", undefined, t("settings.general.language"));
   const select = el("select", "dw-select") as HTMLSelectElement;
@@ -253,7 +269,43 @@ function renderGeneral(content: HTMLElement, deps: SettingsDialogDeps, onUpdateS
     else updateStatus.textContent = t("update.error", { code: status.code });
   });
 
-  form.append(label, select, hint, updateLabel, updateRow, updateHint);
+  // ---- 代码索引（AC19 透明 RAG）：开关 + 状态行 + 手动重建 ----
+  const ragLabel = el("label", undefined, t("rag.title"));
+  const ragRow = el("div", "dw-settings-update");
+  const ragToggle = document.createElement("input");
+  ragToggle.type = "checkbox";
+  const ragStatus = el("span", "dw-settings-update-status");
+  ragRow.append(ragToggle, ragStatus);
+  const ragActions = el("div", "dw-settings-update");
+  const ragRebuildBtn = el("button", "dw-btn", t("rag.rebuild"));
+  ragActions.append(ragRebuildBtn);
+  const ragHint = el("div", "dw-modal-hint", t("rag.hint"));
+
+  const renderRagStatus = (status: RagStatusInfo): void => {
+    if (status.state === "disabled") ragStatus.textContent = t("rag.status.disabled");
+    else if (status.state === "indexing") ragStatus.textContent = t("rag.status.indexing", { done: status.indexedFiles, total: status.totalFiles });
+    else if (status.state === "ready") ragStatus.textContent = t("rag.status.ready", { files: status.fileCount, chunks: status.chunkCount });
+    else ragStatus.textContent = t("rag.status.error", { code: status.code });
+  };
+  onRagSink(renderRagStatus);
+  void deps.api.rag.getStatus().then(renderRagStatus);
+
+  // 开关：读出现有配置仅改 enabled（保留 topK/budgetTokens/embedModel 等高级项）
+  void deps.api.settings.get("rag").then((stored) => {
+    ragToggle.checked = typeof stored === "object" && stored !== null && (stored as { enabled?: unknown }).enabled === true;
+  });
+  ragToggle.addEventListener("change", () => {
+    void deps.api.settings.get("rag").then((stored) => {
+      const base = typeof stored === "object" && stored !== null ? (stored as Record<string, unknown>) : {};
+      void deps.api.settings.set("rag", { ...base, enabled: ragToggle.checked });
+    });
+  });
+  ragRebuildBtn.addEventListener("click", () => {
+    ragStatus.textContent = t("rag.status.indexing", { done: 0, total: 0 });
+    void deps.api.rag.rebuild();
+  });
+
+  form.append(label, select, hint, updateLabel, updateRow, updateHint, ragLabel, ragRow, ragActions, ragHint);
   content.appendChild(form);
 }
 

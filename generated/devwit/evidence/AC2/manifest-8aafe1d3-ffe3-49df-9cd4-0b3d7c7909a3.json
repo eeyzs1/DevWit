@@ -1,13 +1,13 @@
 {
-  "id": "manifest-57d830ee-3046-4dc4-8547-b1682f7a0280",
-  "timestamp": "2026-07-23T11:26:05.962Z",
-  "sessionId": "session-1784805963364",
+  "id": "manifest-8aafe1d3-ffe3-49df-9cd4-0b3d7c7909a3",
+  "timestamp": "2026-07-24T03:22:46.900Z",
+  "sessionId": "session-1784863364404",
   "modeId": "e2e-mode",
   "providerId": "e2e-local-b",
   "model": "e2e-model-b",
   "items": [
     {
-      "id": "item-b1d46aba-fd8a-4456-9ea3-5352b8974832",
+      "id": "item-4d2175ce-f39d-4d9f-8b44-53a2d062fc2d",
       "type": "system_prompt",
       "label": "系统提示",
       "enabled": true,
@@ -17,7 +17,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-17f2375c-c95c-4aa9-ae6d-3c10e8df2c5a",
+      "id": "item-269a9ef4-4263-4e11-bec9-ddc11094a5ec",
       "type": "tool_definitions",
       "label": "工具定义（1 个）",
       "enabled": true,
@@ -27,7 +27,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-67314d84-ca31-4850-80fd-61fb9d982dbe",
+      "id": "item-0f42dbea-afbe-488f-acf8-309eac6024a4",
       "type": "conversation_history",
       "label": "会话历史（10 条）",
       "enabled": true,
@@ -37,23 +37,33 @@
       "counting": "exact"
     },
     {
-      "id": "item-0cb1c069-ec7a-4584-a551-1e490d24c236",
+      "id": "item-b3c56f4a-51a2-4e24-a58b-c7da1b025697",
       "type": "file_fragment",
       "label": "文件片段 hello.txt",
       "enabled": false,
       "tokens": 0,
       "content": "",
-      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-X2iEnG\\hello.txt",
+      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-YvB0Xu\\hello.txt",
       "counting": "exact"
     },
     {
-      "id": "item-1a29f8e3-c7bb-447d-b0db-56d8ad3a9d41",
+      "id": "item-38dda478-37a6-425c-b94a-b733ec57fb6a",
       "type": "git_status",
       "label": "Git 状态",
       "enabled": true,
       "tokens": 8,
       "content": "(非 git 仓库)",
       "source": "git status",
+      "counting": "exact"
+    },
+    {
+      "id": "item-1961544b-24f5-46f6-b2e0-0c8c23279316",
+      "type": "codebase_match",
+      "label": "代码库检索（索引未启用）",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "rag",
       "counting": "exact"
     }
   ],

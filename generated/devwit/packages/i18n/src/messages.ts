@@ -130,6 +130,7 @@ const zhCN = {
   // 内置模式显示名（数据层工厂名为英文常量，界面按当前语言显示；用户改名后尊重用户值）
   "mode.builtin.chat.name": "对话",
   "mode.builtin.agent.name": "智能体",
+  "mode.builtin.orchestrator.name": "编排",
 
   // ---- 设置 · 编辑器（AC10）----
   "editor.title": "编辑器设置（外部编辑器命令模板）",
@@ -194,7 +195,17 @@ const zhCN = {
   "ctx.terminal_output": "终端输出",
   "ctx.selection": "选区",
   "ctx.conversation_history": "会话历史",
+  "ctx.codebase_match": "代码库检索",
   "ctx.custom": "自定义",
+
+  // ---- 代码索引（设置 · 通用，AC19 透明 RAG）----
+  "rag.title": "代码索引",
+  "rag.hint": "启用后为当前工作区建立代码索引（embedding 经 OpenAI 兼容服务商）；检索命中以代码块注入上下文，每块的相似度与 token 占用在上下文面板可见，可逐项剔除。",
+  "rag.rebuild": "重建索引",
+  "rag.status.disabled": "未启用",
+  "rag.status.indexing": "索引构建中 {done}/{total}",
+  "rag.status.ready": "已就绪：{files} 个文件 / {chunks} 个代码块",
+  "rag.status.error": "索引不可用（{code}）",
 
   // ---- 对话面板 ----
   "chat.mode": "模式",
@@ -235,6 +246,12 @@ const zhCN = {
   "act.tool.ok": "成功",
   "act.tool.failed": "失败/被拒",
   "act.empty": "创建或选择一个任务后，这里实时展示 Agent 的执行轨迹。",
+  // ---- 多 Agent 编排（AC20）----
+  "act.plan": "计划",
+  "act.plan.fallback": "分解失败，按单任务执行原始意图",
+  "act.subagent": "子代理",
+  "act.subagent.start": "{id} 开始：{title}",
+  "act.subagent.done": "{id} 结束：{title}（{reason}）",
 
   // ---- diff 审查视图（AC3）----
   "diff.title": "变更审查",
@@ -376,6 +393,7 @@ const enUS: Messages = {
   "mode.saved": "Saved (hot-applied)",
   "mode.builtin.chat.name": "Chat",
   "mode.builtin.agent.name": "Agent",
+  "mode.builtin.orchestrator.name": "Orchestrator",
 
   "editor.title": "Editor (external editor command template)",
   "editor.hint":
@@ -437,7 +455,16 @@ const enUS: Messages = {
   "ctx.terminal_output": "Terminal output",
   "ctx.selection": "Selection",
   "ctx.conversation_history": "Conversation history",
+  "ctx.codebase_match": "Codebase matches",
   "ctx.custom": "Custom",
+
+  "rag.title": "Code indexing",
+  "rag.hint": "When enabled, builds an index of the workspace (embeddings via an OpenAI-compatible provider). Retrieved chunks are injected into context; each chunk's similarity score and token cost is visible in the context panel and can be individually excluded.",
+  "rag.rebuild": "Rebuild index",
+  "rag.status.disabled": "Disabled",
+  "rag.status.indexing": "Indexing {done}/{total}",
+  "rag.status.ready": "Ready: {files} files / {chunks} chunks",
+  "rag.status.error": "Index unavailable ({code})",
 
   "chat.mode": "Mode",
   "chat.provider": "Provider",
@@ -476,6 +503,12 @@ const enUS: Messages = {
   "act.tool.ok": "OK",
   "act.tool.failed": "Failed/denied",
   "act.empty": "Create or select a task to see the Agent's execution trace live here.",
+  // ---- Multi-agent orchestration (AC20) ----
+  "act.plan": "Plan",
+  "act.plan.fallback": "Decomposition failed; running the original intent as a single task",
+  "act.subagent": "Sub-agent",
+  "act.subagent.start": "{id} started: {title}",
+  "act.subagent.done": "{id} finished: {title} ({reason})",
 
   "diff.title": "Review Changes",
   "diff.acceptAll": "Accept all",
