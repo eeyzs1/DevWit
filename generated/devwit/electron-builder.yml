@@ -25,6 +25,13 @@ mac:
   target:
     - dmg
     - zip
+# Linux（迭代 12）：AppImage（electron-updater 在 Linux 唯一支持的自动更新格式）
+# + deb（Debian/Ubuntu 系安装包，无自动更新——手动下载覆盖，与未签名 mac 同策略）。
+linux:
+  category: Development
+  target:
+    - AppImage
+    - deb
 npmRebuild: false
 # 自动更新（AC16）：electron-updater 从 GitHub Releases 拉取 latest.yml 与安装包；
 # 仅声明元数据，electron-builder 不主动发布（发布由 release.yml 的 action-gh-release 完成）。

@@ -96,3 +96,48 @@ jobs:
             generated/devwit/release/*.yml
           generate_release_notes: true
           prerelease: true
+
+  build-linux:
+    name: Build & Publish Linux Release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: generated/devwit
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: generated/devwit/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore Electron binary
+        run: |
+          set -euo pipefail
+          ver=$(node -p "require('./node_modules/electron/package.json').version")
+          machine=$(uname -m)
+          if [ "$machine" = "aarch64" ]; then earch="linux-arm64"; else earch="linux-x64"; fi
+          curl -sSL -o /tmp/electron.zip "https://github.com/electron/electron/releases/download/v${ver}/electron-v${ver}-${earch}.zip"
+          mkdir -p node_modules/electron/dist
+          unzip -q -o /tmp/electron.zip -d node_modules/electron/dist
+          printf 'electron' > node_modules/electron/path.txt
+          test -x node_modules/electron/dist/electron
+          echo "electron $ver ($earch) 二进制就绪"
+
+      - name: Build AppImage + deb
+        run: npm run dist
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            generated/devwit/release/*.AppImage
+            generated/devwit/release/*.deb
+            generated/devwit/release/*.blockmap
+            generated/devwit/release/*.yml
+          generate_release_notes: true
+          prerelease: true

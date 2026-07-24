@@ -258,5 +258,17 @@ iteration_11:
   notes: 修复 e2e 分流碰撞——orchestrator 模式系统提示含「子 Agent」字样致综合阶段请求被误路由 worker 分支，改用 WORKER_PROMPT_SUFFIX 精确短语「你现在是多 Agent 编排中的一个子 Agent」分流。contracts 新增 AgentTraceEventType=plan/subagent_start/subagent_done + SubTask 接口 + ModeDefinition.orchestrate。agent-loop 增 extraTools/executeExtraTool/maxIterations 依赖注入口子（子 Agent 透传 MCP 工具热聚合）
   e2e_report: evidence/AC20/verify-i11-report.json (29 项断言全 PASS) + smoke/iteration2/verify-i4/verify-i6/verify-i7/verify-i8/verify-i10 回归 PASSED
   unit_tests: 40 files / 333 tests passed
+iteration_12:
+  scope: 分发闭环（AC21）——补 Linux 构建 target，三平台（Windows/macOS/Linux）同一 prerelease 分发
+  acceptance_criteria:
+  - description: 'electron-builder.yml 新增 linux 段：AppImage（electron-updater 在 Linux 唯一支持的自动更新格式）+ deb（Debian/Ubuntu 安装包，无自动更新——手动下载覆盖，与未签名 mac 同策略），category=Development；latest-linux.yml 与 latest.yml/latest-mac.yml 同名无冲突'
+    id: AC21
+    status: completed
+    verifier: js-yaml 静态校验通过（linux.target=["AppImage","deb"]）；真实 Linux 构建待下一 tag CI 运行确认
+  - description: 'release.yml 新增 build-linux job（ubuntu-latest）：npm ci → uname -m 自适应 linux-x64/arm64 二进制恢复（unzip + path.txt=electron）→ npm run dist → artifacts 追加同一 prerelease（*.AppImage/*.deb/*.blockmap/*.yml）'
+    id: AC21
+    status: completed
+    verifier: js-yaml 静态校验通过（jobs=build-windows,build-macos,build-linux）
+  notes: 本地为 Windows 环境无法实机构建 Linux 包，与迭代 9 macOS 同口径——静态校验 + CI 实证。推送 main 不触发 release.yml（tags: v*），三平台验证需打 tag。
 status: complete
-updated_at: '2026-07-24T11:30:00.000000'
+updated_at: '2026-07-24T12:10:00.000000'
