@@ -76,4 +76,7 @@ export function validateProviderConfig(config: ProviderConfig): void {
   if (config.temperature !== undefined && (typeof config.temperature !== "number" || !Number.isFinite(config.temperature))) {
     throw new Error("provider temperature must be a finite number");
   }
+  if (config.keyless !== undefined && typeof config.keyless !== "boolean") {
+    throw new Error("provider keyless must be a boolean");
+  }
 }

@@ -358,7 +358,9 @@ export class AiRuntime {
     if (provider === undefined) {
       throw new Error("DW_RAG_NO_EMBED_PROVIDER");
     }
-    const hasCredential = this.settings.listCredentials().some((meta) => meta.ref === provider.credentialRef);
+    // keyless（AC22：本地服务）无需凭证，跳过 DW_RAG_NO_CREDENTIAL 检查
+    const hasCredential =
+      provider.keyless === true || this.settings.listCredentials().some((meta) => meta.ref === provider.credentialRef);
     if (!hasCredential) {
       throw new Error("DW_RAG_NO_CREDENTIAL");
     }

@@ -16,6 +16,7 @@ import type {
   McpServerView,
   ModeDefinition,
   ProviderConfig,
+  ProviderPreset,
   ProviderType,
   RagStatusInfo,
   UpdateStatusInfo,
@@ -52,6 +53,13 @@ const SECTION_NAV: ReadonlyArray<{ id: SettingsSection; key: StringMessageKey }>
 ];
 
 const AGENT_TOOLS: AgentToolName[] = ["read", "write", "edit", "bash", "grep", "find", "ls"];
+
+/** 预设 id → 说明文案词典键（迭代 13 / AC22；模板串键无法过 MessageKey 类型检查，显式映射）。 */
+const PRESET_HINT_KEY: Record<string, StringMessageKey> = {
+  ollama: "provider.preset.hint.ollama",
+  deepseek: "provider.preset.hint.deepseek",
+  openrouter: "provider.preset.hint.openrouter",
+};
 
 /** 上下文类型 → 词典键（与 chat-ui 的 context-panel 共用 ctx.* 文案）。 */
 const CONTEXT_TYPE_KEY: Record<ContextItemType, `ctx.${ContextItemType}`> = {
@@ -320,9 +328,14 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps): void {
   content.appendChild(list);
 
   let providers: ProviderConfig[] = [];
+  // 迭代 13 / AC22：预设目录自主进程 IPC 下发（llm-providers 唯一持有 endpoint 知识，AR002）
+  let presets: ProviderPreset[] = [];
+  let activePreset: ProviderPreset | null = null;
 
   const form = el("div", "dw-form");
   const idInput = fieldInput("text", "");
+  const presetSelect = el("select", "dw-select") as HTMLSelectElement;
+  const presetHint = el("div", "dw-modal-hint");
   const typeSelect = el("select", "dw-select") as HTMLSelectElement;
   for (const value of ["anthropic", "openai"]) {
     const option = document.createElement("option");
@@ -333,10 +346,18 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps): void {
   const labelInput = fieldInput("text", "");
   const baseUrlInput = fieldInput("text", "");
   const modelInput = fieldInput("text", "");
+  // 预设型号建议（datalist 不限制自由输入）
+  const modelDatalist = document.createElement("datalist");
+  modelDatalist.id = "dw-provider-model-suggestions";
+  modelInput.setAttribute("list", modelDatalist.id);
+  const secretLabel = el("label", undefined, t("provider.apiKey"));
   const secretInput = fieldInput("password", "");
   const maxTokensInput = fieldInput("number", "4096");
   const errorBox = el("div", "dw-form-error");
   form.append(
+    el("label", undefined, t("provider.preset")),
+    presetSelect,
+    presetHint,
     el("label", undefined, t("common.id")),
     idInput,
     el("label", undefined, t("provider.type")),
@@ -347,7 +368,8 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps): void {
     baseUrlInput,
     el("label", undefined, t("provider.model")),
     modelInput,
-    el("label", undefined, t("provider.apiKey")),
+    modelDatalist,
+    secretLabel,
     secretInput,
     el("label", undefined, t("provider.maxTokens")),
     maxTokensInput,
@@ -355,9 +377,49 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps): void {
   );
   content.appendChild(form);
 
+  /** keyless（本地服务）时隐藏 API Key 行并给说明；否则恢复。 */
+  function updateKeylessUI(keyless: boolean): void {
+    secretLabel.style.display = keyless ? "none" : "";
+    secretInput.style.display = keyless ? "none" : "";
+    if (keyless) {
+      secretInput.value = "";
+      secretInput.placeholder = "";
+    }
+  }
+
+  function applyPreset(preset: ProviderPreset | null): void {
+    activePreset = preset;
+    modelDatalist.textContent = "";
+    if (preset === null) {
+      presetHint.textContent = "";
+      updateKeylessUI(false);
+      return;
+    }
+    typeSelect.value = preset.type;
+    baseUrlInput.value = preset.baseUrl;
+    if (labelInput.value.trim() === "") labelInput.value = preset.label;
+    for (const model of preset.models) {
+      const option = document.createElement("option");
+      option.value = model;
+      modelDatalist.appendChild(option);
+    }
+    modelInput.placeholder = preset.models[0] ?? "";
+    const hintKey = PRESET_HINT_KEY[preset.id];
+    presetHint.textContent = hintKey !== undefined ? t(hintKey) : "";
+    updateKeylessUI(preset.keyless);
+  }
+
+  presetSelect.addEventListener("change", () => {
+    applyPreset(presets.find((preset) => preset.id === presetSelect.value) ?? null);
+  });
+
   function fillForm(config: ProviderConfig): void {
     idInput.value = config.id;
     idInput.disabled = true;
+    // 按 type+baseUrl 回匹配预设；用户改过 baseUrl 的回退自定义，keyless 状态仍按 config 保留
+    const matched = presets.find((preset) => preset.type === config.type && preset.baseUrl === config.baseUrl) ?? null;
+    activePreset = matched;
+    presetSelect.value = matched?.id ?? "";
     typeSelect.value = config.type;
     labelInput.value = config.label;
     baseUrlInput.value = config.baseUrl;
@@ -365,20 +427,35 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps): void {
     secretInput.value = "";
     secretInput.placeholder = t("provider.secret.keep");
     maxTokensInput.value = String(config.maxTokens);
+    modelDatalist.textContent = "";
+    for (const model of matched?.models ?? []) {
+      const option = document.createElement("option");
+      option.value = model;
+      modelDatalist.appendChild(option);
+    }
+    const hintKey = matched !== null ? PRESET_HINT_KEY[matched.id] : undefined;
+    presetHint.textContent = hintKey !== undefined ? t(hintKey) : "";
+    updateKeylessUI(matched?.keyless === true || config.keyless === true);
     errorBox.textContent = "";
   }
   function newForm(): void {
     idInput.value = `p-${Date.now().toString(36)}`;
     idInput.disabled = false;
+    presetSelect.value = "";
+    activePreset = null;
+    presetHint.textContent = "";
     typeSelect.value = "anthropic";
     labelInput.value = "";
     baseUrlInput.value = "";
-    // AR002：渲染进程不硬编码任何 LLM API 域名，由用户显式填写（官方或代理 endpoint）
+    // AR002：渲染进程不硬编码任何 LLM API 域名，由用户显式填写（官方或代理 endpoint；或选预设自动填充）
     baseUrlInput.placeholder = t("provider.baseUrl.placeholder");
     modelInput.value = "";
+    modelInput.placeholder = "";
+    modelDatalist.textContent = "";
     secretInput.value = "";
     secretInput.placeholder = t("provider.secret.new");
     maxTokensInput.value = "4096";
+    updateKeylessUI(false);
     errorBox.textContent = "";
   }
   async function renderList(): Promise<void> {
@@ -415,12 +492,15 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps): void {
         errorBox.textContent = t("provider.required");
         return;
       }
+      const existing = providers.find((p) => p.id === id);
+      // keyless 判定：当前选中预设的 keyless 为准；预设被改回自定义时，
+      // 已存配置的 keyless 仍可保留（如用户改 baseUrl 指向局域网 Ollama）
+      const keyless = activePreset !== null ? activePreset.keyless : existing?.keyless === true;
       const credentialRef = `cred-${id}`;
       if (secretInput.value !== "") {
         await api.credentials.set(credentialRef, typeSelect.value, secretInput.value);
       }
-      const existing = providers.find((p) => p.id === id);
-      if (existing === undefined && secretInput.value === "") {
+      if (!keyless && existing === undefined && secretInput.value === "") {
         errorBox.textContent = t("provider.needKey");
         return;
       }
@@ -433,6 +513,7 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps): void {
         credentialRef: existing?.credentialRef ?? credentialRef,
         maxTokens: Number(maxTokensInput.value) || 4096,
         ...(existing?.temperature !== undefined ? { temperature: existing.temperature } : {}),
+        ...(keyless ? { keyless: true } : {}),
       };
       await api.providers.upsert(config);
       deps.onProvidersChanged();
@@ -443,8 +524,23 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps): void {
     });
   });
 
-  void renderList();
-  newForm();
+  // 预设目录异步下发后填充下拉（首项为自定义），再加载已存配置
+  void (async () => {
+    presets = await api.providers.presets();
+    presetSelect.textContent = "";
+    const custom = document.createElement("option");
+    custom.value = "";
+    custom.textContent = t("provider.preset.custom");
+    presetSelect.appendChild(custom);
+    for (const preset of presets) {
+      const option = document.createElement("option");
+      option.value = preset.id;
+      option.textContent = preset.label;
+      presetSelect.appendChild(option);
+    }
+    await renderList();
+    newForm();
+  })();
 }
 
 // ============================================================================

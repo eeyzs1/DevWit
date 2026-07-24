@@ -1,0 +1,8 @@
+迭代 13（AC22 零成本模型接入）验证：
+1. 设置·模型分区预设下拉（自定义 + Ollama/DeepSeek/OpenRouter）经 IPC 自 llm-providers 下发（渲染端无硬编码域名，AR002）。
+2. 选中 Ollama：type=openai/baseUrl=localhost:11434/显示名自动填充，API Key 行隐藏，说明文案「无需 API Key」（截图 01）。
+3. baseUrl 改指本地端点后免 key 保存成功：keyless=true 持久化，凭证存储零写入（needKey 校验豁免）。
+4. 回编辑：baseUrl 不再匹配预设 → 预设回退「自定义」，keyless 按已存配置保留（Key 行继续隐藏，截图 02）。
+5. 真实对话：本地端点 SSE 应答完整渲染；服务端 auth-log 确认 /chat/completions 零 authorization 头（截图 03）。
+6. RAG 免 key：rag 指向 keyless provider 直达 ready（DW_RAG_NO_CREDENTIAL 豁免），/embeddings 零 authorization 头（auth-log.json 落盘）。
+断言通过 19 项，失败 0 项。

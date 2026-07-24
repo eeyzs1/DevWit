@@ -1,0 +1,34 @@
+{
+  "steps": [
+    "本地端点就绪 http://127.0.0.1:51349（/chat/completions + /embeddings，记录 authorization 头）",
+    "应用启动 + fixture 工作区打开",
+    "预设下拉就绪：自定义 / Ollama / DeepSeek / OpenRouter（IPC 自 llm-providers 下发）",
+    "选中 Ollama：type/baseUrl/显示名自动填充 + Key 行隐藏 + 免 key 说明（截图 01）",
+    "免 key 保存成功：keyless=true 持久化，凭证存储零写入",
+    "回编辑：预设回退自定义 + keyless 保留（截图 02）",
+    "真实对话完成：SSE 应答渲染，服务端确认零 authorization 头（截图 03）",
+    "RAG 免 key 索引就绪（1 文件），/embeddings 同样零 authorization 头（auth-log 落盘）"
+  ],
+  "assertions": [
+    "预设下拉缺「自定义」（实际: 自定义/Ollama/DeepSeek/OpenRouter）",
+    "预设下拉缺知名服务（实际: 自定义/Ollama/DeepSeek/OpenRouter）",
+    "选中 Ollama 后 type 应为 openai（实际: openai）",
+    "baseUrl 应自动填充 11434（实际: http://localhost:11434/v1）",
+    "显示名应自动填充 Ollama（实际: Ollama）",
+    "keyless 预设下 API Key 行应隐藏",
+    "预设说明缺「无需 API Key」: 本地运行 · 免费 · 无需 API Key（需已安装 Ollama 并拉取模型）",
+    "免 key 保存后 provider 列表无 Ollama 项",
+    "已存配置 keyless 应为 true（实际: true）",
+    "已存 baseUrl 应为本地端点（实际: http://127.0.0.1:51349）",
+    "keyless 不应写入任何凭证",
+    "baseUrl 被改后预设应回退「自定义」（实际: ）",
+    "回编辑时 keyless 应按已存配置保留（Key 行继续隐藏）",
+    "本地端点未收到 /chat/completions 请求",
+    "keyless 请求不应携带 authorization 头: [{\"url\":\"/chat/completions\",\"authorization\":null}]",
+    "keyless provider 下索引未到达 ready（DW_RAG_NO_CREDENTIAL 豁免失败）",
+    "fileCount 应为 1（实际: 1）",
+    "本地端点未收到 /embeddings 请求",
+    "keyless /embeddings 不应携带 authorization 头: [{\"url\":\"/embeddings\",\"authorization\":null}]"
+  ],
+  "failures": []
+}

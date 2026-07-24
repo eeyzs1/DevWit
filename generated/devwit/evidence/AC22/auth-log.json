@@ -1,0 +1,10 @@
+[
+  {
+    "url": "/chat/completions",
+    "authorization": null
+  },
+  {
+    "url": "/embeddings",
+    "authorization": null
+  }
+]

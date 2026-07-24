@@ -89,20 +89,19 @@ class RoutedProvider implements LLMProvider {
       route !== undefined && route.scripts.length > 0
         ? route.scripts.shift()!
         : [{ type: "text", text: "(路由缺省)" }, { type: "done", stopReason: "end_turn" as const }];
-    const delayMs = this.delayMs;
-    const tracker = this;
-    return {
-      async *[Symbol.asyncIterator]() {
-        tracker.active += 1;
-        tracker.maxActive = Math.max(tracker.maxActive, tracker.active);
-        try {
-          if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
-          for (const event of script) yield event;
-        } finally {
-          tracker.active -= 1;
-        }
-      },
-    };
+    return this.consume(script);
+  }
+
+  /** 消费脚本并统计并发峰值（类方法形态避免 this 别名）。 */
+  private async *consume(script: StreamEvent[]): AsyncGenerator<StreamEvent> {
+    this.active += 1;
+    this.maxActive = Math.max(this.maxActive, this.active);
+    try {
+      if (this.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+      for (const event of script) yield event;
+    } finally {
+      this.active -= 1;
+    }
   }
 }
 

@@ -16,7 +16,6 @@ import type {
   LLMProvider,
   ProviderConfig,
   StreamEvent,
-  ToolDefinition,
 } from "@devwit/contracts";
 import { IPC } from "@devwit/contracts";
 import { NodeCryptoBackend, SettingsStore } from "@devwit/settings";
@@ -41,7 +40,8 @@ class ScriptedProvider implements LLMProvider {
     this.scripts = [...scripts];
   }
 
-  streamChat(messages: ChatMessage[], _tools: ToolDefinition[]): AsyncIterable<StreamEvent> {
+  // 接口签名允许更少形参：本桩不消费 tools/signal
+  streamChat(messages: ChatMessage[]): AsyncIterable<StreamEvent> {
     this.calls.push(messages.map((message) => ({ ...message })));
     const script: StreamEvent[] = this.scripts.shift() ?? [{ type: "done", stopReason: "end_turn" }];
     return {

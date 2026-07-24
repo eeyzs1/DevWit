@@ -225,13 +225,14 @@ export class OpenAiCompatibleProvider implements LLMProvider {
 
   async *streamChat(messages: ChatMessage[], tools: ToolDefinition[], signal?: AbortSignal): AsyncIterable<StreamEvent> {
     if (!this.config.baseUrl) throw new Error("OpenAiCompatibleProvider: ProviderConfig.baseUrl is empty");
-    const apiKey = await this.credentials.resolve(this.config.credentialRef);
+    // keyless（迭代 13 / AC22：Ollama 等本地服务）：跳过凭证解析，不发 authorization 头
+    const apiKey = this.config.keyless === true ? undefined : await this.credentials.resolve(this.config.credentialRef);
     const body = buildOpenAiRequest(this.config, messages, tools);
     const response = await fetch(joinUrl(this.config.baseUrl, "/chat/completions"), {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: `Bearer ${apiKey}`,
+        ...(apiKey !== undefined ? { authorization: `Bearer ${apiKey}` } : {}),
       },
       body: JSON.stringify(body),
       ...(signal ? { signal } : {}),

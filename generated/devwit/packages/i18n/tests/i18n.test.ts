@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { DICTIONARIES, LOCALES, type MessageKey, type Messages } from "../src/messages.js";
+import { DICTIONARIES, LOCALES, type MessageKey } from "../src/messages.js";
 import { getLocale, onDidChangeLocale, setLocale, t, ta } from "../src/index.js";
 
 describe("i18n 词典", () => {

@@ -9,7 +9,7 @@ import type {
   ToolResult,
 } from "@devwit/contracts";
 import type { ContextEngine } from "@devwit/context-engine";
-import { AgentLoop, type AgentFinishReason, type AgentRunResult } from "./agent-loop.js";
+import { AgentLoop, type AgentRunResult } from "./agent-loop.js";
 import { Authorizer } from "./authorizer.js";
 import { AgentTrace } from "./trace.js";
 import type { ToolContext, ToolEnvironment } from "./tools.js";

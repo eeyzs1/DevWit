@@ -54,6 +54,13 @@ describe("ProviderRegistry", () => {
     expect(() => registry.register(makeConfig({ type: "other" as ProviderConfig["type"] }))).toThrow(/unsupported provider type/);
   });
 
+  it("keyless 校验（AC22）：boolean 合法（配置原样保留），非 boolean 拒绝", () => {
+    const registry = new ProviderRegistry(credentials);
+    registry.register(makeConfig({ id: "k", keyless: true }));
+    expect(registry.get("k")?.keyless).toBe(true);
+    expect(() => registry.register(makeConfig({ keyless: "yes" as unknown as boolean }))).toThrow(/keyless must be a boolean/);
+  });
+
   it("onDidChange 在 register/remove 时触发，退订后不再触发", () => {
     const registry = new ProviderRegistry(credentials);
     let count = 0;

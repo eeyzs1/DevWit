@@ -271,5 +271,23 @@ iteration_12:
     verifier: CI run 30075590128 四 job 全 success（prepare-release/windows/macOS/linux）——v0.1.1 prerelease 共 12 资产：exe+blockmap+latest.yml / dmg+zip+blockmap+latest-mac.yml / AppImage+deb+latest-linux.yml
   notes: 本地为 Windows 环境无法实机构建 Linux 包，静态校验 + CI 实证（与迭代 9 macOS 同口径，已闭环）。v0.1.1 发布实测修复三处——(1) 三平台并行收尾竞争 create release 致 already_exists：新增 prepare-release 前置 job 统一建空 prerelease，构建 job needs 依赖只追加上传；(2) Linux 构建元数据缺失：package.json 补 homepage + author 带 email（deb 必需）；(3) dist 脚本补 --publish never 防 electron-builder 本地/CI 构建时误尝试发布。残留 v0.1.1 release 经 gh api 枚举全量删除后 rerun 成功。
   ci_evidence: run 30075590128 (success) — https://github.com/eeyzs1/DevWit/releases/tag/v0.1.1
+iteration_13:
+  scope: 零成本模型接入（AC22）——免费软件分发目标下的首次上手门槛消除：预设目录 + 免 key 本地服务通道
+  acceptance_criteria:
+  - description: 'ProviderPreset 目录（llm-providers/presets.ts）：Ollama（本地免 key，keyless=true）/ DeepSeek（低成本官方 API）/ OpenRouter（聚合含免费档）；AR002 合规——endpoint 知识只属 llm-providers 包，渲染端经 IPC providers:presets 拉取，零硬编码域名'
+    id: AC22
+    status: completed
+    verifier: packages/contracts ProviderPreset 接口 + apps/desktop/tests/ipc-whitelist.test.ts（providers:presets 通道断言）+ tests/e2e/verify-i12.mjs（预设下拉四项）
+  - description: 'keyless 免密钥通道：ProviderConfig.keyless 字段（契约校验 boolean）；openai.ts 跳过凭证解析且不发 authorization 头；embeddings.ts 同样豁免（RAG 本地 embedding 零成本）；registry needKey 校验对 keyless 豁免；凭证存储零写入'
+    id: AC22
+    status: completed
+    verifier: tests/e2e/verify-i12.mjs（服务端 auth-log 实证 /chat/completions 与 /embeddings 双路零 authorization 头 + credentials.list 零写入 + RAG 直达 ready 豁免 DW_RAG_NO_CREDENTIAL）
+  - description: '设置·模型分区预设 UX：预设下拉（自定义置顶 + 三服务）选中自动填 type/baseUrl/显示名/型号 datalist 建议；keyless 预设隐藏 API Key 行并显示免 key 说明（i18n provider.preset.* 中英同型）；回编辑按 type+baseUrl 回匹配预设，不匹配回退自定义但 keyless 按已存配置保留；onboarding step1 引导文案改为「Ollama 本地预设零成本上手」优先'
+    id: AC22
+    status: completed
+    verifier: tests/e2e/verify-i12.mjs（自动填充/Key 行隐藏/回编辑 keyless 保留 16 项断言全 PASS）+ evidence/AC22（3 截图 + auth-log.json）
+  notes: 顺手清零 6 项 ESLint 存量错误——orchestrator.test.ts this 别名（重构为类私有 async generator consume）、orchestrator.ts/i18n.test.ts/ai-runtime-trace.test.ts 未用导入与形参、iteration2.mjs/verify-i8.mjs raw 未消费改 req.resume() 排空。P0-1 配套：根仓库与 generated/devwit 双份 MIT LICENSE（copyright eeyzs1）随包分发。
+  e2e_report: evidence/AC22/verify-i12-report.json (16 项断言全 PASS) + verify-i8/iteration2 回归 PASSED
+  unit_tests: 42 files / 343 tests passed
 status: complete
-updated_at: '2026-07-24T18:05:00.000000'
+updated_at: '2026-07-24T17:50:00.000000'

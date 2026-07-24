@@ -65,8 +65,7 @@ const server = createServer((req, res) => {
     res.writeHead(404).end("not found");
     return;
   }
-  let raw = "";
-  req.on("data", (chunk) => { raw += chunk; });
+  req.resume(); // 排空请求体（脚本不消费内容），保证 end 触发
   req.on("end", () => {
     const frames = RESPONSES.shift() ?? framesForText("(脚本外请求)");
     res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });

@@ -59,6 +59,7 @@ export class OpenAiCompatibleEmbedder implements Embedder {
   private readonly baseUrl: string;
   private readonly credentials: CredentialResolver;
   private readonly credentialRef: string;
+  private readonly keyless: boolean;
 
   constructor(config: ProviderConfig, embedModel: string, credentials: CredentialResolver) {
     if (!config.baseUrl) throw new Error("OpenAiCompatibleEmbedder: ProviderConfig.baseUrl is empty");
@@ -66,16 +67,18 @@ export class OpenAiCompatibleEmbedder implements Embedder {
     this.model = embedModel;
     this.credentials = credentials;
     this.credentialRef = config.credentialRef;
+    this.keyless = config.keyless === true;
   }
 
   async embed(texts: string[]): Promise<number[][]> {
     if (texts.length === 0) return [];
-    const apiKey = await this.credentials.resolve(this.credentialRef);
+    // keyless（AC22：本地服务如 Ollama /v1/embeddings）跳过凭证解析与 authorization 头
+    const apiKey = this.keyless ? undefined : await this.credentials.resolve(this.credentialRef);
     const response = await fetch(joinUrl(this.baseUrl, "/embeddings"), {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: `Bearer ${apiKey}`,
+        ...(apiKey !== undefined ? { authorization: `Bearer ${apiKey}` } : {}),
       },
       body: JSON.stringify(buildEmbeddingRequest(this.model, texts)),
     });

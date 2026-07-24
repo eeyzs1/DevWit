@@ -131,4 +131,14 @@ describe("IPC 白名单", () => {
     const list2 = (await table[IPC.ProvidersList]?.(null)) as unknown[];
     expect(list2).toHaveLength(1);
   });
+
+  it("providers:presets 返回 llm-providers 预设目录（AC22：含免 key Ollama 预设）", async () => {
+    const table = buildHandlerTable(fakeServices(), fakeHooks());
+    const presets = (await table[IPC.ProviderPresets]?.(null)) as Array<{ id: string; keyless: boolean; baseUrl: string }>;
+    expect(Array.isArray(presets)).toBe(true);
+    expect(presets.length).toBeGreaterThan(0);
+    const ollama = presets.find((preset) => preset.id === "ollama");
+    expect(ollama?.keyless).toBe(true);
+    expect(ollama?.baseUrl).toContain("localhost");
+  });
 });

@@ -10,6 +10,7 @@
  */
 import { IPC } from "@devwit/contracts";
 import type { AgentRunInput, AuthorizationDecision, ContextItemType, ExternalEditorConfig, ProviderConfig } from "@devwit/contracts";
+import { PROVIDER_PRESETS } from "@devwit/llm-providers";
 import type { SettingsStore } from "@devwit/settings";
 import type { TerminalService } from "@devwit/terminal";
 import type { WorkspaceService } from "@devwit/workspace";
@@ -146,6 +147,8 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
 
   // ---- providers（真实实现：配置存 settings 的 "providers" 键）----
   table[IPC.ProvidersList] = () => readProviders(settings);
+  // 迭代 13 / AC22：知名服务预设目录（llm-providers 唯一持有 endpoint 知识，AR002）
+  table[IPC.ProviderPresets] = () => PROVIDER_PRESETS;
   table[IPC.ProvidersUpsert] = (_e, config) => {
     const provider = config as ProviderConfig;
     if (!provider || typeof provider.id !== "string" || provider.id.length === 0) {

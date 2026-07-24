@@ -24,6 +24,26 @@ export interface ProviderConfig {
   credentialRef: string;
   maxTokens: number;
   temperature?: number;
+  /**
+   * 免密钥本地服务（迭代 13 / AC22：如 Ollama）。
+   * true 时 provider 跳过凭证解析且不发送 authorization 头；
+   * credentialRef 仍必填（契约不变），只是不会被解析。
+   */
+  keyless?: boolean;
+}
+
+/**
+ * 知名 OpenAI 兼容服务预设（迭代 13 / AC22）：目录存于 packages/llm-providers
+ * （AR002：LLM endpoint 知识唯一归属地），经 IPC 下发渲染端——渲染进程不硬编码域名。
+ * models 为建议清单（可为空，用户自由输入）；keyless=true 表示无需 API Key。
+ */
+export interface ProviderPreset {
+  id: string;
+  label: string;
+  type: ProviderType;
+  baseUrl: string;
+  models: string[];
+  keyless: boolean;
 }
 
 /** JSON Schema object，描述工具参数。 */
@@ -458,6 +478,7 @@ export const IPC = {
   AgentTrace: "agent:trace",
   ProvidersList: "providers:list",
   ProvidersUpsert: "providers:upsert",
+  ProviderPresets: "providers:presets",
   ModesList: "modes:list",
   ModesUpsert: "modes:upsert",
   ModesDelete: "modes:delete",
@@ -519,6 +540,8 @@ export interface DevwitApi {
   providers: {
     list(): Promise<ProviderConfig[]>;
     upsert(config: ProviderConfig): Promise<void>;
+    /** 知名服务预设目录（迭代 13 / AC22）：主进程从 llm-providers 读取下发。 */
+    presets(): Promise<ProviderPreset[]>;
   };
   modes: {
     list(): Promise<ModeDefinition[]>;

@@ -30,7 +30,7 @@ const zhCN = {
   "onboarding.sub":
     "AI 主导开发的本地工作台：你描述意图，Agent 规划、经你授权后执行，并交付可审查的修改与执行轨迹。",
   "onboarding.step1": "① 配置模型",
-  "onboarding.step1.hint": "接入 Anthropic 或 OpenAI 兼容 API（密钥加密存储，可热更新）",
+  "onboarding.step1.hint": "选 Ollama 本地预设零成本上手（免费、无需 API Key），或接入 Anthropic / OpenAI 兼容 API",
   "onboarding.step2": "② 打开文件夹",
   "onboarding.step2.hint": "选择你的项目目录，文件树即可浏览",
   "onboarding.step3.hint": "③ 输入第一个意图（点击示例试试）：",
@@ -111,6 +111,11 @@ const zhCN = {
   "provider.required": "ID / Base URL / 模型 必填",
   "provider.needKey": "新建 provider 必须填写 API Key",
   "provider.saved": "已保存（热生效，无需重启）",
+  "provider.preset": "预设",
+  "provider.preset.custom": "自定义",
+  "provider.preset.hint.ollama": "本地运行 · 免费 · 无需 API Key（需已安装 Ollama 并拉取模型）",
+  "provider.preset.hint.deepseek": "低成本官方 API · 充值即用，价格远低于一线模型",
+  "provider.preset.hint.openrouter": "模型聚合平台 · 含免费档（型号带 :free 后缀）",
 
   // ---- 设置 · 模式 ----
   "mode.title": "模式管理（修改热生效，下次请求即用）",
@@ -299,7 +304,7 @@ const enUS: Messages = {
   "onboarding.sub":
     "A local workbench for AI-led development: you describe the intent; the Agent plans, executes with your approval, and delivers reviewable changes with an execution trace.",
   "onboarding.step1": "① Configure a model",
-  "onboarding.step1.hint": "Connect Anthropic or an OpenAI-compatible API (keys encrypted, hot-reloadable)",
+  "onboarding.step1.hint": "Pick the Ollama local preset for a zero-cost start (free, no API key), or connect Anthropic / OpenAI-compatible APIs",
   "onboarding.step2": "② Open a folder",
   "onboarding.step2.hint": "Choose your project directory to browse the file tree",
   "onboarding.step3.hint": "③ Type your first intent (try an example):",
@@ -376,6 +381,11 @@ const enUS: Messages = {
   "provider.required": "ID / Base URL / Model are required",
   "provider.needKey": "New provider requires an API Key",
   "provider.saved": "Saved (hot-applied, no restart needed)",
+  "provider.preset": "Preset",
+  "provider.preset.custom": "Custom",
+  "provider.preset.hint.ollama": "Runs locally · Free · No API key (requires Ollama installed with a pulled model)",
+  "provider.preset.hint.deepseek": "Low-cost official API · pay-as-you-go, far cheaper than frontier models",
+  "provider.preset.hint.openrouter": "Model aggregator · includes free tier (model names ending in :free)",
 
   "mode.title": "Modes (changes hot-apply to the next request)",
   "mode.name": "Name",
