@@ -51,14 +51,35 @@ Or download directly: [DevWit-0.1.1-arm64.dmg](https://github.com/eeyzs1/DevWit/
 | Minimal context engine | The full context composition of every LLM request (system prompt, tool list, injected items, per-item token cost) is visible item-by-item and can be toggled individually; manifests are persisted for audit |
 | Conversational coding | Request code changes in chat; edits are presented as an in-editor diff with per-hunk accept/reject |
 | Agent mode | Authorization gate: file writes and terminal commands require explicit user approval; multi-step tasks with fully visible execution traces |
+| Multi-agent orchestration | Orchestrator mode decomposes a task into parallel sub-agents; plan, per-subtask progress, and authorization decisions are visible in the activity stream, with automatic fallback to single-task execution |
+| Transparent RAG | Once the codebase index (chunks + embeddings) is ready, retrieval hits are shown with similarity scores and token costs, each individually excludable; index status and manual rebuild live in Settings |
+| Zero-cost model access | One-click presets for local Ollama (keyless), DeepSeek, and OpenRouter free tier; the keyless channel covers both chat and embeddings |
 | Multi-model support | Anthropic API and OpenAI-compatible API, custom base URL and API key (encrypted via safeStorage), switch models mid-session |
 | Custom modes | Create/edit/delete modes — each mode defines its own system prompt, toolset, model, and context injection policy; changes take effect hot, no restart |
+| Community mode ecosystem | Account-free sharing: modes export/import as JSON files; a built-in community index (eeyzs1/devwit-modes) offers one-click import, after which modes are editable and re-bindable |
+| MCP servers | Manage MCP servers in Settings (CRUD + status badges + tool counts); MCP tools join the agent toolset behind the authorization gate |
+| i18n | Chinese/English UI with hot language switching; the main process emits ASCII error codes, localized in the renderer |
+| Cross-platform distribution | Windows NSIS / macOS dmg / Linux AppImage+deb built by GitHub Actions; in-app auto-update on Windows and AppImage |
+
+## Screenshots
+
+| Transparent context + RAG | Chat diff review |
+|---|---|
+| ![Context panel](docs/screenshots/context-panel-rag.png) | ![Diff review](docs/screenshots/chat-diff-review.png) |
+
+| Agent authorization gate | Multi-agent orchestration |
+|---|---|
+| ![Authorization gate](docs/screenshots/agent-authorization-gate.png) | ![Multi-agent orchestration](docs/screenshots/multi-agent-orchestration.png) |
+
+| Unified settings | Community modes |
+|---|---|
+| ![Settings](docs/screenshots/settings-unified.png) | ![Community modes](docs/screenshots/community-modes.png) |
 
 ## Tech Stack
 
 - Electron 37 + TypeScript 5.8 (monorepo, npm workspaces)
 - esbuild for bundling, vitest for unit tests, Playwright over CDP for E2E
-- electron-builder produces the Windows NSIS installer and portable build
+- electron-builder produces Windows NSIS, macOS dmg, and Linux AppImage/deb; electron-updater for in-app auto-update
 
 ## Repository Layout
 
@@ -69,16 +90,21 @@ packages/
   editor-core       Piece-table document kernel (DOM-free)
   editor-render     Canvas rendering view + IME input capture
   syntax            tree-sitter highlight engine
-  llm-providers     Anthropic / OpenAI-compatible clients (SSE streaming)
+  llm-providers     Anthropic / OpenAI-compatible clients (SSE streaming) + preset catalog + keyless channel
   context-engine    Minimal context engine (manifest + token metering + per-item policy)
-  agent-runtime     Agent loop, tool execution, authorization gate, tracing
-  chat-ui           Chat/context/diff panels (headless controllers + DOM views)
-  modes             Mode definition store (hot-reload events)
+  agent-runtime     Agent loop, tool execution, authorization gate, tracing, multi-agent orchestration
+  chat-ui           Chat/context/diff panels + task center + activity stream (headless controllers + DOM views)
+  modes             Mode definition store (hot reload) + export/import + community index client
+  rag               Codebase index (chunking / embeddings / retrieval-hit injection)
+  mcp               MCP client and server manager
+  i18n              UI internationalization (zh/en, hot switch)
   settings          Settings and credentials (safeStorage encryption)
   workspace         File tree, git status, workspace service
   terminal          Terminal service (pipe / node-pty backends)
 verification/       Acceptance check scripts (context audit, anti-mock, architecture boundaries, secret scan, ...)
-evidence/           AC1–AC7 acceptance evidence (screenshots, manifests, traces, build logs)
+evidence/           AC1–AC25 acceptance evidence (screenshots, manifests, traces, build logs)
+distribution/       Distribution infrastructure (winget manifests / Homebrew cask / community mode seeds)
+docs/screenshots/   Real UI screenshots for the READMEs
 ```
 
 ## Quick Start
@@ -94,10 +120,12 @@ npm run dev              # Build and launch
 ## Testing & Verification
 
 ```powershell
-npm test                 # 216 unit tests across 27 test files
+npm test                 # 362 unit tests across 44 test files
 npm run lint             # ESLint, zero violations
 npm run test:e2e         # E2E smoke: launch → edit/save → context toggles → diff review → agent authorization → model switch → mode hot-reload
 ```
+
+Ten more iteration-level E2E suites (`npm run test:e2e2` … `test:e2e14`) cover the authorization gate, crash recovery, auto-update, MCP, transparent RAG, multi-agent orchestration, zero-cost models, mode export/import, and the community mode ecosystem — with evidence persisted under `evidence/AC*`.
 
 Acceptance gate scripts:
 
