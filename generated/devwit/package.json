@@ -1,6 +1,6 @@
 {
   "name": "devwit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "DevWit — 简洁上下文 AI 原生桌面 IDE",
   "type": "module",
