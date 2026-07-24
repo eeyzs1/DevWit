@@ -8,8 +8,21 @@ permissions:
   contents: write
 
 jobs:
+  # 前置创建空 prerelease：三个平台 job 并行收尾时若 release 不存在会竞争 create，
+  # 后到者 already_exists 失败（v0.1.1 实测）。统一由此 job 先建，构建 job 只追加上传。
+  prepare-release:
+    name: Prepare GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create empty prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          prerelease: true
+
   build-windows:
     name: Build & Publish Windows Release
+    needs: prepare-release
     runs-on: windows-latest
     defaults:
       run:
@@ -54,6 +67,7 @@ jobs:
 
   build-macos:
     name: Build & Publish macOS Release
+    needs: prepare-release
     runs-on: macos-latest
     defaults:
       run:
@@ -99,6 +113,7 @@ jobs:
 
   build-linux:
     name: Build & Publish Linux Release
+    needs: prepare-release
     runs-on: ubuntu-latest
     defaults:
       run:
