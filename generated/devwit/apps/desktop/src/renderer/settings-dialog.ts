@@ -616,6 +616,8 @@ async function renderModes(content: HTMLElement, deps: SettingsDialogDeps): Prom
 
   let modes: ModeDefinition[] = [];
   const providers: ProviderConfig[] = await api.providers.list();
+  /** 社区行「已导入」状态刷新器（迭代 16）：renderList 重建本地列表后逐个调用。 */
+  const communitySyncs: Array<() => void> = [];
 
   const form = el("div", "dw-form");
   const idInput = fieldInput("text", "");
@@ -747,6 +749,7 @@ async function renderModes(content: HTMLElement, deps: SettingsDialogDeps): Prom
       row.addEventListener("click", () => fillForm(mode));
       list.appendChild(row);
     }
+    for (const sync of communitySyncs) sync();
   }
 
   const actions = el("div", "dw-modal-actions");
@@ -802,6 +805,47 @@ async function renderModes(content: HTMLElement, deps: SettingsDialogDeps): Prom
     })().catch((error: unknown) => {
       errorBox.textContent = error instanceof Error ? error.message : String(error);
     });
+  });
+
+  // ---- 社区模式（迭代 16 / AC25）：零账号分享——索引浏览 + 一键导入 ----
+  content.appendChild(el("h3", "dw-settings-subtitle", t("mode.community.title")));
+  content.appendChild(el("p", "dw-modal-hint", t("mode.community.hint")));
+  const communityStatus = el("div", "dw-modal-hint", t("mode.community.loading"));
+  const communityList = el("div", "dw-modal-list");
+  content.append(communityStatus, communityList);
+  void (async () => {
+    const entries = await api.modes.communityList();
+    communityStatus.textContent = entries.length === 0 ? t("mode.community.empty") : "";
+    for (const entry of entries) {
+      const row = el("div", "dw-modal-list-item");
+      const label = el("span", "dw-grow", `${entry.name} · ${t("mode.community.by", { author: entry.author })}`);
+      label.title = entry.description;
+      row.appendChild(label);
+      const importBtn = el("button", "dw-btn dw-btn-small", t("mode.community.import")) as HTMLButtonElement;
+      const sync = (): void => {
+        const imported = modes.some((mode) => mode.name === entry.name);
+        importBtn.disabled = imported;
+        importBtn.textContent = imported ? t("mode.community.imported") : t("mode.community.import");
+      };
+      communitySyncs.push(sync);
+      sync();
+      importBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        void (async () => {
+          const imported = await api.modes.communityImport(entry.file);
+          deps.onModesChanged();
+          await renderList();
+          fillForm(imported); // 导入结果直接入表单：用户可立即检查/重绑模型
+          errorBox.textContent = t("mode.import.done", { name: imported.name });
+        })().catch((error: unknown) => {
+          communityStatus.textContent = localizeError(error instanceof Error ? error.message : String(error));
+        });
+      });
+      row.appendChild(importBtn);
+      communityList.appendChild(row);
+    }
+  })().catch((error: unknown) => {
+    communityStatus.textContent = localizeError(error instanceof Error ? error.message : String(error));
   });
 
   await renderList();

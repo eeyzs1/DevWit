@@ -12,7 +12,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { IPC } from "@devwit/contracts";
 import type { AgentRunInput, AuthorizationDecision, ContextItemType, ExternalEditorConfig, ProviderConfig } from "@devwit/contracts";
 import { PROVIDER_PRESETS } from "@devwit/llm-providers";
-import { materializeImport, parseExportFile, toExportFile } from "@devwit/modes";
+import { fetchCommunityIndex, fetchCommunityMode, materializeImport, parseExportFile, resolveModesIndexBase, toExportFile } from "@devwit/modes";
 import type { SettingsStore } from "@devwit/settings";
 import type { TerminalService } from "@devwit/terminal";
 import type { WorkspaceService } from "@devwit/workspace";
@@ -216,6 +216,8 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
     table[IPC.ModesDelete] = notWired;
     table[IPC.ModesExport] = notWired;
     table[IPC.ModesImport] = notWired;
+    table[IPC.ModesCommunityList] = notWired;
+    table[IPC.ModesCommunityImport] = notWired;
     table[IPC.ContextManifestLatest] = notWired;
     table[IPC.ContextManifestList] = notWired;
     table[IPC.ContextPolicyGet] = notWired;
@@ -255,6 +257,17 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
     const source = await hooks.openJsonFile();
     if (source === null) return null;
     const parsed = parseExportFile(await readFile(source, "utf-8"));
+    const providerIds = new Set(readProviders(services.settings).map((provider) => provider.id));
+    const existingIds = new Set(ai.listModes().map((mode) => mode.id));
+    const mode = materializeImport(parsed, { existingIds, providerIds });
+    ai.upsertMode(mode);
+    return mode;
+  };
+  // ---- 社区模式（迭代 16 / AC25）：索引仓库浏览 + 一键导入（校验/落库与文件导入同管线） ----
+  table[IPC.ModesCommunityList] = async () => fetchCommunityIndex(resolveModesIndexBase(), (url) => fetch(url));
+  table[IPC.ModesCommunityImport] = async (_e, file) => {
+    if (services === undefined) throw new Error(AI_NOT_WIRED);
+    const parsed = await fetchCommunityMode(resolveModesIndexBase(), String(file), (url) => fetch(url));
     const providerIds = new Set(readProviders(services.settings).map((provider) => provider.id));
     const existingIds = new Set(ai.listModes().map((mode) => mode.id));
     const mode = materializeImport(parsed, { existingIds, providerIds });

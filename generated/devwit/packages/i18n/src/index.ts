@@ -112,6 +112,15 @@ export function localizeError(raw: string, opts?: LocalizeErrorOptions): string 
   if (importVersion !== null) return t("err.modeImportVersion", { version: (importVersion[1] ?? "").trim() });
   const importSchema = /DW_MODE_IMPORT_INVALID_SCHEMA:([^\n]*)/.exec(raw);
   if (importSchema !== null) return t("err.modeImportSchema", { detail: (importSchema[1] ?? "").trim() });
+  // 迭代 16 / AC25 社区模式索引错误码
+  if (raw.includes("DW_MODES_INDEX_UNREACHABLE")) return t("err.modesIndexUnreachable");
+  const indexHttp = /DW_MODES_INDEX_HTTP:(\d+)/.exec(raw);
+  if (indexHttp !== null) return t("err.modesIndexHttp", { status: indexHttp[1] ?? "" });
+  if (raw.includes("DW_MODES_INDEX_INVALID_JSON")) return t("err.modesIndexInvalidJson");
+  if (raw.includes("DW_MODES_INDEX_NOT_AN_INDEX")) return t("err.modesIndexNotIndex");
+  const indexVersion = /DW_MODES_INDEX_UNSUPPORTED_VERSION:([^\n]*)/.exec(raw);
+  if (indexVersion !== null) return t("err.modesIndexVersion", { version: (indexVersion[1] ?? "").trim() });
+  if (raw.includes("DW_MODES_INDEX_INVALID_SCHEMA")) return t("err.modesIndexSchema");
   if (raw.includes("DW_SESSION_BUSY")) return t("chat.error.busy");
   if (raw.includes("DW_EXTERNAL_EDITOR_NOT_CONFIGURED")) return t("err.externalNotConfigured");
   if (raw.includes("DW_EXTERNAL_EDITOR_TEMPLATE_EMPTY")) return t("err.templateEmpty");

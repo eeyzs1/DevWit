@@ -257,6 +257,16 @@ export interface ModeDefinition {
   updatedAt: string;
 }
 
+/** 社区模式索引条目（迭代 16 / AC25）：索引仓库 index.json 中单个模式的浏览元数据。 */
+export interface CommunityModeEntry {
+  /** 相对索引 base 的文件路径（如 modes/code-reviewer.json）。 */
+  file: string;
+  name: string;
+  description: string;
+  author: string;
+  tags: string[];
+}
+
 // ============================================================================
 // Agent 运行时（WU010）
 // ============================================================================
@@ -484,6 +494,8 @@ export const IPC = {
   ModesDelete: "modes:delete",
   ModesExport: "modes:export",
   ModesImport: "modes:import",
+  ModesCommunityList: "modes:community-list",
+  ModesCommunityImport: "modes:community-import",
   ModesChanged: "modes:changed",
   ContextManifestLatest: "context:manifest:latest",
   ContextManifestList: "context:manifest:list",
@@ -559,6 +571,16 @@ export interface DevwitApi {
      * 返回导入后的模式，用户取消返回 null；文件非法抛 DW_MODE_IMPORT_* 错误码。
      */
     import(): Promise<ModeDefinition | null>;
+    /**
+     * 浏览社区模式索引（迭代 16 / AC25）：主进程拉取索引仓库 index.json。
+     * 网络/格式失败抛 DW_MODES_INDEX_* 错误码。
+     */
+    communityList(): Promise<CommunityModeEntry[]>;
+    /**
+     * 一键导入社区模式：按索引条目 file 拉取模式文件，经 AC23 同标准校验后
+     * 落为新自定义模式（同文件导入语义：新 id、未知 provider 清空）。
+     */
+    communityImport(file: string): Promise<ModeDefinition>;
     onChanged(cb: () => void): () => void;
   };
   context: {
