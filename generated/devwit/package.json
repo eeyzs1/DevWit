@@ -33,7 +33,7 @@
     "lint": "eslint .",
     "rebuild-native": "electron-rebuild -f -w node-pty",
     "pack": "npm run build && electron-builder --dir",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder --publish never"
   },
   "devDependencies": {
     "@electron/rebuild": "^3.7.0",
