@@ -3,6 +3,8 @@
   "version": "0.1.1",
   "private": true,
   "description": "DevWit — 简洁上下文 AI 原生桌面 IDE",
+  "homepage": "https://github.com/eeyzs1/DevWit",
+  "author": "eeyzs1",
   "type": "module",
   "main": "apps/desktop/dist/main/index.js",
   "workspaces": [
