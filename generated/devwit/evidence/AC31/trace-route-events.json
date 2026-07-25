@@ -1,0 +1,61 @@
+[
+  {
+    "seq": 1,
+    "timestamp": "2026-07-25T15:38:35.377Z",
+    "sessionId": "task-session-1784993915329-1",
+    "type": "route",
+    "summary": "route: local → p-local (score 0/30)",
+    "detail": {
+      "score": 0,
+      "threshold": 30,
+      "reasons": [],
+      "routed": "local",
+      "providerId": "p-local"
+    }
+  },
+  {
+    "seq": 1,
+    "timestamp": "2026-07-25T15:38:35.735Z",
+    "sessionId": "task-session-1784993915679-2",
+    "type": "route",
+    "summary": "route: complex → p-cloud (score 30/30)",
+    "detail": {
+      "score": 30,
+      "threshold": 30,
+      "reasons": [
+        "keyword:refactor",
+        "keyword:whole_scope"
+      ],
+      "routed": "complex",
+      "providerId": "p-cloud"
+    }
+  },
+  {
+    "seq": 1,
+    "timestamp": "2026-07-25T15:38:36.102Z",
+    "sessionId": "task-session-1784993916035-3",
+    "type": "route",
+    "summary": "route: disabled → p-cloud (score 0/30)",
+    "detail": {
+      "score": 0,
+      "threshold": 30,
+      "reasons": [],
+      "routed": "disabled",
+      "providerId": "p-cloud"
+    }
+  },
+  {
+    "seq": 1,
+    "timestamp": "2026-07-25T15:38:36.423Z",
+    "sessionId": "session-1784993914977",
+    "type": "route",
+    "summary": "route: manual → p-cloud (score 0/30)",
+    "detail": {
+      "score": 0,
+      "threshold": 30,
+      "reasons": [],
+      "routed": "manual",
+      "providerId": "p-cloud"
+    }
+  }
+]

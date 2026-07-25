@@ -7,5 +7,7 @@
   "selection": false,
   "conversation_history": false,
   "codebase_match": false,
+  "diagnostics": false,
+  "workflow": false,
   "custom": false
 }

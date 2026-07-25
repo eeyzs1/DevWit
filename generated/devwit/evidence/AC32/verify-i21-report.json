@@ -1,0 +1,34 @@
+{
+  "steps": [
+    "本地端点就绪 http://127.0.0.1:50792/v1（脚本化 3 请求）",
+    "应用启动 + fixture 工作区打开（login.ts 就位）",
+    "keyless provider 注册 + agent 模式热绑定（workflow 策略默认开）",
+    "任务1 完成：write 授权真实写盘 + done（够格沉淀）",
+    "模板沉淀：wf-ms0jatvv-1（intent=「为 login.ts 加输入校验」，tools=[write]）",
+    "任务2 命中模板：活动流「工作流」行可见（write · 第 1 次复用）",
+    "请求体审计：任务2 携带工作流建议项（标注「建议，非指令」）",
+    "复用计数：reuseCount 0→1，lastReuseAt 落盘",
+    "磁盘轨迹审计：workflow×1（phase=reuse，shared 含 login.ts，reuseCount=1）",
+    "manifest 审计：workflow 项 enabled + token 精确计数（透明可见可剔除）",
+    "设置 UI：模板条目可见（意图 + write + 复用 1 次）",
+    "逐条删除：模板清空（settings 同步）",
+    "开关热持久化：workflow.memory.enabled=false（下轮起停用）",
+    "停用验证：成功任务不学习、相似任务不匹配"
+  ],
+  "assertions": [
+    "login.ts 应为写入版（实际: \"export function login(name?: string) {\\n  if (!name) throw new Error(\\\"name requir\"）",
+    "任务1 成功后应沉淀 1 条模板（intent/tools=[write]/reuseCount=0）（实际: [{\"id\":\"wf-ms0jatvv-1\",\"intent\":\"为 login.ts 加输入校验\",\"modeId\":\"agent\",\"tools\":[\"write\"],\"learnedAt\":\"2026-07-25T15:38:53.515Z\",\"reuseCount\":0}]）",
+    "活动流「工作流」行应含工具序列 write + 第 1 次复用 + 模板意图（实际: 工作流复用相似成功任务的工作流（write，第 1 次复用）：为 login.ts 加输入校验）",
+    "任务2 请求体应含工作流建议项（意图 + 成功工具序列 write）（实际含建议=true）",
+    "建议项应明确标注「建议，非指令」（授权语义不变）",
+    "复用后模板 reuseCount 应为 1 且落 lastReuseAt（实际: [{\"id\":\"wf-ms0jatvv-1\",\"intent\":\"为 login.ts 加输入校验\",\"modeId\":\"agent\",\"tools\":[\"write\"],\"learnedAt\":\"2026-07-25T15:38:53.515Z\",\"reuseCount\":1,\"lastReuseAt\":\"2026-07-25T15:38:53.689Z\"}]）",
+    "轨迹 workflow 事件应为 reuse 且含 templateId/shared(login.ts)/reuseCount=1（实际: {\"phase\":\"reuse\",\"templateId\":\"wf-ms0jatvv-1\",\"intent\":\"为 login.ts 加输入校验\",\"tools\":[\"write\"],\"shared\":[\"login.ts\",\"输入\",\"入校\",\"校验\"],\"reuseCount\":1}）",
+    "至少 1 份 manifest 应含 enabled 且 token>0 的 workflow 项（实际: 1 份）",
+    "设置·通用分区应展示「工作流记忆」区",
+    "模板条目应含意图 + 工具序列 + 复用次数（实际: 为 login.ts 加输入校验（write · 复用 1 次）删除）",
+    "停用后成功任务不应沉淀模板（实际: []）",
+    "停用后活动流不应有工作流复用行"
+  ],
+  "failures": [],
+  "fatal": null
+}

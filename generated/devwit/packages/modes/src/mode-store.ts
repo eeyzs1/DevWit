@@ -33,8 +33,8 @@ export const BUILTIN_AGENT_MODE: ModeDefinition = {
     "修改文件前先读文件；一次只推进一小步；完成后用一句话说明做了什么。",
   tools: ["read", "write", "edit", "bash", "grep", "find", "ls"],
   providerId: "",
-  // AC30：编辑后 tsc 诊断回馈默认开（用户可在上下文面板逐项关闭）
-  contextPolicy: { diagnostics: true },
+  // AC30：编辑后 tsc 诊断回馈默认开；AC32：工作流记忆建议注入默认开（均可在上下文面板逐项关闭）
+  contextPolicy: { diagnostics: true, workflow: true },
   builtin: true,
   createdAt: BUILTIN_TIMESTAMP,
   updatedAt: BUILTIN_TIMESTAMP,
@@ -50,8 +50,8 @@ export const BUILTIN_ORCHESTRATOR_MODE: ModeDefinition = {
     "你负责理解用户原始意图，并在收到各子任务结论后给出准确、完整的最终综合答复。",
   tools: ["read", "write", "edit", "bash", "grep", "find", "ls"],
   providerId: "",
-  // AC30：子 Agent 编辑同样触发诊断回馈
-  contextPolicy: { diagnostics: true },
+  // AC30：子 Agent 编辑同样触发诊断回馈；AC32：编排 run 同样受益于工作流记忆
+  contextPolicy: { diagnostics: true, workflow: true },
   orchestrate: true,
   builtin: true,
   createdAt: BUILTIN_TIMESTAMP,

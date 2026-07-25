@@ -26,7 +26,10 @@
       "ls"
     ],
     "providerId": "",
-    "contextPolicy": {},
+    "contextPolicy": {
+      "diagnostics": true,
+      "workflow": true
+    },
     "builtin": true,
     "createdAt": "2026-01-01T00:00:00.000Z",
     "updatedAt": "2026-01-01T00:00:00.000Z"
@@ -46,7 +49,10 @@
       "ls"
     ],
     "providerId": "",
-    "contextPolicy": {},
+    "contextPolicy": {
+      "diagnostics": true,
+      "workflow": true
+    },
     "orchestrate": true,
     "builtin": true,
     "createdAt": "2026-01-01T00:00:00.000Z",
@@ -63,7 +69,7 @@
     "providerId": "e2e-local-a",
     "contextPolicy": {},
     "builtin": false,
-    "createdAt": "2026-07-25T04:50:13.274Z",
-    "updatedAt": "2026-07-25T04:50:13.274Z"
+    "createdAt": "2026-07-25T15:36:25.601Z",
+    "updatedAt": "2026-07-25T15:36:25.601Z"
   }
 ]

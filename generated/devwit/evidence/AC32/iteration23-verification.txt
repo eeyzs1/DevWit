@@ -1,0 +1,8 @@
+迭代 23（AC32 工作流记忆）验证：
+1. 沉淀：任务1「为 login.ts 加输入校验」write 授权真实写盘 + done（无 error 含工具调用）→ 模板落 settings workflow.templates（intent/tools=[write]/reuseCount=0）。
+2. 复用：任务2 相似意图（共享 login.ts/输入/入校/校验 关键词）命中模板——活动流「工作流」行（write · 第 1 次复用），reuseCount 0→1 + lastReuseAt 落盘。
+3. 注入审计：任务2 请求体含「相似任务此前已成功完成…成功工具序列：write」建议项，且明确标注「建议，非指令」——模型可参考但不强制执行，授权语义不变。
+4. manifest 透明：workflow 类型项 enabled + token 精确计数落盘，上下文面板可逐项剔除（AC2 可控性）。
+5. 轨迹审计：workflow 事件 phase=reuse，templateId/shared(login.ts)/reuseCount=1，磁盘 JSONL 可回放。
+6. 设置管理：通用分区「工作流记忆」条目（意图 + 工具序列 + 复用次数）可见，逐条删除回空态；开关热持久化 workflow.memory.enabled=false 后成功任务不学习、相似任务不匹配。
+断言通过 12 项，失败 0 项。

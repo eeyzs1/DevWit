@@ -121,6 +121,21 @@ export function localizeError(raw: string, opts?: LocalizeErrorOptions): string 
   const indexVersion = /DW_MODES_INDEX_UNSUPPORTED_VERSION:([^\n]*)/.exec(raw);
   if (indexVersion !== null) return t("err.modesIndexVersion", { version: (indexVersion[1] ?? "").trim() });
   if (raw.includes("DW_MODES_INDEX_INVALID_SCHEMA")) return t("err.modesIndexSchema");
+  // 迭代 25 / AC34 社区 MCP 索引 / 服务器文件错误码
+  if (raw.includes("DW_MCP_INDEX_UNREACHABLE")) return t("err.mcpIndexUnreachable");
+  const mcpIndexHttp = /DW_MCP_INDEX_HTTP:(\d+)/.exec(raw);
+  if (mcpIndexHttp !== null) return t("err.mcpIndexHttp", { status: mcpIndexHttp[1] ?? "" });
+  if (raw.includes("DW_MCP_INDEX_INVALID_JSON")) return t("err.mcpIndexInvalidJson");
+  if (raw.includes("DW_MCP_INDEX_NOT_AN_INDEX")) return t("err.mcpIndexNotIndex");
+  const mcpIndexVersion = /DW_MCP_INDEX_UNSUPPORTED_VERSION:([^\n]*)/.exec(raw);
+  if (mcpIndexVersion !== null) return t("err.mcpIndexVersion", { version: (mcpIndexVersion[1] ?? "").trim() });
+  if (raw.includes("DW_MCP_INDEX_INVALID_SCHEMA")) return t("err.mcpIndexSchema");
+  if (raw.includes("DW_MCP_SERVER_INVALID_JSON")) return t("err.mcpServerInvalidJson");
+  if (raw.includes("DW_MCP_SERVER_NOT_A_DEVWIT_SERVER")) return t("err.mcpServerNotDevwit");
+  const mcpServerVersion = /DW_MCP_SERVER_UNSUPPORTED_VERSION:([^\n]*)/.exec(raw);
+  if (mcpServerVersion !== null) return t("err.mcpServerVersion", { version: (mcpServerVersion[1] ?? "").trim() });
+  const mcpServerSchema = /DW_MCP_SERVER_INVALID_SCHEMA:([^\n]*)/.exec(raw);
+  if (mcpServerSchema !== null) return t("err.mcpServerSchema", { detail: (mcpServerSchema[1] ?? "").trim() });
   if (raw.includes("DW_SESSION_BUSY")) return t("chat.error.busy");
   if (raw.includes("DW_EXTERNAL_EDITOR_NOT_CONFIGURED")) return t("err.externalNotConfigured");
   if (raw.includes("DW_EXTERNAL_EDITOR_TEMPLATE_EMPTY")) return t("err.templateEmpty");

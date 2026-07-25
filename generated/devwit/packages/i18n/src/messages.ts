@@ -153,6 +153,7 @@ const zhCN = {
   "mode.builtin.note": "内置模式：可编辑，不可删除",
   "mode.builtin.tag": "（内置）",
   "mode.tool.count": "工具 {n} 个",
+  "mode.stats.rate": "成功率 {rate}%（{successes}/{runs} 次定级）",
   "mode.delete": "删除",
   "mode.required": "名称与系统提示必填",
   "mode.saved": "已保存（热生效）",
@@ -209,6 +210,25 @@ const zhCN = {
   "mcp.deleted": "已删除（服务器进程已停止）",
   "mcp.error.code": "错误码：{code}",
   "mcp.env.invalid": "环境变量格式错误：第 {n} 行缺少「=」",
+  "mcp.community.title": "社区 MCP 服务器",
+  "mcp.community.hint": "来自社区索引（github.com/eeyzs1/devwit-modes）的分享服务器，一键导入并热启动；导入后可编辑、停用或删除。",
+  "mcp.community.loading": "正在加载社区索引…",
+  "mcp.community.empty": "社区索引暂无 MCP 服务器",
+  "mcp.community.import": "导入",
+  "mcp.community.imported": "已导入",
+  "mcp.community.by": "作者 {author}",
+  "mcp.community.toolCount": "预告 {n} 个工具",
+  "mcp.community.importDone": "已导入「{name}」（热启动中）",
+  "err.mcpIndexUnreachable": "无法连接社区索引（请检查网络后重试）",
+  "err.mcpIndexHttp": "社区索引请求失败（HTTP {status}）",
+  "err.mcpIndexInvalidJson": "社区索引不是有效的 JSON",
+  "err.mcpIndexNotIndex": "该地址不是 DevWit 社区索引",
+  "err.mcpIndexVersion": "不支持的社区索引版本：{version}",
+  "err.mcpIndexSchema": "社区索引格式非法",
+  "err.mcpServerInvalidJson": "导入失败：服务器文件不是有效的 JSON",
+  "err.mcpServerNotDevwit": "导入失败：不是 DevWit MCP 服务器文件（kind 不匹配）",
+  "err.mcpServerVersion": "导入失败：不支持的服务器文件版本（{version}）",
+  "err.mcpServerSchema": "导入失败：服务器配置非法（{detail}）",
 
   // ---- 运行时错误（主进程抛 ASCII 错误码避免终端乱码，渲染端按当前语言本地化）----
   "err.modeNotFound": "模式不存在：{id}",
@@ -252,6 +272,7 @@ const zhCN = {
   "ctx.conversation_history": "会话历史",
   "ctx.codebase_match": "代码库检索",
   "ctx.diagnostics": "诊断",
+  "ctx.workflow": "工作流记忆",
   "ctx.custom": "自定义",
 
   // ---- 代码索引（设置 · 通用，AC19 透明 RAG）----
@@ -273,6 +294,23 @@ const zhCN = {
   "security.remove": "移除",
   "security.clear": "清空白名单",
   "security.learned": "已加入命令白名单：{command}",
+
+  // ---- 设置 · 通用 / 本地小模型路由（AC31）----
+  "routing.title": "本地小模型路由",
+  "routing.enable": "简单任务路由到本地模型",
+  "routing.provider": "本地模型",
+  "routing.provider.none": "（未选择）",
+  "routing.threshold": "复杂度阈值",
+  "routing.hint": "复杂度评分低于阈值的任务发给本地小模型（省成本、低延迟）；复杂任务、编排模式与你手动切换的模型始终走模式绑定。评分来源逐项记录在每次运行的轨迹（路由事件）中，可审计。",
+
+  // ---- 工作流记忆（AC32）----
+  "workflow.title": "工作流记忆",
+  "workflow.enable": "沉淀并复用成功任务的工作流",
+  "workflow.hint": "成功完成（无错误且含工具调用）的任务轨迹会沉淀为模板；遇到相似新任务时，模板的成功工具序列作为建议注入上下文（非指令，授权语义不变）。模板仅含意图文本与工具序列，可随时逐条删除或清空。",
+  "workflow.empty": "还没有沉淀的工作流——成功完成的任务会出现在这里。",
+  "workflow.entry": "{intent}（{tools} · 复用 {count} 次）",
+  "workflow.remove": "删除",
+  "workflow.clear": "清空全部模板",
 
   // ---- 对话面板 ----
   "chat.mode": "模式",
@@ -325,6 +363,25 @@ const zhCN = {
   "act.diagnostics": "诊断",
   "act.diagnostics.found": "编辑后发现 {count} 个问题（首个：{first}），已注入本轮上下文",
   "act.diagnostics.clean": "诊断已清零（上次编辑引入的问题已修复）",
+
+  // ---- 本地小模型路由（AC31）----
+  "act.route": "路由",
+  "act.route.local": "简单任务 → 本地模型 {provider}（复杂度 {score} < 阈值 {threshold}）",
+  "act.route.complex": "复杂任务 → 模式绑定模型 {provider}（复杂度 {score} ≥ 阈值 {threshold}）",
+  "act.route.manual": "已手动指定模型 {provider}，跳过自动路由",
+  "act.route.unavailable": "本地模型不可用 → 回退模式绑定模型 {provider}",
+  "act.route.disabled": "本地路由未开启 → 模式绑定模型 {provider}",
+
+  // ---- 工作流记忆（AC32）----
+  "act.workflow": "工作流",
+  "act.workflow.reuse": "复用相似成功任务的工作流（{tools}，第 {count} 次复用）：{intent}",
+
+  // ---- 模式自进化推荐（AC33）----
+  "act.modeRecommend": "模式推荐",
+  "act.modeRecommend.reason": "相似任务在「{mode}」下成功率 {rate}%（{runs} 次定级），当前「{current}」{currentRate}：{intent}",
+  "act.modeRecommend.noData": "暂无数据",
+  "act.modeRecommend.switch": "切换到{mode}",
+  "act.modeRecommend.switched": "已采纳，后续消息将使用推荐模式",
 
   // ---- diff 审查视图（AC3）----
   "diff.title": "变更审查",
@@ -489,6 +546,7 @@ const enUS: Messages = {
   "mode.builtin.note": "Built-in mode: editable, not deletable",
   "mode.builtin.tag": " (built-in)",
   "mode.tool.count": "{n} tools",
+  "mode.stats.rate": "success {rate}% ({successes}/{runs} graded)",
   "mode.delete": "Delete",
   "mode.required": "Name and system prompt are required",
   "mode.saved": "Saved (hot-applied)",
@@ -541,6 +599,26 @@ const enUS: Messages = {
   "mcp.deleted": "Deleted (server process stopped)",
   "mcp.error.code": "Error code: {code}",
   "mcp.env.invalid": "Invalid env line {n}: missing \"=\"",
+  "mcp.community.title": "Community MCP Servers",
+  "mcp.community.hint":
+    "Shared servers from the community index (github.com/eeyzs1/devwit-modes). Import and hot-start in one click; imported servers can be edited, disabled or deleted.",
+  "mcp.community.loading": "Loading community index…",
+  "mcp.community.empty": "No MCP servers in the community index yet",
+  "mcp.community.import": "Import",
+  "mcp.community.imported": "Imported",
+  "mcp.community.by": "by {author}",
+  "mcp.community.toolCount": "advertises {n} tools",
+  "mcp.community.importDone": "Imported \"{name}\" (hot-starting)",
+  "err.mcpIndexUnreachable": "Cannot reach the community index (check your network and retry)",
+  "err.mcpIndexHttp": "Community index request failed (HTTP {status})",
+  "err.mcpIndexInvalidJson": "The community index is not valid JSON",
+  "err.mcpIndexNotIndex": "This URL is not a DevWit community index",
+  "err.mcpIndexVersion": "Unsupported community index version: {version}",
+  "err.mcpIndexSchema": "The community index has an invalid schema",
+  "err.mcpServerInvalidJson": "Import failed: the server file is not valid JSON",
+  "err.mcpServerNotDevwit": "Import failed: not a DevWit MCP server file (kind mismatch)",
+  "err.mcpServerVersion": "Import failed: unsupported server file version ({version})",
+  "err.mcpServerSchema": "Import failed: invalid server config ({detail})",
 
   "err.modeNotFound": "Mode not found: {id}",
   "err.modeImportInvalidJson": "Import failed: the file is not valid JSON",
@@ -584,6 +662,7 @@ const enUS: Messages = {
   "ctx.conversation_history": "Conversation history",
   "ctx.codebase_match": "Codebase matches",
   "ctx.diagnostics": "Diagnostics",
+  "ctx.workflow": "Workflow memory",
   "ctx.custom": "Custom",
 
   "rag.title": "Code indexing",
@@ -603,6 +682,23 @@ const enUS: Messages = {
   "security.remove": "Remove",
   "security.clear": "Clear whitelist",
   "security.learned": "Added to command whitelist: {command}",
+
+  // ---- Settings · General / Local model routing (AC31) ----
+  "routing.title": "Local model routing",
+  "routing.enable": "Route simple tasks to a local model",
+  "routing.provider": "Local model",
+  "routing.provider.none": "(not selected)",
+  "routing.threshold": "Complexity threshold",
+  "routing.hint": "Tasks scoring below the threshold go to a small local model (cheaper, lower latency); complex tasks, orchestrator mode, and models you pick manually always use the mode binding. Every score source is auditable in each run's trace (route event).",
+
+  // ---- Workflow memory (AC32) ----
+  "workflow.title": "Workflow memory",
+  "workflow.enable": "Learn and reuse workflows from successful tasks",
+  "workflow.hint": "Runs that finish successfully (no errors, with tool calls) are distilled into templates; when a similar new task arrives, the template's tool sequence is injected as a suggestion (not an instruction — authorization semantics stay unchanged). Templates only hold the intent text and tool sequence; delete any entry or clear all anytime.",
+  "workflow.empty": "No workflows learned yet — successfully completed tasks appear here.",
+  "workflow.entry": "{intent} ({tools} · reused {count}x)",
+  "workflow.remove": "Delete",
+  "workflow.clear": "Clear all templates",
 
   "chat.mode": "Mode",
   "chat.provider": "Provider",
@@ -653,6 +749,25 @@ const enUS: Messages = {
   "act.diagnostics": "Diagnostics",
   "act.diagnostics.found": "{count} problem(s) after edit (first: {first}); injected into this turn's context",
   "act.diagnostics.clean": "Diagnostics cleared (problems from the last edit are fixed)",
+
+  // ---- Local model routing (AC31) ----
+  "act.route": "Route",
+  "act.route.local": "Simple task → local model {provider} (complexity {score} < threshold {threshold})",
+  "act.route.complex": "Complex task → mode-bound model {provider} (complexity {score} ≥ threshold {threshold})",
+  "act.route.manual": "Model manually set to {provider}; auto-routing skipped",
+  "act.route.unavailable": "Local model unavailable → fell back to mode-bound {provider}",
+  "act.route.disabled": "Local routing off → mode-bound model {provider}",
+
+  // ---- Workflow memory (AC32) ----
+  "act.workflow": "Workflow",
+  "act.workflow.reuse": "Reusing workflow from a similar successful task ({tools}, reuse #{count}): {intent}",
+
+  // ---- Mode self-evolution recommendation (AC33) ----
+  "act.modeRecommend": "Mode pick",
+  "act.modeRecommend.reason": "Similar tasks succeeded {rate}% under \"{mode}\" ({runs} graded runs); current \"{current}\" {currentRate}: {intent}",
+  "act.modeRecommend.noData": "no data",
+  "act.modeRecommend.switch": "Switch to {mode}",
+  "act.modeRecommend.switched": "Adopted — follow-up messages will use the recommended mode",
 
   "diff.title": "Review Changes",
   "diff.acceptAll": "Accept all",

@@ -1,8 +1,22 @@
 [
   {
     "seq": 1,
-    "timestamp": "2026-07-25T04:50:15.752Z",
-    "sessionId": "task-session-1784955015680-1",
+    "timestamp": "2026-07-25T15:36:27.801Z",
+    "sessionId": "task-session-1784993787742-1",
+    "type": "route",
+    "summary": "route: disabled → e2e2-local (score 0/30)",
+    "detail": {
+      "score": 0,
+      "threshold": 30,
+      "reasons": [],
+      "routed": "disabled",
+      "providerId": "e2e2-local"
+    }
+  },
+  {
+    "seq": 2,
+    "timestamp": "2026-07-25T15:36:27.803Z",
+    "sessionId": "task-session-1784993787742-1",
     "type": "user_message",
     "summary": "创建文件 task-note.txt",
     "detail": {
@@ -10,9 +24,9 @@
     }
   },
   {
-    "seq": 2,
-    "timestamp": "2026-07-25T04:50:15.944Z",
-    "sessionId": "task-session-1784955015680-1",
+    "seq": 3,
+    "timestamp": "2026-07-25T15:36:27.991Z",
+    "sessionId": "task-session-1784993787742-1",
     "type": "assistant_message",
     "summary": "（发起 1 个工具调用）",
     "detail": {
@@ -30,12 +44,13 @@
     }
   },
   {
-    "seq": 3,
-    "timestamp": "2026-07-25T04:50:15.945Z",
-    "sessionId": "task-session-1784955015680-1",
+    "seq": 4,
+    "timestamp": "2026-07-25T15:36:27.992Z",
+    "sessionId": "task-session-1784993787742-1",
     "type": "tool_call",
     "summary": "write({\"path\":\"task-note.txt\",\"content\":\"created by task console\\n\"})",
     "detail": {
+      "tool": "write",
       "args": {
         "path": "task-note.txt",
         "content": "created by task console\n"
@@ -43,13 +58,13 @@
     }
   },
   {
-    "seq": 4,
-    "timestamp": "2026-07-25T04:50:15.952Z",
-    "sessionId": "task-session-1784955015680-1",
+    "seq": 5,
+    "timestamp": "2026-07-25T15:36:27.992Z",
+    "sessionId": "task-session-1784993787742-1",
     "type": "authorization_request",
     "summary": "write: 写入文件: task-note.txt",
     "detail": {
-      "requestId": "auth-9b96638f-b7d4-4fc4-affe-a3dcdc955506",
+      "requestId": "auth-5b217319-f9a0-4769-9a73-0def3f0fefce",
       "toolName": "write",
       "args": {
         "path": "task-note.txt",
@@ -59,20 +74,20 @@
     }
   },
   {
-    "seq": 5,
-    "timestamp": "2026-07-25T04:50:16.052Z",
-    "sessionId": "task-session-1784955015680-1",
+    "seq": 6,
+    "timestamp": "2026-07-25T15:36:28.087Z",
+    "sessionId": "task-session-1784993787742-1",
     "type": "authorization_decision",
     "summary": "write → allow",
     "detail": {
-      "requestId": "auth-9b96638f-b7d4-4fc4-affe-a3dcdc955506",
+      "requestId": "auth-5b217319-f9a0-4769-9a73-0def3f0fefce",
       "decision": "allow"
     }
   },
   {
-    "seq": 6,
-    "timestamp": "2026-07-25T04:50:16.055Z",
-    "sessionId": "task-session-1784955015680-1",
+    "seq": 7,
+    "timestamp": "2026-07-25T15:36:28.089Z",
+    "sessionId": "task-session-1784993787742-1",
     "type": "tool_result",
     "summary": "write 成功",
     "detail": {
@@ -83,16 +98,28 @@
     }
   },
   {
+    "seq": 8,
+    "timestamp": "2026-07-25T15:36:28.090Z",
+    "sessionId": "task-session-1784993787742-1",
+    "type": "diagnostics",
+    "summary": "诊断：无问题",
+    "detail": {
+      "count": 0,
+      "entries": [],
+      "trigger": "write"
+    }
+  },
+  {
     "seq": 0,
-    "timestamp": "2026-07-25T04:50:16.106Z",
-    "sessionId": "task-session-1784955015680-1",
+    "timestamp": "2026-07-25T15:36:28.134Z",
+    "sessionId": "task-session-1784993787742-1",
     "type": "assistant_delta",
     "summary": "已完成：创建 task-note.txt。"
   },
   {
-    "seq": 7,
-    "timestamp": "2026-07-25T04:50:16.204Z",
-    "sessionId": "task-session-1784955015680-1",
+    "seq": 9,
+    "timestamp": "2026-07-25T15:36:28.238Z",
+    "sessionId": "task-session-1784993787742-1",
     "type": "assistant_message",
     "summary": "已完成：创建 task-note.txt。",
     "detail": {
@@ -100,9 +127,9 @@
     }
   },
   {
-    "seq": 8,
-    "timestamp": "2026-07-25T04:50:16.205Z",
-    "sessionId": "task-session-1784955015680-1",
+    "seq": 10,
+    "timestamp": "2026-07-25T15:36:28.239Z",
+    "sessionId": "task-session-1784993787742-1",
     "type": "done",
     "summary": "任务完成"
   }

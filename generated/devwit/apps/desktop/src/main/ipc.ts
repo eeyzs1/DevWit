@@ -13,6 +13,7 @@ import { IPC } from "@devwit/contracts";
 import type { AgentRunInput, AuthorizationDecision, ContextItemType, ExternalEditorConfig, ProviderConfig, ProviderProbeRequest, ProviderProbeResult } from "@devwit/contracts";
 import { PROVIDER_PRESETS, probeProvider } from "@devwit/llm-providers";
 import { fetchCommunityIndex, fetchCommunityMode, materializeImport, parseExportFile, resolveModesIndexBase, toExportFile } from "@devwit/modes";
+import { fetchCommunityMcpIndex, fetchCommunityMcpServer, materializeMcpImport } from "@devwit/mcp";
 import type { SettingsStore } from "@devwit/settings";
 import type { TerminalService } from "@devwit/terminal";
 import type { WorkspaceService } from "@devwit/workspace";
@@ -252,6 +253,8 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
     table[IPC.McpList] = notWired;
     table[IPC.McpUpsert] = notWired;
     table[IPC.McpDelete] = notWired;
+    table[IPC.McpCommunityList] = notWired;
+    table[IPC.McpCommunityImport] = notWired;
     return;
   }
   table[IPC.AgentRun] = async (_e, input) => ai.run(input as AgentRunInput);
@@ -315,6 +318,16 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
   };
   table[IPC.McpDelete] = (_e, id) => {
     ai.deleteMcpServer(String(id));
+  };
+  // ---- 社区 MCP 服务器（迭代 25 / AC34）：与模式同一索引仓库的 mcpServers 段；
+  // 导入 = 拉取条目文件 → 信封+配置同标准校验 → 新 id 落 settings（热同步启动进程） ----
+  table[IPC.McpCommunityList] = async () => fetchCommunityMcpIndex(resolveModesIndexBase(), (url) => fetch(url));
+  table[IPC.McpCommunityImport] = async (_e, file) => {
+    const parsed = await fetchCommunityMcpServer(resolveModesIndexBase(), String(file), (url) => fetch(url));
+    const existingIds = new Set(ai.listMcpServers().map((view) => view.config.id));
+    const config = materializeMcpImport(parsed, { existingIds });
+    ai.upsertMcpServer(config);
+    return config;
   };
 }
 

@@ -1,0 +1,1026 @@
+[
+  {
+    "model": "i22-model",
+    "messages": [
+      {
+        "role": "system",
+        "content": "你是 DevWit 的编码 Agent，通过工具逐步完成用户任务。先用 read/grep/find/ls 了解现状，再用 write/edit 做最小修改，必要时用 bash 验证。修改文件前先读文件；一次只推进一小步；完成后用一句话说明做了什么。"
+      },
+      {
+        "role": "user",
+        "content": "为 login.ts 加输入校验"
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "读取工作区内文件的全部内容",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "相对工作区根的路径"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "写入文件（覆盖式，自动创建父目录）。需用户授权",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "相对工作区根的路径"
+              },
+              "content": {
+                "type": "string",
+                "description": "完整文件内容"
+              }
+            },
+            "required": [
+              "path",
+              "content"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "对文件做精确的字符串替换（old_string 须唯一，除非 replace_all=true）。需用户授权",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "相对工作区根的路径"
+              },
+              "old_string": {
+                "type": "string",
+                "description": "被替换的原文（非空）"
+              },
+              "new_string": {
+                "type": "string",
+                "description": "替换后的文本（可为空串表示删除）"
+              },
+              "replace_all": {
+                "type": "boolean",
+                "description": "替换全部出现位置"
+              }
+            },
+            "required": [
+              "path",
+              "old_string",
+              "new_string"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "bash",
+          "description": "在工作区根目录执行 shell 命令并返回输出。需用户授权",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string",
+                "description": "要执行的命令"
+              },
+              "timeout_ms": {
+                "type": "number",
+                "description": "超时毫秒数（可选）"
+              }
+            },
+            "required": [
+              "command"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "在工作区文件中按正则搜索，输出 文件:行号: 内容",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "正则表达式"
+              },
+              "path": {
+                "type": "string",
+                "description": "起始目录（默认工作区根）"
+              },
+              "glob": {
+                "type": "string",
+                "description": "文件名通配过滤，如 *.ts"
+              },
+              "case_sensitive": {
+                "type": "boolean",
+                "description": "大小写敏感（默认 true）"
+              }
+            },
+            "required": [
+              "pattern"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find",
+          "description": "按文件名通配符（* / ?）查找文件与目录",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "文件名通配符，如 *.ts"
+              },
+              "path": {
+                "type": "string",
+                "description": "起始目录（默认工作区根）"
+              }
+            },
+            "required": [
+              "pattern"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ls",
+          "description": "列出目录内容（目录名带 / 后缀）",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "目录路径（默认工作区根）"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "stream": true,
+    "max_tokens": 2048,
+    "stream_options": {
+      "include_usage": true
+    }
+  },
+  {
+    "model": "i22-model",
+    "messages": [
+      {
+        "role": "system",
+        "content": "你是 DevWit 的编码 Agent，通过工具逐步完成用户任务。先用 read/grep/find/ls 了解现状，再用 write/edit 做最小修改，必要时用 bash 验证。修改文件前先读文件；一次只推进一小步；完成后用一句话说明做了什么。"
+      },
+      {
+        "role": "user",
+        "content": "为 login.ts 加输入校验"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_i22_1",
+            "type": "function",
+            "function": {
+              "name": "write",
+              "arguments": "{\"path\":\"login.ts\",\"content\":\"export function login(name?: string) {\\n  if (!name) throw new Error(\\\"name required\\\");\\n  return true;\\n}\\n\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_i22_1",
+        "content": "已写入 login.ts（103 字符）"
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "读取工作区内文件的全部内容",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "相对工作区根的路径"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "写入文件（覆盖式，自动创建父目录）。需用户授权",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "相对工作区根的路径"
+              },
+              "content": {
+                "type": "string",
+                "description": "完整文件内容"
+              }
+            },
+            "required": [
+              "path",
+              "content"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "对文件做精确的字符串替换（old_string 须唯一，除非 replace_all=true）。需用户授权",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "相对工作区根的路径"
+              },
+              "old_string": {
+                "type": "string",
+                "description": "被替换的原文（非空）"
+              },
+              "new_string": {
+                "type": "string",
+                "description": "替换后的文本（可为空串表示删除）"
+              },
+              "replace_all": {
+                "type": "boolean",
+                "description": "替换全部出现位置"
+              }
+            },
+            "required": [
+              "path",
+              "old_string",
+              "new_string"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "bash",
+          "description": "在工作区根目录执行 shell 命令并返回输出。需用户授权",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string",
+                "description": "要执行的命令"
+              },
+              "timeout_ms": {
+                "type": "number",
+                "description": "超时毫秒数（可选）"
+              }
+            },
+            "required": [
+              "command"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "在工作区文件中按正则搜索，输出 文件:行号: 内容",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "正则表达式"
+              },
+              "path": {
+                "type": "string",
+                "description": "起始目录（默认工作区根）"
+              },
+              "glob": {
+                "type": "string",
+                "description": "文件名通配过滤，如 *.ts"
+              },
+              "case_sensitive": {
+                "type": "boolean",
+                "description": "大小写敏感（默认 true）"
+              }
+            },
+            "required": [
+              "pattern"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find",
+          "description": "按文件名通配符（* / ?）查找文件与目录",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "文件名通配符，如 *.ts"
+              },
+              "path": {
+                "type": "string",
+                "description": "起始目录（默认工作区根）"
+              }
+            },
+            "required": [
+              "pattern"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ls",
+          "description": "列出目录内容（目录名带 / 后缀）",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "目录路径（默认工作区根）"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "stream": true,
+    "max_tokens": 2048,
+    "stream_options": {
+      "include_usage": true
+    }
+  },
+  {
+    "model": "i22-model",
+    "messages": [
+      {
+        "role": "system",
+        "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。"
+      },
+      {
+        "role": "user",
+        "content": "为 login.ts 补输入校验的单测"
+      }
+    ],
+    "stream": true,
+    "max_tokens": 2048,
+    "stream_options": {
+      "include_usage": true
+    }
+  },
+  {
+    "model": "i22-model",
+    "messages": [
+      {
+        "role": "system",
+        "content": "你是 DevWit 的编码 Agent，通过工具逐步完成用户任务。先用 read/grep/find/ls 了解现状，再用 write/edit 做最小修改，必要时用 bash 验证。修改文件前先读文件；一次只推进一小步；完成后用一句话说明做了什么。"
+      },
+      {
+        "role": "user",
+        "content": "优化日志输出的格式"
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "读取工作区内文件的全部内容",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "相对工作区根的路径"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "写入文件（覆盖式，自动创建父目录）。需用户授权",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "相对工作区根的路径"
+              },
+              "content": {
+                "type": "string",
+                "description": "完整文件内容"
+              }
+            },
+            "required": [
+              "path",
+              "content"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "对文件做精确的字符串替换（old_string 须唯一，除非 replace_all=true）。需用户授权",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "相对工作区根的路径"
+              },
+              "old_string": {
+                "type": "string",
+                "description": "被替换的原文（非空）"
+              },
+              "new_string": {
+                "type": "string",
+                "description": "替换后的文本（可为空串表示删除）"
+              },
+              "replace_all": {
+                "type": "boolean",
+                "description": "替换全部出现位置"
+              }
+            },
+            "required": [
+              "path",
+              "old_string",
+              "new_string"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "bash",
+          "description": "在工作区根目录执行 shell 命令并返回输出。需用户授权",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string",
+                "description": "要执行的命令"
+              },
+              "timeout_ms": {
+                "type": "number",
+                "description": "超时毫秒数（可选）"
+              }
+            },
+            "required": [
+              "command"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "在工作区文件中按正则搜索，输出 文件:行号: 内容",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "正则表达式"
+              },
+              "path": {
+                "type": "string",
+                "description": "起始目录（默认工作区根）"
+              },
+              "glob": {
+                "type": "string",
+                "description": "文件名通配过滤，如 *.ts"
+              },
+              "case_sensitive": {
+                "type": "boolean",
+                "description": "大小写敏感（默认 true）"
+              }
+            },
+            "required": [
+              "pattern"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find",
+          "description": "按文件名通配符（* / ?）查找文件与目录",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "文件名通配符，如 *.ts"
+              },
+              "path": {
+                "type": "string",
+                "description": "起始目录（默认工作区根）"
+              }
+            },
+            "required": [
+              "pattern"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ls",
+          "description": "列出目录内容（目录名带 / 后缀）",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "目录路径（默认工作区根）"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "stream": true,
+    "max_tokens": 2048,
+    "stream_options": {
+      "include_usage": true
+    }
+  },
+  {
+    "model": "i22-model",
+    "messages": [
+      {
+        "role": "system",
+        "content": "你是 DevWit 的编码 Agent，通过工具逐步完成用户任务。先用 read/grep/find/ls 了解现状，再用 write/edit 做最小修改，必要时用 bash 验证。修改文件前先读文件；一次只推进一小步；完成后用一句话说明做了什么。"
+      },
+      {
+        "role": "user",
+        "content": "检查类型定义的完整性"
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "读取工作区内文件的全部内容",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "相对工作区根的路径"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "写入文件（覆盖式，自动创建父目录）。需用户授权",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "相对工作区根的路径"
+              },
+              "content": {
+                "type": "string",
+                "description": "完整文件内容"
+              }
+            },
+            "required": [
+              "path",
+              "content"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "对文件做精确的字符串替换（old_string 须唯一，除非 replace_all=true）。需用户授权",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "相对工作区根的路径"
+              },
+              "old_string": {
+                "type": "string",
+                "description": "被替换的原文（非空）"
+              },
+              "new_string": {
+                "type": "string",
+                "description": "替换后的文本（可为空串表示删除）"
+              },
+              "replace_all": {
+                "type": "boolean",
+                "description": "替换全部出现位置"
+              }
+            },
+            "required": [
+              "path",
+              "old_string",
+              "new_string"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "bash",
+          "description": "在工作区根目录执行 shell 命令并返回输出。需用户授权",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string",
+                "description": "要执行的命令"
+              },
+              "timeout_ms": {
+                "type": "number",
+                "description": "超时毫秒数（可选）"
+              }
+            },
+            "required": [
+              "command"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "在工作区文件中按正则搜索，输出 文件:行号: 内容",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "正则表达式"
+              },
+              "path": {
+                "type": "string",
+                "description": "起始目录（默认工作区根）"
+              },
+              "glob": {
+                "type": "string",
+                "description": "文件名通配过滤，如 *.ts"
+              },
+              "case_sensitive": {
+                "type": "boolean",
+                "description": "大小写敏感（默认 true）"
+              }
+            },
+            "required": [
+              "pattern"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find",
+          "description": "按文件名通配符（* / ?）查找文件与目录",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "文件名通配符，如 *.ts"
+              },
+              "path": {
+                "type": "string",
+                "description": "起始目录（默认工作区根）"
+              }
+            },
+            "required": [
+              "pattern"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ls",
+          "description": "列出目录内容（目录名带 / 后缀）",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "目录路径（默认工作区根）"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "stream": true,
+    "max_tokens": 2048,
+    "stream_options": {
+      "include_usage": true
+    }
+  },
+  {
+    "model": "i22-model",
+    "messages": [
+      {
+        "role": "system",
+        "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。"
+      },
+      {
+        "role": "user",
+        "content": "为 login.ts 补输入校验的单测"
+      },
+      {
+        "role": "assistant",
+        "content": "已补充单测。"
+      },
+      {
+        "role": "user",
+        "content": "为 login.ts 的输入校验写测试"
+      }
+    ],
+    "stream": true,
+    "max_tokens": 2048,
+    "stream_options": {
+      "include_usage": true
+    }
+  },
+  {
+    "model": "i22-model",
+    "messages": [
+      {
+        "role": "system",
+        "content": "你是 DevWit 的编码 Agent，通过工具逐步完成用户任务。先用 read/grep/find/ls 了解现状，再用 write/edit 做最小修改，必要时用 bash 验证。修改文件前先读文件；一次只推进一小步；完成后用一句话说明做了什么。"
+      },
+      {
+        "role": "user",
+        "content": "为 login.ts 补输入校验的单测"
+      },
+      {
+        "role": "assistant",
+        "content": "已补充单测。"
+      },
+      {
+        "role": "user",
+        "content": "为 login.ts 的输入校验写测试"
+      },
+      {
+        "role": "assistant",
+        "content": "已写好测试。"
+      },
+      {
+        "role": "user",
+        "content": "继续"
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "读取工作区内文件的全部内容",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "相对工作区根的路径"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "description": "写入文件（覆盖式，自动创建父目录）。需用户授权",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "相对工作区根的路径"
+              },
+              "content": {
+                "type": "string",
+                "description": "完整文件内容"
+              }
+            },
+            "required": [
+              "path",
+              "content"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edit",
+          "description": "对文件做精确的字符串替换（old_string 须唯一，除非 replace_all=true）。需用户授权",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "相对工作区根的路径"
+              },
+              "old_string": {
+                "type": "string",
+                "description": "被替换的原文（非空）"
+              },
+              "new_string": {
+                "type": "string",
+                "description": "替换后的文本（可为空串表示删除）"
+              },
+              "replace_all": {
+                "type": "boolean",
+                "description": "替换全部出现位置"
+              }
+            },
+            "required": [
+              "path",
+              "old_string",
+              "new_string"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "bash",
+          "description": "在工作区根目录执行 shell 命令并返回输出。需用户授权",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string",
+                "description": "要执行的命令"
+              },
+              "timeout_ms": {
+                "type": "number",
+                "description": "超时毫秒数（可选）"
+              }
+            },
+            "required": [
+              "command"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "在工作区文件中按正则搜索，输出 文件:行号: 内容",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "正则表达式"
+              },
+              "path": {
+                "type": "string",
+                "description": "起始目录（默认工作区根）"
+              },
+              "glob": {
+                "type": "string",
+                "description": "文件名通配过滤，如 *.ts"
+              },
+              "case_sensitive": {
+                "type": "boolean",
+                "description": "大小写敏感（默认 true）"
+              }
+            },
+            "required": [
+              "pattern"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find",
+          "description": "按文件名通配符（* / ?）查找文件与目录",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "文件名通配符，如 *.ts"
+              },
+              "path": {
+                "type": "string",
+                "description": "起始目录（默认工作区根）"
+              }
+            },
+            "required": [
+              "pattern"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ls",
+          "description": "列出目录内容（目录名带 / 后缀）",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "目录路径（默认工作区根）"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "stream": true,
+    "max_tokens": 2048,
+    "stream_options": {
+      "include_usage": true
+    }
+  }
+]

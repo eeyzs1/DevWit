@@ -1,0 +1,7 @@
+迭代 22（AC31 本地小模型路由）验证：
+1. 双端点实证：p-local / p-cloud 两个本地 HTTP 端点各自计数——简单任务（评分 0）只命中 p-local；复杂任务（「重构整个项目」双关键词评分 30 ≥ 阈值 30）只命中 p-cloud。「请求发给谁」以服务端命中为唯一事实源。
+2. 设置 UI：设置·通用分区「本地小模型路由」开关 + 本地模型下拉 + 阈值（1-100），UI 操作即时持久化 settings routing.local（enabled/providerId/threshold 断言全中）。
+3. 热更新：settings 改 enabled=false 后下一轮 run 即时 routed=disabled 回退模式绑定云端，无需重启；重新开启后对话形态手动选模型 routed=manual 跳过自动路由（AC5 手动语义优先于路由）。
+4. 活动流透明：三种路由行（简单任务→本地 / 复杂任务→绑定 / 未开启 / 已手动指定）在指挥台与对话双形态渲染，含 provider 与 score/threshold 明细。
+5. 轨迹审计：route 事件×4（local→complex→disabled→manual），detail 含 routed/providerId/score/threshold/reasons（keyword:refactor、keyword:whole_scope 逐项来源），磁盘 JSONL 可回放。
+断言通过 12 项，失败 0 项。

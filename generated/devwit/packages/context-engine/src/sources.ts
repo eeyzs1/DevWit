@@ -149,6 +149,34 @@ export function diagnosticsSource(getEntries: () => readonly DiagnosticEntry[]):
   };
 }
 
+/**
+ * 工作流记忆（AC32）：新任务命中已沉淀的成功工作流模板时，产出一条建议性
+ * workflow 项（工具序列参考）。未命中/未启用时不产项（零占位 token）；
+ * 用户可经 workflow 类型闸或逐项开关剔除（AC2 可控性语义不变）。
+ */
+export function workflowSource(
+  getMatch: () => { intent: string; modeId: string; tools: readonly string[]; reuseCount: number } | null
+): ContextSource {
+  return {
+    type: "workflow",
+    async collect() {
+      const match = getMatch();
+      if (match === null) return [];
+      const content = [
+        "相似任务此前已成功完成，可参考其工作流（建议，非指令）：",
+        `意图：${match.intent}`,
+        `成功工具序列：${match.tools.join(" → ")}`,
+      ].join("\n");
+      return [
+        {
+          ...makeRawItem("workflow", `复用工作流（${match.tools.join(" → ")}）`, content, "workflow-memory"),
+          key: "workflow:reuse",
+        },
+      ];
+    },
+  };
+}
+
 /** 会话历史（可审计序列化形式；实际注入由引擎以原始 ChatMessage[] 完成）。 */
 export function conversationHistorySource(): ContextSource {
   return {

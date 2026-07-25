@@ -23,12 +23,15 @@ export interface ActivityStreamHandle {
   dispose(): void;
 }
 
-const KIND_BADGE: Record<ChatItem["kind"], "act.user" | "act.assistant" | "act.tool" | "act.authorization" | "act.diagnostics" | "act.plan" | "act.subagent" | "act.error" | "act.done"> = {
+const KIND_BADGE: Record<ChatItem["kind"], "act.user" | "act.assistant" | "act.tool" | "act.authorization" | "act.diagnostics" | "act.route" | "act.workflow" | "act.modeRecommend" | "act.plan" | "act.subagent" | "act.error" | "act.done"> = {
   user: "act.user",
   assistant: "act.assistant",
   tool: "act.tool",
   authorization: "act.authorization",
   diagnostics: "act.diagnostics",
+  route: "act.route",
+  workflow: "act.workflow",
+  modeRecommend: "act.modeRecommend",
   plan: "act.plan",
   subagent: "act.subagent",
   error: "act.error",
@@ -117,6 +120,59 @@ export function mountActivityStream(
           item.count === 0
             ? t("act.diagnostics.clean")
             : t("act.diagnostics.found", { count: item.count, first: item.firstLine });
+        break;
+      }
+      case "route": {
+        // AC31：路由决策透明——本地命中/复杂走绑定/回退原因各一句
+        const key =
+          item.routed === "local"
+            ? "act.route.local"
+            : item.routed === "complex"
+              ? "act.route.complex"
+              : item.routed === "manual"
+                ? "act.route.manual"
+                : item.routed === "unavailable"
+                  ? "act.route.unavailable"
+                  : "act.route.disabled";
+        body.textContent = t(key, { provider: item.providerId, score: item.score, threshold: item.threshold });
+        break;
+      }
+      case "workflow": {
+        // AC32：工作流记忆命中——建议性复用，工具序列与复用次数透明
+        body.textContent = t("act.workflow.reuse", {
+          intent: item.intent,
+          tools: item.tools.join(" → "),
+          count: item.reuseCount,
+        });
+        break;
+      }
+      case "modeRecommend": {
+        // AC33：模式推荐——成功率统计可见，采纳与否由用户一键决定（建议非自动切换）
+        const modeName = (id: string): string => options.resolveModeName?.(id) ?? id;
+        const current = item.currentSuccessRate;
+        body.textContent = t("act.modeRecommend.reason", {
+          mode: modeName(item.modeId),
+          rate: Math.round(item.successRate * 100),
+          runs: item.runs,
+          current: modeName(item.currentModeId),
+          currentRate: current === null ? t("act.modeRecommend.noData") : `${Math.round(current * 100)}%`,
+          intent: item.intent,
+        });
+        const controller = options.getController();
+        if (controller !== null) {
+          if (controller.currentModeId === item.modeId) {
+            const switched = document.createElement("div");
+            switched.className = "dw-auth-decided";
+            switched.textContent = t("act.modeRecommend.switched");
+            body.appendChild(switched);
+          } else {
+            const switchBtn = document.createElement("button");
+            switchBtn.className = "dw-btn dw-btn-small";
+            switchBtn.textContent = t("act.modeRecommend.switch", { mode: modeName(item.modeId) });
+            switchBtn.addEventListener("click", () => controller.setMode(item.modeId));
+            body.appendChild(switchBtn);
+          }
+        }
         break;
       }
       case "subagent": {

@@ -1,0 +1,24 @@
+[
+  {
+    "seq": 2,
+    "timestamp": "2026-07-25T15:38:53.690Z",
+    "sessionId": "task-session-1784993933630-2",
+    "type": "workflow",
+    "summary": "workflow: reuse wf-ms0jatvv-1 (shared: login.ts, 输入, 入校, 校验)",
+    "detail": {
+      "phase": "reuse",
+      "templateId": "wf-ms0jatvv-1",
+      "intent": "为 login.ts 加输入校验",
+      "tools": [
+        "write"
+      ],
+      "shared": [
+        "login.ts",
+        "输入",
+        "入校",
+        "校验"
+      ],
+      "reuseCount": 1
+    }
+  }
+]

@@ -1,11 +1,25 @@
 [
   {
-    "name": "task-session-1784955024326-1.jsonl",
+    "name": "task-session-1784993814968-1.jsonl",
     "events": [
       {
         "seq": 1,
-        "timestamp": "2026-07-25T04:50:24.388Z",
-        "sessionId": "task-session-1784955024326-1",
+        "timestamp": "2026-07-25T15:36:55.026Z",
+        "sessionId": "task-session-1784993814968-1",
+        "type": "route",
+        "summary": "route: disabled → i6-local (score 0/30)",
+        "detail": {
+          "score": 0,
+          "threshold": 30,
+          "reasons": [],
+          "routed": "disabled",
+          "providerId": "i6-local"
+        }
+      },
+      {
+        "seq": 2,
+        "timestamp": "2026-07-25T15:36:55.028Z",
+        "sessionId": "task-session-1784993814968-1",
         "type": "user_message",
         "summary": "创建文件 ac15-note.txt",
         "detail": {
@@ -13,9 +27,9 @@
         }
       },
       {
-        "seq": 2,
-        "timestamp": "2026-07-25T04:50:24.589Z",
-        "sessionId": "task-session-1784955024326-1",
+        "seq": 3,
+        "timestamp": "2026-07-25T15:36:55.210Z",
+        "sessionId": "task-session-1784993814968-1",
         "type": "assistant_message",
         "summary": "（发起 1 个工具调用）",
         "detail": {
@@ -33,12 +47,13 @@
         }
       },
       {
-        "seq": 3,
-        "timestamp": "2026-07-25T04:50:24.590Z",
-        "sessionId": "task-session-1784955024326-1",
+        "seq": 4,
+        "timestamp": "2026-07-25T15:36:55.211Z",
+        "sessionId": "task-session-1784993814968-1",
         "type": "tool_call",
         "summary": "write({\"path\":\"ac15-note.txt\",\"content\":\"persisted across restart\\n\"})",
         "detail": {
+          "tool": "write",
           "args": {
             "path": "ac15-note.txt",
             "content": "persisted across restart\n"
@@ -46,13 +61,13 @@
         }
       },
       {
-        "seq": 4,
-        "timestamp": "2026-07-25T04:50:24.590Z",
-        "sessionId": "task-session-1784955024326-1",
+        "seq": 5,
+        "timestamp": "2026-07-25T15:36:55.212Z",
+        "sessionId": "task-session-1784993814968-1",
         "type": "authorization_request",
         "summary": "write: 写入文件: ac15-note.txt",
         "detail": {
-          "requestId": "auth-af8f41e7-dd5e-4f95-8a71-229555a96ff0",
+          "requestId": "auth-05e172d4-22a5-491b-800b-59a474034f98",
           "toolName": "write",
           "args": {
             "path": "ac15-note.txt",
@@ -62,20 +77,20 @@
         }
       },
       {
-        "seq": 5,
-        "timestamp": "2026-07-25T04:50:24.663Z",
-        "sessionId": "task-session-1784955024326-1",
+        "seq": 6,
+        "timestamp": "2026-07-25T15:36:55.253Z",
+        "sessionId": "task-session-1784993814968-1",
         "type": "authorization_decision",
         "summary": "write → allow",
         "detail": {
-          "requestId": "auth-af8f41e7-dd5e-4f95-8a71-229555a96ff0",
+          "requestId": "auth-05e172d4-22a5-491b-800b-59a474034f98",
           "decision": "allow"
         }
       },
       {
-        "seq": 6,
-        "timestamp": "2026-07-25T04:50:24.666Z",
-        "sessionId": "task-session-1784955024326-1",
+        "seq": 7,
+        "timestamp": "2026-07-25T15:36:55.255Z",
+        "sessionId": "task-session-1784993814968-1",
         "type": "tool_result",
         "summary": "write 成功",
         "detail": {
@@ -86,9 +101,21 @@
         }
       },
       {
-        "seq": 7,
-        "timestamp": "2026-07-25T04:50:24.820Z",
-        "sessionId": "task-session-1784955024326-1",
+        "seq": 8,
+        "timestamp": "2026-07-25T15:36:55.255Z",
+        "sessionId": "task-session-1784993814968-1",
+        "type": "diagnostics",
+        "summary": "诊断：无问题",
+        "detail": {
+          "count": 0,
+          "entries": [],
+          "trigger": "write"
+        }
+      },
+      {
+        "seq": 9,
+        "timestamp": "2026-07-25T15:36:55.419Z",
+        "sessionId": "task-session-1784993814968-1",
         "type": "assistant_message",
         "summary": "已创建 ac15-note.txt。",
         "detail": {
@@ -96,21 +123,35 @@
         }
       },
       {
-        "seq": 8,
-        "timestamp": "2026-07-25T04:50:24.821Z",
-        "sessionId": "task-session-1784955024326-1",
+        "seq": 10,
+        "timestamp": "2026-07-25T15:36:55.420Z",
+        "sessionId": "task-session-1784993814968-1",
         "type": "done",
         "summary": "任务完成"
       }
     ]
   },
   {
-    "name": "task-session-1784955024911-2.jsonl",
+    "name": "task-session-1784993815467-2.jsonl",
     "events": [
       {
         "seq": 1,
-        "timestamp": "2026-07-25T04:50:24.979Z",
-        "sessionId": "task-session-1784955024911-2",
+        "timestamp": "2026-07-25T15:36:55.526Z",
+        "sessionId": "task-session-1784993815467-2",
+        "type": "route",
+        "summary": "route: disabled → i6-local (score 0/30)",
+        "detail": {
+          "score": 0,
+          "threshold": 30,
+          "reasons": [],
+          "routed": "disabled",
+          "providerId": "i6-local"
+        }
+      },
+      {
+        "seq": 2,
+        "timestamp": "2026-07-25T15:36:55.527Z",
+        "sessionId": "task-session-1784993815467-2",
         "type": "user_message",
         "summary": "分析项目结构（长任务）",
         "detail": {
@@ -118,9 +159,23 @@
         }
       },
       {
-        "seq": 2,
-        "timestamp": "2026-07-25T04:50:28.964Z",
-        "sessionId": "task-session-1784955024911-2",
+        "seq": 3,
+        "timestamp": "2026-07-25T15:36:59.332Z",
+        "sessionId": "task-session-1784993815467-2",
+        "type": "route",
+        "summary": "route: disabled → i6-local (score 0/30)",
+        "detail": {
+          "score": 0,
+          "threshold": 30,
+          "reasons": [],
+          "routed": "disabled",
+          "providerId": "i6-local"
+        }
+      },
+      {
+        "seq": 4,
+        "timestamp": "2026-07-25T15:36:59.333Z",
+        "sessionId": "task-session-1784993815467-2",
         "type": "user_message",
         "summary": "继续分析",
         "detail": {
@@ -128,9 +183,9 @@
         }
       },
       {
-        "seq": 3,
-        "timestamp": "2026-07-25T04:50:29.156Z",
-        "sessionId": "task-session-1784955024911-2",
+        "seq": 5,
+        "timestamp": "2026-07-25T15:36:59.512Z",
+        "sessionId": "task-session-1784993815467-2",
         "type": "assistant_message",
         "summary": "项目结构分析完成。",
         "detail": {
@@ -138,9 +193,9 @@
         }
       },
       {
-        "seq": 4,
-        "timestamp": "2026-07-25T04:50:29.157Z",
-        "sessionId": "task-session-1784955024911-2",
+        "seq": 6,
+        "timestamp": "2026-07-25T15:36:59.512Z",
+        "sessionId": "task-session-1784993815467-2",
         "type": "done",
         "summary": "任务完成"
       }

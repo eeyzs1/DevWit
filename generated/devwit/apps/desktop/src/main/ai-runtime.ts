@@ -24,14 +24,17 @@ import type {
   McpServerConfig,
   McpServerView,
   ModeDefinition,
+  ModeRecommendation,
   ProviderConfig,
   RagConfig,
   RagStatusInfo,
+  WorkflowReuse,
+  WorkflowTemplate,
 } from "@devwit/contracts";
 import { DEFAULT_RAG_CONFIG, IPC } from "@devwit/contracts";
-import { AgentLoop, AgentOrchestrator, AgentTrace, Authorizer, CommandWhitelistMemory, createNodeEnvironment, DEFAULT_LEARNING, DiagnosticsTracker, historyFromTrace } from "@devwit/agent-runtime";
-import type { CommandWhitelistSnapshot, ToolEnvironment, WhitelistLearningConfig } from "@devwit/agent-runtime";
-import { attachmentSource, ContextEngine, fileFragmentSource, gitStatusSource, selectionSource, TiktokenCounter } from "@devwit/context-engine";
+import { AgentLoop, AgentOrchestrator, AgentTrace, Authorizer, CommandWhitelistMemory, createNodeEnvironment, DEFAULT_LEARNING, decideRoute, DiagnosticsTracker, historyFromTrace, ModeStatsTracker, parseModeRunStats, parseRoutingConfig, parseWorkflowTemplates, WorkflowMemory } from "@devwit/agent-runtime";
+import type { AgentRunResult, CommandWhitelistSnapshot, ToolEnvironment, WhitelistLearningConfig } from "@devwit/agent-runtime";
+import { attachmentSource, ContextEngine, fileFragmentSource, gitStatusSource, selectionSource, TiktokenCounter, workflowSource } from "@devwit/context-engine";
 import { createEmbedder, ProviderRegistry } from "@devwit/llm-providers";
 import { McpManager, validateMcpServerConfig } from "@devwit/mcp";
 import { ModeStore } from "@devwit/modes";
@@ -55,6 +58,12 @@ const RAG_KEY = "rag";
 const WHITELIST_KEY = "security.commandWhitelist";
 const APPROVALS_KEY = "security.commandApprovals";
 const LEARNING_KEY = "security.whitelistLearning";
+const ROUTING_KEY = "routing.local";
+/** settings 键：工作流记忆开关与模板库（迭代 23 / AC32，热更新——memory 每次实时读）。 */
+const WORKFLOW_CONFIG_KEY = "workflow.memory";
+const WORKFLOW_TEMPLATES_KEY = "workflow.templates";
+/** settings 键：模式运行统计（迭代 24 / AC33，热更新——tracker 每次实时读）。 */
+const MODE_STATS_KEY = "modes.stats";
 
 interface SessionState {
   engine: ContextEngine;
@@ -62,6 +71,8 @@ interface SessionState {
   authorizer: Authorizer;
   /** AC30：会话级诊断快照（编辑后 tsc 回馈）；会话引擎与编排子引擎共享同一 tracker。 */
   diagnostics: DiagnosticsTracker;
+  /** AC32：本轮命中的工作流模板（每轮 run 开始重估；上下文源只读）。 */
+  workflow: { current: WorkflowTemplate | null };
   abort: AbortController;
   running: boolean;
   modeId: string;
@@ -109,6 +120,10 @@ export class AiRuntime {
   private readonly tokenCounter = new TiktokenCounter();
   /** 授权白名单学习（AC29）：store 实时读写 settings——设置页改动即刻生效，无需重启。 */
   private readonly authMemory: CommandWhitelistMemory;
+  /** 工作流记忆（AC32）：成功 run 沉淀模板，相似新任务注入建议（settings 实时读写）。 */
+  private readonly workflowMemory: WorkflowMemory;
+  /** 模式运行统计（AC33）：成功率唯一事实源，推荐按统计发出（settings 实时读写）。 */
+  private readonly modeStats: ModeStatsTracker;
 
   constructor(deps: AiRuntimeDeps) {
     this.deps = deps;
@@ -130,6 +145,16 @@ export class AiRuntime {
         this.settings.set(WHITELIST_KEY, whitelist);
         this.settings.set(APPROVALS_KEY, approvals);
       },
+    });
+    // AC32：工作流模板 store 桥 settings——read 每次取最新（热更新），write 原子写回。
+    this.workflowMemory = new WorkflowMemory({
+      read: () => parseWorkflowTemplates(this.settings.get(WORKFLOW_TEMPLATES_KEY)),
+      write: (templates) => this.settings.set(WORKFLOW_TEMPLATES_KEY, templates),
+    });
+    // AC33：模式统计 store 桥 settings——read 每次取最新（热更新），write 原子写回。
+    this.modeStats = new ModeStatsTracker({
+      read: () => parseModeRunStats(this.settings.get(MODE_STATS_KEY)),
+      write: (stats) => this.settings.set(MODE_STATS_KEY, stats),
     });
     this.hydrateProviders();
     this.hydrateModes();
@@ -430,12 +455,24 @@ export class AiRuntime {
       // 错误码保持 ASCII：主进程 stderr 在 GBK 终端输出中文会乱码，文案由渲染端 localizeError 本地化
       throw new Error(`DW_MODE_NOT_FOUND:${input.modeId}`);
     }
-    const providerId = input.providerId ?? mode.providerId;
-    if (providerId === "") {
+    const fallbackProviderId = input.providerId ?? mode.providerId;
+    if (fallbackProviderId === "") {
       throw new Error(`DW_MODE_UNBOUND:${mode.id}`);
     }
     // AC19 兜底：root 经其他路径（如会话恢复）变更时，run 前重新评估索引
     this.refreshRag();
+    // AC31 本地小模型路由：简单任务（启发式评分 < 阈值）路由本地 provider，
+    // 复杂任务/手动切模型/开关关闭 → 模式绑定。决策落轨迹 route 事件可审计。
+    const routing = parseRoutingConfig(this.settings.get(ROUTING_KEY));
+    const routeDecision = decideRoute(routing, {
+      userText: input.userText,
+      ...(input.attachments !== undefined ? { attachments: input.attachments } : {}),
+      orchestrate: mode.orchestrate === true,
+      fallbackProviderId,
+      manualOverride: input.providerId !== undefined,
+      localAvailable: routing.providerId !== "" && this.registry.get(routing.providerId) !== undefined,
+    });
+    const providerId = routeDecision.providerId;
     const provider =
       this.deps.createProvider !== undefined ? this.deps.createProvider(providerId) : this.registry.createProvider(providerId);
 
@@ -451,6 +488,61 @@ export class AiRuntime {
     // AC15：本轮之前的轨迹重建为对话历史（跨轮次/跨重启连续记忆）；
     // 在 loop 记录本轮 user_message 之前快照，避免重复计入本轮输入。
     const priorHistory = historyFromTrace(session.trace.list());
+    // AC31：路由决策落轨迹（先于 user_message——「这次请求为什么发给这个模型」是本轮起点）
+    session.trace.record(
+      "route",
+      `route: ${routeDecision.routed} → ${routeDecision.providerId} (score ${routeDecision.score}/${routeDecision.threshold})`,
+      routeDecision
+    );
+    // AC32：工作流记忆——相似成功工作流命中则注入建议项并落轨迹（建议非指令，授权语义不变）
+    session.workflow.current = null;
+    if (this.readWorkflowEnabled()) {
+      const hit = this.workflowMemory.match(input.userText);
+      if (hit !== null) {
+        // 先取计数再标记复用：store 经 settings 直读直写，markReused 会就地递增
+        // 同一对象引用（parseWorkflowTemplates 透传 settings 持有对象），后置读取会双计
+        const reuseCount = hit.template.reuseCount + 1;
+        this.workflowMemory.markReused(hit.template.id);
+        const reuse: WorkflowReuse = {
+          phase: "reuse",
+          templateId: hit.template.id,
+          intent: hit.template.intent,
+          tools: [...hit.template.tools],
+          shared: hit.shared,
+          reuseCount,
+        };
+        session.workflow.current = hit.template;
+        session.trace.record(
+          "workflow",
+          `workflow: reuse ${hit.template.id} (shared: ${hit.shared.join(", ")})`,
+          reuse
+        );
+        // AC33：模式自进化推荐——命中模板的学习模式与当前不同且统计上不差于当前时，
+        // 落 mode_recommend 事件（建议非自动切换，是否采纳由用户在对话/活动流一键决定）。
+        if (this.modeStats.shouldRecommend(hit.template.modeId, input.modeId)) {
+          const candidate = this.modeStats.list().find((item) => item.modeId === hit.template.modeId);
+          if (candidate !== undefined && candidate.runs > 0) {
+            const recommendation: ModeRecommendation = {
+              phase: "recommend",
+              modeId: candidate.modeId,
+              currentModeId: input.modeId,
+              reason: "workflow_hit",
+              intent: hit.template.intent,
+              successRate: candidate.successes / candidate.runs,
+              currentSuccessRate: this.modeStats.successRate(input.modeId),
+              runs: candidate.runs,
+            };
+            session.trace.record(
+              "mode_recommend",
+              `mode_recommend: ${candidate.modeId} (success ${candidate.successes}/${candidate.runs}) over ${input.modeId}`,
+              recommendation
+            );
+          }
+        }
+      }
+    }
+    const runStartEvents = session.trace.list().length;
+    let finishReason: AgentRunResult["finishReason"] | "thrown" = "thrown";
     try {
       if (mode.orchestrate === true) {
         // AC20 多 Agent 编排：Planner 分解 → 并行子 Agent（共享授权门）→ 综合
@@ -466,7 +558,7 @@ export class AiRuntime {
           executeExtraTool: (call) => this.mcpManager.callTool(call),
           diagnostics: session.diagnostics,
         });
-        await orchestrator.run(input, session.abort.signal, priorHistory);
+        finishReason = (await orchestrator.run(input, session.abort.signal, priorHistory)).finishReason;
       } else {
         const loop = new AgentLoop({
           provider,
@@ -482,9 +574,18 @@ export class AiRuntime {
           // AC30：编辑后 tsc 诊断回馈（快照源已挂会话引擎）
           diagnostics: session.diagnostics,
         });
-        await loop.run(input, session.abort.signal, priorHistory);
+        finishReason = (await loop.run(input, session.abort.signal, priorHistory)).finishReason;
+      }
+      // AC32：成功 run 沉淀工作流模板（本轮含 done 无 error 且至少一次工具调用才够格；
+      // 抛错路径（中断/失败）不进学习——失败经验不传播）
+      if (this.readWorkflowEnabled()) {
+        this.workflowMemory.learnFromRun(session.trace.list().slice(runStartEvents), input.modeId);
       }
     } finally {
+      // AC33：run 定级——completed 记成功 / error 记失败；
+      // cancelled / max_iterations / 异常抛出 不定级（用户中断与未竟任务不毒化成功率）。
+      if (finishReason === "completed") this.modeStats.recordRun(input.modeId, true);
+      else if (finishReason === "error") this.modeStats.recordRun(input.modeId, false);
       session.running = false;
     }
   }
@@ -592,6 +693,13 @@ export class AiRuntime {
     return { whitelist, approvals, learning };
   }
 
+  /** AC32：工作流记忆开关（缺省开；脏数据按开处理——功能无破坏性，只是建议项注入）。 */
+  private readWorkflowEnabled(): boolean {
+    const stored = this.settings.get(WORKFLOW_CONFIG_KEY);
+    if (typeof stored !== "object" || stored === null) return true;
+    return (stored as { enabled?: unknown }).enabled !== false;
+  }
+
   private ensureSession(sessionId: string, modeId: string): SessionState {
     const existing = this.sessions.get(sessionId);
     if (existing !== undefined) return existing;
@@ -615,11 +723,12 @@ export class AiRuntime {
       authorizer: new Authorizer(undefined, this.authMemory),
       // AC30：真实 tsc 诊断采集（无 tsconfig/无本地 typescript 时诚实降级为空）
       diagnostics: new DiagnosticsTracker(collectTscDiagnostics),
+      workflow: { current: null },
       abort: new AbortController(),
       running: false,
       modeId,
     };
-    this.registerSessionSources(engine, session.diagnostics);
+    this.registerSessionSources(engine, session);
     this.sessions.set(sessionId, session);
     return session;
   }
@@ -633,15 +742,21 @@ export class AiRuntime {
     for (const [key, enabled] of this.readItemOverrides()) {
       engine.setItemOverride(key, enabled);
     }
-    // 子 Agent 共享会话诊断 tracker：子任务编辑刷新同一快照（并行写不同文件时
-    // 刷新串行化由 tracker 内部保证；诊断是全工作区视角，天然兼容并行子任务）
-    const tracker = this.sessions.get(sessionId)?.diagnostics ?? new DiagnosticsTracker(collectTscDiagnostics);
-    this.registerSessionSources(engine, tracker);
+    // 子 Agent 共享会话诊断 tracker 与工作流命中：子任务编辑刷新同一快照（并行写
+    // 不同文件时刷新串行化由 tracker 内部保证；诊断/工作流是全工作区视角，天然兼容并行子任务）
+    const holder = this.sessions.get(sessionId) ?? {
+      diagnostics: new DiagnosticsTracker(collectTscDiagnostics),
+      workflow: { current: null },
+    };
+    this.registerSessionSources(engine, holder);
     return engine;
   }
 
-  /** 会话级上下文源注册：选区/活动文件片段/@引用附件/git 状态/透明 RAG/诊断回馈（会话引擎与编排子引擎共用）。 */
-  private registerSessionSources(engine: ContextEngine, diagnostics: DiagnosticsTracker): void {
+  /** 会话级上下文源注册：选区/活动文件片段/@引用附件/git 状态/透明 RAG/诊断回馈/工作流记忆（会话引擎与编排子引擎共用）。 */
+  private registerSessionSources(
+    engine: ContextEngine,
+    session: { diagnostics: DiagnosticsTracker; workflow: { current: WorkflowTemplate | null } }
+  ): void {
     engine.registerSource(selectionSource());
     engine.registerSource(fileFragmentSource((filePath) => this.deps.workspace.readFile(filePath)));
     // AC28：@文件引用附件源。路径逃逸/文件消失由 workspace 防护与源内 try/catch 双层兜底
@@ -670,7 +785,9 @@ export class AiRuntime {
       })
     );
     // AC30：诊断回馈源（快照只读；write/edit 成功后由 loop 触发刷新）
-    engine.registerSource(diagnostics.source());
+    engine.registerSource(session.diagnostics.source());
+    // AC32：工作流记忆源（本轮命中只读；未命中/停用不产项零占位）
+    engine.registerSource(workflowSource(() => session.workflow.current));
   }
 
   private createEngine(sessionId: string): ContextEngine {

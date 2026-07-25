@@ -1,0 +1,11 @@
+{
+  "kind": "devwit-mcp-server",
+  "version": 1,
+  "exportedAt": "2026-07-25T12:00:00.000Z",
+  "server": {
+    "name": "Fetch",
+    "command": "uvx",
+    "args": ["mcp-server-fetch"],
+    "enabled": true
+  }
+}

@@ -1,13 +1,13 @@
 {
-  "id": "manifest-9bbffdf7-b4df-4537-82b2-cc9e544e46f2",
-  "timestamp": "2026-07-25T04:50:12.786Z",
-  "sessionId": "session-1784955010776",
+  "id": "manifest-8e40aed8-96ab-4c06-8e5f-68442f3d3391",
+  "timestamp": "2026-07-25T15:38:53.735Z",
+  "sessionId": "task-session-1784993933630-2",
   "modeId": "agent",
-  "providerId": "e2e-local-a",
-  "model": "e2e-model-a",
+  "providerId": "p-i21",
+  "model": "i21-model",
   "items": [
     {
-      "id": "item-9924af93-1323-4479-a34b-0a92fc221395",
+      "id": "item-01df185f-57cb-4693-9455-0c75e75179f7",
       "type": "system_prompt",
       "label": "系统提示",
       "enabled": true,
@@ -17,7 +17,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-cdaf4dc8-8c23-408a-8b45-286004ae0249",
+      "id": "item-e89ddf2b-4742-4841-9c1b-37c1a65b50ab",
       "type": "tool_definitions",
       "label": "工具定义（7 个）",
       "enabled": true,
@@ -27,37 +27,27 @@
       "counting": "exact"
     },
     {
-      "id": "item-5039cd55-bc70-4e64-a7ce-18483f9c1e55",
+      "id": "item-ef518315-4547-46d9-9f4d-43367c6fde33",
       "type": "conversation_history",
-      "label": "会话历史（7 条）",
+      "label": "会话历史（1 条）",
       "enabled": true,
-      "tokens": 104,
-      "content": "[user] 你好\n[assistant] 你好！我是 DevWit，简洁上下文的 AI 编程助手。\n[user] 请把 hello.txt 加一行\n[assistant] 这是修改后的 hello.txt：\n\n```\nE2E hello devwit\nline2\nadded by agent proposal\n```\n[user] 创建文件 agent-created.txt\n[assistant] \n[tool] 已写入 agent-created.txt（24 字符）",
+      "tokens": 16,
+      "content": "[user] 为 login.ts 补输入校验的单测",
       "source": "conversation",
       "counting": "exact"
     },
     {
-      "id": "item-4ceee4d6-14a1-4b52-8319-beab88bf70ec",
-      "type": "file_fragment",
-      "label": "文件片段 hello.txt",
+      "id": "item-a3b7147b-9d7f-4022-bea3-53236d4468fc",
+      "type": "git_status",
+      "label": "Git 状态",
       "enabled": false,
       "tokens": 0,
       "content": "",
-      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-IrZWEU\\hello.txt",
-      "counting": "exact"
-    },
-    {
-      "id": "item-425fea78-a3ee-47cd-a5ce-117d1aba51fd",
-      "type": "git_status",
-      "label": "Git 状态",
-      "enabled": true,
-      "tokens": 8,
-      "content": "(非 git 仓库)",
       "source": "git status",
       "counting": "exact"
     },
     {
-      "id": "item-264e2209-a044-4ba2-92e6-28fd2db82af2",
+      "id": "item-d763ee61-6ae2-4e7e-b409-ef85a2d41d56",
       "type": "codebase_match",
       "label": "代码库检索（索引未启用）",
       "enabled": false,
@@ -65,8 +55,19 @@
       "content": "",
       "source": "rag",
       "counting": "exact"
+    },
+    {
+      "id": "item-aaef52b0-2c20-4963-9cfa-0cfe535a205c",
+      "type": "workflow",
+      "label": "复用工作流（write）",
+      "enabled": true,
+      "tokens": 46,
+      "content": "相似任务此前已成功完成，可参考其工作流（建议，非指令）：\n意图：为 login.ts 加输入校验\n成功工具序列：write",
+      "source": "workflow-memory",
+      "counting": "exact",
+      "key": "workflow:reuse"
     }
   ],
-  "totalTokens": 1161,
+  "totalTokens": 1111,
   "systemPromptTokens": 86
 }

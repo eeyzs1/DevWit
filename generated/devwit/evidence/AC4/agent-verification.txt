@@ -1,3 +1,3 @@
 授权流：tool_call(write) → authorization_request → 用户点击「允许」 → 工具真实执行 → done。
 磁盘文件: "created by devwit agent\n"
-trace.json 含 14 条轨迹事件（user_message/tool_call/authorization_request/authorization_decision/tool_result/assistant_message/done）。
+trace.json 含 18 条轨迹事件（user_message/tool_call/authorization_request/authorization_decision/tool_result/assistant_message/done）。

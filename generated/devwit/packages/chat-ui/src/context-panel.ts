@@ -24,6 +24,7 @@ const TYPE_LABEL_KEY: Record<ContextItemType, `ctx.${ContextItemType}`> = {
   conversation_history: "ctx.conversation_history",
   codebase_match: "ctx.codebase_match",
   diagnostics: "ctx.diagnostics",
+  workflow: "ctx.workflow",
   custom: "ctx.custom",
 };
 
@@ -37,6 +38,7 @@ const TYPE_ORDER: readonly ContextItemType[] = [
   "git_status",
   "terminal_output",
   "diagnostics",
+  "workflow",
   "custom",
 ];
 

@@ -27,6 +27,8 @@ export const DEFAULT_CONTEXT_POLICY: Readonly<Record<ContextItemType, boolean>> 
   codebase_match: false,
   // 默认关闭：仅 agent 类模式经模式策略打开（AC30：编辑后 tsc 诊断回馈下一轮上下文）
   diagnostics: false,
+  // 默认关闭：仅 agent 类模式经模式策略打开（AC32：相似成功任务工作流建议注入）
+  workflow: false,
   custom: false,
 };
 
@@ -43,6 +45,7 @@ const INJECTED_AS_USER_CONTEXT: readonly ContextItemType[] = [
   "codebase_match",
   "git_status",
   "terminal_output",
+  "workflow",
   "diagnostics",
   "custom",
 ];

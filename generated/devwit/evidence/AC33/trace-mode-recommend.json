@@ -1,0 +1,19 @@
+[
+  {
+    "seq": 8,
+    "timestamp": "2026-07-25T15:38:56.854Z",
+    "sessionId": "session-1784993935251",
+    "type": "mode_recommend",
+    "summary": "mode_recommend: agent (success 3/3) over chat",
+    "detail": {
+      "phase": "recommend",
+      "modeId": "agent",
+      "currentModeId": "chat",
+      "reason": "workflow_hit",
+      "intent": "为 login.ts 加输入校验",
+      "successRate": 1,
+      "currentSuccessRate": 1,
+      "runs": 3
+    }
+  }
+]

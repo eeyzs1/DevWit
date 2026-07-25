@@ -300,6 +300,58 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
             : `[${t("act.diagnostics")}] ${t("act.diagnostics.found", { count: item.count, first: item.firstLine })}`;
         break;
       }
+      case "route": {
+        // AC31：模型路由决策（与活动流同一组文案键）
+        const key =
+          item.routed === "local"
+            ? "act.route.local"
+            : item.routed === "complex"
+              ? "act.route.complex"
+              : item.routed === "manual"
+                ? "act.route.manual"
+                : item.routed === "unavailable"
+                  ? "act.route.unavailable"
+                  : "act.route.disabled";
+        row.textContent = `[${t("act.route")}] ${t(key, { provider: item.providerId, score: item.score, threshold: item.threshold })}`;
+        break;
+      }
+      case "workflow": {
+        // AC32：工作流记忆命中（建议性复用，工具序列与复用次数可见）
+        row.textContent = `[${t("act.workflow")}] ${t("act.workflow.reuse", {
+          intent: item.intent,
+          tools: item.tools.join(" → "),
+          count: item.reuseCount,
+        })}`;
+        break;
+      }
+      case "modeRecommend": {
+        // AC33：模式推荐（成功率统计可见 + 一键切换，建议非自动切换）
+        const current = item.currentSuccessRate;
+        row.textContent = `[${t("act.modeRecommend")}] ${t("act.modeRecommend.reason", {
+          mode: resolveModeDisplayName(item.modeId),
+          rate: Math.round(item.successRate * 100),
+          runs: item.runs,
+          current: resolveModeDisplayName(item.currentModeId),
+          currentRate: current === null ? t("act.modeRecommend.noData") : `${Math.round(current * 100)}%`,
+          intent: item.intent,
+        })}`;
+        if (controller.currentModeId === item.modeId) {
+          const switched = document.createElement("div");
+          switched.className = "dw-auth-decided";
+          switched.textContent = t("act.modeRecommend.switched");
+          row.appendChild(switched);
+        } else {
+          const switchBtn = document.createElement("button");
+          switchBtn.className = "dw-btn dw-btn-small";
+          switchBtn.textContent = t("act.modeRecommend.switch", { mode: resolveModeDisplayName(item.modeId) });
+          switchBtn.addEventListener("click", () => {
+            controller.setMode(item.modeId);
+            refreshSelectors();
+          });
+          row.appendChild(switchBtn);
+        }
+        break;
+      }
       case "subagent": {
         row.textContent =
           item.phase === "start"

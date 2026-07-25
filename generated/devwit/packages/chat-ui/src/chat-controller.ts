@@ -25,6 +25,9 @@ export type ChatItem =
   | { kind: "tool"; summary: string; ok: boolean | null }
   | { kind: "authorization"; requestId: string; toolName: string; reason: string; decision: AuthorizationDecision | null; auto?: boolean }
   | { kind: "diagnostics"; count: number; firstLine: string }
+  | { kind: "route"; routed: string; providerId: string; score: number; threshold: number }
+  | { kind: "workflow"; intent: string; tools: string[]; reuseCount: number }
+  | { kind: "modeRecommend"; modeId: string; currentModeId: string; intent: string; successRate: number; currentSuccessRate: number | null; runs: number }
   | { kind: "plan"; subtasks: { id: string; title: string }[]; fallback: boolean }
   | { kind: "subagent"; subagentId: string; title: string; phase: "start" | "done"; finishReason?: string }
   | { kind: "error"; text: string }
@@ -289,6 +292,51 @@ export class ChatController {
           lastDiag.firstLine = firstLine;
         } else {
           this.items.push({ kind: "diagnostics", count, firstLine });
+        }
+        break;
+      }
+      case "route": {
+        // AC31：模型路由决策——本轮起点落一条透明记录（本地/复杂/回退原因可见）
+        const detail = event.detail as { routed?: unknown; providerId?: unknown; score?: unknown; threshold?: unknown } | undefined;
+        this.items.push({
+          kind: "route",
+          routed: typeof detail?.routed === "string" ? detail.routed : "disabled",
+          providerId: typeof detail?.providerId === "string" ? detail.providerId : "",
+          score: typeof detail?.score === "number" ? detail.score : 0,
+          threshold: typeof detail?.threshold === "number" ? detail.threshold : 0,
+        });
+        break;
+      }
+      case "workflow": {
+        // AC32：工作流记忆命中——复用的模板工具序列与次数透明可见
+        const detail = event.detail as
+          | { phase?: unknown; intent?: unknown; tools?: unknown; reuseCount?: unknown }
+          | undefined;
+        if (detail?.phase === "reuse") {
+          this.items.push({
+            kind: "workflow",
+            intent: typeof detail.intent === "string" ? detail.intent : "",
+            tools: Array.isArray(detail.tools) ? detail.tools.filter((x): x is string => typeof x === "string") : [],
+            reuseCount: typeof detail.reuseCount === "number" ? detail.reuseCount : 1,
+          });
+        }
+        break;
+      }
+      case "mode_recommend": {
+        // AC33：模式推荐——相似成功工作流的模式统计上不差于当前模式（建议非自动切换）
+        const detail = event.detail as
+          | { phase?: unknown; modeId?: unknown; currentModeId?: unknown; intent?: unknown; successRate?: unknown; currentSuccessRate?: unknown; runs?: unknown }
+          | undefined;
+        if (detail?.phase === "recommend" && typeof detail.modeId === "string") {
+          this.items.push({
+            kind: "modeRecommend",
+            modeId: detail.modeId,
+            currentModeId: typeof detail.currentModeId === "string" ? detail.currentModeId : "",
+            intent: typeof detail.intent === "string" ? detail.intent : "",
+            successRate: typeof detail.successRate === "number" ? detail.successRate : 0,
+            currentSuccessRate: typeof detail.currentSuccessRate === "number" ? detail.currentSuccessRate : null,
+            runs: typeof detail.runs === "number" ? detail.runs : 0,
+          });
         }
         break;
       }

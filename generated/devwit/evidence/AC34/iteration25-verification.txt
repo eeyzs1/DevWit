@@ -1,0 +1,8 @@
+迭代 25（AC34 插件市场原型——社区索引扩展 MCP 服务器）验证：
+1. 设置·MCP 分区「社区 MCP 服务器」区加载本地索引源（DEVWIT_MODES_INDEX_URL 注入）：index.json 同信封同时携带 modes 段与 mcpServers 段（向前兼容），2 个 MCP 条目（名称 + 作者 + 预告工具数）渲染。
+2. 行内「导入」→ 主进程拉取服务器文件 → 信封校验 + validateMcpServerConfig 同标准校验 → 新服务器落库（新 id、command/args/env/enabled 保真）→ 热启动 ready + 工具 3 个（真实 node 子进程 fake-mcp-server，initialize/tools/list 全链路真实，聚合全名 mcp__<id>__<tool>）。
+3. 导入结果直接入表单（id 回填可立即编辑/停用，截图 01）；已导入条目按钮 disabled 显示「已导入」。
+4. 删除本地该服务器（子进程停止）→ 社区行按钮恢复「导入」（归并状态随列表同步）。
+5. 索引源 500 → 状态行本地化报错「社区索引请求失败（HTTP 500）」（截图 02）。
+6. 官方索引仓库 distribution/community-modes 已加 mcpServers 段（Filesystem/Fetch 种子条目），条目文件经 parseMcpIndex/parseMcpServerFile/materializeMcpImport 真实解析验证。
+断言通过 13 项，失败 0 项。

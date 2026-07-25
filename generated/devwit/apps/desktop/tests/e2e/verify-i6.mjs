@@ -286,9 +286,13 @@ try {
   assert(traceB !== undefined, "任务 B 轨迹文件存在");
   if (traceB !== undefined) {
     const types = traceB.events.map((event) => event.type);
+    const seqs = traceB.events.map((event) => event.seq);
+    const seqContinuous = seqs.every((seq, index) => seq === index + 1);
+    // AC31 起每次 run 先记 route 事件（路由决策可审计）：核心序列剔除 route 后校验两轮追加
+    const core = types.filter((type) => type !== "route");
     assert(
-      types.join(",") === "user_message,user_message,assistant_message,done",
-      `任务 B 轨迹两轮追加且 seq 连续（实际: ${types.join(",")}；seq: ${traceB.events.map((event) => event.seq).join(",")}）`
+      core.join(",") === "user_message,user_message,assistant_message,done" && seqContinuous,
+      `任务 B 轨迹两轮追加且 seq 连续（实际: ${types.join(",")}；seq: ${seqs.join(",")}）`
     );
   }
   fs.writeFileSync(path.join(OUT, "request-bodies.json"), JSON.stringify(requestBodies, null, 2), "utf-8");
@@ -308,7 +312,7 @@ try {
       "1. 落盘：轨迹事件 JSONL 逐行追加 userData/traces/<sessionId>.jsonl（实时 onRecord 订阅，详情 detail.text 存完整原文）；会话快照（工作区/任务列表/激活任务/形态/对话 sessionId）防抖 300ms 写 settings \"session.state\"。",
       "2. 恢复：重启后 enterWorkspace 恢复文件树 → TaskCenter.restore 归一 running/waiting_auth 为 interrupted → 对话与激活任务轨迹从磁盘回放（resumed=true 不标 running）→ 形态恢复 → 状态栏提示「已恢复上次会话（N 个任务）」。",
       "3. 跨重启记忆：AiRuntime.ensureSession 先 loadPersisted 水合磁盘轨迹，run 前 historyFromTrace 重建 priorHistory 注入 transcript——续跑请求含首轮意图（本脚本服务端请求体断言）。",
-      "4. 中断续跑：interrupted 任务输入可用；user_message 事件使其复活为 running；轨迹文件追加不覆盖（seq 连续）。",
+      "4. 中断续跑：interrupted 任务输入可用；user_message 事件使其复活为 running；轨迹文件追加不覆盖（seq 连续；AC31 起每次 run 首记 route 事件，核心序列剔除后校验）。",
       `断言通过 ${report.assertions.length} 项，失败 ${report.failures.length} 项${fatal !== null ? `，fatal: ${fatal}` : ""}。`,
     ].join("\n"),
     "utf-8"

@@ -150,6 +150,7 @@ export type ContextItemType =
   | "conversation_history"
   | "codebase_match"
   | "diagnostics"
+  | "workflow"
   | "custom";
 
 /**
@@ -291,6 +292,17 @@ export interface CommunityModeEntry {
   tags: string[];
 }
 
+/** 社区 MCP 服务器索引条目（迭代 25 / AC34）：索引仓库 index.json mcpServers 段中单个服务器的浏览元数据。 */
+export interface CommunityMcpEntry {
+  /** 相对索引 base 的文件路径（如 mcp/filesystem.json）。 */
+  file: string;
+  name: string;
+  description: string;
+  author: string;
+  /** 服务器声明的工具名预告（浏览时可见能力面；导入后以真实握手列举为准）。 */
+  tools: string[];
+}
+
 // ============================================================================
 // Agent 运行时（WU010）
 // ============================================================================
@@ -320,6 +332,9 @@ export type AgentTraceEventType =
   | "authorization_auto"
   | "tool_result"
   | "diagnostics"
+  | "route"
+  | "workflow"
+  | "mode_recommend"
   | "plan"
   | "subagent_start"
   | "subagent_done"
@@ -346,7 +361,101 @@ export type AgentTraceEventType =
  * 诊断回馈（迭代 21 / AC30）：
  * - diagnostics：write/edit 工具改写文件后对工作区跑 tsc 诊断的结果快照
  *   （detail.count 为问题数，detail.entries 为截断后的诊断列表）。count=0 表示
- *   修复闭环确认——上一次编辑引入的问题已被清除。 */
+ *   修复闭环确认——上一次编辑引入的问题已被清除。
+ *
+ * 本地小模型路由（迭代 22 / AC31）：
+ * - route：每次 run 的模型路由决策（detail 为 RouteDecision）。仅记录一次，
+ *   位于本轮 user_message 之前——审计语义为「这次请求为什么发给这个模型」。
+ *
+ * 工作流记忆（迭代 23 / AC32）：
+ * - workflow：新任务命中已沉淀的成功工作流模板（detail.phase="reuse"，含
+ *   templateId/intent/tools/shared 命中关键词/reuseCount）。模板作为建议性
+ *   custom 上下文项注入——不自动执行、不改变授权语义，审计语义为
+ *   「这次规划参考了哪次成功经验」。 */
+
+/** 本地路由配置（settings 键 "routing.local"）：简单任务路由本地小模型，复杂任务走模式绑定模型。 */
+export interface LocalRoutingConfig {
+  /** 总开关；关=所有任务走模式绑定模型。 */
+  enabled: boolean;
+  /** 本地小模型 provider id（须为已注册 provider）。 */
+  providerId: string;
+  /** 复杂度阈值：score >= threshold 判复杂（走模式绑定），否则判简单（走本地）。 */
+  threshold: number;
+}
+
+/** 一次路由决策（route 轨迹事件 detail）。 */
+export interface RouteDecision {
+  /** local=判简单路由本地模型；complex=判复杂走模式绑定；disabled=开关关；unavailable=本地 provider 缺失回退；manual=用户显式指定模型，跳过路由。 */
+  routed: "local" | "complex" | "disabled" | "unavailable" | "manual";
+  /** 最终使用的 provider id。 */
+  providerId: string;
+  /** 复杂度得分与阈值（可解释启发式：reasons 逐项列出得分来源）。 */
+  score: number;
+  threshold: number;
+  /** 得分来源逐项说明（ASCII 键，UI 经 i18n 映射后展示）。 */
+  reasons: string[];
+}
+
+/** 工作流模板（迭代 23 / AC32，settings 键 "workflow.templates"）：成功任务沉淀的可复用工作流。 */
+export interface WorkflowTemplate {
+  /** 稳定 id（wf-* 学习时生成）。 */
+  id: string;
+  /** 成功任务的原始意图（该轮 user_message 全文）。 */
+  intent: string;
+  /** 学习时使用的模式 id。 */
+  modeId: string;
+  /** 成功路径上的工具名序列（去重保序，如 ["read","write"]）。 */
+  tools: string[];
+  /** 学习/最近刷新时间（ISO）。 */
+  learnedAt: string;
+  /** 被相似新任务复用的次数。 */
+  reuseCount: number;
+  /** 最近复用时间（ISO；未复用过缺省）。 */
+  lastReuseAt?: string;
+}
+
+/** 工作流命中（workflow 轨迹事件 detail，phase="reuse"）。 */
+export interface WorkflowReuse {
+  phase: "reuse";
+  templateId: string;
+  intent: string;
+  tools: string[];
+  /** 命中的共享关键词（匹配可解释性审计）。 */
+  shared: string[];
+  reuseCount: number;
+}
+
+/** 单模式运行统计（迭代 24 / AC33，settings 键 "modes.stats"）：成功率推荐的唯一事实源。 */
+export interface ModeRunStats {
+  modeId: string;
+  /** 有效定级 run 总数（completed 记成功、error 记失败；cancelled/max_iterations/异常 不定级不计入）。 */
+  runs: number;
+  successes: number;
+  /** 最近定级时间（ISO）。 */
+  lastRunAt: string;
+}
+
+/**
+ * 模式推荐（mode_recommend 轨迹事件 detail，phase="recommend"，迭代 24 / AC33）。
+ * 相似成功工作流的模式与当前模式不同、且该模式成功率不差于当前时发出——
+ * 建议非自动切换：是否采纳由用户决定（对话形态一键切换）。
+ */
+export interface ModeRecommendation {
+  phase: "recommend";
+  /** 推荐的模式 id（相似工作流模板学习时所用模式）。 */
+  modeId: string;
+  currentModeId: string;
+  /** 推荐来源（目前唯一：相似工作流命中；保留扩展位）。 */
+  reason: "workflow_hit";
+  /** 命中的工作流意图（可解释性）。 */
+  intent: string;
+  /** 推荐模式成功率 0-1（runs >= MIN 才推荐，防单次侥幸）。 */
+  successRate: number;
+  /** 当前模式成功率 0-1；无数据为 null。 */
+  currentSuccessRate: number | null;
+  /** 推荐模式定级 run 数。 */
+  runs: number;
+}
 
 /** 一条语言/编译诊断（迭代 21 / AC30）：tsc --noEmit 输出的结构化形式。 */
 export interface DiagnosticEntry {
@@ -566,6 +675,8 @@ export const IPC = {
   McpList: "mcp:list",
   McpUpsert: "mcp:upsert",
   McpDelete: "mcp:delete",
+  McpCommunityList: "mcp:community-list",
+  McpCommunityImport: "mcp:community-import",
   McpChanged: "mcp:changed",
 } as const;
 
@@ -682,6 +793,16 @@ export interface DevwitApi {
     /** 新建/更新服务器配置（热生效：主进程即时启动/重启/停止对应进程）。 */
     upsert(config: McpServerConfig): Promise<void>;
     delete(id: string): Promise<void>;
+    /**
+     * 浏览社区 MCP 服务器索引（迭代 25 / AC34）：主进程拉取索引仓库 index.json
+     * 的 mcpServers 段（与社区模式同一仓库）。网络/格式失败抛 DW_MCP_INDEX_* 错误码。
+     */
+    communityList(): Promise<CommunityMcpEntry[]>;
+    /**
+     * 一键导入社区 MCP 服务器：按索引条目 file 拉取服务器文件，经信封校验 +
+     * validateMcpServerConfig 同标准校验后落为新服务器（新 id 生成，热生效）。
+     */
+    communityImport(file: string): Promise<McpServerConfig>;
     /** 订阅任一服务器状态变化（主→渲染推送，设置页实时刷新徽标）。 */
     onChanged(cb: () => void): () => void;
   };

@@ -75,6 +75,7 @@ const CONTEXT_TYPE_KEY: Record<ContextItemType, `ctx.${ContextItemType}`> = {
   conversation_history: "ctx.conversation_history",
   codebase_match: "ctx.codebase_match",
   diagnostics: "ctx.diagnostics",
+  workflow: "ctx.workflow",
   custom: "ctx.custom",
 };
 const CONTEXT_TYPE_ORDER: readonly ContextItemType[] = [
@@ -87,6 +88,7 @@ const CONTEXT_TYPE_ORDER: readonly ContextItemType[] = [
   "selection",
   "conversation_history",
   "diagnostics",
+  "workflow",
   "custom",
 ];
 
@@ -386,8 +388,130 @@ function renderGeneral(
   secToggle.addEventListener("change", saveLearning);
   secThreshInput.addEventListener("change", saveLearning);
 
+  // ---- 本地小模型路由（AC31）：开关 + 本地 provider 选择 + 复杂度阈值 ----
+  const routeTitle = el("label", undefined, t("routing.title"));
+  const routeEnableRow = el("div", "dw-settings-update");
+  const routeToggle = document.createElement("input");
+  routeToggle.type = "checkbox";
+  routeEnableRow.append(routeToggle, el("span", "dw-settings-update-status", t("routing.enable")));
+  const routeProviderRow = el("div", "dw-settings-update");
+  const routeProvider = el("select", "dw-select") as HTMLSelectElement;
+  routeProviderRow.append(el("span", "dw-settings-update-status", t("routing.provider")), routeProvider);
+  const routeThreshRow = el("div", "dw-settings-update");
+  const routeThreshInput = fieldInput("number", "30");
+  routeThreshInput.min = "1";
+  routeThreshInput.max = "100";
+  routeThreshRow.append(el("span", "dw-settings-update-status", t("routing.threshold")), routeThreshInput);
+  const routeHint = el("div", "dw-modal-hint", t("routing.hint"));
+
+  const saveRouting = (): void => {
+    const parsed = Number(routeThreshInput.value);
+    const threshold = Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 30;
+    void deps.api.settings.set("routing.local", {
+      enabled: routeToggle.checked,
+      providerId: routeProvider.value,
+      threshold,
+    });
+  };
+  routeToggle.addEventListener("change", saveRouting);
+  routeProvider.addEventListener("change", saveRouting);
+  routeThreshInput.addEventListener("change", saveRouting);
+  // 初始填充：provider 下拉（未选择项置顶）+ 已存配置回显
+  void (async () => {
+    const [providers, stored] = await Promise.all([deps.api.providers.list(), deps.api.settings.get("routing.local")]);
+    const record = typeof stored === "object" && stored !== null ? (stored as Record<string, unknown>) : {};
+    const noneOption = document.createElement("option");
+    noneOption.value = "";
+    noneOption.textContent = t("routing.provider.none");
+    routeProvider.appendChild(noneOption);
+    for (const p of providers) {
+      const option = document.createElement("option");
+      option.value = p.id;
+      option.textContent = `${p.label} · ${p.model}`;
+      routeProvider.appendChild(option);
+    }
+    routeToggle.checked = record["enabled"] === true;
+    routeProvider.value = typeof record["providerId"] === "string" ? record["providerId"] : "";
+    const threshold = record["threshold"];
+    routeThreshInput.value = String(typeof threshold === "number" && Number.isFinite(threshold) && threshold >= 1 ? Math.floor(threshold) : 30);
+  })();
+
+  // ---- 工作流记忆（AC32）：开关 + 模板列表（逐条删除/清空）----
+  const wfTitle = el("label", undefined, t("workflow.title"));
+  const wfEnableRow = el("div", "dw-settings-update");
+  const wfToggle = document.createElement("input");
+  wfToggle.type = "checkbox";
+  wfEnableRow.append(wfToggle, el("span", "dw-settings-update-status", t("workflow.enable")));
+  const wfList = el("div", "dw-settings-whitelist");
+  const wfHint = el("div", "dw-modal-hint", t("workflow.hint"));
+
+  interface WfTemplate {
+    id: string;
+    intent: string;
+    tools: string[];
+    reuseCount: number;
+  }
+  const readWfTemplates = (stored: unknown): WfTemplate[] =>
+    Array.isArray(stored)
+      ? stored.filter(
+          (item): item is WfTemplate =>
+            typeof item === "object" &&
+            item !== null &&
+            typeof (item as WfTemplate).id === "string" &&
+            typeof (item as WfTemplate).intent === "string" &&
+            Array.isArray((item as WfTemplate).tools) &&
+            typeof (item as WfTemplate).reuseCount === "number"
+        )
+      : [];
+
+  const loadWorkflow = async (): Promise<void> => {
+    const [config, templatesRaw] = await Promise.all([
+      deps.api.settings.get("workflow.memory"),
+      deps.api.settings.get("workflow.templates"),
+    ]);
+    const configRecord = typeof config === "object" && config !== null ? (config as Record<string, unknown>) : {};
+    // 与主进程 readWorkflowEnabled 同口径：缺省开（功能无破坏性，只是建议项注入）
+    wfToggle.checked = configRecord["enabled"] !== false;
+    const templates = readWfTemplates(templatesRaw);
+    wfList.textContent = "";
+    if (templates.length === 0) {
+      wfList.appendChild(el("div", "dw-modal-hint", t("workflow.empty")));
+      return;
+    }
+    for (const template of templates) {
+      const row = el("div", "dw-settings-whitelist-row");
+      row.appendChild(
+        el("span", "dw-settings-whitelist-cmd", t("workflow.entry", {
+          intent: template.intent,
+          tools: template.tools.join(" → "),
+          count: template.reuseCount,
+        }))
+      );
+      const removeBtn = el("button", "dw-btn dw-btn-small", t("workflow.remove"));
+      removeBtn.addEventListener("click", () => {
+        void deps.api.settings.get("workflow.templates").then((stored) => {
+          const current = readWfTemplates(stored);
+          void deps.api.settings.set("workflow.templates", current.filter((x) => x.id !== template.id)).then(() => loadWorkflow());
+        });
+      });
+      row.appendChild(removeBtn);
+      wfList.appendChild(row);
+    }
+    const clearBtn = el("button", "dw-btn dw-btn-small dw-btn-danger", t("workflow.clear"));
+    clearBtn.addEventListener("click", () => {
+      void deps.api.settings.set("workflow.templates", []).then(() => loadWorkflow());
+    });
+    wfList.appendChild(clearBtn);
+  };
+  void loadWorkflow();
+  wfToggle.addEventListener("change", () => {
+    void deps.api.settings.set("workflow.memory", { enabled: wfToggle.checked });
+  });
+
   form.append(label, select, hint, updateLabel, updateRow, updateHint, ragLabel, ragRow, ragActions, ragHint,
-    secTitle, secLearnRow, secThreshRow, secList, secHint);
+    secTitle, secLearnRow, secThreshRow, secList, secHint,
+    routeTitle, routeEnableRow, routeProviderRow, routeThreshRow, routeHint,
+    wfTitle, wfEnableRow, wfList, wfHint);
 
   // ---- 首次运行向导（迭代 18 / AC27）：允许随时重跑（如换机/重装后引导同伴）----
   if (deps.onRerunWizard !== undefined) {
@@ -856,15 +980,31 @@ async function renderModes(content: HTMLElement, deps: SettingsDialogDeps): Prom
   }
 
   async function renderList(): Promise<void> {
-    modes = await api.modes.list();
+    // AC33：模式行内展示成功率统计（推荐透明性——用户能看到推荐依据的数据源）
+    const [modeList, statsStored] = await Promise.all([api.modes.list(), api.settings.get("modes.stats")]);
+    modes = modeList;
+    const stats = Array.isArray(statsStored) ? statsStored : [];
     list.textContent = "";
     for (const mode of modes) {
+      const entry = stats.find(
+        (item): item is { modeId: string; runs: number; successes: number } =>
+          typeof item === "object" &&
+          item !== null &&
+          (item as { modeId?: unknown }).modeId === mode.id &&
+          typeof (item as { runs?: unknown }).runs === "number" &&
+          (item as { runs: number }).runs > 0 &&
+          typeof (item as { successes?: unknown }).successes === "number"
+      );
+      const statsText =
+        entry !== undefined
+          ? ` · ${t("mode.stats.rate", { rate: Math.round((entry.successes / entry.runs) * 100), successes: entry.successes, runs: entry.runs })}`
+          : "";
       const row = el("div", "dw-modal-list-item");
       row.appendChild(
         el(
           "span",
           "dw-grow",
-          `${mode.name}${mode.builtin ? t("mode.builtin.tag") : ""} · ${t("mode.tool.count", { n: mode.tools.length })}`
+          `${mode.name}${mode.builtin ? t("mode.builtin.tag") : ""} · ${t("mode.tool.count", { n: mode.tools.length })}${statsText}`
         )
       );
       const exportBtn = el("button", "dw-btn dw-btn-small", t("mode.export"));
@@ -1021,6 +1161,10 @@ function renderMcp(content: HTMLElement, deps: SettingsDialogDeps, onMcpSink: (s
   content.appendChild(el("p", "dw-modal-hint", t("mcp.hint")));
   const list = el("div", "dw-modal-list");
   content.appendChild(list);
+  /** 当前服务器视图缓存：社区行「已导入」状态判定复用（避免每行一次 IPC）。 */
+  let views: McpServerView[] = [];
+  /** 社区行「已导入」状态刷新器：renderList 重建本地列表后逐个调用。 */
+  const communitySyncs: Array<() => void> = [];
 
   const form = el("div", "dw-form");
   const idInput = fieldInput("text", "");
@@ -1077,7 +1221,7 @@ function renderMcp(content: HTMLElement, deps: SettingsDialogDeps, onMcpSink: (s
   }
 
   async function renderList(): Promise<void> {
-    const views = await api.mcp.list();
+    views = await api.mcp.list();
     list.textContent = "";
     for (const view of views) {
       const row = el("div", "dw-modal-list-item");
@@ -1101,6 +1245,7 @@ function renderMcp(content: HTMLElement, deps: SettingsDialogDeps, onMcpSink: (s
       row.addEventListener("click", () => fillForm(view));
       list.appendChild(row);
     }
+    for (const sync of communitySyncs) sync();
   }
 
   const actions = el("div", "dw-modal-actions");
@@ -1150,6 +1295,50 @@ function renderMcp(content: HTMLElement, deps: SettingsDialogDeps, onMcpSink: (s
     })().catch((error: unknown) => {
       errorBox.textContent = error instanceof Error ? error.message : String(error);
     });
+  });
+
+  // ---- 社区 MCP 服务器（迭代 25 / AC34）：与社区模式同一索引仓库，mcpServers 段浏览 + 一键导入热启动 ----
+  content.appendChild(el("h3", "dw-settings-subtitle", t("mcp.community.title")));
+  content.appendChild(el("p", "dw-modal-hint", t("mcp.community.hint")));
+  const communityStatus = el("div", "dw-modal-hint", t("mcp.community.loading"));
+  const communityList = el("div", "dw-modal-list");
+  content.append(communityStatus, communityList);
+  void (async () => {
+    const entries = await api.mcp.communityList();
+    communityStatus.textContent = entries.length === 0 ? t("mcp.community.empty") : "";
+    for (const entry of entries) {
+      const row = el("div", "dw-modal-list-item");
+      const toolsPreview = entry.tools.length > 0 ? ` · ${t("mcp.community.toolCount", { n: entry.tools.length })}` : "";
+      const label = el("span", "dw-grow", `${entry.name} · ${t("mcp.community.by", { author: entry.author })}${toolsPreview}`);
+      label.title = entry.description;
+      row.appendChild(label);
+      const importBtn = el("button", "dw-btn dw-btn-small", t("mcp.community.import")) as HTMLButtonElement;
+      const sync = (): void => {
+        // 导入保留负载 name：按显示名判重（与社区模式同规则）
+        const imported = views.some((view) => view.config.name === entry.name);
+        importBtn.disabled = imported;
+        importBtn.textContent = imported ? t("mcp.community.imported") : t("mcp.community.import");
+      };
+      communitySyncs.push(sync);
+      sync();
+      importBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        void (async () => {
+          const imported = await api.mcp.communityImport(entry.file);
+          await renderList();
+          // 导入结果直接入表单：用户可立即检查/停用/改名
+          const view = views.find((candidate) => candidate.config.id === imported.id);
+          if (view !== undefined) fillForm(view);
+          errorBox.textContent = t("mcp.community.importDone", { name: imported.name });
+        })().catch((error: unknown) => {
+          communityStatus.textContent = localizeError(error instanceof Error ? error.message : String(error));
+        });
+      });
+      row.appendChild(importBtn);
+      communityList.appendChild(row);
+    }
+  })().catch((error: unknown) => {
+    communityStatus.textContent = localizeError(error instanceof Error ? error.message : String(error));
   });
 
   // 服务器状态推送（连接中→就绪/错误）实时刷新徽标；仅停留 MCP 分区期间挂接

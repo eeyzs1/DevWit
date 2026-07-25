@@ -1,6 +1,6 @@
 {
   "steps": [
-    "本地端点就绪 http://127.0.0.1:58286/v1（脚本化 6 请求）",
+    "本地端点就绪 http://127.0.0.1:61761/v1（脚本化 6 请求）",
     "应用启动 + fixture 工作区打开",
     "keyless provider 注册 + agent 模式热绑定",
     "第 1 轮：授权行出现（学习计数 0→需询问）",
@@ -18,7 +18,7 @@
   "assertions": [
     "批准后命令应毕业进白名单（实际: [\"echo ac29>> i18-marker.txt\"]）",
     "第 3 轮不应有待裁决授权行（实际 0 个）",
-    "活动流缺少自动放行标记: 用户运行三轮 echo 标记助手工具bash 成功（成功）授权bash：执行命令: echo ac29>> i18-marker.txt已裁决：允许助手工具bash 成功（成功）授权bash：执行命令: echo ac29>> i18-marker.txt已裁决：允许助手工具bash 成功（成功）授权bash：执行命令: echo ac29>> i18-marker.txt已自动放行（命令白名单）",
+    "活动流缺少自动放行标记: 用户运行三轮 echo 标记路由本地路由未开启 → 模式绑定模型 p-i18助手工具bash 成功（成功）授权bash：执行命令: echo ac29>> i18-marker.txt已裁决：允许助手工具bash 成功（成功）授权bash：执行命令: echo ac29>> i18-marker.txt已裁决：允许助手工具bash 成功（成功）授权bash：执行命令: echo ac29>> i1",
     "marker 应为 3 行 ac29（实际 3 行: ac29|ac29|ac29）",
     "轨迹 authorization_request 应恰好 2 次（实际 2）",
     "轨迹 authorization_auto 应 1 次且 source=whitelist（实际 1）",

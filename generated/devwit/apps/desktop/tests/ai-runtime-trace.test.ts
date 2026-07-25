@@ -107,15 +107,15 @@ describe("AiRuntime 轨迹持久化（AC15）", () => {
       workspaceRoot: tmpRoot,
     });
 
-    // 落盘证据：JSONL 逐行一个事件，含本轮 user/assistant/done
+    // 落盘证据：JSONL 逐行一个事件，含本轮 route（AC31 路由决策）/user/assistant/done
     const onDisk = readTraceFile("s-1");
-    expect(onDisk.map((event) => event.type)).toEqual(["user_message", "assistant_message", "done"]);
-    expect((onDisk[0]!.detail as { text: string }).text).toBe("第一问");
+    expect(onDisk.map((event) => event.type)).toEqual(["route", "user_message", "assistant_message", "done"]);
+    expect((onDisk[1]!.detail as { text: string }).text).toBe("第一问");
 
     // 模拟应用重启：全新 AiRuntime（进程内无会话）→ trace() 从磁盘读回
     const { runtime: runtime2 } = makeRuntime(new ScriptedProvider([]));
     const restored = runtime2.trace("s-1");
-    expect(restored.map((event) => event.type)).toEqual(["user_message", "assistant_message", "done"]);
+    expect(restored.map((event) => event.type)).toEqual(["route", "user_message", "assistant_message", "done"]);
     expect(restored[0]!.seq).toBe(1);
   });
 
@@ -149,20 +149,22 @@ describe("AiRuntime 轨迹持久化（AC15）", () => {
       .map((message) => message.content);
     expect(assistantTexts).toContain("第一答");
 
-    // 轨迹文件追加而非覆盖：两轮事件齐全且 seq 单调
+    // 轨迹文件追加而非覆盖：两轮事件齐全且 seq 单调（每轮起点为 route 决策，AC31）
     const onDisk = readTraceFile("s-1");
     expect(onDisk.map((event) => event.type)).toEqual([
+      "route",
       "user_message",
       "assistant_message",
       "done",
+      "route",
       "user_message",
       "assistant_message",
       "done",
     ]);
-    expect(onDisk.map((event) => event.seq)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(onDisk.map((event) => event.seq)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     // 水合的历史不触发实时推送：sent 只含本轮新事件
     // （assistant_delta 为瞬时推送通道，seq 0 不落盘）
-    expect(sent.map((event) => event.type)).toEqual(["user_message", "assistant_delta", "assistant_message", "done"]);
+    expect(sent.map((event) => event.type)).toEqual(["route", "user_message", "assistant_delta", "assistant_message", "done"]);
   });
 
   it("未知会话 trace() 返回空数组；sessionId 非法字符被白名单化防路径穿越", async () => {

@@ -105,6 +105,8 @@ const api: DevwitApi = {
     list: () => ipcRenderer.invoke(IPC.McpList) as ReturnType<DevwitApi["mcp"]["list"]>,
     upsert: (config) => ipcRenderer.invoke(IPC.McpUpsert, config) as Promise<void>,
     delete: (id) => ipcRenderer.invoke(IPC.McpDelete, id) as Promise<void>,
+    communityList: () => ipcRenderer.invoke(IPC.McpCommunityList) as ReturnType<DevwitApi["mcp"]["communityList"]>,
+    communityImport: (file) => ipcRenderer.invoke(IPC.McpCommunityImport, file) as ReturnType<DevwitApi["mcp"]["communityImport"]>,
     onChanged: (cb) => subscribe<[]>(IPC.McpChanged, cb)
   }
 };

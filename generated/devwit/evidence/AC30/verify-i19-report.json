@@ -1,6 +1,6 @@
 {
   "steps": [
-    "本地端点就绪 http://127.0.0.1:64815/v1（脚本化 3 请求）",
+    "本地端点就绪 http://127.0.0.1:58526/v1（脚本化 3 请求）",
     "应用启动 + fixture 工作区打开（tsconfig + 本地 typescript 就绪）",
     "keyless provider 注册 + agent 模式热绑定（diagnostics 策略默认开）",
     "第 1 轮 write（坏文件）：授权通过，真实写盘",

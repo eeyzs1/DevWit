@@ -1,0 +1,29 @@
+{
+  "steps": [
+    "双端点就绪 local=http://127.0.0.1:58537/v1 cloud=http://127.0.0.1:58538/v1",
+    "应用启动 + fixture 工作区打开",
+    "p-local / p-cloud 注册（keyless）+ agent 模式绑定 p-cloud",
+    "设置 UI：开启路由 + 选 p-local + 阈值 30，热持久化 routing.local",
+    "任务1「你好…」评分 0 → routed=local → p-local 命中，活动流路由行可见",
+    "任务2「重构整个项目」评分 30 ≥ 阈值 → routed=complex → p-cloud 命中",
+    "热更新：enabled=false 即时生效 → routed=disabled → p-cloud（无需重启）",
+    "对话形态手动选 p-cloud → routed=manual 跳过自动路由（路由开也不生效）",
+    "磁盘轨迹审计：route×4（local→complex→disabled→manual），score/threshold/reasons 逐项落盘"
+  ],
+  "assertions": [
+    "设置·通用分区应展示「本地小模型路由」区",
+    "简单任务应命中本地端点（local=1, cloud=0）",
+    "活动流应有「简单任务 → 本地模型 p-local」路由行（实际: 用户你好，介绍一下这个文件\n路由简单任务 → 本地模型 p-local（复杂度 0 < 阈值 30）\n助手本地小模型应答。\n完成任务完成）",
+    "复杂任务应命中云端端点（local=1, cloud=1）",
+    "活动流应有「复杂任务 → 模式绑定模型 p-cloud」路由行（实际: 用户重构整个项目\n路由复杂任务 → 模式绑定模型 p-cloud（复杂度 30 ≥ 阈值 30）\n助手云端模型应答。\n完成任务完成）",
+    "关路由后简单任务应回退云端（local=1, cloud=2）",
+    "活动流应有「本地路由未开启」路由行（实际: 用户再打个招呼\n路由本地路由未开启 → 模式绑定模型 p-cloud\n助手云端模型应答。\n完成任务完成）",
+    "手动指定应命中云端（local=1, cloud=3）",
+    "对话区应有「已手动指定模型 p-cloud」路由行（实际: [路由] 已手动指定模型 p-cloud，跳过自动路由）",
+    "轨迹 route 事件序列应为 local/complex/disabled/manual（实际: [\"local\",\"complex\",\"disabled\",\"manual\"]）",
+    "任务1 route 明细应为 local/p-local/score 0/threshold 30/空 reasons（实际: {\"score\":0,\"threshold\":30,\"reasons\":[],\"routed\":\"local\",\"providerId\":\"p-local\"}）",
+    "任务2 route 明细应为 complex/p-cloud/score 30/双关键词 reasons（实际: {\"score\":30,\"threshold\":30,\"reasons\":[\"keyword:refactor\",\"keyword:whole_scope\"],\"routed\":\"complex\",\"providerId\":\"p-cloud\"}）"
+  ],
+  "failures": [],
+  "fatal": null
+}

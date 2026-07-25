@@ -217,7 +217,7 @@ export class AgentLoop {
     trace: AgentTrace,
     signal?: AbortSignal
   ): Promise<ToolResult> {
-    trace.record("tool_call", `${call.name}(${summarizeArgs(call.args)})`, { args: call.args });
+    trace.record("tool_call", `${call.name}(${summarizeArgs(call.args)})`, { tool: call.name, args: call.args });
 
     // 授权门：内置写工具（write/edit/bash）与全部 MCP 工具（AC17）执行前必经裁决
     if (this.authorizer.needsAuthorization(call.name)) {

@@ -1,7 +1,7 @@
 {
   "kind": "devwit-modes-index",
   "version": 1,
-  "updatedAt": "2026-07-24T19:00:00.000Z",
+  "updatedAt": "2026-07-25T12:00:00.000Z",
   "modes": [
     {
       "file": "modes/code-reviewer.json",
@@ -37,6 +37,22 @@
       "description": "只读重构顾问：先查调用点再下判断，输出小步有序计划与 before/after 草图。Read-only advisor: checks call sites first, delivers an ordered plan of small behavior-preserving steps with before/after sketches.",
       "author": "eeyzs1",
       "tags": ["refactor", "design", "read-only"]
+    }
+  ],
+  "mcpServers": [
+    {
+      "file": "mcp/filesystem.json",
+      "name": "Filesystem",
+      "description": "官方文件系统服务器：读写列目录等 11 个工具（工作区根目录）。Official filesystem server: 11 tools for read/write/list under the workspace root.",
+      "author": "eeyzs1",
+      "tools": ["read_file", "write_file", "edit_file", "list_directory", "directory_tree", "search_files", "get_file_info", "create_directory", "move_file", "read_multiple_files", "list_allowed_directories"]
+    },
+    {
+      "file": "mcp/fetch.json",
+      "name": "Fetch",
+      "description": "官方网页抓取服务器：抓取 URL 并转 Markdown（需 uvx）。Official fetch server: retrieves a URL and converts it to Markdown (requires uvx).",
+      "author": "eeyzs1",
+      "tools": ["fetch"]
     }
   ]
 }
