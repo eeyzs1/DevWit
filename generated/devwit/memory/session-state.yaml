@@ -394,5 +394,59 @@ v020_release:
   - 主仓库清单升版 adf390a：winget 0.2.0 四分件 + homebrew cask version/sha256
   - homebrew-tap 6cbf5be「devwit 0.2.0」已推送，brew install --cask eeyzs1/tap/devwit 即装 0.2.0
   - winget PR microsoft/winget-pkgs#407506：验证管线 Validation-Completed + Azure-Pipeline-Passed；Microsoft CLA 已由用户以个人名义签署（license/cla check SUCCESS）；等待社区 moderator 审批（New-Package 流程）
+iteration_20:
+  scope: 授权白名单学习（AC29）——批准的命令达阈值毕业进白名单，后续同命令自动放行
+  acceptance_criteria:
+  - description: 'bash 授权学习：用户批准同命令 N 次（阈值 2）后命令毕业进 settings 白名单持久化；后续同命令 authorization_auto 事件（source=whitelist）自动放行不再弹窗；设置·通用分区白名单列表可逐条移除/清空，移除后同命令重新询问'
+    id: AC29
+    status: completed
+    verifier: tests/e2e/verify-i18.mjs（12 项断言全 PASS：三轮 echo 真实执行 2 询问 + 1 自动放行，marker 三行落盘，磁盘轨迹 authorization_request×2/auto×1 审计链完整，移除后重新询问 + 计数阈值语义）+ evidence/AC29
+  e2e_report: evidence/AC29/verify-i18-report.json (12 项断言全 PASS)
+iteration_21:
+  scope: 编辑后诊断回馈（AC30）——agent write/edit 后真跑 tsc，诊断注入下一轮上下文
+  acceptance_criteria:
+  - description: 'write 工具执行后对工作区真跑 tsc --noEmit，发现问题活动流报「编辑后发现 N 个问题（首个位置）」并注入本轮上下文（诊断文本含错误码如 TS2322）；修复后诊断清零；模式「诊断」策略默认勾选可逐项关闭；磁盘轨迹 diagnostics 事件带 file/line/column/code/message 明细'
+    id: AC30
+    status: completed
+    verifier: tests/e2e/verify-i19.mjs（6 项断言全 PASS：坏文件写入→TS2322@broken.ts 注入第 2 轮请求体→修复写盘→诊断清零，轨迹 diagnostics×2 明细落盘）+ evidence/AC30
+  e2e_report: evidence/AC30/verify-i19-report.json (6 项断言全 PASS)
+iteration_22:
+  scope: 本地小模型路由（AC31）——简单任务走本地 keyless provider，复杂/手动/停用回退模式绑定
+  acceptance_criteria:
+  - description: 'task-router 复杂度评分（关键词 + 范围），设置·通用「本地小模型路由」区配置 enabled/localProviderId/阈值热持久化 routing.local；评分 < 阈值 routed=local 走本地 provider，≥ 阈值 routed=complex 走模式绑定；enabled=false → disabled 回退；对话手动选模型 → manual 跳过自动路由；活动流路由行 + 磁盘轨迹 route 事件（score/threshold/reasons/providerId）可审计'
+    id: AC31
+    status: completed
+    verifier: tests/e2e/verify-i20.mjs（12 项断言全 PASS：双端点计数证明 local/complex/disabled/manual 四态命中，轨迹 route×4 明细逐项落盘）+ tests/routing.test.ts + agent-runtime/tests/task-router.test.ts + evidence/AC31
+  notes: 每次 run 先记 route 事件（路由决策可审计）——verify-i6 轨迹断言同步剔除 route 后校验核心序列
+  e2e_report: evidence/AC31/verify-i20-report.json (12 项断言全 PASS)
+iteration_23:
+  scope: 工作流记忆（AC32）——成功任务轨迹沉淀为可复用工作流模板，相似任务注入建议
+  acceptance_criteria:
+  - description: 'workflow-memory：成功完成任务（有工具调用）沉淀模板（intent/modeId/tools/learnedAt/reuseCount）持久化 settings workflow.memory.templates；新任务意图相似（共享关键词）时注入 workflow 类型 ContextItem（标注「建议，非指令」），复用后 reuseCount+1 且落 lastReuseAt；设置·通用「工作流记忆」区开关热生效 + 模板逐条删除；磁盘轨迹 workflow 事件（phase=reuse，templateId/shared/reuseCount）可审计；停用后不学习不匹配'
+    id: AC32
+    status: completed
+    verifier: tests/e2e/verify-i21.mjs（12 项断言全 PASS：任务1沉淀模板→任务2命中复用行 + 请求体含建议项→reuseCount 0→1→manifest workflow 项 enabled+token 精确→设置 UI 删除/停用后零沉淀零匹配）+ agent-runtime/tests/workflow-memory.test.ts + evidence/AC32
+  e2e_report: evidence/AC32/verify-i21-report.json (12 项断言全 PASS)
+iteration_24:
+  scope: 模式运行统计与推荐（AC33）——成功率驱动相似任务模式切换建议，用户显式采纳
+  acceptance_criteria:
+  - description: 'ModeStatsTracker：completed 记成功、error 记失败（cancelled/max iterations/aborted 不定级）持久化 settings mode.stats；工作流命中且候选模式定级数 ≥3 且成功率高于当前 → 活动流「模式推荐」行（候选/成功率/定级数/当前 + 模板意图）+ 一键切换按钮；采纳后行转「已采纳」面板模式热切换，后续消息按新模式定级；设置·模式分区行内显示「成功率 X%（n/n 次定级）」；磁盘轨迹 mode_recommend 事件明细可审计'
+    id: AC33
+    status: completed
+    verifier: tests/e2e/verify-i22.mjs（16 项断言全 PASS：门槛闸 <3 不推荐→agent 3/3 后 chat 相似任务出推荐行→采纳闭环切换→agent 4/4 chat 停留 2/2→设置行内成功率）+ tests/mode-stats.test.ts + agent-runtime/tests/mode-stats.test.ts + evidence/AC33
+  e2e_report: evidence/AC33/verify-i22-report.json (16 项断言全 PASS)
+iteration_25:
+  scope: 社区 MCP 服务器索引（AC34）——社区索引扩展 mcpServers 段，一键导入热启动
+  acceptance_criteria:
+  - description: 'packages/mcp/community.ts：与社区模式同一索引信封（kind=devwit-modes-index）解析 mcpServers 段（file/name/description/author/tools 预告）；服务器文件 kind=devwit-mcp-server 校验（版本/kind/schema 非法均抛 DW_MCP_* ASCII 错误码）；materializeMcpImport 生成新 id 负载保真；IPC McpCommunityList/Import 双通道，导入即 upsert 热启动聚合工具'
+    id: AC34
+    status: completed
+    verifier: packages/mcp/tests/community.test.ts（14 项：解析/路径穿越防护/信封与负载校验/id 生成）+ tests/e2e/verify-i23.mjs（导入 fake-mcp-server 真实 stdio 启动 → ready + 工具 3 个聚合全名可见）
+  - description: '设置·MCP 分区「社区 MCP 服务器」区：索引加载 → 条目（名称 + 作者 + 预告工具数）渲染 → 一键导入热启动 → 结果直接入表单；已导入条目按钮置 disabled 显示「已导入」（按显示名归并）；删除本地服务器社区行恢复「导入」；索引源 500 状态行本地化报错；i18n 新增 mcp.community.* 9 键 + err.mcpIndex*/mcpServer* 10 键（中英同型）'
+    id: AC34
+    status: completed
+    verifier: tests/e2e/verify-i23.mjs（全部断言 PASS：条目渲染/导入新 id 负载保真/ready+3 工具/表单回填/已导入归并/删除恢复/500 报错截图）+ evidence/AC34
+  notes: 官方索引仓库 distribution/community-modes/index.json 增 mcpServers 段（filesystem/fetch 两示例条目 + mcp/*.json 服务器文件）；contracts 增 CommunityMcpEntry 与 IPC 双通道
+  e2e_report: evidence/AC34/verify-i23-report.json (全部断言 PASS)
 status: complete
-updated_at: '2026-07-25T09:45:00.000000'
+updated_at: '2026-07-25T15:40:00.000000'
