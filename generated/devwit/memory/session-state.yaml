@@ -448,5 +448,22 @@ iteration_25:
     verifier: tests/e2e/verify-i23.mjs（全部断言 PASS：条目渲染/导入新 id 负载保真/ready+3 工具/表单回填/已导入归并/删除恢复/500 报错截图）+ evidence/AC34
   notes: 官方索引仓库 distribution/community-modes/index.json 增 mcpServers 段（filesystem/fetch 两示例条目 + mcp/*.json 服务器文件）；contracts 增 CommunityMcpEntry 与 IPC 双通道
   e2e_report: evidence/AC34/verify-i23-report.json (全部断言 PASS)
+iteration_26:
+  scope: Token 用量可观测（AC35）——provider usage 帧真实计量，跨迭代/编排求和，账本落盘 + 聚合 IPC + 设置区可视化
+  acceptance_criteria:
+  - description: '真实计量：provider SSE usage 帧（openai stream_options.include_usage 末尾统计帧 / anthropic message_delta usage）经 llm-providers 解析为 usage 事件；agent-loop 跨迭代求和（TokenUsage input/output），编排路径 Planner + 各子 Agent + 综合三路求和；AgentRunResult.usage 仅在 provider 真实回报时存在（未回报不计入）'
+    id: AC35
+    status: completed
+    verifier: agent-runtime/tests/agent-loop.test.ts + tests/ai-runtime-trace.test.ts（AC35×2：跨迭代求和落账本 + 未回报不入账）+ tests/e2e/verify-i24.mjs（24 项断言全 PASS）
+  - description: 'UsageStore append-only 账本 userData/usage.jsonl（UsageRecord: ts/sessionId/modeId/providerId/model/双 token/finishReason）；summary 聚合 total/today（本地日期键）/byMode/byProvider；坏行容忍跳过；clear 删账本不动会话轨迹（审计隔离）；IPC usage:summary/usage:clear 白名单注册'
+    id: AC35
+    status: completed
+    verifier: tests/usage-store.test.ts（空账本/跨天聚合/坏行容忍/清零）+ tests/ipc-whitelist.test.ts + evidence/AC35/usage-ledger.json + usage-summary.json
+  - description: 'UI 可视化：活动流/对话面板「用量」行先于完成行渲染（dw-act-usage/dw-msg-usage，与上下文面板 manifest 估算互补）；设置·通用分区「用量统计」区今日/累计/按模式（用户改名优先）/按服务商四组行 + 刷新/清零按钮；清零后空态 + summary 归零；i18n 新增 act.usage*/settings.usage.* 11 键（中英同型）'
+    id: AC35
+    status: completed
+    verifier: tests/e2e/verify-i24.mjs（24 项断言全 PASS：chat 50/6 + agent 求和 100/20 行先于完成行，账本 2 条明细，轨迹 usage×2 先于 done，summary total/today 150/26·2 byMode/byProvider 分布，设置区渲染截图，清零闭环轨迹保留）+ evidence/AC35
+  notes: verify-i6 核心序列断言同步剔除 usage（同 AC31 route：附加观测事件不改变对话核心序列）；contracts 增 UsageRecord/UsageSummary 与 IPC 双通道 + AgentTraceEventType "usage"
+  e2e_report: evidence/AC35/verify-i24-report.json (24 项断言全 PASS)
 status: complete
-updated_at: '2026-07-25T15:40:00.000000'
+updated_at: '2026-07-25T18:45:00.000000'
