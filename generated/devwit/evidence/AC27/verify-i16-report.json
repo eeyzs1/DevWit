@@ -1,0 +1,33 @@
+{
+  "steps": [
+    "本地端点就绪 http://127.0.0.1:57758/v1（/models + /chat/completions，记录 authorization 头）",
+    "首启向导自动弹出：标题 + 三步进度指示就绪",
+    "语言步：English 热生效（截图 01）→ 切回中文并持久化",
+    "模型步：默认 Ollama + 改指本地端点 + 探测成功自动填型号（截图 02），零 authorization 头",
+    "保存并继续 → 完成步：keyless provider 持久化，凭证存储零写入（截图 03）",
+    "完成步「打开文件夹」→ 文件树就绪，向导关闭（截图 04）",
+    "真实对话完成：向导配置即刻可用（截图 05），服务端确认零 authorization 头",
+    "同 userData 重启：向导缺席（completed 持久化生效，截图 06）"
+  ],
+  "assertions": [
+    "首启应弹出中文向导（实际标题: 首次运行向导）",
+    "进度指示应含 语言/模型/完成 三步（实际: 1. 语言2. 模型3. 完成）",
+    "切英文后主按钮应为 Next（实际: Next）",
+    "语言选择应持久化 ui.locale=zh-CN（实际: zh-CN）",
+    "模型步应默认选中首项预设 Ollama（实际: ollama）",
+    "Ollama baseUrl 应自动填充（实际: http://localhost:11434/v1）",
+    "keyless 预设下 API Key 行应隐藏",
+    "探测成功应显示型号数（实际: 连接成功 · 发现 2 个模型）",
+    "型号应自动填首个发现型号 qwen3:8b（实际: qwen3:8b）",
+    "datalist 应回填 2 个真实型号（实际: 2）",
+    "keyless 探测不应携带 authorization 头: [{\"method\":\"GET\",\"url\":\"/v1/models\",\"authorization\":null}]",
+    "保存后应有 1 个 provider（实际: 1）",
+    "provider 持久化应为 keyless + 本地端点 + qwen3:8b（实际: {\"id\":\"p-mrzovute\",\"type\":\"openai\",\"label\":\"Ollama\",\"baseUrl\":\"http://127.0.0.1:57758/v1\",\"model\":\"qwen3:8b\",\"credentialRef\":\"cred-p-mrzovute\",\"maxTokens\":4096,\"keyless\":true}）",
+    "keyless 保存不应写入任何凭证",
+    "打开文件夹后向导应关闭",
+    "向导配置的 provider 对话不应携带 authorization 头: [{\"method\":\"POST\",\"url\":\"/v1/chat/completions\",\"authorization\":null}]",
+    "onboarding.state.completed 应为 true（实际: {\"completed\":true}）",
+    "同 userData 重启后向导不应再出现"
+  ],
+  "failures": []
+}

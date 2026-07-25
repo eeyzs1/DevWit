@@ -23,6 +23,7 @@ import {
 } from "@devwit/chat-ui";
 import { openSettingsDialog, type SettingsDialogDeps } from "./settings-dialog.js";
 import { openEditorSetupDialog } from "./editor-setup-dialog.js";
+import { openOnboardingWizard } from "./onboarding-wizard.js";
 import "./app.css";
 
 declare global {
@@ -207,10 +208,19 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   });
 
   // ---- 统一设置页（AC12）：通用 / 模型 / 编辑器 / 模式 ----
+  /** 首次运行向导（迭代 18 / AC27）：设置页「重跑向导」与首启自动弹出共用入口。 */
+  function launchWizard(): void {
+    openOnboardingWizard({
+      api,
+      onProvidersChanged: () => void reloadProviders(),
+      onOpenFolder: () => openWorkspace(),
+    });
+  }
   const settingsDeps: SettingsDialogDeps = {
     api,
     onProvidersChanged: () => void reloadProviders(),
     onModesChanged: () => void reloadModes(),
+    onRerunWizard: () => launchWizard(),
   };
 
   // ---- 外部编辑器（AC10 + 迭代 4：未配置弹引导小页，错误文案本地化）----
@@ -777,6 +787,19 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   }
   onDidChangeLocale(applyLocale);
   applyLocale();
+
+  // ---- 首启触发向导（迭代 18 / AC27）：无模型配置且向导未完成时弹出 ----
+  void (async () => {
+    const state = (await api.settings.get("onboarding.state")) as { completed?: boolean } | null;
+    if (state?.completed === true) return;
+    const configured = await api.providers.list();
+    if (configured.length > 0) {
+      // 老用户升级：已有模型配置，静默标记完成，不打扰现有工作流
+      void api.settings.set("onboarding.state", { completed: true });
+      return;
+    }
+    launchWizard();
+  })();
 }
 
 window.addEventListener("DOMContentLoaded", () => {

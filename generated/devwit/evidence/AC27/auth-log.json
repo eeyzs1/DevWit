@@ -1,0 +1,12 @@
+[
+  {
+    "method": "GET",
+    "url": "/v1/models",
+    "authorization": null
+  },
+  {
+    "method": "POST",
+    "url": "/v1/chat/completions",
+    "authorization": null
+  }
+]

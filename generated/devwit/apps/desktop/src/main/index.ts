@@ -59,6 +59,16 @@ app.whenReady().then(() => {
   }
 
   const settings = new SettingsStore(new SafeStorageBackend(), app.getPath("userData"));
+
+  // E2E 钩子（迭代 18 / AC27）：隔离 userData 环境默认抑制首跑向导——否则向导遮罩
+  // 会挡住既有自动化套件的首击目标；向导自身的 e2e 以 DEVWIT_E2E_WIZARD=1 显式开启。
+  // 生产启动两个变量都不设置，向导按 onboarding.state 正常判定。
+  if (e2eUserData !== undefined && e2eUserData !== "" && process.env.DEVWIT_E2E_WIZARD !== "1") {
+    if (settings.get("onboarding.state") === undefined) {
+      settings.set("onboarding.state", { completed: true });
+    }
+  }
+
   workspace = new WorkspaceService();
   terminal = new TerminalService();
 

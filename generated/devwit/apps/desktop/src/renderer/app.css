@@ -920,6 +920,32 @@ body,
   font-size: 15px;
 }
 
+/* ---- 首次运行向导（迭代 18 / AC27） ---- */
+.dw-wizard {
+  width: 520px;
+}
+
+.dw-wizard-progress {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.dw-wizard-step {
+  color: var(--dw-fg-dim);
+}
+
+.dw-wizard-step-active {
+  color: var(--dw-fg);
+  font-weight: 600;
+}
+
+.dw-wizard-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .dw-modal-list {
   display: flex;
   flex-direction: column;

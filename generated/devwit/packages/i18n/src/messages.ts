@@ -40,6 +40,23 @@ const zhCN = {
     "审查这个项目里最大的文件，给出简化方案",
   ],
 
+  // ---- 首次运行向导（迭代 18 / AC27）----
+  "wizard.title": "首次运行向导",
+  "wizard.step.lang": "语言",
+  "wizard.step.provider": "模型",
+  "wizard.step.done": "完成",
+  "wizard.welcome.body":
+    "DevWit 是免费开源的 AI 原生 IDE：你描述意图，Agent 规划并交付可审查的修改。三步完成初始配置——语言、模型、项目。",
+  "wizard.next": "下一步",
+  "wizard.back": "上一步",
+  "wizard.skip": "跳过向导",
+  "wizard.provider.hint":
+    "推荐 Ollama 本地预设：免费、无需 API Key。选中后点「测试连接」自动发现型号；其他服务可稍后在 设置 → 模型 中接入。",
+  "wizard.provider.saveNext": "保存并继续",
+  "wizard.done.body": "模型已就绪。打开你的项目文件夹，开始第一次 AI 编程。",
+  "wizard.done.openFolder": "打开文件夹",
+  "wizard.done.start": "先逛逛",
+
   // ---- 页签 ----
   "tab.chat": "对话",
   "tab.context": "上下文",
@@ -79,6 +96,8 @@ const zhCN = {
   "settings.general.language": "界面语言",
   "settings.general.language.system": "跟随系统",
   "settings.general.language.hint": "切换后立即生效并持久化保存，无需重启。「跟随系统」：系统为中文时用中文，否则用英文。",
+  "settings.general.wizard": "新手向导",
+  "settings.general.wizard.rerun": "重新运行首次运行向导",
 
   // ---- 设置 · 通用 / 自动更新（AC16）----
   "settings.general.update": "应用更新",
@@ -345,6 +364,22 @@ const enUS: Messages = {
     "Review the largest file in this project and propose simplifications",
   ],
 
+  "wizard.title": "First-Run Wizard",
+  "wizard.step.lang": "Language",
+  "wizard.step.provider": "Model",
+  "wizard.step.done": "Done",
+  "wizard.welcome.body":
+    "DevWit is a free, open-source AI-native IDE: you describe the intent; the Agent plans and delivers reviewable changes. Three steps to get started — language, model, project.",
+  "wizard.next": "Next",
+  "wizard.back": "Back",
+  "wizard.skip": "Skip wizard",
+  "wizard.provider.hint":
+    "Recommended: the Ollama local preset — free, no API key. Click \"Test connection\" to auto-discover models; other services can be added later in Settings → Models.",
+  "wizard.provider.saveNext": "Save & continue",
+  "wizard.done.body": "Your model is ready. Open your project folder and start your first AI coding session.",
+  "wizard.done.openFolder": "Open folder",
+  "wizard.done.start": "Look around first",
+
   "tab.chat": "Chat",
   "tab.context": "Context",
   "tab.code": "Code",
@@ -381,6 +416,8 @@ const enUS: Messages = {
   "settings.general.language.system": "Follow System",
   "settings.general.language.hint":
     "Applies immediately and is persisted; no restart needed. Follow System: Chinese for Chinese systems, English otherwise.",
+  "settings.general.wizard": "First-run wizard",
+  "settings.general.wizard.rerun": "Rerun first-run wizard",
 
   "settings.general.update": "App updates",
   "settings.general.update.check": "Check for updates",

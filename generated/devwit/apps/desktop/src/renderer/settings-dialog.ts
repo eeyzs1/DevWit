@@ -40,6 +40,8 @@ export interface SettingsDialogDeps {
   onProvidersChanged: () => void;
   /** modes 保存/删除成功后回调。 */
   onModesChanged: () => void;
+  /** 迭代 18 / AC27：通用分区「重跑首次运行向导」入口（可选——未接线时按钮不渲染）。 */
+  onRerunWizard?: () => void;
 }
 
 /** t() 的键类型（仅 string 文案；数组文案走 ta()）。 */
@@ -315,6 +317,15 @@ function renderGeneral(
   });
 
   form.append(label, select, hint, updateLabel, updateRow, updateHint, ragLabel, ragRow, ragActions, ragHint);
+
+  // ---- 首次运行向导（迭代 18 / AC27）：允许随时重跑（如换机/重装后引导同伴）----
+  if (deps.onRerunWizard !== undefined) {
+    const rerun = deps.onRerunWizard;
+    const wizardLabel = el("label", undefined, t("settings.general.wizard"));
+    const wizardBtn = el("button", "dw-btn", t("settings.general.wizard.rerun"));
+    wizardBtn.addEventListener("click", () => rerun());
+    form.append(wizardLabel, wizardBtn);
+  }
   content.appendChild(form);
 }
 

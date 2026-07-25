@@ -1,0 +1,9 @@
+迭代 18（AC27 首次运行向导）验证：
+1. 全新 userData 首启向导自动弹出：标题 + 语言/模型/完成三步进度指示（DEVWIT_E2E_WIZARD=1 开启，其余套件默认抑制）。
+2. 语言步：切 English 热生效（标题 First-Run Wizard / 按钮 Next，截图 01）→ 切回中文并持久化 ui.locale。
+3. 模型步：默认选中首项预设 Ollama，baseUrl 自动填充 11434、API Key 行隐藏；改指本地端点后「测试连接」成功——状态行型号数、datalist 回填 2 型号、自动填 qwen3:8b（截图 02）；服务端确认 keyless 探测零 authorization 头。
+4. 保存并继续 → 完成步：provider 持久化 keyless=true + 本地端点 + qwen3:8b，凭证存储零写入（截图 03）。
+5. 完成步「打开文件夹」→ 文件树就绪、向导关闭（截图 04）。
+6. 真实对话：向导配置的 provider 即刻可用，SSE 应答渲染，服务端确认零 authorization 头（截图 05）。
+7. 同 userData 重启：向导缺席（onboarding.state.completed 持久化，截图 06）；auth-log.json 落盘。
+断言通过 18 项，失败 0 项。

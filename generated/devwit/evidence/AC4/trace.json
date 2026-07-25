@@ -1,8 +1,8 @@
 [
   {
     "seq": 1,
-    "timestamp": "2026-07-25T00:46:15.382Z",
-    "sessionId": "session-1784940374699",
+    "timestamp": "2026-07-25T01:26:47.365Z",
+    "sessionId": "session-1784942806746",
     "type": "user_message",
     "summary": "你好",
     "detail": {
@@ -11,15 +11,15 @@
   },
   {
     "seq": 0,
-    "timestamp": "2026-07-25T00:46:15.474Z",
-    "sessionId": "session-1784940374699",
+    "timestamp": "2026-07-25T01:26:47.444Z",
+    "sessionId": "session-1784942806746",
     "type": "assistant_delta",
     "summary": "你好！我是 DevWit，简洁上下文的 AI 编程助手。"
   },
   {
     "seq": 2,
-    "timestamp": "2026-07-25T00:46:15.594Z",
-    "sessionId": "session-1784940374699",
+    "timestamp": "2026-07-25T01:26:47.546Z",
+    "sessionId": "session-1784942806746",
     "type": "assistant_message",
     "summary": "你好！我是 DevWit，简洁上下文的 AI 编程助手。",
     "detail": {
@@ -28,15 +28,15 @@
   },
   {
     "seq": 3,
-    "timestamp": "2026-07-25T00:46:15.594Z",
-    "sessionId": "session-1784940374699",
+    "timestamp": "2026-07-25T01:26:47.547Z",
+    "sessionId": "session-1784942806746",
     "type": "done",
     "summary": "任务完成"
   },
   {
     "seq": 4,
-    "timestamp": "2026-07-25T00:46:15.816Z",
-    "sessionId": "session-1784940374699",
+    "timestamp": "2026-07-25T01:26:47.792Z",
+    "sessionId": "session-1784942806746",
     "type": "user_message",
     "summary": "请把 hello.txt 加一行",
     "detail": {
@@ -45,15 +45,15 @@
   },
   {
     "seq": 0,
-    "timestamp": "2026-07-25T00:46:15.854Z",
-    "sessionId": "session-1784940374699",
+    "timestamp": "2026-07-25T01:26:47.837Z",
+    "sessionId": "session-1784942806746",
     "type": "assistant_delta",
     "summary": "这是修改后的 hello.txt：\n\n```\nE2E hello devwit\nline2\nadded by agent proposal\n```"
   },
   {
     "seq": 5,
-    "timestamp": "2026-07-25T00:46:15.969Z",
-    "sessionId": "session-1784940374699",
+    "timestamp": "2026-07-25T01:26:47.949Z",
+    "sessionId": "session-1784942806746",
     "type": "assistant_message",
     "summary": "这是修改后的 hello.txt：\n\n```\nE2E hello devwit\nline2\nadded by agent proposal\n```",
     "detail": {
@@ -62,15 +62,15 @@
   },
   {
     "seq": 6,
-    "timestamp": "2026-07-25T00:46:15.970Z",
-    "sessionId": "session-1784940374699",
+    "timestamp": "2026-07-25T01:26:47.949Z",
+    "sessionId": "session-1784942806746",
     "type": "done",
     "summary": "任务完成"
   },
   {
     "seq": 7,
-    "timestamp": "2026-07-25T00:46:16.242Z",
-    "sessionId": "session-1784940374699",
+    "timestamp": "2026-07-25T01:26:48.222Z",
+    "sessionId": "session-1784942806746",
     "type": "user_message",
     "summary": "创建文件 agent-created.txt",
     "detail": {
@@ -79,8 +79,8 @@
   },
   {
     "seq": 8,
-    "timestamp": "2026-07-25T00:46:16.386Z",
-    "sessionId": "session-1784940374699",
+    "timestamp": "2026-07-25T01:26:48.371Z",
+    "sessionId": "session-1784942806746",
     "type": "assistant_message",
     "summary": "（发起 1 个工具调用）",
     "detail": {
@@ -99,8 +99,8 @@
   },
   {
     "seq": 9,
-    "timestamp": "2026-07-25T00:46:16.387Z",
-    "sessionId": "session-1784940374699",
+    "timestamp": "2026-07-25T01:26:48.372Z",
+    "sessionId": "session-1784942806746",
     "type": "tool_call",
     "summary": "write({\"path\":\"agent-created.txt\",\"content\":\"created by devwit agent\\n\"})",
     "detail": {
@@ -112,12 +112,12 @@
   },
   {
     "seq": 10,
-    "timestamp": "2026-07-25T00:46:16.387Z",
-    "sessionId": "session-1784940374699",
+    "timestamp": "2026-07-25T01:26:48.372Z",
+    "sessionId": "session-1784942806746",
     "type": "authorization_request",
     "summary": "write: 写入文件: agent-created.txt",
     "detail": {
-      "requestId": "auth-438d71b5-16a4-40e4-a61c-5eec3494e5f1",
+      "requestId": "auth-ab04631d-0c2a-4f2d-aa7a-47efe0bb21d2",
       "toolName": "write",
       "args": {
         "path": "agent-created.txt",
@@ -128,19 +128,19 @@
   },
   {
     "seq": 11,
-    "timestamp": "2026-07-25T00:46:16.534Z",
-    "sessionId": "session-1784940374699",
+    "timestamp": "2026-07-25T01:26:48.522Z",
+    "sessionId": "session-1784942806746",
     "type": "authorization_decision",
     "summary": "write → allow",
     "detail": {
-      "requestId": "auth-438d71b5-16a4-40e4-a61c-5eec3494e5f1",
+      "requestId": "auth-ab04631d-0c2a-4f2d-aa7a-47efe0bb21d2",
       "decision": "allow"
     }
   },
   {
     "seq": 12,
-    "timestamp": "2026-07-25T00:46:16.537Z",
-    "sessionId": "session-1784940374699",
+    "timestamp": "2026-07-25T01:26:48.525Z",
+    "sessionId": "session-1784942806746",
     "type": "tool_result",
     "summary": "write 成功",
     "detail": {
