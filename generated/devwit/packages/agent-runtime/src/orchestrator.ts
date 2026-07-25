@@ -9,7 +9,7 @@ import type {
   ToolResult,
 } from "@devwit/contracts";
 import type { ContextEngine } from "@devwit/context-engine";
-import { AgentLoop, type AgentRunResult } from "./agent-loop.js";
+import { AgentLoop, type AgentRunResult, type TokenUsage } from "./agent-loop.js";
 import { Authorizer } from "./authorizer.js";
 import type { DiagnosticsTracker } from "./diagnostics.js";
 import { AgentTrace } from "./trace.js";
@@ -119,20 +119,29 @@ async function collectText(
   provider: LLMProvider,
   messages: ChatMessage[],
   signal?: AbortSignal
-): Promise<{ text: string; error: string | null; cancelled: boolean }> {
+): Promise<{ text: string; error: string | null; cancelled: boolean; usage: TokenUsage | null }> {
   let text = "";
   let error: string | null = null;
   let cancelled = false;
+  // AC35：Planner 调用的真实用量（聚合进编排总量）——数字累加（与 agent-loop 同模式）
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let sawUsage = false;
   try {
     for await (const event of provider.streamChat(messages, [], signal)) {
       if (event.type === "text") text += event.text;
       else if (event.type === "error") error = event.error;
       else if (event.type === "done") cancelled = event.stopReason === "cancelled";
+      else if (event.type === "usage") {
+        sawUsage = true;
+        inputTokens += event.inputTokens;
+        outputTokens += event.outputTokens;
+      }
     }
   } catch (err) {
     if (!signal?.aborted) error = err instanceof Error ? err.message : String(err);
   }
-  return { text, error, cancelled };
+  return { text, error, cancelled, usage: sawUsage ? { inputTokens, outputTokens } : null };
 }
 
 /**
@@ -166,17 +175,36 @@ export class AgentOrchestrator {
     this.lastRunTrace = trace;
     const maxSubAgents = this.deps.maxSubAgents ?? DEFAULT_MAX_SUB_AGENTS;
     trace.record("user_message", input.userText, { text: input.userText });
+    // AC35：编排总量 = Planner + 各子 Agent + 综合 的真实 usage 求和
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let sawUsage = false;
+    const addUsage = (usage: TokenUsage | null | undefined): void => {
+      if (usage === null || usage === undefined) return;
+      sawUsage = true;
+      inputTokens += usage.inputTokens;
+      outputTokens += usage.outputTokens;
+    };
+    const usagePart = (): { usage?: TokenUsage } =>
+      sawUsage ? { usage: { inputTokens, outputTokens } } : {};
+    const recordUsage = (): void => {
+      if (!sawUsage) return;
+      trace.record("usage", `usage: in ${inputTokens} / out ${outputTokens}（含 Planner/子 Agent/综合）`, { inputTokens, outputTokens });
+    };
 
     // ---- 阶段 1：Planner 分解 ------------------------------------------------
     const plan = await this.plan(input.userText, maxSubAgents, signal);
+    addUsage(plan.usage);
     if (signal?.aborted) {
       this.authorizer.denyAllPending();
+      recordUsage();
       trace.record("done", "会话已取消");
-      return { finishReason: "cancelled", finalText: "", iterations: 0 };
+      return { finishReason: "cancelled", finalText: "", iterations: 0, ...usagePart() };
     }
     if (plan.error !== null) {
+      recordUsage();
       trace.record("error", plan.error);
-      return { finishReason: "error", finalText: "", iterations: 0, errorMessage: plan.error };
+      return { finishReason: "error", finalText: "", iterations: 0, errorMessage: plan.error, ...usagePart() };
     }
     const subtasks: SubTask[] = plan.tasks.map((task, index) => ({
       id: `S${index + 1}`,
@@ -193,26 +221,32 @@ export class AgentOrchestrator {
     const results = await mapWithConcurrency(subtasks, this.deps.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY, (task) =>
       this.runSubAgent(task, input, trace, signal)
     );
+    for (const result of results) addUsage(result.usage);
 
     if (signal?.aborted) {
       this.authorizer.denyAllPending();
+      recordUsage();
       trace.record("done", "会话已取消");
-      return { finishReason: "cancelled", finalText: "", iterations: 0 };
+      return { finishReason: "cancelled", finalText: "", iterations: 0, ...usagePart() };
     }
 
     // ---- 阶段 3：综合 ---------------------------------------------------------
     const synthesis = await this.synthesize(input, subtasks, results, priorHistory, trace, signal);
+    addUsage(synthesis.usage);
     if (synthesis.cancelled || signal?.aborted) {
       this.authorizer.denyAllPending();
+      recordUsage();
       trace.record("done", "会话已取消");
-      return { finishReason: "cancelled", finalText: synthesis.text, iterations: 0 };
+      return { finishReason: "cancelled", finalText: synthesis.text, iterations: 0, ...usagePart() };
     }
     if (synthesis.error !== null) {
+      recordUsage();
       trace.record("error", synthesis.error);
-      return { finishReason: "error", finalText: synthesis.text, iterations: 0, errorMessage: synthesis.error };
+      return { finishReason: "error", finalText: synthesis.text, iterations: 0, errorMessage: synthesis.error, ...usagePart() };
     }
+    recordUsage();
     trace.record("done", `任务完成（${subtasks.length} 个子任务）`);
-    return { finishReason: "completed", finalText: synthesis.text, iterations: 0 };
+    return { finishReason: "completed", finalText: synthesis.text, iterations: 0, ...usagePart() };
   }
 
   /** Planner 调用：分解失败（流错误/解析失败/空列表）时退化为单任务并标记 fallback。 */
@@ -220,19 +254,19 @@ export class AgentOrchestrator {
     intent: string,
     maxSubAgents: number,
     signal?: AbortSignal
-  ): Promise<{ tasks: PlannedTask[]; fallback: boolean; error: string | null }> {
+  ): Promise<{ tasks: PlannedTask[]; fallback: boolean; error: string | null; usage: TokenUsage | null }> {
     const messages: ChatMessage[] = [
       { role: "system", content: PLANNER_SYSTEM_PROMPT },
       { role: "user", content: `用户意图：${intent}\n\n请分解为不超过 ${maxSubAgents} 个子任务。` },
     ];
     const outcome = await collectText(this.deps.provider, messages, signal);
-    if (outcome.cancelled) return { tasks: [], fallback: false, error: null };
+    if (outcome.cancelled) return { tasks: [], fallback: false, error: null, usage: outcome.usage };
     const parsed = outcome.error === null ? parsePlannedTasks(outcome.text) : null;
     if (parsed === null) {
       // 退化透明：plan 事件 fallback=true，单任务即原始意图全文
-      return { tasks: [{ title: intent.length > 24 ? `${intent.slice(0, 24)}…` : intent, prompt: intent }], fallback: true, error: null };
+      return { tasks: [{ title: intent.length > 24 ? `${intent.slice(0, 24)}…` : intent, prompt: intent }], fallback: true, error: null, usage: outcome.usage };
     }
-    return { tasks: parsed.slice(0, maxSubAgents), fallback: false, error: null };
+    return { tasks: parsed.slice(0, maxSubAgents), fallback: false, error: null, usage: outcome.usage };
   }
 
   /** 单个子 Agent：子轨迹事件转发进父轨迹（summary 前缀 + detail.subagentId 标记）。 */
@@ -298,7 +332,7 @@ export class AgentOrchestrator {
     priorHistory: ChatMessage[] | undefined,
     trace: AgentTrace,
     signal?: AbortSignal
-  ): Promise<{ text: string; error: string | null; cancelled: boolean }> {
+  ): Promise<{ text: string; error: string | null; cancelled: boolean; usage: TokenUsage | null }> {
     const sections = subtasks.map((task, index) => {
       const result = results[index]!;
       const conclusion = result.finalText.length > 0 ? result.finalText : "(无文本结论)";
@@ -316,6 +350,10 @@ export class AgentOrchestrator {
     let text = "";
     let error: string | null = null;
     let cancelled = false;
+    // AC35：综合调用的真实用量（聚合进编排总量）——数字累加（与 agent-loop 同模式）
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let sawUsage = false;
     try {
       for await (const event of this.deps.provider.streamChat(messages, [], signal)) {
         switch (event.type) {
@@ -329,6 +367,11 @@ export class AgentOrchestrator {
           case "done":
             cancelled = event.stopReason === "cancelled";
             break;
+          case "usage":
+            sawUsage = true;
+            inputTokens += event.inputTokens;
+            outputTokens += event.outputTokens;
+            break;
           default:
             break;
         }
@@ -339,6 +382,6 @@ export class AgentOrchestrator {
     if (text.length > 0) {
       trace.record("assistant_message", text, { text });
     }
-    return { text, error, cancelled };
+    return { text, error, cancelled, usage: sawUsage ? { inputTokens, outputTokens } : null };
   }
 }

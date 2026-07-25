@@ -195,4 +195,64 @@ describe("AiRuntime 轨迹持久化（AC15）", () => {
     expect(restored?.providerId).toBe("p-test");
     expect(restored?.builtin).toBe(true);
   });
+
+  it("AC35：usage 帧跨迭代求和落账本，summary 聚合、轨迹含 usage 事件，clear 清零", async () => {
+    // 两轮迭代：read 工具回填后再应答，两次 usage 帧应求和（40+60 / 15+5）
+    const provider = new ScriptedProvider([
+      [
+        { type: "tool_call", toolCall: { id: "t1", name: "read", args: { path: "a.txt" } } },
+        { type: "usage", inputTokens: 40, outputTokens: 15 },
+        { type: "done", stopReason: "tool_use" },
+      ],
+      [
+        { type: "text", text: "读完。" },
+        { type: "usage", inputTokens: 60, outputTokens: 5 },
+        { type: "done", stopReason: "end_turn" },
+      ],
+    ]);
+    const { runtime } = makeRuntime(provider);
+    await runtime.run({
+      sessionId: "s-u1",
+      userText: "读文件",
+      modeId: "agent",
+      providerId: "p-test",
+      workspaceRoot: tmpRoot,
+    });
+
+    // 账本回环：usageSummary 聚合出本次 run 的求和量（providerId/model 取自 provider config）
+    const summary = runtime.usageSummary();
+    expect(summary.total).toEqual({ inputTokens: 100, outputTokens: 20, runs: 1 });
+    expect(summary.today).toEqual({ inputTokens: 100, outputTokens: 20, runs: 1 });
+    expect(summary.byMode).toEqual([{ modeId: "agent", inputTokens: 100, outputTokens: 20, runs: 1 }]);
+    expect(summary.byProvider).toEqual([
+      { providerId: "p-test", model: "test-model", inputTokens: 100, outputTokens: 20, runs: 1 },
+    ]);
+
+    // 轨迹含 usage 事件且先于 done（活动流 …→ 用量 → 完成）
+    const types = readTraceFile("s-u1").map((event) => event.type);
+    expect(types).toContain("usage");
+    expect(types.indexOf("usage")).toBeLessThan(types.lastIndexOf("done"));
+
+    // 模拟重启：账本从磁盘读回（与会话轨迹独立的 append-only 文件）
+    const { runtime: runtime2 } = makeRuntime(new ScriptedProvider([]));
+    expect(runtime2.usageSummary().total).toEqual({ inputTokens: 100, outputTokens: 20, runs: 1 });
+
+    // 清零：账本归零且不影响会话轨迹读回
+    runtime2.usageClear();
+    expect(runtime2.usageSummary().total).toEqual({ inputTokens: 0, outputTokens: 0, runs: 0 });
+    expect(runtime2.trace("s-u1").length).toBeGreaterThan(0);
+  });
+
+  it("AC35：provider 未回报 usage 的 run 不计入账本（只收真实计费量）", async () => {
+    const provider = new ScriptedProvider([textThenDone("无用量应答")]);
+    const { runtime } = makeRuntime(provider);
+    await runtime.run({
+      sessionId: "s-u2",
+      userText: "闲聊",
+      modeId: "chat",
+      providerId: "p-test",
+      workspaceRoot: tmpRoot,
+    });
+    expect(runtime.usageSummary().total).toEqual({ inputTokens: 0, outputTokens: 0, runs: 0 });
+  });
 });

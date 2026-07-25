@@ -108,6 +108,10 @@ const api: DevwitApi = {
     communityList: () => ipcRenderer.invoke(IPC.McpCommunityList) as ReturnType<DevwitApi["mcp"]["communityList"]>,
     communityImport: (file) => ipcRenderer.invoke(IPC.McpCommunityImport, file) as ReturnType<DevwitApi["mcp"]["communityImport"]>,
     onChanged: (cb) => subscribe<[]>(IPC.McpChanged, cb)
+  },
+  usage: {
+    summary: () => ipcRenderer.invoke(IPC.UsageSummary) as ReturnType<DevwitApi["usage"]["summary"]>,
+    clear: () => ipcRenderer.invoke(IPC.UsageClear) as Promise<void>
   }
 };
 

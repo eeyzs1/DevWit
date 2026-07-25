@@ -255,6 +255,8 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
     table[IPC.McpDelete] = notWired;
     table[IPC.McpCommunityList] = notWired;
     table[IPC.McpCommunityImport] = notWired;
+    table[IPC.UsageSummary] = notWired;
+    table[IPC.UsageClear] = notWired;
     return;
   }
   table[IPC.AgentRun] = async (_e, input) => ai.run(input as AgentRunInput);
@@ -328,6 +330,11 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
     const config = materializeMcpImport(parsed, { existingIds });
     ai.upsertMcpServer(config);
     return config;
+  };
+  // ---- 用量统计（迭代 26 / AC35）：真实 token 用量的聚合查询与清零 ----
+  table[IPC.UsageSummary] = () => ai.usageSummary();
+  table[IPC.UsageClear] = () => {
+    ai.usageClear();
   };
 }
 

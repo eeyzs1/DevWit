@@ -383,6 +383,20 @@ const zhCN = {
   "act.modeRecommend.switch": "切换到{mode}",
   "act.modeRecommend.switched": "已采纳，后续消息将使用推荐模式",
 
+  // ---- Token 用量可观测（AC35）----
+  "act.usage": "用量",
+  "act.usage.line": "本次真实用量：输入 {input} / 输出 {output} tokens",
+  "settings.usage.title": "用量统计",
+  "settings.usage.today": "今日：输入 {input} / 输出 {output} tokens · {runs} 次计量",
+  "settings.usage.total": "累计：输入 {input} / 输出 {output} tokens · {runs} 次计量",
+  "settings.usage.byMode": "按模式",
+  "settings.usage.byProvider": "按服务商",
+  "settings.usage.row": "{name}：输入 {input} / 输出 {output} · {runs} 次",
+  "settings.usage.empty": "暂无计量——provider 回报 usage 的 run 会自动记录于此。",
+  "settings.usage.refresh": "刷新",
+  "settings.usage.clear": "清零",
+  "settings.usage.hint": "真实 token 用量来自 provider 应答的 usage 帧（一次 run 内跨迭代求和），与上下文面板的估算计数互补。清零只删用量账本，不影响会话轨迹。",
+
   // ---- diff 审查视图（AC3）----
   "diff.title": "变更审查",
   "diff.acceptAll": "全部接受",
@@ -768,6 +782,20 @@ const enUS: Messages = {
   "act.modeRecommend.noData": "no data",
   "act.modeRecommend.switch": "Switch to {mode}",
   "act.modeRecommend.switched": "Adopted — follow-up messages will use the recommended mode",
+
+  // ---- Token usage observability (AC35) ----
+  "act.usage": "Usage",
+  "act.usage.line": "Real usage this run: {input} in / {output} out tokens",
+  "settings.usage.title": "Usage statistics",
+  "settings.usage.today": "Today: {input} in / {output} out tokens · {runs} metered run(s)",
+  "settings.usage.total": "Total: {input} in / {output} out tokens · {runs} metered run(s)",
+  "settings.usage.byMode": "By mode",
+  "settings.usage.byProvider": "By provider",
+  "settings.usage.row": "{name}: {input} in / {output} out · {runs} run(s)",
+  "settings.usage.empty": "Nothing metered yet — runs whose provider reports usage are recorded here automatically.",
+  "settings.usage.refresh": "Refresh",
+  "settings.usage.clear": "Reset",
+  "settings.usage.hint": "Real token usage comes from provider usage frames (summed across iterations within a run), complementing the estimated counts in the context panel. Resetting only clears the usage ledger; session traces are kept.",
 
   "diff.title": "Review Changes",
   "diff.acceptAll": "Accept all",

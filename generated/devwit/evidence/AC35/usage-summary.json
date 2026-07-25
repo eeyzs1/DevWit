@@ -1,0 +1,35 @@
+{
+  "total": {
+    "inputTokens": 150,
+    "outputTokens": 26,
+    "runs": 2
+  },
+  "today": {
+    "inputTokens": 150,
+    "outputTokens": 26,
+    "runs": 2
+  },
+  "byMode": [
+    {
+      "modeId": "chat",
+      "inputTokens": 50,
+      "outputTokens": 6,
+      "runs": 1
+    },
+    {
+      "modeId": "agent",
+      "inputTokens": 100,
+      "outputTokens": 20,
+      "runs": 1
+    }
+  ],
+  "byProvider": [
+    {
+      "providerId": "p-i24",
+      "model": "i24-model",
+      "inputTokens": 150,
+      "outputTokens": 26,
+      "runs": 2
+    }
+  ]
+}

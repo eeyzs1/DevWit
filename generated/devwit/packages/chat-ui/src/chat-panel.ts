@@ -359,6 +359,11 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
             : `[${t("act.subagent")}] ${t("act.subagent.done", { id: item.subagentId, title: item.title, reason: item.finishReason ?? "completed" })}`;
         break;
       }
+      case "usage": {
+        // AC35：真实 token 用量行（与活动流同一组文案键）
+        row.textContent = `[${t("act.usage")}] ${t("act.usage.line", { input: item.inputTokens, output: item.outputTokens })}`;
+        break;
+      }
       case "authorization": {
         const title = document.createElement("div");
         title.textContent = t("chat.auth.request", { reason: item.reason });

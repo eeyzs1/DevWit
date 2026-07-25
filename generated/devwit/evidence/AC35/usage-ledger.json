@@ -1,0 +1,22 @@
+[
+  {
+    "ts": "2026-07-25T18:30:10.031Z",
+    "sessionId": "session-1785004209598",
+    "modeId": "chat",
+    "providerId": "p-i24",
+    "model": "i24-model",
+    "inputTokens": 50,
+    "outputTokens": 6,
+    "finishReason": "completed"
+  },
+  {
+    "ts": "2026-07-25T18:30:10.610Z",
+    "sessionId": "task-session-1785004210177-1",
+    "modeId": "agent",
+    "providerId": "p-i24",
+    "model": "i24-model",
+    "inputTokens": 100,
+    "outputTokens": 20,
+    "finishReason": "completed"
+  }
+]

@@ -1,0 +1,41 @@
+{
+  "steps": [
+    "本地端点就绪 http://127.0.0.1:51192/v1（脚本化 3 请求，usage 帧 50/6、40/15、60/5）",
+    "应用启动 + fixture 工作区打开",
+    "keyless provider 注册 + agent/chat 双模式热绑定",
+    "对话任务：用量行「输入 50 / 输出 6」先于完成行（截图 01）",
+    "指挥台任务：两轮 usage 帧求和 100/20 落活动流（截图 02），write 真实写盘",
+    "账本 2 条明细正确；轨迹 usage×2 均先于 done",
+    "usage.summary 聚合：total/today 150/26·2，byMode/byProvider 分布正确",
+    "设置·通用分区用量统计区：今日/累计/按模式/按服务商渲染（截图 03）",
+    "清零闭环：空态 + summary 归零 + 账本删除 + 会话轨迹保留（截图 04）"
+  ],
+  "assertions": [
+    "对话面板用量行应显示真实用量（实际: [用量] 本次真实用量：输入 50 / 输出 6 tokens）",
+    "用量行应先于完成行（usage@3, done@4）",
+    "agent write 真实写盘（实际: \"第一行\\n第二行\\n\"）",
+    "活动流用量行应显示跨迭代求和 100/20（实际: 用量本次真实用量：输入 100 / 输出 20 tokens）",
+    "usage.jsonl 账本应已落盘",
+    "账本应有 2 条记录（实际: 2）",
+    "chat 记录明细（实际: {\"ts\":\"2026-07-25T18:30:10.031Z\",\"sessionId\":\"session-1785004209598\",\"modeId\":\"chat\",\"providerId\":\"p-i24\",\"model\":\"i24-model\",\"inputTokens\":50,\"outputTokens\":6,\"finishReason\":\"completed\"}）",
+    "agent 记录应为求和量 100/20（实际: {\"ts\":\"2026-07-25T18:30:10.610Z\",\"sessionId\":\"task-session-1785004210177-1\",\"modeId\":\"agent\",\"providerId\":\"p-i24\",\"model\":\"i24-model\",\"inputTokens\":100,\"outputTokens\":20,\"finishReason\":\"completed\"}）",
+    "磁盘轨迹应有 usage×2（实际: 2）",
+    "会话 session-1785004209598 轨迹 usage 应先于 done（实际: route,user_message,assistant_message,usage,done）",
+    "会话 task-session-1785004210177-1 轨迹 usage 应先于 done（实际: route,user_message,assistant_message,tool_call,authorization_request,authorization_decision,tool_result,diagnostics,assistant_message,usage,done）",
+    "summary.total 应为 150/26·2（实际: {\"inputTokens\":150,\"outputTokens\":26,\"runs\":2}）",
+    "summary.today 应为 150/26·2（实际: {\"inputTokens\":150,\"outputTokens\":26,\"runs\":2}）",
+    "byMode 应为 agent 100/20 + chat 50/6（实际: [{\"modeId\":\"chat\",\"inputTokens\":50,\"outputTokens\":6,\"runs\":1},{\"modeId\":\"agent\",\"inputTokens\":100,\"outputTokens\":20,\"runs\":1}]）",
+    "byProvider 应为 p-i24·i24-model 150/26·2（实际: [{\"providerId\":\"p-i24\",\"model\":\"i24-model\",\"inputTokens\":150,\"outputTokens\":26,\"runs\":2}]）",
+    "设置区累计行（实际: 白名单为空——批准的命令达到次数后会出现在这里。\n---\n把 note.txt 改写成两行（write · 复用 0 次）删除清空全部模板\n---\n今日：输入 150 / 输出 26 tokens · 2 次计量累计：输入 150 / 输出 26 tokens · 2 次计量按模式Chat：输入 50 / 输出 6 · 1 次Agent：输入 100 / 输出 20 · 1 次按服务商p-i24 · i24-model：输入 150 / 输出 26 · 2 次）",
+    "设置区按模式 agent 行（实际: 白名单为空——批准的命令达到次数后会出现在这里。\n---\n把 note.txt 改写成两行（write · 复用 0 次）删除清空全部模板\n---\n今日：输入 150 / 输出 26 tokens · 2 次计量累计：输入 150 / 输出 26 tokens · 2 次计量按模式Chat：输入 50 / 输出 6 · 1 次Agent：输入 100 / 输出 20 · 1 次按服务商p-i24 · i24-model：输入 150 / 输出 26 · 2 次）",
+    "设置区按模式 chat 行（实际: 白名单为空——批准的命令达到次数后会出现在这里。\n---\n把 note.txt 改写成两行（write · 复用 0 次）删除清空全部模板\n---\n今日：输入 150 / 输出 26 tokens · 2 次计量累计：输入 150 / 输出 26 tokens · 2 次计量按模式Chat：输入 50 / 输出 6 · 1 次Agent：输入 100 / 输出 20 · 1 次按服务商p-i24 · i24-model：输入 150 / 输出 26 · 2 次）",
+    "设置区按服务商行（实际: 白名单为空——批准的命令达到次数后会出现在这里。\n---\n把 note.txt 改写成两行（write · 复用 0 次）删除清空全部模板\n---\n今日：输入 150 / 输出 26 tokens · 2 次计量累计：输入 150 / 输出 26 tokens · 2 次计量按模式Chat：输入 50 / 输出 6 · 1 次Agent：输入 100 / 输出 20 · 1 次按服务商p-i24 · i24-model：输入 150 / 输出 26 · 2 次）",
+    "清零后 summary 应归零（实际: {\"inputTokens\":0,\"outputTokens\":0,\"runs\":0}）",
+    "清零后 usage.jsonl 应被删除",
+    "清零后 agent.trace 接口仍可用",
+    "清零不影响已落盘的会话轨迹（usage 事件仍在 traces/*.jsonl）",
+    "服务端应收到 3 次 /chat/completions（实际: 3）"
+  ],
+  "failures": [],
+  "fatal": null
+}

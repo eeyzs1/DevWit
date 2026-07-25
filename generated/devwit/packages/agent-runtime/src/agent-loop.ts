@@ -44,12 +44,24 @@ export interface AgentLoopDeps {
 
 export type AgentFinishReason = "completed" | "max_iterations" | "cancelled" | "error";
 
+/** 一次 run 的真实 token 用量（迭代 26 / AC35）：provider usage 帧跨迭代求和。 */
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
 export interface AgentRunResult {
   finishReason: AgentFinishReason;
   /** 最后一条非空 assistant 文本（任务总结）。 */
   finalText: string;
   iterations: number;
   errorMessage?: string;
+  /**
+   * 真实用量（provider 应答 usage 帧求和；取消/出错路径为已观测到的部分量）。
+   * provider 未回报 usage 时缺省——与 manifest 的估算计数互补：manifest 审
+   * 上下文组成，usage 审真实计费量。
+   */
+  usage?: TokenUsage;
 }
 
 const DEFAULT_MAX_ITERATIONS = 25;
@@ -109,17 +121,30 @@ export class AgentLoop {
 
     let iterations = 0;
     let finalText = "";
+    // AC35：真实 token 用量累积（provider usage 帧跨迭代求和）
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let sawUsage = false;
+    const usagePart = (): { usage?: TokenUsage } =>
+      sawUsage ? { usage: { inputTokens, outputTokens } } : {};
+    // 用量轨迹事件先于终态（done/error）落盘：活动流顺序为 …→ 用量 → 完成
+    const recordUsage = (): void => {
+      if (!sawUsage) return;
+      trace.record("usage", `usage: in ${inputTokens} / out ${outputTokens}`, { inputTokens, outputTokens });
+    };
 
     for (;;) {
       if (signal?.aborted) {
         this.authorizer.denyAllPending();
+        recordUsage();
         trace.record("done", "会话已取消");
-        return { finishReason: "cancelled", finalText, iterations };
+        return { finishReason: "cancelled", finalText, iterations, ...usagePart() };
       }
       iterations += 1;
       if (iterations > maxIterations) {
+        recordUsage();
         trace.record("done", `达到最大迭代数 ${maxIterations}，停止`);
-        return { finishReason: "max_iterations", finalText, iterations: iterations - 1 };
+        return { finishReason: "max_iterations", finalText, iterations: iterations - 1, ...usagePart() };
       }
 
       const build = await this.deps.engine.build({
@@ -163,7 +188,11 @@ export class AgentLoop {
               toolCalls.push(event.toolCall);
               break;
             case "usage":
-              break; // token 用量由 manifest 的精确计数负责审计
+              // AC35：真实计费量累积（与 manifest 估算计数互补，二者各自可审计）
+              sawUsage = true;
+              inputTokens += event.inputTokens;
+              outputTokens += event.outputTokens;
+              break;
             case "error":
               streamError = event.error;
               break;
@@ -178,12 +207,14 @@ export class AgentLoop {
 
       if (providerCancelled || signal?.aborted) {
         this.authorizer.denyAllPending();
+        recordUsage();
         trace.record("done", "会话已取消");
-        return { finishReason: "cancelled", finalText, iterations };
+        return { finishReason: "cancelled", finalText, iterations, ...usagePart() };
       }
       if (streamError !== null) {
+        recordUsage();
         trace.record("error", streamError);
-        return { finishReason: "error", finalText, iterations, errorMessage: streamError };
+        return { finishReason: "error", finalText, iterations, errorMessage: streamError, ...usagePart() };
       }
 
       if (assistantText.length > 0) finalText = assistantText;
@@ -199,8 +230,9 @@ export class AgentLoop {
       );
 
       if (toolCalls.length === 0) {
+        recordUsage();
         trace.record("done", "任务完成");
-        return { finishReason: "completed", finalText, iterations };
+        return { finishReason: "completed", finalText, iterations, ...usagePart() };
       }
 
       for (const call of toolCalls) {

@@ -335,6 +335,7 @@ export type AgentTraceEventType =
   | "route"
   | "workflow"
   | "mode_recommend"
+  | "usage"
   | "plan"
   | "subagent_start"
   | "subagent_done"
@@ -371,7 +372,43 @@ export type AgentTraceEventType =
  * - workflow：新任务命中已沉淀的成功工作流模板（detail.phase="reuse"，含
  *   templateId/intent/tools/shared 命中关键词/reuseCount）。模板作为建议性
  *   custom 上下文项注入——不自动执行、不改变授权语义，审计语义为
- *   「这次规划参考了哪次成功经验」。 */
+ *   「这次规划参考了哪次成功经验」。
+ *
+ * 用量可观测（迭代 26 / AC35）：
+ * - usage：一次 run 的真实 token 用量（provider 应答 usage 帧跨迭代求和；
+ *   编排模式为 Planner+子 Agent+综合总量）。先于终态 done/error 落盘，
+ *   detail={inputTokens, outputTokens}——审计语义为「这次运行真实花了多少」，
+ *   与 manifest 的上下文组成估算互补。 */
+
+/** 一条真实用量记录（迭代 26 / AC35，userData/usage.jsonl 逐行追加）。 */
+export interface UsageRecord {
+  /** ISO 时间戳。 */
+  ts: string;
+  sessionId: string;
+  modeId: string;
+  providerId: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  finishReason: string;
+}
+
+/** 用量合计（一组记录的聚合值）。 */
+export interface UsageTotals {
+  inputTokens: number;
+  outputTokens: number;
+  /** 产生计量的 run 数（无 usage 帧的 run 不计入）。 */
+  runs: number;
+}
+
+/** 用量统计视图（设置·通用分区「用量统计」区；usage:summary IPC 返回）。 */
+export interface UsageSummary {
+  total: UsageTotals;
+  /** 今日（本地时区日期）合计。 */
+  today: UsageTotals;
+  byMode: Array<{ modeId: string } & UsageTotals>;
+  byProvider: Array<{ providerId: string; model: string } & UsageTotals>;
+}
 
 /** 本地路由配置（settings 键 "routing.local"）：简单任务路由本地小模型，复杂任务走模式绑定模型。 */
 export interface LocalRoutingConfig {
@@ -678,6 +715,8 @@ export const IPC = {
   McpCommunityList: "mcp:community-list",
   McpCommunityImport: "mcp:community-import",
   McpChanged: "mcp:changed",
+  UsageSummary: "usage:summary",
+  UsageClear: "usage:clear",
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];
@@ -805,5 +844,14 @@ export interface DevwitApi {
     communityImport(file: string): Promise<McpServerConfig>;
     /** 订阅任一服务器状态变化（主→渲染推送，设置页实时刷新徽标）。 */
     onChanged(cb: () => void): () => void;
+  };
+  usage: {
+    /**
+     * 用量统计（迭代 26 / AC35）：聚合 userData/usage.jsonl 的真实 token 用量
+     * （provider usage 帧求和），今日/累计/按模式/按服务商分布。
+     */
+    summary(): Promise<UsageSummary>;
+    /** 清零用量统计（删除 usage.jsonl，不影响会话轨迹）。 */
+    clear(): Promise<void>;
   };
 }

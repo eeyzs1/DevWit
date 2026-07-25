@@ -1,0 +1,9 @@
+迭代 26（AC35 Token 用量可观测）验证：
+1. 真实计量：provider SSE usage 帧（openai stream_options.include_usage 末尾统计帧）经 llm-providers 解析为 usage 事件，agent-loop 跨迭代求和（40+60/15+5=100/20），编排路径另含 Planner/子 Agent/综合三路求和。
+2. 活动流/对话面板「用量」行：先于完成行渲染真实用量（与上下文面板 manifest 估算计数互补）。
+3. 账本落盘：userData/usage.jsonl append-only 两条 UsageRecord（ts/sessionId/modeId/providerId/model/双 token/finishReason 明细），磁盘轨迹 usage 事件先于 done 可回放。
+4. usage.summary IPC 聚合：total/today 150/26·2 次、byMode agent 100/20 + chat 50/6、byProvider p-i24·i24-model 150/26·2。
+5. 设置·通用分区「用量统计」区：今日/累计/按模式/按服务商四组行渲染（模式名用户改名优先），刷新/清零按钮。
+6. 清零闭环：区域转空态、summary 归零、usage.jsonl 删除，会话轨迹（traces/*.jsonl）不受影响（审计隔离）。
+7. provider 未回报 usage 的 run 不计入账本（单测覆盖：只收真实计费量）。
+断言通过 24 项，失败 0 项。

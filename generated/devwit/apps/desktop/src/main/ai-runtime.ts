@@ -28,6 +28,7 @@ import type {
   ProviderConfig,
   RagConfig,
   RagStatusInfo,
+  UsageSummary,
   WorkflowReuse,
   WorkflowTemplate,
 } from "@devwit/contracts";
@@ -43,6 +44,7 @@ import type { SettingsStore } from "@devwit/settings";
 import { getGitStatus } from "@devwit/workspace";
 import type { WorkspaceService } from "@devwit/workspace";
 import { collectTscDiagnostics } from "./diagnostics.js";
+import { UsageStore } from "./usage-store.js";
 
 /** settings 键：用户逐项上下文开关（全局，对每个新会话引擎生效）。 */
 const CONTEXT_OVERRIDES_KEY = "contextOverrides";
@@ -95,6 +97,8 @@ export interface AiRuntimeDeps {
   createEmbedder?: (providerId: string, embedModel: string) => Embedder;
   /** 代码索引根目录（AC19：每个工作区一个 hash 子目录）。缺省取 manifestsDir 同级 rag/。 */
   ragDir?: string;
+  /** 用量账本文件（迭代 26 / AC35）。缺省取 manifestsDir 同级 usage.jsonl。 */
+  usageFile?: string;
 }
 
 export class AiRuntime {
@@ -124,6 +128,8 @@ export class AiRuntime {
   private readonly workflowMemory: WorkflowMemory;
   /** 模式运行统计（AC33）：成功率唯一事实源，推荐按统计发出（settings 实时读写）。 */
   private readonly modeStats: ModeStatsTracker;
+  /** 真实 token 用量账本（AC35）：每 run 一条 UsageRecord 追加落盘，读侧聚合。 */
+  private readonly usageStore: UsageStore;
 
   constructor(deps: AiRuntimeDeps) {
     this.deps = deps;
@@ -156,6 +162,8 @@ export class AiRuntime {
       read: () => parseModeRunStats(this.settings.get(MODE_STATS_KEY)),
       write: (stats) => this.settings.set(MODE_STATS_KEY, stats),
     });
+    // AC35：用量账本（append-only JSONL，与 traces 同目录层级，不进 settings）。
+    this.usageStore = new UsageStore(deps.usageFile ?? path.join(path.dirname(deps.manifestsDir), "usage.jsonl"));
     this.hydrateProviders();
     this.hydrateModes();
     this.hydrateMcpServers();
@@ -543,6 +551,7 @@ export class AiRuntime {
     }
     const runStartEvents = session.trace.list().length;
     let finishReason: AgentRunResult["finishReason"] | "thrown" = "thrown";
+    let runResult: AgentRunResult | null = null;
     try {
       if (mode.orchestrate === true) {
         // AC20 多 Agent 编排：Planner 分解 → 并行子 Agent（共享授权门）→ 综合
@@ -558,7 +567,7 @@ export class AiRuntime {
           executeExtraTool: (call) => this.mcpManager.callTool(call),
           diagnostics: session.diagnostics,
         });
-        finishReason = (await orchestrator.run(input, session.abort.signal, priorHistory)).finishReason;
+        runResult = await orchestrator.run(input, session.abort.signal, priorHistory);
       } else {
         const loop = new AgentLoop({
           provider,
@@ -574,8 +583,9 @@ export class AiRuntime {
           // AC30：编辑后 tsc 诊断回馈（快照源已挂会话引擎）
           diagnostics: session.diagnostics,
         });
-        finishReason = (await loop.run(input, session.abort.signal, priorHistory)).finishReason;
+        runResult = await loop.run(input, session.abort.signal, priorHistory);
       }
+      finishReason = runResult.finishReason;
       // AC32：成功 run 沉淀工作流模板（本轮含 done 无 error 且至少一次工具调用才够格；
       // 抛错路径（中断/失败）不进学习——失败经验不传播）
       if (this.readWorkflowEnabled()) {
@@ -586,8 +596,32 @@ export class AiRuntime {
       // cancelled / max_iterations / 异常抛出 不定级（用户中断与未竟任务不毒化成功率）。
       if (finishReason === "completed") this.modeStats.recordRun(input.modeId, true);
       else if (finishReason === "error") this.modeStats.recordRun(input.modeId, false);
+      // AC35：真实用量落账本——取消/出错路径同样记录已观测到的部分量；
+      // provider 未回报 usage 的 run 不计入（账本只收真实计费量，与 manifest 估算互补）。
+      if (runResult?.usage !== undefined) {
+        this.usageStore.append({
+          ts: new Date().toISOString(),
+          sessionId: input.sessionId,
+          modeId: input.modeId,
+          providerId: provider.config.id,
+          model: provider.config.model,
+          inputTokens: runResult.usage.inputTokens,
+          outputTokens: runResult.usage.outputTokens,
+          finishReason,
+        });
+      }
       session.running = false;
     }
+  }
+
+  /** 用量统计聚合视图（AC35，usage:summary IPC）。 */
+  usageSummary(): UsageSummary {
+    return this.usageStore.summary();
+  }
+
+  /** 清零用量账本（AC35，usage:clear IPC；不影响会话轨迹与设置）。 */
+  usageClear(): void {
+    this.usageStore.clear();
   }
 
   cancel(sessionId: string): void {

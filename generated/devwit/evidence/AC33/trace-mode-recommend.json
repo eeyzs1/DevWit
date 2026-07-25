@@ -1,8 +1,8 @@
 [
   {
-    "seq": 8,
-    "timestamp": "2026-07-25T15:38:56.854Z",
-    "sessionId": "session-1784993935251",
+    "seq": 9,
+    "timestamp": "2026-07-25T18:30:06.442Z",
+    "sessionId": "session-1785004204666",
     "type": "mode_recommend",
     "summary": "mode_recommend: agent (success 3/3) over chat",
     "detail": {

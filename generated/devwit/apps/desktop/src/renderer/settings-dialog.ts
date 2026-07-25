@@ -508,10 +508,68 @@ function renderGeneral(
     void deps.api.settings.set("workflow.memory", { enabled: wfToggle.checked });
   });
 
+  // ---- 用量统计（AC35）：真实 token 用量聚合（今日/累计/按模式/按服务商）+ 清零 ----
+  const usageTitle = el("label", undefined, t("settings.usage.title"));
+  const usageSummaryBox = el("div", "dw-settings-whitelist");
+  const usageActions = el("div", "dw-settings-update");
+  const usageRefreshBtn = el("button", "dw-btn", t("settings.usage.refresh"));
+  const usageClearBtn = el("button", "dw-btn dw-btn-small dw-btn-danger", t("settings.usage.clear"));
+  usageActions.append(usageRefreshBtn, usageClearBtn);
+  const usageHint = el("div", "dw-modal-hint", t("settings.usage.hint"));
+
+  const loadUsage = async (): Promise<void> => {
+    const [summary, modeList] = await Promise.all([deps.api.usage.summary(), deps.api.modes.list()]);
+    // 模式 id → 用户改名后的显示名（未找到时回退 id——模式已删的历史计量仍可见）
+    const modeName = (id: string): string => modeList.find((mode) => mode.id === id)?.name ?? id;
+    usageSummaryBox.textContent = "";
+    if (summary.total.runs === 0) {
+      usageSummaryBox.appendChild(el("div", "dw-modal-hint", t("settings.usage.empty")));
+      return;
+    }
+    usageSummaryBox.appendChild(el("div", "dw-settings-whitelist-row", t("settings.usage.today", {
+      input: summary.today.inputTokens,
+      output: summary.today.outputTokens,
+      runs: summary.today.runs,
+    })));
+    usageSummaryBox.appendChild(el("div", "dw-settings-whitelist-row", t("settings.usage.total", {
+      input: summary.total.inputTokens,
+      output: summary.total.outputTokens,
+      runs: summary.total.runs,
+    })));
+    if (summary.byMode.length > 0) {
+      usageSummaryBox.appendChild(el("div", "dw-modal-hint", t("settings.usage.byMode")));
+      for (const row of summary.byMode) {
+        usageSummaryBox.appendChild(el("div", "dw-settings-whitelist-row", t("settings.usage.row", {
+          name: modeName(row.modeId),
+          input: row.inputTokens,
+          output: row.outputTokens,
+          runs: row.runs,
+        })));
+      }
+    }
+    if (summary.byProvider.length > 0) {
+      usageSummaryBox.appendChild(el("div", "dw-modal-hint", t("settings.usage.byProvider")));
+      for (const row of summary.byProvider) {
+        usageSummaryBox.appendChild(el("div", "dw-settings-whitelist-row", t("settings.usage.row", {
+          name: `${row.providerId} · ${row.model}`,
+          input: row.inputTokens,
+          output: row.outputTokens,
+          runs: row.runs,
+        })));
+      }
+    }
+  };
+  void loadUsage();
+  usageRefreshBtn.addEventListener("click", () => void loadUsage());
+  usageClearBtn.addEventListener("click", () => {
+    void deps.api.usage.clear().then(() => loadUsage());
+  });
+
   form.append(label, select, hint, updateLabel, updateRow, updateHint, ragLabel, ragRow, ragActions, ragHint,
     secTitle, secLearnRow, secThreshRow, secList, secHint,
     routeTitle, routeEnableRow, routeProviderRow, routeThreshRow, routeHint,
-    wfTitle, wfEnableRow, wfList, wfHint);
+    wfTitle, wfEnableRow, wfList, wfHint,
+    usageTitle, usageSummaryBox, usageActions, usageHint);
 
   // ---- 首次运行向导（迭代 18 / AC27）：允许随时重跑（如换机/重装后引导同伴）----
   if (deps.onRerunWizard !== undefined) {

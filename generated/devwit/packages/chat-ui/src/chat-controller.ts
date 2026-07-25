@@ -30,6 +30,7 @@ export type ChatItem =
   | { kind: "modeRecommend"; modeId: string; currentModeId: string; intent: string; successRate: number; currentSuccessRate: number | null; runs: number }
   | { kind: "plan"; subtasks: { id: string; title: string }[]; fallback: boolean }
   | { kind: "subagent"; subagentId: string; title: string; phase: "start" | "done"; finishReason?: string }
+  | { kind: "usage"; inputTokens: number; outputTokens: number }
   | { kind: "error"; text: string }
   | { kind: "done"; text: string };
 
@@ -379,6 +380,17 @@ export class ChatController {
           reason: `${sub}${reason}`,
           decision: "allow",
           auto: true,
+        });
+        break;
+      }
+      case "usage": {
+        // AC35：一次 run 的真实 token 用量（provider usage 帧跨迭代求和；
+        // 编排含 Planner/子 Agent/综合）。先于 done 落行，活动流顺序 …→ 用量 → 完成
+        const detail = event.detail as { inputTokens?: unknown; outputTokens?: unknown } | undefined;
+        this.items.push({
+          kind: "usage",
+          inputTokens: typeof detail?.inputTokens === "number" ? detail.inputTokens : 0,
+          outputTokens: typeof detail?.outputTokens === "number" ? detail.outputTokens : 0,
         });
         break;
       }

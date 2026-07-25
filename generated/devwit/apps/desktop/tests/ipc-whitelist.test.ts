@@ -101,7 +101,9 @@ describe("IPC 白名单", () => {
       IPC.ContextManifestList,
       IPC.McpList,
       IPC.McpUpsert,
-      IPC.McpDelete
+      IPC.McpDelete,
+      IPC.UsageSummary,
+      IPC.UsageClear
     ];
     for (const ch of aiChannels) {
       const handler = table[ch];

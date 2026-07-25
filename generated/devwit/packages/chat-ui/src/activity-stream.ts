@@ -23,7 +23,7 @@ export interface ActivityStreamHandle {
   dispose(): void;
 }
 
-const KIND_BADGE: Record<ChatItem["kind"], "act.user" | "act.assistant" | "act.tool" | "act.authorization" | "act.diagnostics" | "act.route" | "act.workflow" | "act.modeRecommend" | "act.plan" | "act.subagent" | "act.error" | "act.done"> = {
+const KIND_BADGE: Record<ChatItem["kind"], "act.user" | "act.assistant" | "act.tool" | "act.authorization" | "act.diagnostics" | "act.route" | "act.workflow" | "act.modeRecommend" | "act.plan" | "act.subagent" | "act.usage" | "act.error" | "act.done"> = {
   user: "act.user",
   assistant: "act.assistant",
   tool: "act.tool",
@@ -34,6 +34,7 @@ const KIND_BADGE: Record<ChatItem["kind"], "act.user" | "act.assistant" | "act.t
   modeRecommend: "act.modeRecommend",
   plan: "act.plan",
   subagent: "act.subagent",
+  usage: "act.usage",
   error: "act.error",
   done: "act.done",
 };
@@ -180,6 +181,11 @@ export function mountActivityStream(
           item.phase === "start"
             ? t("act.subagent.start", { id: item.subagentId, title: item.title })
             : t("act.subagent.done", { id: item.subagentId, title: item.title, reason: item.finishReason ?? "completed" });
+        break;
+      }
+      case "usage": {
+        // AC35：真实计费量行（与 manifest 估算计数互补，先于完成行）
+        body.textContent = t("act.usage.line", { input: item.inputTokens, output: item.outputTokens });
         break;
       }
       case "authorization": {

@@ -1,8 +1,8 @@
 {
   "steps": [
-    "应用启动（社区索引源注入 http://127.0.0.1:50811，modes + mcpServers 双段同信封）",
+    "应用启动（社区索引源注入 http://127.0.0.1:51187，modes + mcpServers 双段同信封）",
     "社区 MCP 区索引加载：2 个条目（名称 + 作者 + 预告工具数）渲染",
-    "一键导入热启动：新 id=mcp-ms0jaxqf，负载保真，ready + 工具 3 个（stdio 全链路真实）",
+    "一键导入热启动：新 id=mcp-ms0pf1wq，负载保真，ready + 工具 3 个（stdio 全链路真实）",
     "导入结果直接入表单（截图 01：列表就绪徽标 + 表单回填）",
     "已导入条目按钮置 disabled 显示「已导入」",
     "删除本地该服务器（子进程停止）→ 社区行按钮恢复「导入」（归并状态同步）",
@@ -13,14 +13,14 @@
     "条目应显示作者（实际: Community Files · 作者 tester · 预告 3 个工具导入 | Ghost Tools · 作者 tester2导入）",
     "条目应显示预告工具数（实际: Community Files · 作者 tester · 预告 3 个工具导入 | Ghost Tools · 作者 tester2导入）",
     "社区服务器导入后未出现在本地列表",
-    "导入应生成新 id（实际: mcp-ms0jaxqf）",
+    "导入应生成新 id（实际: mcp-ms0pf1wq）",
     "导入 command 未保真（实际: E:\\Tools\\apps\\nodejs\\node.exe）",
     "导入 args 未保真（实际: [\"E:\\\\AI_Generated_Projects\\\\DevWit\\\\generated\\\\devwit\\\\packages\\\\mcp\\\\tests\\\\fixtures\\\\fake-mcp-server.mjs\"]）",
     "导入 env 未保真",
     "导入 enabled 未保真",
     "导入服务器热启动未到 ready（或工具数不为 3）",
-    "聚合工具全名缺失（实际: mcp__mcp-ms0jaxqf__echo, mcp__mcp-ms0jaxqf__write_marker, mcp__mcp-ms0jaxqf__hang）",
-    "导入结果应直接入表单（表单 id: mcp-ms0jaxqf，实际: mcp-ms0jaxqf）",
+    "聚合工具全名缺失（实际: mcp__mcp-ms0pf1wq__echo, mcp__mcp-ms0pf1wq__write_marker, mcp__mcp-ms0pf1wq__hang）",
+    "导入结果应直接入表单（表单 id: mcp-ms0pf1wq，实际: mcp-ms0pf1wq）",
     "删除后本地服务器列表应为空（实际 0）"
   ],
   "failures": []
