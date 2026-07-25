@@ -65,7 +65,8 @@ const api: DevwitApi = {
   providers: {
     list: () => ipcRenderer.invoke(IPC.ProvidersList) as ReturnType<DevwitApi["providers"]["list"]>,
     upsert: (config) => ipcRenderer.invoke(IPC.ProvidersUpsert, config) as Promise<void>,
-    presets: () => ipcRenderer.invoke(IPC.ProviderPresets) as ReturnType<DevwitApi["providers"]["presets"]>
+    presets: () => ipcRenderer.invoke(IPC.ProviderPresets) as ReturnType<DevwitApi["providers"]["presets"]>,
+    probe: (req) => ipcRenderer.invoke(IPC.ProvidersProbe, req) as ReturnType<DevwitApi["providers"]["probe"]>
   },
   modes: {
     list: () => ipcRenderer.invoke(IPC.ModesList) as ReturnType<DevwitApi["modes"]["list"]>,

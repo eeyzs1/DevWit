@@ -1,0 +1,7 @@
+[
+  {
+    "method": "GET",
+    "url": "/v1/models",
+    "authorization": "Bearer sk-e2e-probe"
+  }
+]

@@ -36,7 +36,8 @@ function fakeServices(): IpcServices {
       onChanged: vi.fn(() => () => undefined),
       setCredential: vi.fn(),
       deleteCredential: vi.fn(),
-      listCredentials: vi.fn(() => [])
+      listCredentials: vi.fn(() => []),
+      resolve: vi.fn(async () => "sk-fake")
     }
   };
   return services as unknown as IpcServices;
@@ -144,5 +145,27 @@ describe("IPC 白名单", () => {
     const ollama = presets.find((preset) => preset.id === "ollama");
     expect(ollama?.keyless).toBe(true);
     expect(ollama?.baseUrl).toContain("localhost");
+  });
+
+  it("providers:probe（AC26）：非法请求拒绝；keyless 不触碰凭证存储；不可达抛 DW_PROBE_UNREACHABLE", async () => {
+    const services = fakeServices();
+    const table = buildHandlerTable(services, fakeHooks());
+    // 非法请求：缺 type / baseUrl
+    await expect(table[IPC.ProvidersProbe]?.(null, { type: "bogus", baseUrl: "x" })).rejects.toThrowError(
+      "DW_PROBE_INVALID_URL"
+    );
+    // keyless + 未监听端口：settings.resolve 绝不应被调用（凭证逻辑整体跳过）
+    const resolveSpy = services.settings.resolve as ReturnType<typeof vi.fn>;
+    resolveSpy.mockClear();
+    await expect(
+      table[IPC.ProvidersProbe]?.(null, { type: "openai", baseUrl: "http://127.0.0.1:1/v1", keyless: true })
+    ).rejects.toThrowError("DW_PROBE_UNREACHABLE");
+    expect(resolveSpy).not.toHaveBeenCalled();
+    // 非 keyless 且带 credentialRef：凭证经 settings.resolve 解析后参与探测
+    resolveSpy.mockResolvedValueOnce("sk-from-store");
+    await expect(
+      table[IPC.ProvidersProbe]?.(null, { type: "openai", baseUrl: "http://127.0.0.1:1/v1", credentialRef: "cred-p1" })
+    ).rejects.toThrowError("DW_PROBE_UNREACHABLE");
+    expect(resolveSpy).toHaveBeenCalledWith("cred-p1");
   });
 });

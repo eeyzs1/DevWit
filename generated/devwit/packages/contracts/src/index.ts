@@ -46,6 +46,27 @@ export interface ProviderPreset {
   keyless: boolean;
 }
 
+/**
+ * 连接探测请求（迭代 17 / AC26）：设置页「测试连接」——主进程真实 GET
+ * 模型列表端点，验证 baseUrl 可达性并发现服务器真实型号。
+ * apiKey（表单刚输入的明文，不落盘）优先于 credentialRef（编辑已存配置时
+ * 由主进程解析）；keyless 本地服务跳过全部凭证逻辑。
+ */
+export interface ProviderProbeRequest {
+  type: ProviderType;
+  baseUrl: string;
+  apiKey?: string;
+  credentialRef?: string;
+  keyless?: boolean;
+  timeoutMs?: number;
+}
+
+/** 探测结果：ok=true 时 models 为服务器返回的真实型号清单（可为空数组）。 */
+export interface ProviderProbeResult {
+  ok: boolean;
+  models: string[];
+}
+
 /** JSON Schema object，描述工具参数。 */
 export type ToolParameterSchema = Record<string, unknown>;
 
@@ -489,6 +510,7 @@ export const IPC = {
   ProvidersList: "providers:list",
   ProvidersUpsert: "providers:upsert",
   ProviderPresets: "providers:presets",
+  ProvidersProbe: "providers:probe",
   ModesList: "modes:list",
   ModesUpsert: "modes:upsert",
   ModesDelete: "modes:delete",
@@ -556,6 +578,11 @@ export interface DevwitApi {
     upsert(config: ProviderConfig): Promise<void>;
     /** 知名服务预设目录（迭代 13 / AC22）：主进程从 llm-providers 读取下发。 */
     presets(): Promise<ProviderPreset[]>;
+    /**
+     * 连接探测（迭代 17 / AC26）：真实 GET 模型列表端点验证可达性并发现型号。
+     * 失败抛 DW_PROBE_* ASCII 错误码（TIMEOUT / UNREACHABLE / HTTP:<status>）。
+     */
+    probe(req: ProviderProbeRequest): Promise<ProviderProbeResult>;
   };
   modes: {
     list(): Promise<ModeDefinition[]>;

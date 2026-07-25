@@ -355,6 +355,8 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps): void {
   const secretInput = fieldInput("password", "");
   const maxTokensInput = fieldInput("number", "4096");
   const errorBox = el("div", "dw-form-error");
+  // 迭代 17 / AC26：连接探测状态行（成功显示型号数，失败显示本地化错误 + Ollama 引导）
+  const probeStatus = el("div", "dw-modal-hint");
   form.append(
     el("label", undefined, t("provider.preset")),
     presetSelect,
@@ -374,7 +376,8 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps): void {
     secretInput,
     el("label", undefined, t("provider.maxTokens")),
     maxTokensInput,
-    errorBox
+    errorBox,
+    probeStatus
   );
   content.appendChild(form);
 
@@ -391,6 +394,8 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps): void {
   function applyPreset(preset: ProviderPreset | null): void {
     activePreset = preset;
     modelDatalist.textContent = "";
+    probeStatus.textContent = "";
+    probeStatus.classList.remove("dw-form-error");
     if (preset === null) {
       presetHint.textContent = "";
       updateKeylessUI(false);
@@ -438,6 +443,8 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps): void {
     presetHint.textContent = hintKey !== undefined ? t(hintKey) : "";
     updateKeylessUI(matched?.keyless === true || config.keyless === true);
     errorBox.textContent = "";
+    probeStatus.textContent = "";
+    probeStatus.classList.remove("dw-form-error");
   }
   function newForm(): void {
     idInput.value = `p-${Date.now().toString(36)}`;
@@ -458,6 +465,8 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps): void {
     maxTokensInput.value = "4096";
     updateKeylessUI(false);
     errorBox.textContent = "";
+    probeStatus.textContent = "";
+    probeStatus.classList.remove("dw-form-error");
   }
   async function renderList(): Promise<void> {
     providers = await api.providers.list();
@@ -477,10 +486,68 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps): void {
   }
 
   const actions = el("div", "dw-modal-actions");
+  const probeBtn = el("button", "dw-btn", t("provider.probe")) as HTMLButtonElement;
   const newBtn = el("button", "dw-btn", t("provider.new"));
   const saveBtn = el("button", "dw-btn dw-btn-primary", t("provider.save"));
-  actions.append(newBtn, saveBtn);
+  actions.append(probeBtn, newBtn, saveBtn);
   content.appendChild(actions);
+
+  /**
+   * 连接探测（迭代 17 / AC26）：真实 GET 模型列表端点。
+   * 成功——状态行显示型号数、真实型号回填 datalist，型号输入框为空时自动填首个
+   * 发现型号（Ollama 场景零输入完成配置）；失败——本地化错误，Ollama 预设
+   * 不可达时追加安装引导。
+   */
+  async function runProbe(): Promise<void> {
+    const baseUrl = baseUrlInput.value.trim();
+    probeStatus.textContent = "";
+    probeStatus.classList.remove("dw-form-error");
+    if (baseUrl === "") {
+      probeStatus.classList.add("dw-form-error");
+      probeStatus.textContent = t("err.probeInvalidUrl");
+      return;
+    }
+    probeBtn.disabled = true;
+    probeStatus.textContent = t("provider.probe.running");
+    const existing = providers.find((p) => p.id === idInput.value.trim());
+    const keyless = activePreset !== null ? activePreset.keyless : existing?.keyless === true;
+    try {
+      const result = await api.providers.probe({
+        type: typeSelect.value as ProviderType,
+        baseUrl,
+        ...(keyless ? { keyless: true } : {}),
+        ...(secretInput.value !== "" ? { apiKey: secretInput.value } : {}),
+        ...(secretInput.value === "" && existing !== undefined ? { credentialRef: existing.credentialRef } : {}),
+      });
+      if (result.models.length > 0) {
+        probeStatus.textContent = t("provider.probe.ok", { count: result.models.length });
+        modelDatalist.textContent = "";
+        for (const model of result.models) {
+          const option = document.createElement("option");
+          option.value = model;
+          modelDatalist.appendChild(option);
+        }
+        if (modelInput.value.trim() === "") {
+          modelInput.value = result.models[0] ?? "";
+        }
+        modelInput.placeholder = result.models[0] ?? "";
+      } else {
+        probeStatus.textContent = t("provider.probe.okNoModels");
+      }
+    } catch (error: unknown) {
+      const raw = error instanceof Error ? error.message : String(error);
+      probeStatus.classList.add("dw-form-error");
+      probeStatus.textContent = localizeError(raw);
+      if (activePreset?.id === "ollama" && raw.includes("DW_PROBE_UNREACHABLE")) {
+        probeStatus.appendChild(el("div", undefined, t("provider.probe.ollamaHint")));
+      }
+    } finally {
+      probeBtn.disabled = false;
+    }
+  }
+  probeBtn.addEventListener("click", () => {
+    void runProbe();
+  });
 
   newBtn.addEventListener("click", newForm);
   saveBtn.addEventListener("click", () => {

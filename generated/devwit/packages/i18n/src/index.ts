@@ -132,5 +132,12 @@ export function localizeError(raw: string, opts?: LocalizeErrorOptions): string 
   if (sseParse !== null) return t("err.sseParseFailed", { provider: sseParse[1] ?? "" });
   const llmUnknown = /DW_LLM_ERROR:(\w+)/.exec(raw);
   if (llmUnknown !== null) return t("err.llmUnknown", { provider: llmUnknown[1] ?? "" });
+  // 迭代 17 / AC26 连接探测错误码
+  const probeTimeout = /DW_PROBE_TIMEOUT(?::(\d+))?/.exec(raw);
+  if (probeTimeout !== null) return t("err.probeTimeout", { ms: probeTimeout[1] ?? "5000" });
+  const probeHttp = /DW_PROBE_HTTP:(\d+)/.exec(raw);
+  if (probeHttp !== null) return t("err.probeHttp", { status: probeHttp[1] ?? "" });
+  if (raw.includes("DW_PROBE_UNREACHABLE")) return t("err.probeUnreachable");
+  if (raw.includes("DW_PROBE_INVALID_URL")) return t("err.probeInvalidUrl");
   return raw.replace(IPC_ERROR_PREFIX, "");
 }

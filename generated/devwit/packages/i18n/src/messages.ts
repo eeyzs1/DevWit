@@ -116,6 +116,11 @@ const zhCN = {
   "provider.preset.hint.ollama": "本地运行 · 免费 · 无需 API Key（需已安装 Ollama 并拉取模型）",
   "provider.preset.hint.deepseek": "低成本官方 API · 充值即用，价格远低于一线模型",
   "provider.preset.hint.openrouter": "模型聚合平台 · 含免费档（型号带 :free 后缀）",
+  "provider.probe": "测试连接",
+  "provider.probe.running": "正在探测…",
+  "provider.probe.ok": "连接成功 · 发现 {count} 个模型",
+  "provider.probe.okNoModels": "连接成功（服务器未返回型号列表，请手动填写型号）",
+  "provider.probe.ollamaHint": "未检测到本地 Ollama？请先从 ollama.com 下载安装，启动后执行 ollama pull <模型名> 拉取模型，再点「测试连接」。",
 
   // ---- 设置 · 模式 ----
   "mode.title": "模式管理（修改热生效，下次请求即用）",
@@ -213,6 +218,10 @@ const zhCN = {
   "err.aiNotWired": "AI 子系统未初始化",
   "err.sseParseFailed": "模型服务返回了无法解析的数据（{provider}）：请检查 Base URL 是否为有效的 {provider} 兼容端点",
   "err.llmUnknown": "模型服务返回未知错误（{provider}）",
+  "err.probeTimeout": "连接超时：服务器 {ms}ms 内无响应",
+  "err.probeUnreachable": "无法连接该 Base URL：请确认服务已启动、地址与端口正确",
+  "err.probeHttp": "服务器返回 HTTP {status}（请检查 Base URL 路径与 API Key）",
+  "err.probeInvalidUrl": "Base URL 无效",
 
   // ---- 上下文类型（设置 · 模式 与 上下文面板共用）----
   "ctx.system_prompt": "系统提示",
@@ -408,6 +417,11 @@ const enUS: Messages = {
   "provider.preset.hint.ollama": "Runs locally · Free · No API key (requires Ollama installed with a pulled model)",
   "provider.preset.hint.deepseek": "Low-cost official API · pay-as-you-go, far cheaper than frontier models",
   "provider.preset.hint.openrouter": "Model aggregator · includes free tier (model names ending in :free)",
+  "provider.probe": "Test connection",
+  "provider.probe.running": "Probing…",
+  "provider.probe.ok": "Connected · {count} model(s) discovered",
+  "provider.probe.okNoModels": "Connected (server returned no model list — type the model name manually)",
+  "provider.probe.ollamaHint": "No local Ollama detected? Install it from ollama.com, run ollama pull <model> to fetch a model, then click \"Test connection\" again.",
 
   "mode.title": "Modes (changes hot-apply to the next request)",
   "mode.name": "Name",
@@ -501,6 +515,10 @@ const enUS: Messages = {
   "err.sseParseFailed":
     "Unparseable data from model service ({provider}): check that the Base URL is a valid {provider}-compatible endpoint",
   "err.llmUnknown": "Unknown error from model service ({provider})",
+  "err.probeTimeout": "Connection timed out: no response within {ms}ms",
+  "err.probeUnreachable": "Cannot reach this Base URL: check that the service is running and the address/port are correct",
+  "err.probeHttp": "Server returned HTTP {status} (check the Base URL path and API key)",
+  "err.probeInvalidUrl": "Invalid Base URL",
 
   "ctx.system_prompt": "System prompt",
   "ctx.tool_definitions": "Tool definitions",

@@ -10,8 +10,8 @@
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { IPC } from "@devwit/contracts";
-import type { AgentRunInput, AuthorizationDecision, ContextItemType, ExternalEditorConfig, ProviderConfig } from "@devwit/contracts";
-import { PROVIDER_PRESETS } from "@devwit/llm-providers";
+import type { AgentRunInput, AuthorizationDecision, ContextItemType, ExternalEditorConfig, ProviderConfig, ProviderProbeRequest, ProviderProbeResult } from "@devwit/contracts";
+import { PROVIDER_PRESETS, probeProvider } from "@devwit/llm-providers";
 import { fetchCommunityIndex, fetchCommunityMode, materializeImport, parseExportFile, resolveModesIndexBase, toExportFile } from "@devwit/modes";
 import type { SettingsStore } from "@devwit/settings";
 import type { TerminalService } from "@devwit/terminal";
@@ -155,6 +155,30 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
   table[IPC.ProvidersList] = () => readProviders(settings);
   // 迭代 13 / AC22：知名服务预设目录（llm-providers 唯一持有 endpoint 知识，AR002）
   table[IPC.ProviderPresets] = () => PROVIDER_PRESETS;
+  // 迭代 17 / AC26：连接探测——真实 GET 模型列表端点，验证可达性 + 发现服务器型号。
+  // 凭证解析顺序：表单明文 apiKey（不落盘）> credentialRef（settings 凭证存储）；
+  // keyless 跳过全部凭证逻辑。探测失败抛 DW_PROBE_* ASCII 错误码。
+  table[IPC.ProvidersProbe] = async (_e, req) => {
+    const probe = req as ProviderProbeRequest;
+    if (!probe || (probe.type !== "anthropic" && probe.type !== "openai") || typeof probe.baseUrl !== "string") {
+      throw new Error("DW_PROBE_INVALID_URL:bad-request");
+    }
+    let apiKey: string | undefined;
+    if (probe.keyless !== true) {
+      if (typeof probe.apiKey === "string" && probe.apiKey !== "") {
+        apiKey = probe.apiKey;
+      } else if (typeof probe.credentialRef === "string" && probe.credentialRef !== "") {
+        apiKey = await settings.resolve(probe.credentialRef).catch(() => undefined);
+      }
+    }
+    const result: ProviderProbeResult = await probeProvider({
+      type: probe.type,
+      baseUrl: probe.baseUrl,
+      ...(apiKey !== undefined ? { apiKey } : {}),
+      ...(typeof probe.timeoutMs === "number" ? { timeoutMs: probe.timeoutMs } : {}),
+    });
+    return result;
+  };
   table[IPC.ProvidersUpsert] = (_e, config) => {
     const provider = config as ProviderConfig;
     if (!provider || typeof provider.id !== "string" || provider.id.length === 0) {

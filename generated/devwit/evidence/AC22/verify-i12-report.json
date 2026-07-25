@@ -1,6 +1,6 @@
 {
   "steps": [
-    "本地端点就绪 http://127.0.0.1:60281（/chat/completions + /embeddings，记录 authorization 头）",
+    "本地端点就绪 http://127.0.0.1:60436（/chat/completions + /embeddings，记录 authorization 头）",
     "应用启动 + fixture 工作区打开",
     "预设下拉就绪：自定义 / Ollama / DeepSeek / OpenRouter（IPC 自 llm-providers 下发）",
     "选中 Ollama：type/baseUrl/显示名自动填充 + Key 行隐藏 + 免 key 说明（截图 01）",
@@ -19,7 +19,7 @@
     "预设说明缺「无需 API Key」: 本地运行 · 免费 · 无需 API Key（需已安装 Ollama 并拉取模型）",
     "免 key 保存后 provider 列表无 Ollama 项",
     "已存配置 keyless 应为 true（实际: true）",
-    "已存 baseUrl 应为本地端点（实际: http://127.0.0.1:60281）",
+    "已存 baseUrl 应为本地端点（实际: http://127.0.0.1:60436）",
     "keyless 不应写入任何凭证",
     "baseUrl 被改后预设应回退「自定义」（实际: ）",
     "回编辑时 keyless 应按已存配置保留（Key 行继续隐藏）",

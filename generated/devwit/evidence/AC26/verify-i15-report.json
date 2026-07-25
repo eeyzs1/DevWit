@@ -1,0 +1,22 @@
+{
+  "steps": [
+    "本地端点就绪 http://127.0.0.1:60451/v1（GET /models 返回 qwen3:8b + llama3.1:8b）",
+    "应用启动 + fixture 工作区打开",
+    "探测成功：状态行「连接成功 · 发现 2 个模型」+ datalist 回填 2 型号 + 自动填 qwen3:8b + 服务端零 authorization 头（截图 01）",
+    "自定义 + apiKey：服务端确认 authorization: Bearer sk-e2e-probe 按原样送达（表单明文直传，不落盘）",
+    "失败路径：状态行本地化「无法连接」+ Ollama 专属安装引导（截图 02）"
+  ],
+  "assertions": [
+    "模型分区缺「测试连接」按钮",
+    "探测成功状态行异常: 连接成功 · 发现 2 个模型",
+    "datalist 应回填真实型号（实际: qwen3:8b/llama3.1:8b）",
+    "型号输入框应自动填首个发现型号（实际: qwen3:8b）",
+    "服务端未收到 GET /v1/models 探测请求",
+    "keyless 探测不应携带 authorization 头: [{\"method\":\"GET\",\"url\":\"/v1/models\",\"authorization\":null}]",
+    "带 key 探测未成功: 连接成功 · 发现 2 个模型",
+    "带 key 探测应携带 Bearer 头（实际: [{\"method\":\"GET\",\"url\":\"/v1/models\",\"authorization\":\"Bearer sk-e2e-probe\"}]）",
+    "死端口探测应显示本地化「无法连接」: 无法连接该 Base URL：请确认服务已启动、地址与端口正确未检测到本地 Ollama？请先从 ollama.com 下载安装，启动后执行 ollama pull <模型名> 拉取模型，再点「测试连接」。",
+    "Ollama 预设不可达应追加安装引导: 无法连接该 Base URL：请确认服务已启动、地址与端口正确未检测到本地 Ollama？请先从 ollama.com 下载安装，启动后执行 ollama pull <模型名> 拉取模型，再点「测试连接」。"
+  ],
+  "failures": []
+}
