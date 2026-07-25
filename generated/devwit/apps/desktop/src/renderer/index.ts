@@ -748,8 +748,20 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   void reloadModes();
   void reloadProviders();
   api.modes.onChanged(() => void reloadModes());
-  api.settings.onChanged((key) => {
+  // AC29：命令毕业进白名单 → 状态栏瞬态提示（差分检测新增条目；null=未初始化不提示）
+  let knownWhitelist: string[] | null = null;
+  void api.settings.get("security.commandWhitelist").then((stored) => {
+    knownWhitelist = Array.isArray(stored) ? stored.filter((x): x is string => typeof x === "string") : [];
+  });
+  api.settings.onChanged((key, value) => {
     if (key === "providers") void reloadProviders();
+    if (key === "security.commandWhitelist" && Array.isArray(value)) {
+      const current = value.filter((x): x is string => typeof x === "string");
+      const previous = knownWhitelist;
+      const learned = previous === null ? undefined : current.find((x) => !previous.includes(x));
+      if (learned !== undefined) showStatus(t("security.learned", { command: learned }));
+      knownWhitelist = current;
+    }
   });
 
   // ---- 设置入口（AC12：统一设置页）----

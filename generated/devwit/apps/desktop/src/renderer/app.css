@@ -951,6 +951,35 @@ body,
   font-size: 12px;
 }
 
+/* ---- 设置 · 命令白名单（AC29）---- */
+.dw-settings-whitelist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.dw-settings-whitelist-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.dw-settings-whitelist-cmd {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--dw-font-mono, monospace);
+  font-size: 12px;
+}
+
+.dw-settings-whitelist-pending {
+  color: var(--dw-fg-dim);
+}
+
 /* ---- 设置 · MCP 状态徽标（AC17）---- */
 .dw-mcp-state {
   flex: none;

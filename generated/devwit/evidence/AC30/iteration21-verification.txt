@@ -1,0 +1,8 @@
+迭代 21（AC30 诊断回馈）验证：
+1. 编辑触发：agent write 真实写盘后，main 进程自动对工作区跑 `tsc --noEmit`（fixture 经 junction 用真实本地 typescript 5.8.3，非 mock）。
+2. 上下文注入：第 2 轮 LLM 请求体含 broken.ts + TS2322 诊断文本——模型看到自己引入的编译错误（修复闭环核心链路，chat-bodies.json 可审计）。
+3. UI 透明：活动流「编辑后发现 1 个问题（首个：broken.ts）」→ 修复后「诊断已清零」；上下文页签「诊断」项可见。
+4. 轨迹审计：diagnostics 事件 2 次（count 1→0，trigger=write，首条 src/broken.ts TS2322），磁盘 JSONL 可回放。
+5. 真实修复：src/broken.ts 最终为修复版（export const x: number = 1）。
+6. 降级诚实：无 tsconfig / 无本地 typescript / tsc 崩溃超时 → 空快照不阻断主循环（diagnostics.ts 单元测试覆盖）。
+断言通过 6 项，失败 0 项。

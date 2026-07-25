@@ -23,11 +23,12 @@ export interface ActivityStreamHandle {
   dispose(): void;
 }
 
-const KIND_BADGE: Record<ChatItem["kind"], "act.user" | "act.assistant" | "act.tool" | "act.authorization" | "act.plan" | "act.subagent" | "act.error" | "act.done"> = {
+const KIND_BADGE: Record<ChatItem["kind"], "act.user" | "act.assistant" | "act.tool" | "act.authorization" | "act.diagnostics" | "act.plan" | "act.subagent" | "act.error" | "act.done"> = {
   user: "act.user",
   assistant: "act.assistant",
   tool: "act.tool",
   authorization: "act.authorization",
+  diagnostics: "act.diagnostics",
   plan: "act.plan",
   subagent: "act.subagent",
   error: "act.error",
@@ -110,6 +111,14 @@ export function mountActivityStream(
         }
         break;
       }
+      case "diagnostics": {
+        // AC30：编辑后 tsc 诊断快照（0 = 修复闭环确认）
+        body.textContent =
+          item.count === 0
+            ? t("act.diagnostics.clean")
+            : t("act.diagnostics.found", { count: item.count, first: item.firstLine });
+        break;
+      }
       case "subagent": {
         body.textContent =
           item.phase === "start"
@@ -139,9 +148,11 @@ export function mountActivityStream(
         } else {
           const decided = document.createElement("div");
           decided.className = "dw-auth-decided";
-          decided.textContent = item.decision === null
-            ? t("chat.decided", { decision: "—" })
-            : t("chat.decided", { decision: t(DECISION_KEY[item.decision]) });
+          decided.textContent = item.auto === true
+            ? t("chat.decidedAuto")
+            : item.decision === null
+              ? t("chat.decided", { decision: "—" })
+              : t("chat.decided", { decision: t(DECISION_KEY[item.decision]) });
           body.appendChild(decided);
         }
         break;

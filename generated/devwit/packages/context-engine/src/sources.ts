@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ChatMessage, ContextItem, ContextItemType, ContextSource } from "@devwit/contracts";
+import type { ChatMessage, ContextItem, ContextItemType, ContextSource, DiagnosticEntry } from "@devwit/contracts";
 
 /**
  * 内置上下文源工厂。
@@ -121,6 +121,30 @@ export function terminalTailSource(tailProvider?: () => string | Promise<string>
       const tail = input.terminalTail ?? (tailProvider ? await tailProvider() : undefined);
       if (tail === undefined) return [];
       return [makeRawItem("terminal_output", "终端输出", tail, "terminal")];
+    },
+  };
+}
+
+/**
+ * 诊断回馈（迭代 21 / AC30）：agent 编辑文件后的最新 tsc 诊断快照。
+ * 快照由调用方（DiagnosticsTracker）在 write/edit 工具成功后刷新，本源只读——
+ * 零问题时产出零项（没有要修复的内容就不占 token），问题出现时下一轮请求自动携带。
+ */
+export function diagnosticsSource(getEntries: () => readonly DiagnosticEntry[]): ContextSource {
+  return {
+    type: "diagnostics",
+    async collect() {
+      const entries = getEntries();
+      if (entries.length === 0) return [];
+      const content = entries
+        .map((entry) => `${entry.file}:${entry.line}:${entry.column} ${entry.severity} ${entry.code ?? ""} ${entry.message}`.trim())
+        .join("\n");
+      return [
+        {
+          ...makeRawItem("diagnostics", `诊断（${entries.length} 个问题）`, content, "tsc --noEmit"),
+          key: "diagnostics:latest",
+        },
+      ];
     },
   };
 }

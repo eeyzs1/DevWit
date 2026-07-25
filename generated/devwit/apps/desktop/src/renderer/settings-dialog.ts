@@ -74,6 +74,7 @@ const CONTEXT_TYPE_KEY: Record<ContextItemType, `ctx.${ContextItemType}`> = {
   selection: "ctx.selection",
   conversation_history: "ctx.conversation_history",
   codebase_match: "ctx.codebase_match",
+  diagnostics: "ctx.diagnostics",
   custom: "ctx.custom",
 };
 const CONTEXT_TYPE_ORDER: readonly ContextItemType[] = [
@@ -85,6 +86,7 @@ const CONTEXT_TYPE_ORDER: readonly ContextItemType[] = [
   "terminal_output",
   "selection",
   "conversation_history",
+  "diagnostics",
   "custom",
 ];
 
@@ -316,7 +318,76 @@ function renderGeneral(
     void deps.api.rag.rebuild();
   });
 
-  form.append(label, select, hint, updateLabel, updateRow, updateHint, ragLabel, ragRow, ragActions, ragHint);
+  // ---- 命令白名单（AC29 授权白名单学习）：开关 + 阈值 + 条目管理 ----
+  const secTitle = el("label", undefined, t("security.title"));
+  const secLearnRow = el("div", "dw-settings-update");
+  const secToggle = document.createElement("input");
+  secToggle.type = "checkbox";
+  secLearnRow.append(secToggle, el("span", "dw-settings-update-status", t("security.learning")));
+  const secThreshRow = el("div", "dw-settings-update");
+  const secThreshInput = fieldInput("number", "2");
+  secThreshInput.min = "1";
+  secThreshInput.max = "20";
+  secThreshRow.append(el("span", "dw-settings-update-status", t("security.threshold")), secThreshInput);
+  const secList = el("div", "dw-settings-whitelist");
+  const secHint = el("div", "dw-modal-hint", t("security.hint"));
+
+  const loadWhitelist = async (): Promise<void> => {
+    const [list, approvals, learning] = await Promise.all([
+      deps.api.settings.get("security.commandWhitelist"),
+      deps.api.settings.get("security.commandApprovals"),
+      deps.api.settings.get("security.whitelistLearning"),
+    ]);
+    // 学习开关与阈值：缺省 开 / 2 次（与主进程 DEFAULT_LEARNING 一致）
+    const learningRecord = typeof learning === "object" && learning !== null ? (learning as Record<string, unknown>) : {};
+    secToggle.checked = learningRecord["enabled"] !== false;
+    const threshold = learningRecord["threshold"];
+    secThreshInput.value = String(typeof threshold === "number" && Number.isFinite(threshold) && threshold >= 1 ? Math.floor(threshold) : 2);
+    // 条目列表：白名单逐条可删 + 学习中计数可见（透明性）
+    const commands = Array.isArray(list) ? list.filter((x): x is string => typeof x === "string") : [];
+    const pending = typeof approvals === "object" && approvals !== null ? (approvals as Record<string, number>) : {};
+    secList.textContent = "";
+    if (commands.length === 0 && Object.keys(pending).length === 0) {
+      secList.appendChild(el("div", "dw-modal-hint", t("security.empty")));
+      return;
+    }
+    for (const command of commands) {
+      const row = el("div", "dw-settings-whitelist-row");
+      row.appendChild(el("span", "dw-settings-whitelist-cmd", command));
+      const removeBtn = el("button", "dw-btn dw-btn-small", t("security.remove"));
+      removeBtn.addEventListener("click", () => {
+        void deps.api.settings.get("security.commandWhitelist").then((stored) => {
+          const current = Array.isArray(stored) ? stored.filter((x): x is string => typeof x === "string") : [];
+          void deps.api.settings.set("security.commandWhitelist", current.filter((x) => x !== command)).then(() => loadWhitelist());
+        });
+      });
+      row.appendChild(removeBtn);
+      secList.appendChild(row);
+    }
+    for (const [command, count] of Object.entries(pending)) {
+      const row = el("div", "dw-settings-whitelist-row");
+      row.appendChild(el("span", "dw-settings-whitelist-cmd dw-settings-whitelist-pending", t("security.pending", { command, count })));
+      secList.appendChild(row);
+    }
+    if (commands.length > 0) {
+      const clearBtn = el("button", "dw-btn dw-btn-small dw-btn-danger", t("security.clear"));
+      clearBtn.addEventListener("click", () => {
+        void deps.api.settings.set("security.commandWhitelist", []).then(() => loadWhitelist());
+      });
+      secList.appendChild(clearBtn);
+    }
+  };
+  void loadWhitelist();
+  const saveLearning = (): void => {
+    const parsed = Number(secThreshInput.value);
+    const threshold = Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 2;
+    void deps.api.settings.set("security.whitelistLearning", { enabled: secToggle.checked, threshold });
+  };
+  secToggle.addEventListener("change", saveLearning);
+  secThreshInput.addEventListener("change", saveLearning);
+
+  form.append(label, select, hint, updateLabel, updateRow, updateHint, ragLabel, ragRow, ragActions, ragHint,
+    secTitle, secLearnRow, secThreshRow, secList, secHint);
 
   // ---- 首次运行向导（迭代 18 / AC27）：允许随时重跑（如换机/重装后引导同伴）----
   if (deps.onRerunWizard !== undefined) {

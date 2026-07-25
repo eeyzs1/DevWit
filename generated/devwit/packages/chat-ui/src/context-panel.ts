@@ -23,6 +23,7 @@ const TYPE_LABEL_KEY: Record<ContextItemType, `ctx.${ContextItemType}`> = {
   selection: "ctx.selection",
   conversation_history: "ctx.conversation_history",
   codebase_match: "ctx.codebase_match",
+  diagnostics: "ctx.diagnostics",
   custom: "ctx.custom",
 };
 
@@ -35,6 +36,7 @@ const TYPE_ORDER: readonly ContextItemType[] = [
   "codebase_match",
   "git_status",
   "terminal_output",
+  "diagnostics",
   "custom",
 ];
 

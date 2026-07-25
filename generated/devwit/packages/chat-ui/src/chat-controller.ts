@@ -23,7 +23,8 @@ export type ChatItem =
   | { kind: "user"; text: string }
   | { kind: "assistant"; text: string; streaming: boolean }
   | { kind: "tool"; summary: string; ok: boolean | null }
-  | { kind: "authorization"; requestId: string; toolName: string; reason: string; decision: AuthorizationDecision | null }
+  | { kind: "authorization"; requestId: string; toolName: string; reason: string; decision: AuthorizationDecision | null; auto?: boolean }
+  | { kind: "diagnostics"; count: number; firstLine: string }
   | { kind: "plan"; subtasks: { id: string; title: string }[]; fallback: boolean }
   | { kind: "subagent"; subagentId: string; title: string; phase: "start" | "done"; finishReason?: string }
   | { kind: "error"; text: string }
@@ -273,6 +274,24 @@ export class ChatController {
         }
         break;
       }
+      case "diagnostics": {
+        // AC30：编辑后 tsc 诊断快照——活动流落一条透明记录（count=0 为修复闭环确认）
+        const detail = event.detail as { count?: unknown; entries?: unknown } | undefined;
+        const count = typeof detail?.count === "number" ? detail.count : 0;
+        const entries = Array.isArray(detail?.entries) ? (detail.entries as { file?: unknown; line?: unknown }[]) : [];
+        const first = entries[0];
+        const firstLine =
+          first !== undefined && typeof first.file === "string" ? `${first.file}:${typeof first.line === "number" ? first.line : 0}` : "";
+        // 上一条诊断项原地更新（快照语义：只关心最新状态，不堆叠历史行）
+        const lastDiag = [...this.items].reverse().find((item) => item.kind === "diagnostics");
+        if (lastDiag?.kind === "diagnostics") {
+          lastDiag.count = count;
+          lastDiag.firstLine = firstLine;
+        } else {
+          this.items.push({ kind: "diagnostics", count, firstLine });
+        }
+        break;
+      }
       case "authorization_request": {
         if (isAuthorizationDetail(event.detail)) {
           // 子 Agent 发起的授权（AC20）：reason 前缀子任务标识，归属可见
@@ -298,6 +317,21 @@ export class ChatController {
         if (pending !== undefined && typeof detail?.decision === "string") {
           pending.decision = detail.decision as AuthorizationDecision;
         }
+        break;
+      }
+      case "authorization_auto": {
+        // AC29：白名单命中——无 request/decision 对，直接落一条已放行记录（auto 标记渲染）
+        const detail = event.detail as { toolName?: unknown; reason?: unknown; subagentId?: unknown } | undefined;
+        const reason = typeof detail?.reason === "string" ? detail.reason : event.summary;
+        const sub = typeof detail?.subagentId === "string" ? `[${detail.subagentId}] ` : "";
+        this.items.push({
+          kind: "authorization",
+          requestId: "",
+          toolName: typeof detail?.toolName === "string" ? detail.toolName : "",
+          reason: `${sub}${reason}`,
+          decision: "allow",
+          auto: true,
+        });
         break;
       }
       case "error":

@@ -1,0 +1,4 @@
+i18-marker.txt 内容（3 行）:
+ac29
+ac29
+ac29

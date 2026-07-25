@@ -158,6 +158,49 @@ describe("ChatController", () => {
     controller.dispose();
   });
 
+  it("AC29 authorization_auto：落已放行授权项（auto 标记、decision=allow、无 requestId 配对）", async () => {
+    const fake = new FakeDevwitApi();
+    const controller = new ChatController({ api: fake.api, sessionId: "s1", workspaceRoot: "C:\\repo", modeId: "agent" });
+    await controller.send("看状态");
+    fake.emit(
+      event("s1", "authorization_auto", "bash: 执行命令: git status", {
+        toolName: "bash",
+        reason: "执行命令: git status",
+        source: "whitelist",
+      })
+    );
+    const item = controller.listItems().find((entry) => entry.kind === "authorization");
+    expect(item).toMatchObject({ toolName: "bash", reason: "执行命令: git status", decision: "allow", auto: true });
+    // 不应触发任何裁决回传
+    expect(fake.authorizations).toEqual([]);
+    controller.dispose();
+  });
+
+  it("AC30 diagnostics：落诊断快照项，后续快照原地更新（不堆叠历史行）", async () => {
+    const fake = new FakeDevwitApi();
+    const controller = new ChatController({ api: fake.api, sessionId: "s1", workspaceRoot: "C:\\repo", modeId: "agent" });
+    await controller.send("改文件");
+    fake.emit(
+      event("s1", "diagnostics", "诊断：2 个问题（src/a.ts:3 起）", {
+        count: 2,
+        entries: [
+          { file: "src/a.ts", line: 3, column: 7, severity: "error", code: "TS2322", message: "x" },
+          { file: "src/b.ts", line: 9, column: 1, severity: "error", code: "TS2304", message: "y" },
+        ],
+        trigger: "write",
+      })
+    );
+    const diag = controller.listItems().find((item) => item.kind === "diagnostics");
+    expect(diag).toEqual({ kind: "diagnostics", count: 2, firstLine: "src/a.ts:3" });
+
+    // 修复后快照清零：同一项原地更新，不产生第二条诊断行
+    fake.emit(event("s1", "diagnostics", "诊断：无问题", { count: 0, entries: [], trigger: "edit" }));
+    const diags = controller.listItems().filter((item) => item.kind === "diagnostics");
+    expect(diags).toHaveLength(1);
+    expect(diags[0]).toEqual({ kind: "diagnostics", count: 0, firstLine: "" });
+    controller.dispose();
+  });
+
   it("其他会话的事件被忽略；run 抛错转为 error 项", async () => {
     const fake = new FakeDevwitApi();
     const controller = new ChatController({ api: fake.api, sessionId: "s1", workspaceRoot: "C:\\repo", modeId: "chat" });

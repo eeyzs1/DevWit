@@ -251,6 +251,7 @@ const zhCN = {
   "ctx.selection": "选区",
   "ctx.conversation_history": "会话历史",
   "ctx.codebase_match": "代码库检索",
+  "ctx.diagnostics": "诊断",
   "ctx.custom": "自定义",
 
   // ---- 代码索引（设置 · 通用，AC19 透明 RAG）----
@@ -261,6 +262,17 @@ const zhCN = {
   "rag.status.indexing": "索引构建中 {done}/{total}",
   "rag.status.ready": "已就绪：{files} 个文件 / {chunks} 个代码块",
   "rag.status.error": "索引不可用（{code}）",
+
+  // ---- 命令白名单（设置 · 通用，AC29 授权白名单学习）----
+  "security.title": "命令白名单",
+  "security.hint": "你批准过的终端命令会被学习：同一命令批准达到次数后加入白名单，之后执行不再询问（轨迹中标记为「自动放行」）。仅精确匹配整条命令；写入/编辑文件与 MCP 工具不参与学习。",
+  "security.learning": "学习我批准过的命令",
+  "security.threshold": "自动放行前需批准次数",
+  "security.empty": "白名单为空——批准的命令达到次数后会出现在这里。",
+  "security.pending": "学习中：{command}（已批准 {count} 次）",
+  "security.remove": "移除",
+  "security.clear": "清空白名单",
+  "security.learned": "已加入命令白名单：{command}",
 
   // ---- 对话面板 ----
   "chat.mode": "模式",
@@ -277,6 +289,7 @@ const zhCN = {
   "chat.allowSession": "本会话允许",
   "chat.deny": "拒绝",
   "chat.decided": "已裁决：{decision}",
+  "chat.decidedAuto": "已自动放行（命令白名单）",
   "chat.decision.allow": "允许",
   "chat.decision.allow_session": "本会话允许",
   "chat.decision.deny": "拒绝",
@@ -308,6 +321,10 @@ const zhCN = {
   "act.subagent": "子代理",
   "act.subagent.start": "{id} 开始：{title}",
   "act.subagent.done": "{id} 结束：{title}（{reason}）",
+  // ---- 诊断回馈（AC30）----
+  "act.diagnostics": "诊断",
+  "act.diagnostics.found": "编辑后发现 {count} 个问题（首个：{first}），已注入本轮上下文",
+  "act.diagnostics.clean": "诊断已清零（上次编辑引入的问题已修复）",
 
   // ---- diff 审查视图（AC3）----
   "diff.title": "变更审查",
@@ -566,6 +583,7 @@ const enUS: Messages = {
   "ctx.selection": "Selection",
   "ctx.conversation_history": "Conversation history",
   "ctx.codebase_match": "Codebase matches",
+  "ctx.diagnostics": "Diagnostics",
   "ctx.custom": "Custom",
 
   "rag.title": "Code indexing",
@@ -575,6 +593,16 @@ const enUS: Messages = {
   "rag.status.indexing": "Indexing {done}/{total}",
   "rag.status.ready": "Ready: {files} files / {chunks} chunks",
   "rag.status.error": "Index unavailable ({code})",
+
+  "security.title": "Command whitelist",
+  "security.hint": "Terminal commands you approve are learned: once a command reaches the approval count it joins the whitelist and runs without asking (marked as auto-approved in the trace). Exact full-command matches only; file writes/edits and MCP tools are never learned.",
+  "security.learning": "Learn commands I approve",
+  "security.threshold": "Approvals before auto-allow",
+  "security.empty": "Whitelist is empty — approved commands appear here once they reach the count.",
+  "security.pending": "Learning: {command} ({count} approvals)",
+  "security.remove": "Remove",
+  "security.clear": "Clear whitelist",
+  "security.learned": "Added to command whitelist: {command}",
 
   "chat.mode": "Mode",
   "chat.provider": "Provider",
@@ -590,6 +618,7 @@ const enUS: Messages = {
   "chat.allowSession": "Allow for session",
   "chat.deny": "Deny",
   "chat.decided": "Decided: {decision}",
+  "chat.decidedAuto": "Auto-approved (command whitelist)",
   "chat.decision.allow": "allow",
   "chat.decision.allow_session": "allow for session",
   "chat.decision.deny": "deny",
@@ -620,6 +649,10 @@ const enUS: Messages = {
   "act.subagent": "Sub-agent",
   "act.subagent.start": "{id} started: {title}",
   "act.subagent.done": "{id} finished: {title} ({reason})",
+  // ---- Diagnostics feedback (AC30) ----
+  "act.diagnostics": "Diagnostics",
+  "act.diagnostics.found": "{count} problem(s) after edit (first: {first}); injected into this turn's context",
+  "act.diagnostics.clean": "Diagnostics cleared (problems from the last edit are fixed)",
 
   "diff.title": "Review Changes",
   "diff.acceptAll": "Accept all",

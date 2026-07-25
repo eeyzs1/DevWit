@@ -149,6 +149,7 @@ export type ContextItemType =
   | "selection"
   | "conversation_history"
   | "codebase_match"
+  | "diagnostics"
   | "custom";
 
 /**
@@ -316,7 +317,9 @@ export type AgentTraceEventType =
   | "tool_call"
   | "authorization_request"
   | "authorization_decision"
+  | "authorization_auto"
   | "tool_result"
+  | "diagnostics"
   | "plan"
   | "subagent_start"
   | "subagent_done"
@@ -334,7 +337,28 @@ export type AgentTraceEventType =
  * - 子 Agent 内部事件（user_message/assistant_message/tool_call 等）转发进父轨迹时
  *   detail.subagentId 携带子代理标识——活动流按标记归属展示，historyFromTrace 跳过
  *   这些事件避免污染下一轮对话历史（综合消息已承载子任务结论）。
- */
+ *
+ * 授权白名单（迭代 20 / AC29）：
+ * - authorization_auto：命令白名单命中，未经弹窗自动放行（detail.toolName/args/reason +
+ *   source="whitelist"）。不产生 authorization_request/decision 对——审计语义为
+ *   「这次执行之所以没问你」。
+ *
+ * 诊断回馈（迭代 21 / AC30）：
+ * - diagnostics：write/edit 工具改写文件后对工作区跑 tsc 诊断的结果快照
+ *   （detail.count 为问题数，detail.entries 为截断后的诊断列表）。count=0 表示
+ *   修复闭环确认——上一次编辑引入的问题已被清除。 */
+
+/** 一条语言/编译诊断（迭代 21 / AC30）：tsc --noEmit 输出的结构化形式。 */
+export interface DiagnosticEntry {
+  /** 工作区相对路径（正斜杠归一化）。 */
+  file: string;
+  line: number;
+  column: number;
+  severity: "error" | "warning";
+  /** 诊断码，如 TS2322；无码诊断（罕见）缺省。 */
+  code?: string;
+  message: string;
+}
 
 export interface AgentTraceEvent {
   seq: number;

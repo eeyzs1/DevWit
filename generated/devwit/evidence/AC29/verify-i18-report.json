@@ -1,0 +1,34 @@
+{
+  "steps": [
+    "本地端点就绪 http://127.0.0.1:58286/v1（脚本化 6 请求）",
+    "应用启动 + fixture 工作区打开",
+    "keyless provider 注册 + agent 模式热绑定",
+    "第 1 轮：授权行出现（学习计数 0→需询问）",
+    "第 1 次批准（计数 1/2）→ 第 2 轮授权行出现",
+    "第 2 次批准 → 命令毕业进白名单（settings 持久化）",
+    "第 3 轮：白名单命中自动放行（无弹窗，轨迹标记可见）",
+    "真实执行证据：i18-marker.txt 三行 ac29（三轮全部真实经 cmd 执行）",
+    "磁盘轨迹审计：2 次询问 + 1 次自动放行（审计链完整）",
+    "设置·通用分区：白名单条目 + 学习开关可见",
+    "点「移除」→ 白名单清空（UI + settings 同步）",
+    "任务二：移除后同命令再次出现授权行（移除生效）",
+    "任务二：批准后计数 1/2 未毕业（阈值语义正确）",
+    "英文切换：Command whitelist 分区热生效无残留"
+  ],
+  "assertions": [
+    "批准后命令应毕业进白名单（实际: [\"echo ac29>> i18-marker.txt\"]）",
+    "第 3 轮不应有待裁决授权行（实际 0 个）",
+    "活动流缺少自动放行标记: 用户运行三轮 echo 标记助手工具bash 成功（成功）授权bash：执行命令: echo ac29>> i18-marker.txt已裁决：允许助手工具bash 成功（成功）授权bash：执行命令: echo ac29>> i18-marker.txt已裁决：允许助手工具bash 成功（成功）授权bash：执行命令: echo ac29>> i18-marker.txt已自动放行（命令白名单）",
+    "marker 应为 3 行 ac29（实际 3 行: ac29|ac29|ac29）",
+    "轨迹 authorization_request 应恰好 2 次（实际 2）",
+    "轨迹 authorization_auto 应 1 次且 source=whitelist（实际 1）",
+    "设置页白名单应含命令（实际: echo ac29>> i18-marker.txt移除清空白名单）",
+    "学习开关默认应为开",
+    "移除后应显示空态（实际: 白名单为空——批准的命令达到次数后会出现在这里。）",
+    "任务二第 1 次批准不应毕业（实际: []）",
+    "任务二批准后计数应为 1（实际: {\"echo ac29>> i18-marker.txt\":1}）",
+    "英文白名单分区缺失: LanguageFollow System中文EnglishApplies immediately and is persisted; no restart needed. Follow System: Chinese for Chinese systems, English otherwise.App updatesCheck for updatesCurrent version v0.2.0O"
+  ],
+  "failures": [],
+  "fatal": null
+}

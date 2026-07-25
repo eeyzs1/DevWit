@@ -9,6 +9,7 @@ import type {
 } from "@devwit/contracts";
 import type { ContextEngine } from "@devwit/context-engine";
 import { Authorizer, buildAuthorizationReason } from "./authorizer.js";
+import type { DiagnosticsTracker } from "./diagnostics.js";
 import { executeTool, isAgentToolName, toolDefinitionsFor, type ToolContext, type ToolEnvironment } from "./tools.js";
 import { AgentTrace } from "./trace.js";
 
@@ -34,6 +35,11 @@ export interface AgentLoopDeps {
   extraTools?: () => ToolDefinition[];
   /** 动态工具执行（MCP 等非内置工具的路由入口；缺省时非内置工具报未知工具）。 */
   executeExtraTool?: (call: ToolCall, ctx: ToolContext) => Promise<ToolResult>;
+  /**
+   * 诊断回馈（迭代 21 / AC30）：write/edit 改写文件后刷新工作区 tsc 诊断，
+   * 下一轮请求经上下文源自动携带（修复闭环）。缺省时零成本跳过。
+   */
+  diagnostics?: DiagnosticsTracker;
 }
 
 export type AgentFinishReason = "completed" | "max_iterations" | "cancelled" | "error";
@@ -216,24 +222,34 @@ export class AgentLoop {
     // 授权门：内置写工具（write/edit/bash）与全部 MCP 工具（AC17）执行前必经裁决
     if (this.authorizer.needsAuthorization(call.name)) {
       const reason = buildAuthorizationReason(call.name, call.args);
-      const { request, decision } = await this.authorizer.requestAuthorization(
-        call.name,
-        call.args,
-        reason,
-        (req) => {
-          trace.record("authorization_request", `${call.name}: ${reason}`, {
-            requestId: req.id,
-            toolName: call.name,
-            args: call.args,
-            reason,
-          });
+      if (this.authorizer.isAutoApproved(call.name, call.args)) {
+        // AC29：命令白名单命中——不弹窗，但轨迹显式记录自动放行（审计可见）
+        trace.record("authorization_auto", `${call.name}: ${reason}`, {
+          toolName: call.name,
+          args: call.args,
+          reason,
+          source: "whitelist",
+        });
+      } else {
+        const { request, decision } = await this.authorizer.requestAuthorization(
+          call.name,
+          call.args,
+          reason,
+          (req) => {
+            trace.record("authorization_request", `${call.name}: ${reason}`, {
+              requestId: req.id,
+              toolName: call.name,
+              args: call.args,
+              reason,
+            });
+          }
+        );
+        trace.record("authorization_decision", `${call.name} → ${decision}`, { requestId: request.id, decision });
+        if (decision === "deny") {
+          const denied: ToolResult = { ok: false, output: "", error: "用户拒绝授权，工具未执行" };
+          trace.record("tool_result", `${call.name} 被用户拒绝`, { result: denied });
+          return denied;
         }
-      );
-      trace.record("authorization_decision", `${call.name} → ${decision}`, { requestId: request.id, decision });
-      if (decision === "deny") {
-        const denied: ToolResult = { ok: false, output: "", error: "用户拒绝授权，工具未执行" };
-        trace.record("tool_result", `${call.name} 被用户拒绝`, { result: denied });
-        return denied;
       }
     }
 
@@ -246,7 +262,32 @@ export class AgentLoop {
       result.ok ? `${call.name} 成功` : `${call.name} 失败: ${result.error ?? "未知错误"}`,
       { result }
     );
+    await this.refreshDiagnostics(call.name, result, workspaceRoot, trace);
     return result;
+  }
+
+  /**
+   * AC30 诊断回馈：write/edit 成功改写文件后刷新 tsc 快照并落轨迹事件。
+   * 用户经上下文面板关掉 diagnostics 类型时完全跳过（不白跑 tsc）；
+   * 下一轮 engine.build 由诊断源把快照注入请求——模型看到自己引入的编译错误。
+   */
+  private async refreshDiagnostics(
+    toolName: string,
+    result: ToolResult,
+    workspaceRoot: string,
+    trace: AgentTrace
+  ): Promise<void> {
+    const tracker = this.deps.diagnostics;
+    if (tracker === undefined || !tracker.available) return;
+    if (!result.ok || (toolName !== "write" && toolName !== "edit")) return;
+    if (this.deps.engine.getPolicyView(this.deps.mode.contextPolicy)["diagnostics"] !== true) return;
+    const count = await tracker.refresh(workspaceRoot);
+    const entries = tracker.getLatest().slice(0, 20);
+    trace.record(
+      "diagnostics",
+      count === 0 ? "诊断：无问题" : `诊断：${count} 个问题（${entries[0]?.file ?? ""}:${entries[0]?.line ?? 0} 起）`,
+      { count, entries, trigger: toolName }
+    );
   }
 
   /** 非内置工具（MCP 等）执行：经注入路由；未注入时报未知工具（不静默吞掉）。 */

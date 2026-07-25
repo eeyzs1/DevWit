@@ -1,0 +1,7 @@
+迭代 20（AC29 授权白名单学习）验证：
+1. 学习链路：同一 bash 命令经用户两次「允许」后毕业进白名单（settings security.commandWhitelist 持久化）；deny/allow_session 不计数（单测覆盖）。
+2. 自动放行：第 3 轮同命令不再弹授权行，活动流渲染「已自动放行（命令白名单）」，轨迹落 authorization_auto（source=whitelist）；磁盘轨迹审计 2 询问 + 1 自动。
+3. 真实执行：i18-marker.txt 三行 ac29——三轮全部经 cmd 真实执行（含自动放行轮）。
+4. 管理 UI：设置·通用分区条目可见可移除、空态文案、学习开关默认开；移除后同命令再次询问且计数从头开始（阈值 2 语义正确）。
+5. i18n：英文切换 Command whitelist 分区热生效；chat.decidedAuto/security.* 中英同型。
+断言通过 12 项，失败 0 项。

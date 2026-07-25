@@ -9,6 +9,17 @@ import {
 /** 授权处理器：由调用方（如 apps 层经 IPC 弹窗）实现，返回用户裁决。 */
 export type AuthorizationHandler = (request: AuthorizationRequest) => Promise<AuthorizationDecision>;
 
+/**
+ * 授权记忆（迭代 20 / AC29 授权白名单学习）：
+ * - isWhitelisted：该工具调用此刻是否命中持久白名单（命中 → 免询问自动放行）；
+ * - recordDecision：用户裁决完成后回调（学习计数；实现自行决定哪些裁决计入）。
+ * 实现由 apps 层提供（设置持久化），agent-runtime 不感知存储细节。
+ */
+export interface AuthorizationMemory {
+  isWhitelisted(toolName: string, args: Record<string, unknown>): boolean;
+  recordDecision(toolName: string, args: Record<string, unknown>, decision: AuthorizationDecision): void;
+}
+
 interface PendingAuthorization {
   request: AuthorizationRequest;
   resolve: (decision: AuthorizationDecision) => void;
@@ -48,15 +59,25 @@ export class Authorizer {
   private readonly sessionAllowed = new Set<string>();
   private readonly pending = new Map<string, PendingAuthorization>();
   private readonly handler?: AuthorizationHandler;
+  private readonly memory?: AuthorizationMemory;
 
-  constructor(handler?: AuthorizationHandler) {
+  constructor(handler?: AuthorizationHandler, memory?: AuthorizationMemory) {
     if (handler !== undefined) this.handler = handler;
+    if (memory !== undefined) this.memory = memory;
   }
 
   /** 该工具此刻是否需要询问用户（会话级放行后免问）。 */
   needsAuthorization(toolName: string): boolean {
     if (this.sessionAllowed.has(toolName)) return false;
     return AUTHORIZED_TOOLS.has(toolName) || toolName.startsWith(MCP_TOOL_PREFIX);
+  }
+
+  /**
+   * 白名单命中检查（AC29）：仅在 needsAuthorization=true 后有意义——
+   * 命中时调用方记录 authorization_auto 轨迹并跳过询问。
+   */
+  isAutoApproved(toolName: string, args: Record<string, unknown>): boolean {
+    return this.memory?.isWhitelisted(toolName, args) ?? false;
   }
 
   /** 当前挂起等待裁决的请求（供 UI 渲染授权队列）。 */
@@ -79,6 +100,8 @@ export class Authorizer {
           this.pending.set(request.id, { request, resolve });
         });
     if (decision === "allow_session") this.sessionAllowed.add(toolName);
+    // AC29：裁决完成回调授权记忆（学习层自行过滤 allow/deny/allow_session 语义）
+    this.memory?.recordDecision(toolName, args, decision);
     return { request, decision };
   }
 

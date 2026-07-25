@@ -292,6 +292,14 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
         }
         break;
       }
+      case "diagnostics": {
+        // AC30：诊断回馈（最新快照；0 = 修复闭环确认）
+        row.textContent =
+          item.count === 0
+            ? `[${t("act.diagnostics")}] ${t("act.diagnostics.clean")}`
+            : `[${t("act.diagnostics")}] ${t("act.diagnostics.found", { count: item.count, first: item.firstLine })}`;
+        break;
+      }
       case "subagent": {
         row.textContent =
           item.phase === "start"
@@ -320,7 +328,9 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
         } else {
           const decided = document.createElement("div");
           decided.className = "dw-auth-decided";
-          decided.textContent = t("chat.decided", { decision: t(DECISION_KEY[item.decision]) });
+          decided.textContent = item.auto === true
+            ? t("chat.decidedAuto")
+            : t("chat.decided", { decision: t(DECISION_KEY[item.decision]) });
           row.appendChild(decided);
         }
         break;

@@ -29,8 +29,8 @@ import type {
   RagStatusInfo,
 } from "@devwit/contracts";
 import { DEFAULT_RAG_CONFIG, IPC } from "@devwit/contracts";
-import { AgentLoop, AgentOrchestrator, AgentTrace, Authorizer, createNodeEnvironment, historyFromTrace } from "@devwit/agent-runtime";
-import type { ToolEnvironment } from "@devwit/agent-runtime";
+import { AgentLoop, AgentOrchestrator, AgentTrace, Authorizer, CommandWhitelistMemory, createNodeEnvironment, DEFAULT_LEARNING, DiagnosticsTracker, historyFromTrace } from "@devwit/agent-runtime";
+import type { CommandWhitelistSnapshot, ToolEnvironment, WhitelistLearningConfig } from "@devwit/agent-runtime";
 import { attachmentSource, ContextEngine, fileFragmentSource, gitStatusSource, selectionSource, TiktokenCounter } from "@devwit/context-engine";
 import { createEmbedder, ProviderRegistry } from "@devwit/llm-providers";
 import { McpManager, validateMcpServerConfig } from "@devwit/mcp";
@@ -39,6 +39,7 @@ import { CodebaseIndex, codebaseMatchSource } from "@devwit/rag";
 import type { SettingsStore } from "@devwit/settings";
 import { getGitStatus } from "@devwit/workspace";
 import type { WorkspaceService } from "@devwit/workspace";
+import { collectTscDiagnostics } from "./diagnostics.js";
 
 /** settings 键：用户逐项上下文开关（全局，对每个新会话引擎生效）。 */
 const CONTEXT_OVERRIDES_KEY = "contextOverrides";
@@ -50,11 +51,17 @@ const MODES_KEY = "modes";
 const MCP_SERVERS_KEY = "mcpServers";
 /** settings 键：代码索引配置（迭代 10 / AC19，热更新）。 */
 const RAG_KEY = "rag";
+/** settings 键：命令白名单与学习配置（迭代 20 / AC29，热更新——memory 每次实时读）。 */
+const WHITELIST_KEY = "security.commandWhitelist";
+const APPROVALS_KEY = "security.commandApprovals";
+const LEARNING_KEY = "security.whitelistLearning";
 
 interface SessionState {
   engine: ContextEngine;
   trace: AgentTrace;
   authorizer: Authorizer;
+  /** AC30：会话级诊断快照（编辑后 tsc 回馈）；会话引擎与编排子引擎共享同一 tracker。 */
+  diagnostics: DiagnosticsTracker;
   abort: AbortController;
   running: boolean;
   modeId: string;
@@ -100,6 +107,8 @@ export class AiRuntime {
   private ragRoot: string | null = null;
   private readonly ragDir: string;
   private readonly tokenCounter = new TiktokenCounter();
+  /** 授权白名单学习（AC29）：store 实时读写 settings——设置页改动即刻生效，无需重启。 */
+  private readonly authMemory: CommandWhitelistMemory;
 
   constructor(deps: AiRuntimeDeps) {
     this.deps = deps;
@@ -112,6 +121,15 @@ export class AiRuntime {
     this.mcpManager = new McpManager();
     this.mcpManager.onDidChange(() => {
       this.deps.send(IPC.McpChanged);
+    });
+    // AC29：白名单 store 桥 settings——read 每次取最新（热更新），write 原子写回两个键。
+    // 毕业提示经 settings.onChanged（WHITELIST_KEY）自然推送到渲染端，无需专用通道。
+    this.authMemory = new CommandWhitelistMemory({
+      read: () => this.readWhitelistSnapshot(),
+      write: (whitelist, approvals) => {
+        this.settings.set(WHITELIST_KEY, whitelist);
+        this.settings.set(APPROVALS_KEY, approvals);
+      },
     });
     this.hydrateProviders();
     this.hydrateModes();
@@ -446,6 +464,7 @@ export class AiRuntime {
           onAssistantDelta: (delta) => this.emitDelta(input.sessionId, delta),
           extraTools: () => this.mcpManager.toolDefinitions(),
           executeExtraTool: (call) => this.mcpManager.callTool(call),
+          diagnostics: session.diagnostics,
         });
         await orchestrator.run(input, session.abort.signal, priorHistory);
       } else {
@@ -460,6 +479,8 @@ export class AiRuntime {
           // AC17：MCP 工具热聚合（每轮迭代取当前 ready 服务器工具集）与调用路由
           extraTools: () => this.mcpManager.toolDefinitions(),
           executeExtraTool: (call) => this.mcpManager.callTool(call),
+          // AC30：编辑后 tsc 诊断回馈（快照源已挂会话引擎）
+          diagnostics: session.diagnostics,
         });
         await loop.run(input, session.abort.signal, priorHistory);
       }
@@ -545,6 +566,32 @@ export class AiRuntime {
   // 内部
   // --------------------------------------------------------------------------
 
+  /** AC29：从 settings 读白名单快照（缺省/脏数据归一为安全默认——学习开、阈值 2、空表）。 */
+  private readWhitelistSnapshot(): CommandWhitelistSnapshot {
+    const rawList = this.settings.get(WHITELIST_KEY);
+    const rawApprovals = this.settings.get(APPROVALS_KEY);
+    const rawLearning = this.settings.get(LEARNING_KEY);
+    const whitelist = Array.isArray(rawList) ? rawList.filter((x): x is string => typeof x === "string") : [];
+    const approvals: Record<string, number> = {};
+    if (typeof rawApprovals === "object" && rawApprovals !== null) {
+      for (const [command, count] of Object.entries(rawApprovals as Record<string, unknown>)) {
+        if (typeof count === "number" && Number.isFinite(count) && count > 0) approvals[command] = Math.floor(count);
+      }
+    }
+    let learning: WhitelistLearningConfig = { ...DEFAULT_LEARNING };
+    if (typeof rawLearning === "object" && rawLearning !== null) {
+      const record = rawLearning as Record<string, unknown>;
+      learning = {
+        enabled: typeof record["enabled"] === "boolean" ? record["enabled"] : DEFAULT_LEARNING.enabled,
+        threshold:
+          typeof record["threshold"] === "number" && Number.isFinite(record["threshold"]) && record["threshold"] >= 1
+            ? Math.floor(record["threshold"])
+            : DEFAULT_LEARNING.threshold,
+      };
+    }
+    return { whitelist, approvals, learning };
+  }
+
   private ensureSession(sessionId: string, modeId: string): SessionState {
     const existing = this.sessions.get(sessionId);
     if (existing !== undefined) return existing;
@@ -565,17 +612,19 @@ export class AiRuntime {
     const session: SessionState = {
       engine,
       trace,
-      authorizer: new Authorizer(),
+      authorizer: new Authorizer(undefined, this.authMemory),
+      // AC30：真实 tsc 诊断采集（无 tsconfig/无本地 typescript 时诚实降级为空）
+      diagnostics: new DiagnosticsTracker(collectTscDiagnostics),
       abort: new AbortController(),
       running: false,
       modeId,
     };
-    this.registerSessionSources(engine);
+    this.registerSessionSources(engine, session.diagnostics);
     this.sessions.set(sessionId, session);
     return session;
   }
 
-  /** AC20 子 Agent 引擎：与会话引擎同源（含 RAG/逐项开关），并发 build 互不竞争。 */
+  /** AC20 子 Agent 引擎：与会话引擎同源（含 RAG/逐项开关/诊断回馈），并发 build 互不竞争。 */
   private createSubEngine(sessionId: string): ContextEngine {
     const engine = this.createEngine(sessionId);
     for (const [type, enabled] of this.readContextOverrides()) {
@@ -584,12 +633,15 @@ export class AiRuntime {
     for (const [key, enabled] of this.readItemOverrides()) {
       engine.setItemOverride(key, enabled);
     }
-    this.registerSessionSources(engine);
+    // 子 Agent 共享会话诊断 tracker：子任务编辑刷新同一快照（并行写不同文件时
+    // 刷新串行化由 tracker 内部保证；诊断是全工作区视角，天然兼容并行子任务）
+    const tracker = this.sessions.get(sessionId)?.diagnostics ?? new DiagnosticsTracker(collectTscDiagnostics);
+    this.registerSessionSources(engine, tracker);
     return engine;
   }
 
-  /** 会话级上下文源注册：选区/活动文件片段/@引用附件/git 状态/透明 RAG（会话引擎与编排子引擎共用）。 */
-  private registerSessionSources(engine: ContextEngine): void {
+  /** 会话级上下文源注册：选区/活动文件片段/@引用附件/git 状态/透明 RAG/诊断回馈（会话引擎与编排子引擎共用）。 */
+  private registerSessionSources(engine: ContextEngine, diagnostics: DiagnosticsTracker): void {
     engine.registerSource(selectionSource());
     engine.registerSource(fileFragmentSource((filePath) => this.deps.workspace.readFile(filePath)));
     // AC28：@文件引用附件源。路径逃逸/文件消失由 workspace 防护与源内 try/catch 双层兜底
@@ -617,6 +669,8 @@ export class AiRuntime {
         countTokens: (text) => this.tokenCounter.count(text),
       })
     );
+    // AC30：诊断回馈源（快照只读；write/edit 成功后由 loop 触发刷新）
+    engine.registerSource(diagnostics.source());
   }
 
   private createEngine(sessionId: string): ContextEngine {

@@ -1,0 +1,35 @@
+[
+  {
+    "seq": 7,
+    "timestamp": "2026-07-25T08:19:50.372Z",
+    "sessionId": "task-session-1784967589494-1",
+    "type": "diagnostics",
+    "summary": "诊断：1 个问题（src/broken.ts:1 起）",
+    "detail": {
+      "count": 1,
+      "entries": [
+        {
+          "file": "src/broken.ts",
+          "line": 1,
+          "column": 14,
+          "severity": "error",
+          "code": "TS2322",
+          "message": "Type 'string' is not assignable to type 'number'."
+        }
+      ],
+      "trigger": "write"
+    }
+  },
+  {
+    "seq": 13,
+    "timestamp": "2026-07-25T08:19:51.295Z",
+    "sessionId": "task-session-1784967589494-1",
+    "type": "diagnostics",
+    "summary": "诊断：无问题",
+    "detail": {
+      "count": 0,
+      "entries": [],
+      "trigger": "write"
+    }
+  }
+]

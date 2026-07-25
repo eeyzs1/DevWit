@@ -56,6 +56,23 @@ describe("Authorizer（AC4 授权门）", () => {
     expect((await p2).decision).toBe("deny");
     expect(authorizer.listPending()).toHaveLength(0);
   });
+
+  it("AC29 授权记忆：isAutoApproved 透传 memory；裁决完成后 recordDecision 回调", async () => {
+    const recorded: Array<{ toolName: string; decision: AuthorizationDecision }> = [];
+    const authorizer = new Authorizer(async () => "allow", {
+      isWhitelisted: (toolName) => toolName === "bash",
+      recordDecision: (toolName, _args, decision) => recorded.push({ toolName, decision }),
+    });
+    expect(authorizer.isAutoApproved("bash", { command: "ls" })).toBe(true);
+    expect(authorizer.isAutoApproved("write", {})).toBe(false);
+    await authorizer.requestAuthorization("write", { path: "a.txt" }, "写入文件: a.txt");
+    expect(recorded).toEqual([{ toolName: "write", decision: "allow" }]);
+  });
+
+  it("AC29：无 memory 时 isAutoApproved 恒 false（向后兼容）", () => {
+    const authorizer = new Authorizer();
+    expect(authorizer.isAutoApproved("bash", { command: "ls" })).toBe(false);
+  });
 });
 
 describe("buildAuthorizationReason", () => {

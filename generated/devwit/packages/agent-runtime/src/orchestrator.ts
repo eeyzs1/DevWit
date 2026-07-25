@@ -11,6 +11,7 @@ import type {
 import type { ContextEngine } from "@devwit/context-engine";
 import { AgentLoop, type AgentRunResult } from "./agent-loop.js";
 import { Authorizer } from "./authorizer.js";
+import type { DiagnosticsTracker } from "./diagnostics.js";
 import { AgentTrace } from "./trace.js";
 import type { ToolContext, ToolEnvironment } from "./tools.js";
 
@@ -58,6 +59,8 @@ export interface AgentOrchestratorDeps {
   /** MCP 等动态工具源（透传给每个子 Agent，按服务器当前状态热聚合）。 */
   extraTools?: () => ToolDefinition[];
   executeExtraTool?: (call: ToolCall, ctx: ToolContext) => Promise<ToolResult>;
+  /** 诊断回馈（迭代 21 / AC30）：透传给每个子 Agent——子任务编辑同样触发诊断刷新。 */
+  diagnostics?: DiagnosticsTracker;
 }
 
 interface PlannedTask {
@@ -269,6 +272,7 @@ export class AgentOrchestrator {
       maxIterations: this.deps.maxSubIterations ?? DEFAULT_MAX_SUB_ITERATIONS,
       ...(this.deps.extraTools !== undefined ? { extraTools: this.deps.extraTools } : {}),
       ...(this.deps.executeExtraTool !== undefined ? { executeExtraTool: this.deps.executeExtraTool } : {}),
+      ...(this.deps.diagnostics !== undefined ? { diagnostics: this.deps.diagnostics } : {}),
     });
     const result = await loop.run({ ...input, userText: task.prompt }, signal);
     parentTrace.record(
