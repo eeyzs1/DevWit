@@ -332,6 +332,42 @@ iteration_16:
     verifier: tests/e2e/verify-i14.mjs（断言全 PASS：渲染/导入/归并/错误路径）
   notes: e2e 修复——waitForFunction 浏览器端只认标准 DOM，Playwright nth=/has-text 语法改 querySelectorAll 文本遍历。官方索引仓库 eeyzs1/devwit-modes 上线：5 个首发模式（code-reviewer/commit-scribe/test-writer/doc-writer/refactor-advisor），index.json v1 信封
   index_evidence: https://github.com/eeyzs1/devwit-modes（index.json + modes/ 五件）
+iteration_17:
+  scope: 首次运行成功路径（AC26）——连接探测 + 型号自动发现 + Ollama 安装引导（免费软件定位下的首配零输入目标）
+  acceptance_criteria:
+  - description: 'probeProvider（llm-providers）：真实 GET {baseUrl}/models，5s 超时；三类失败归一 ASCII 错误码——DW_PROBE_TIMEOUT / DW_PROBE_UNREACHABLE / DW_PROBE_HTTP_<status>；keyless 整体跳过凭证解析与 authorization 头'
+    id: AC26
+    status: completed
+    verifier: packages/llm-providers/tests/probe.test.ts + tests/e2e/verify-i15.mjs + evidence/AC26/auth-log.json
+  - description: '设置·模型分区「测试连接」：成功→状态行「连接成功 · 发现 N 个模型」+ 型号 datalist 回填 + 自动预填首发现型号；失败→本地化报错，Ollama 预设追加安装引导（ollama.com + ollama pull）；带 key 探测按原样携带 Bearer 头'
+    id: AC26
+    status: completed
+    verifier: tests/e2e/verify-i15.mjs（10 项断言全 PASS：keyless 零头 / 带 key Bearer 原样 / 死端口本地化 / Ollama 引导）+ evidence/AC26
+  - description: '主进程 IPC ProvidersProbe：credentialRef 经 settings.resolve 解析（fakeServices 补 resolve mock）；preload 暴露 providers.probe；IPC 白名单测试补通道断言'
+    id: AC26
+    status: completed
+    verifier: apps/desktop/tests/ipc-whitelist.test.ts + apps/desktop/src/main/ipc.ts
+  notes: 预设 endpoint 硬编码经 qg-allow 人工评审豁免（992a017）——AR002 规定 endpoint 知识单一归属 llm-providers 包，外置配置反而破坏事实源
+  e2e_report: evidence/AC26/verify-i15-report.json (10 项断言全 PASS) + 12 套 e2e 全量回归 PASSED
+  unit_tests: 45 files / 371 tests passed
+iteration_18:
+  scope: 首次运行向导（AC27）——语言→模型→完成 三步引导，首启自动弹出 + 设置页可重跑
+  acceptance_criteria:
+  - description: 'onboarding-wizard.ts：全新 userData 首启自动弹出（onboarding.state 未完成且无模型配置时），三步进度指示；老用户升级静默标记完成不打扰；跳过/完成均持久化 completed'
+    id: AC27
+    status: completed
+    verifier: tests/e2e/verify-i16.mjs + evidence/AC27（01 首启弹出 / 06 同 userData 重启缺席）
+  - description: '语言步：跟随系统/中文/English，切换热生效（界面即时重渲染）并持久化 ui.locale；模型步：默认 Ollama 预设（keyless 隐藏 API Key 行），「测试连接」自动发现型号回填 datalist 并预填首选，保存后 provider 持久化 keyless=true 且凭证存储零写入'
+    id: AC27
+    status: completed
+    verifier: tests/e2e/verify-i16.mjs（18 项断言全 PASS：English 热切换 / ui.locale 持久化 / 探测回填 / auth-log 零 authorization 头 / credentials 零写入）
+  - description: '完成步「打开文件夹」→ 文件树就绪向导关闭，向导配置的 provider 即刻真实对话可用；设置·通用新增「重新运行首次运行向导」入口'
+    id: AC27
+    status: completed
+    verifier: tests/e2e/verify-i16.mjs（截图 04 文件树 / 05 真实对话 SSE 渲染 + 服务端零 authorization 头）+ settings-dialog.ts onRerunWizard
+  notes: E2E 隔离钩子——DEVWIT_USER_DATA_DIR 环境默认抑制向导（主进程启动时预置 onboarding.state.completed），DEVWIT_E2E_WIZARD=1 显式开启，既有 12 套 e2e 零改动回归通过
+  e2e_report: evidence/AC27/verify-i16-report.json (18 项断言全 PASS) + 13 套 e2e 全量回归 PASSED
+  unit_tests: 45 files / 371 tests passed
 v020_release:
   scope: v0.2.0 发版 + 包管理器升版
   facts:
@@ -339,6 +375,6 @@ v020_release:
   - 资产完整性实证：exe MZ 头 + dmg koly 尾，大小与 Release 元数据一致；sha256 重算 exe=4A38F963…C4B47 / dmg=27bc9cba…6327
   - 主仓库清单升版 adf390a：winget 0.2.0 四分件 + homebrew cask version/sha256
   - homebrew-tap 6cbf5be「devwit 0.2.0」已推送，brew install --cask eeyzs1/tap/devwit 即装 0.2.0
-  - winget PR 已提交 microsoft/winget-pkgs#407506（New package eeyzs1.DevWit 0.2.0，首次入库直接以最新版）；CLA 检查排队中，验证管线自动运行
+  - winget PR microsoft/winget-pkgs#407506：验证管线 Validation-Completed + Azure-Pipeline-Passed；Microsoft CLA 已由用户以个人名义签署（license/cla check SUCCESS）；等待社区 moderator 审批（New-Package 流程）
 status: complete
-updated_at: '2026-07-25T02:40:00.000000'
+updated_at: '2026-07-25T09:45:00.000000'
