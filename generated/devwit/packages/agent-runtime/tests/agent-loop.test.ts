@@ -1,6 +1,6 @@
 import path from "node:path";
 import type { AgentRunInput, ModeDefinition, StreamEvent } from "@devwit/contracts";
-import { ContextEngine } from "@devwit/context-engine";
+import { attachmentSource, ContextEngine } from "@devwit/context-engine";
 import { describe, expect, it } from "vitest";
 import { AgentLoop, type AgentLoopDeps } from "../src/agent-loop.js";
 import { Authorizer } from "../src/authorizer.js";
@@ -74,6 +74,46 @@ describe("AgentLoop", () => {
     expect(messages[0]).toEqual({ role: "system", content: "你是测试 Agent。" });
     expect(messages.some((m) => m.role === "user" && m.content === "创建文件并运行脚本")).toBe(true);
     expect(provider.calls[0]?.tools.map((t) => t.name)).toEqual(["read", "write", "bash"]);
+  });
+
+  it("AC28：@附件注入——file_fragment 强制打开、独立 key 项入 manifest、内容进请求", async () => {
+    const { loop, provider, engine, env } = makeHarness([textThenDone("看完附件了。")]);
+    engine.registerSource(attachmentSource(async (filePath) => env.readFile(path.resolve(ROOT, filePath))));
+    const result = await loop.run({ ...INPUT, attachments: ["a.txt"] });
+    expect(result.finishReason).toBe("completed");
+
+    // 附件内容以「## 引用文件 <路径>」段进入用户上下文消息（file_fragment 默认关→附件强制打开）
+    const contextMessage = provider.calls[0]?.messages.find(
+      (m) => m.role === "user" && m.content.includes("## 引用文件 a.txt")
+    );
+    expect(contextMessage?.content).toContain("文件内容 alpha");
+
+    // manifest 审计：attachment:a.txt 为稳定 key 的独立项，enabled 且 token 精确计数
+    const manifest = engine.getLatestManifest();
+    const attachmentItem = manifest?.items.find((item) => item.key === "attachment:a.txt");
+    expect(attachmentItem).toMatchObject({ type: "file_fragment", enabled: true, source: "attachment" });
+    expect(attachmentItem?.tokens).toBeGreaterThan(0);
+  });
+
+  it("AC28：附件逐项剔除（itemOverride）→ 该项零注入但 manifest 保留可见条目", async () => {
+    const { loop, provider, engine, env } = makeHarness([textThenDone("附件已剔除。")]);
+    engine.registerSource(attachmentSource(async (filePath) => env.readFile(path.resolve(ROOT, filePath))));
+    engine.setItemOverride("attachment:a.txt", false);
+    await loop.run({ ...INPUT, attachments: ["a.txt"] });
+
+    const messages = provider.calls[0]?.messages ?? [];
+    expect(messages.some((m) => m.content.includes("文件内容 alpha"))).toBe(false);
+    const item = engine.getLatestManifest()?.items.find((entry) => entry.key === "attachment:a.txt");
+    expect(item).toMatchObject({ enabled: false, tokens: 0, content: "" });
+  });
+
+  it("AC28：无附件时 file_fragment 保持默认关闭，不注入活动文件之外的内容", async () => {
+    const { loop, provider, engine, env } = makeHarness([textThenDone("无附件。")]);
+    engine.registerSource(attachmentSource(async (filePath) => env.readFile(path.resolve(ROOT, filePath))));
+    await loop.run(INPUT);
+    const messages = provider.calls[0]?.messages ?? [];
+    expect(messages.some((m) => m.content.includes("引用文件"))).toBe(false);
+    expect(engine.getLatestManifest()?.items.some((item) => item.key?.startsWith("attachment:"))).not.toBe(true);
   });
 
   it("工具循环：read 免授权直接执行，结果回填后第二轮完成", async () => {

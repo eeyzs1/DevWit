@@ -8,3 +8,4 @@ export * from "./context-panel.js";
 export * from "./diff-view.js";
 export * from "./task-center.js";
 export * from "./activity-stream.js";
+export * from "./input-triggers.js";

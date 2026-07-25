@@ -1,0 +1,10 @@
+迭代 19（AC28 @文件引用 + /斜杠命令）验证：
+1. placeholder 词典接线：@ 引用文件 / / 切换模式 提示在文案中。
+2. @文件引用：@ 触发文件候选下拉 → hel 过滤唯一命中（截图 01）→ Enter 成 chip 且输入框清空；
+   第二文件鼠标点击成 chip；× 剔除；重复引用去重；重引用回两 chip（截图 02）。
+3. 发送：服务端捕获请求体——「## 引用文件 src/hello.ts / src/util.ts」两段全文注入
+   （MAGIC_TOKEN / beta-util-content 可见），用户原文无 @残留，发送后 chips 清空。
+4. manifest 落盘审计：attachment:<路径> 稳定 key 独立项、enabled、token 精确计数（manifest-latest.json）。
+5. /斜杠命令：/age 过滤出 agent → Enter 速切（模式下拉变 agent、输入清空，截图 03）→
+   / 全量模式列表点选切回 chat；速切后第二轮真实对话正常（截图 04）。
+断言通过 23 项，失败 0 项。

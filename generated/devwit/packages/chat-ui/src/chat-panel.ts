@@ -1,6 +1,7 @@
 import type { ModeDefinition, ProviderConfig } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, t, ta } from "@devwit/i18n";
 import type { ChatContextSnapshot, ChatController, ChatItem } from "./chat-controller.js";
+import { detectAtTrigger, detectSlashTrigger, filterModesByQuery, filterWorkspaceFiles } from "./input-triggers.js";
 
 /** 授权裁决 → 词典键（模板串键无法通过 MessageKey 类型检查，用显式映射）。 */
 const DECISION_KEY = {
@@ -21,6 +22,11 @@ export interface ChatPanelOptions {
   listProviders(): ProviderConfig[];
   /** 发送时采集会话上下文快照（活动文件/选区/终端尾段）。 */
   collectContext(): ChatContextSnapshot;
+  /**
+   * @文件引用候选源（迭代 19 / AC28）：返回工作区内可引用文件的相对路径
+   * （正斜杠）。缺省时 @ 触发不出现（无工作区场景）。
+   */
+  listWorkspaceFiles?(): string[];
   /** 请求审查 assistant 最新回复中的编辑提案（WU013 钩子，可选）。 */
   onProposalReview?: (assistantText: string) => void;
 }
@@ -52,20 +58,162 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
   list.className = "dw-chat-list";
   root.appendChild(list);
 
-  // ---- 输入区 ----
+  // ---- 输入区（AC28：@文件引用 chips + /斜杠命令速切模式 + 候选下拉）----
   const inputArea = document.createElement("div");
   inputArea.className = "dw-chat-input";
+  const chipsRow = document.createElement("div");
+  chipsRow.className = "dw-atchips";
+  const inputWrap = document.createElement("div");
+  inputWrap.className = "dw-chat-input-wrap";
   const textarea = document.createElement("textarea");
   textarea.className = "dw-chat-textarea";
   textarea.rows = 3;
+  const suggest = document.createElement("div");
+  suggest.className = "dw-suggest";
+  suggest.style.display = "none";
+  inputWrap.append(textarea, suggest);
   const sendBtn = document.createElement("button");
   sendBtn.className = "dw-btn dw-btn-primary";
   const stopBtn = document.createElement("button");
   stopBtn.className = "dw-btn";
   stopBtn.style.display = "none";
-  inputArea.append(textarea, sendBtn, stopBtn);
+  inputArea.append(chipsRow, inputWrap, sendBtn, stopBtn);
   root.appendChild(inputArea);
   container.appendChild(root);
+
+  /** 待发送的 @引用附件（工作区相对路径，正斜杠；发送后清空）。 */
+  const attachments: string[] = [];
+  /** 候选下拉状态：file = @引用补全（含触发符下标）；mode = /斜杠命令。 */
+  type SuggestState =
+    | { kind: "file"; start: number; candidates: string[]; active: number }
+    | { kind: "mode"; candidates: ModeDefinition[]; active: number };
+  let suggestState: SuggestState | null = null;
+
+  function renderChips(): void {
+    chipsRow.textContent = "";
+    chipsRow.style.display = attachments.length === 0 ? "none" : "flex";
+    for (const attachment of attachments) {
+      const chip = document.createElement("span");
+      chip.className = "dw-atchip";
+      chip.dataset["path"] = attachment;
+      chip.title = attachment;
+      const name = attachment.slice(attachment.lastIndexOf("/") + 1);
+      chip.appendChild(document.createTextNode(name));
+      const remove = document.createElement("button");
+      remove.className = "dw-atchip-x";
+      remove.textContent = "×";
+      remove.title = t("chat.atchip.remove");
+      remove.addEventListener("click", () => {
+        const index = attachments.indexOf(attachment);
+        if (index >= 0) attachments.splice(index, 1);
+        renderChips();
+        textarea.focus();
+      });
+      chip.appendChild(remove);
+      chipsRow.appendChild(chip);
+    }
+  }
+
+  function closeSuggest(): void {
+    suggestState = null;
+    suggest.style.display = "none";
+    suggest.textContent = "";
+  }
+
+  function renderSuggest(): void {
+    if (suggestState === null) return;
+    suggest.textContent = "";
+    suggest.dataset["kind"] = suggestState.kind;
+    if (suggestState.kind === "file") {
+      const { candidates, active } = suggestState;
+      candidates.forEach((candidate, index) => {
+        const item = document.createElement("div");
+        item.className = "dw-suggest-item" + (index === active ? " dw-suggest-active" : "");
+        item.dataset["value"] = candidate;
+        item.textContent = candidate;
+        // mousedown 先于 blur：阻止失焦关闭，保证点击可选中
+        item.addEventListener("mousedown", (event) => {
+          event.preventDefault();
+          applyFileCandidate(candidate);
+        });
+        suggest.appendChild(item);
+      });
+    } else {
+      const { candidates, active } = suggestState;
+      candidates.forEach((candidate, index) => {
+        const item = document.createElement("div");
+        item.className = "dw-suggest-item" + (index === active ? " dw-suggest-active" : "");
+        item.dataset["value"] = candidate.id;
+        item.appendChild(document.createTextNode(displayModeName(candidate)));
+        const idHint = document.createElement("span");
+        idHint.className = "dw-suggest-hint";
+        idHint.textContent = candidate.id;
+        item.appendChild(idHint);
+        item.addEventListener("mousedown", (event) => {
+          event.preventDefault();
+          applyModeCandidate(candidate);
+        });
+        suggest.appendChild(item);
+      });
+    }
+    suggest.style.display = "block";
+  }
+
+  /** 按当前光标位置刷新候选：/ 开头 → 模式速切；@ 查询 → 文件补全；否则关闭。 */
+  function refreshSuggest(): void {
+    const caret = textarea.selectionStart ?? textarea.value.length;
+    const slash = detectSlashTrigger(textarea.value, caret);
+    if (slash !== null) {
+      const candidates = filterModesByQuery(options.listModes(), slash.query, displayModeName);
+      if (candidates.length === 0) {
+        closeSuggest();
+        return;
+      }
+      const prev = suggestState?.kind === "mode" ? suggestState.active : 0;
+      suggestState = { kind: "mode", candidates, active: Math.min(prev, candidates.length - 1) };
+      renderSuggest();
+      return;
+    }
+    const at = detectAtTrigger(textarea.value, caret);
+    const files = options.listWorkspaceFiles?.() ?? [];
+    if (at !== null && files.length > 0) {
+      const candidates = filterWorkspaceFiles(files, at.query);
+      if (candidates.length === 0) {
+        closeSuggest();
+        return;
+      }
+      const prev = suggestState?.kind === "file" ? suggestState.active : 0;
+      suggestState = { kind: "file", start: at.start, candidates, active: Math.min(prev, candidates.length - 1) };
+      renderSuggest();
+      return;
+    }
+    closeSuggest();
+  }
+
+  /** 选中文件候选：删除 @查询 原文 → 生成 chip（去重），内容不留在输入框。 */
+  function applyFileCandidate(candidate: string): void {
+    if (suggestState?.kind !== "file") return;
+    const caret = textarea.selectionStart ?? textarea.value.length;
+    const start = suggestState.start;
+    textarea.value = textarea.value.slice(0, start) + textarea.value.slice(caret);
+    textarea.selectionStart = start;
+    textarea.selectionEnd = start;
+    if (!attachments.includes(candidate)) {
+      attachments.push(candidate);
+      renderChips();
+    }
+    closeSuggest();
+    textarea.focus();
+  }
+
+  /** 选中模式候选（/斜杠命令）：立即切换模式并清空命令原文。 */
+  function applyModeCandidate(candidate: ModeDefinition): void {
+    controller.setMode(candidate.id);
+    refreshSelectors();
+    textarea.value = "";
+    closeSuggest();
+    textarea.focus();
+  }
 
   /** 静态文案随语言热更新（AC12）：选择器 title / 占位符 / 按钮文本。 */
   function applyLocale(): void {
@@ -218,7 +366,18 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
   function sendCurrent(): void {
     const text = textarea.value;
     textarea.value = "";
-    void controller.send(text, options.collectContext()).catch(() => {
+    closeSuggest();
+    // 附件随本轮发送；发送失败（如会话忙）时恢复 chips，避免用户引用丢失
+    const attached = [...attachments];
+    attachments.length = 0;
+    renderChips();
+    const snapshot: ChatContextSnapshot = {
+      ...options.collectContext(),
+      ...(attached.length > 0 ? { attachments: attached } : {}),
+    };
+    void controller.send(text, snapshot).catch(() => {
+      attachments.push(...attached);
+      renderChips();
       // 错误已作为 error 项入列表（controller 内部处理）
     });
   }
@@ -226,11 +385,45 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
   sendBtn.addEventListener("click", sendCurrent);
   stopBtn.addEventListener("click", () => controller.cancel());
   textarea.addEventListener("keydown", (event) => {
+    // 候选下拉打开时：方向键导航、Enter/Tab 选中、Esc 关闭（均不触发发送）
+    if (suggestState !== null) {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const delta = event.key === "ArrowDown" ? 1 : -1;
+        const size = suggestState.candidates.length;
+        suggestState.active = (suggestState.active + delta + size) % size;
+        renderSuggest();
+        return;
+      }
+      if (event.key === "Enter" || event.key === "Tab") {
+        event.preventDefault();
+        const current = suggestState.candidates[suggestState.active];
+        if (current === undefined) return;
+        if (suggestState.kind === "file") {
+          applyFileCandidate(current as string);
+        } else {
+          applyModeCandidate(current as ModeDefinition);
+        }
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeSuggest();
+        return;
+      }
+    }
     if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
       event.preventDefault();
       sendCurrent();
     }
   });
+  textarea.addEventListener("input", refreshSuggest);
+  textarea.addEventListener("click", refreshSuggest);
+  textarea.addEventListener("keyup", (event) => {
+    // 光标移动类按键刷新候选定位（字符输入走 input 事件）
+    if (event.key.startsWith("Arrow") || event.key === "Home" || event.key === "End") refreshSuggest();
+  });
+  textarea.addEventListener("blur", closeSuggest);
   modeSelect.addEventListener("change", () => controller.setMode(modeSelect.value));
   providerSelect.addEventListener("change", () => {
     controller.setProvider(providerSelect.value === "" ? undefined : providerSelect.value);

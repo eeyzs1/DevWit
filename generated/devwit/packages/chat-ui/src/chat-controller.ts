@@ -33,6 +33,8 @@ export interface ChatContextSnapshot {
   activeFile?: string;
   selection?: { text: string; startLine: number; endLine: number };
   terminalTail?: string;
+  /** @文件引用（迭代 19 / AC28）：面板 chips 采集的工作区相对路径（正斜杠）。 */
+  attachments?: string[];
 }
 
 export interface ChatControllerDeps {
@@ -167,6 +169,9 @@ export class ChatController {
       ...(context.activeFile !== undefined ? { activeFile: context.activeFile } : {}),
       ...(context.selection !== undefined ? { selection: context.selection } : {}),
       ...(context.terminalTail !== undefined ? { terminalTail: context.terminalTail } : {}),
+      ...(context.attachments !== undefined && context.attachments.length > 0
+        ? { attachments: context.attachments }
+        : {}),
     };
     try {
       await this.deps.api.agent.run(input);

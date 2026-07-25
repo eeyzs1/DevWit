@@ -1,6 +1,7 @@
 import type { ContextCollectInput } from "@devwit/contracts";
 import { describe, expect, it } from "vitest";
 import {
+  attachmentSource,
   conversationHistorySource,
   fileFragmentSource,
   gitStatusSource,
@@ -50,6 +51,43 @@ describe("fileFragmentSource", () => {
     expect(items[0]?.type).toBe("file_fragment");
     expect(items[0]?.content).toBe("file-body");
     expect(items[0]?.source).toBe("src/main.ts");
+  });
+});
+
+describe("attachmentSource（迭代 19 / AC28 @文件引用）", () => {
+  it("无 attachments 或空数组时不产生项", async () => {
+    const source = attachmentSource(async () => "内容");
+    expect(await source.collect(makeInput())).toEqual([]);
+    expect(await source.collect(makeInput({ attachments: [] }))).toEqual([]);
+  });
+
+  it("每个引用产出独立 file_fragment 项，key=attachment:<路径> 稳定", async () => {
+    const seen: string[] = [];
+    const source = attachmentSource(async (filePath) => {
+      seen.push(filePath);
+      return `body-of-${filePath}`;
+    });
+    const items = await source.collect(makeInput({ attachments: ["src/a.ts", "docs/readme.md"] }));
+    expect(seen).toEqual(["src/a.ts", "docs/readme.md"]);
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({
+      type: "file_fragment",
+      label: "引用文件 src/a.ts",
+      content: "body-of-src/a.ts",
+      source: "attachment",
+      key: "attachment:src/a.ts",
+    });
+    expect(items[1]?.key).toBe("attachment:docs/readme.md");
+  });
+
+  it("单文件读取失败跳过该附件，不阻断其余引用", async () => {
+    const source = attachmentSource(async (filePath) => {
+      if (filePath === "gone.ts") throw new Error("ENOENT");
+      return "ok-body";
+    });
+    const items = await source.collect(makeInput({ attachments: ["gone.ts", "ok.ts"] }));
+    expect(items).toHaveLength(1);
+    expect(items[0]?.key).toBe("attachment:ok.ts");
   });
 });
 

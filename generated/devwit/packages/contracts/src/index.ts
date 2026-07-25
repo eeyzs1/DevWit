@@ -206,6 +206,8 @@ export interface ContextCollectInput {
   conversationHistory: ChatMessage[];
   /** 本轮用户意图原文（迭代 10 / AC19：codebase_match 源的检索查询）。 */
   query?: string;
+  /** @文件引用路径（迭代 19 / AC28：attachment 源读取注入）。 */
+  attachments?: string[];
 }
 
 // ============================================================================
@@ -355,6 +357,11 @@ export interface AgentRunInput {
   activeFile?: string;
   selection?: { text: string; startLine: number; endLine: number };
   terminalTail?: string;
+  /**
+   * @文件引用（迭代 19 / AC28）：用户经 @ 提及显式引用的工作区相对路径（正斜杠）。
+   * 主进程按路径读全文注入为独立 file_fragment 项（key=attachment:<路径>，可逐项剔除）。
+   */
+  attachments?: string[];
 }
 
 export interface ToolResult {

@@ -647,6 +647,7 @@ body,
   padding: 8px;
   border-top: 1px solid var(--dw-border);
   align-items: flex-end;
+  flex-wrap: wrap;
 }
 
 .dw-chat-textarea {
@@ -659,6 +660,91 @@ body,
   padding: 6px;
   font-family: inherit;
   font-size: 13px;
+}
+
+/* ---- AC28：@文件引用 chips + 候选下拉 ---- */
+.dw-chat-input-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+
+.dw-chat-input-wrap .dw-chat-textarea {
+  width: 100%;
+}
+
+.dw-atchips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: 100%;
+}
+
+.dw-atchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--dw-bg-elevated);
+  border: 1px solid var(--dw-border);
+  border-radius: 10px;
+  padding: 1px 6px 1px 8px;
+  font-size: 12px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dw-atchip-x {
+  border: none;
+  background: transparent;
+  color: var(--dw-fg-dim, #888);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.dw-atchip-x:hover {
+  color: var(--dw-fg);
+}
+
+.dw-suggest {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--dw-bg-elevated);
+  border: 1px solid var(--dw-border);
+  border-radius: 4px;
+  box-shadow: 0 -4px 16px rgb(0 0 0 / 35%);
+  z-index: 30;
+}
+
+.dw-suggest-item {
+  padding: 5px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dw-suggest-item.dw-suggest-active,
+.dw-suggest-item:hover {
+  background: var(--dw-accent, #3a6ea5);
+  color: #fff;
+}
+
+.dw-suggest-hint {
+  opacity: 0.6;
+  font-size: 11px;
 }
 
 /* ---- 上下文面板 ---- */

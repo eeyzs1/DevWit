@@ -31,7 +31,7 @@ import type {
 import { DEFAULT_RAG_CONFIG, IPC } from "@devwit/contracts";
 import { AgentLoop, AgentOrchestrator, AgentTrace, Authorizer, createNodeEnvironment, historyFromTrace } from "@devwit/agent-runtime";
 import type { ToolEnvironment } from "@devwit/agent-runtime";
-import { ContextEngine, fileFragmentSource, gitStatusSource, selectionSource, TiktokenCounter } from "@devwit/context-engine";
+import { attachmentSource, ContextEngine, fileFragmentSource, gitStatusSource, selectionSource, TiktokenCounter } from "@devwit/context-engine";
 import { createEmbedder, ProviderRegistry } from "@devwit/llm-providers";
 import { McpManager, validateMcpServerConfig } from "@devwit/mcp";
 import { ModeStore } from "@devwit/modes";
@@ -588,10 +588,12 @@ export class AiRuntime {
     return engine;
   }
 
-  /** 会话级上下文源注册：选区/活动文件片段/git 状态/透明 RAG（会话引擎与编排子引擎共用）。 */
+  /** 会话级上下文源注册：选区/活动文件片段/@引用附件/git 状态/透明 RAG（会话引擎与编排子引擎共用）。 */
   private registerSessionSources(engine: ContextEngine): void {
     engine.registerSource(selectionSource());
     engine.registerSource(fileFragmentSource((filePath) => this.deps.workspace.readFile(filePath)));
+    // AC28：@文件引用附件源。路径逃逸/文件消失由 workspace 防护与源内 try/catch 双层兜底
+    engine.registerSource(attachmentSource((filePath) => this.deps.workspace.readFile(filePath)));
     engine.registerSource(
       gitStatusSource(async (root) => {
         const status = await getGitStatus(root);

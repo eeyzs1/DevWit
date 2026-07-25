@@ -1,0 +1,84 @@
+{
+  "id": "manifest-54ccb6c5-a82b-4a04-83bf-46ef56562974",
+  "timestamp": "2026-07-25T04:50:56.215Z",
+  "sessionId": "session-1784955055494",
+  "modeId": "chat",
+  "providerId": "p-i17",
+  "model": "i17-model",
+  "items": [
+    {
+      "id": "item-6b2e34b5-5b0b-48a0-9b02-927a93fd8678",
+      "type": "system_prompt",
+      "label": "系统提示",
+      "enabled": true,
+      "tokens": 65,
+      "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-b01925a8-be9e-4eca-b885-1b8a9e21f1fa",
+      "type": "tool_definitions",
+      "label": "工具定义（0 个）",
+      "enabled": true,
+      "tokens": 1,
+      "content": "[]",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-3c932cbe-3b4f-4c82-8464-d68659cd6aad",
+      "type": "conversation_history",
+      "label": "会话历史（1 条）",
+      "enabled": true,
+      "tokens": 9,
+      "content": "[user] 总结这两个文件",
+      "source": "conversation",
+      "counting": "exact"
+    },
+    {
+      "id": "item-d385f7c2-a762-4984-9eb7-d87d457cadc2",
+      "type": "file_fragment",
+      "label": "引用文件 src/util.ts",
+      "enabled": true,
+      "tokens": 10,
+      "content": "export const UTIL_MARK = \"beta-util-content\";\n",
+      "source": "attachment",
+      "counting": "exact",
+      "key": "attachment:src/util.ts"
+    },
+    {
+      "id": "item-92b1f00f-e78c-42d9-af43-0ce7e68398e7",
+      "type": "file_fragment",
+      "label": "引用文件 src/hello.ts",
+      "enabled": true,
+      "tokens": 12,
+      "content": "export const MAGIC_TOKEN = \"at-file-injected-alpha\";\n",
+      "source": "attachment",
+      "counting": "exact",
+      "key": "attachment:src/hello.ts"
+    },
+    {
+      "id": "item-a2460a0d-c499-4a30-a82b-1560d8d6f34e",
+      "type": "git_status",
+      "label": "Git 状态",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "git status",
+      "counting": "exact"
+    },
+    {
+      "id": "item-9a3ec9c9-512f-4f30-aef6-3a23298e5dfb",
+      "type": "codebase_match",
+      "label": "代码库检索（索引未启用）",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "rag",
+      "counting": "exact"
+    }
+  ],
+  "totalTokens": 97,
+  "systemPromptTokens": 65
+}

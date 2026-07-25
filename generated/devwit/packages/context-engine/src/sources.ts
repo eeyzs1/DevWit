@@ -70,6 +70,34 @@ export function fileFragmentSource(readFile: (path: string) => Promise<string>):
   };
 }
 
+/**
+ * @文件引用（迭代 19 / AC28）：用户在输入框显式提及的工作区文件。
+ * 每个引用 = 独立 file_fragment 项，key=attachment:<路径> 稳定（跨 build 可逐项剔除，
+ * 与 RAG chunk 同机制）；单文件读取失败（选择后被删/移动的竞态）跳过该附件不阻断整轮。
+ */
+export function attachmentSource(readFile: (path: string) => Promise<string>): ContextSource {
+  return {
+    type: "file_fragment",
+    async collect(input) {
+      const attachments = input.attachments;
+      if (attachments === undefined || attachments.length === 0) return [];
+      const items: ContextItem[] = [];
+      for (const attachmentPath of attachments) {
+        try {
+          const content = await readFile(attachmentPath);
+          items.push({
+            ...makeRawItem("file_fragment", `引用文件 ${attachmentPath}`, content, "attachment"),
+            key: `attachment:${attachmentPath}`,
+          });
+        } catch {
+          // 渲染端只提供树内存在文件，此处仅兜底罕见竞态——静默跳过，manifest 中自然缺席
+        }
+      }
+      return items;
+    },
+  };
+}
+
 /** git 状态（如 `git status --short` 输出）。getStatus 由 workspace 层注入。 */
 export function gitStatusSource(getStatus: (workspaceRoot: string) => Promise<string>): ContextSource {
   return {

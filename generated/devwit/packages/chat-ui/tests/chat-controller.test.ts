@@ -86,6 +86,17 @@ describe("ChatController", () => {
     controller.dispose();
   });
 
+  it("AC28：attachments 透传进 AgentRunInput；空数组不携带字段", async () => {
+    const fake = new FakeDevwitApi();
+    const controller = new ChatController({ api: fake.api, sessionId: "s1", workspaceRoot: "C:\\repo", modeId: "chat" });
+    await controller.send("看这两个文件", { attachments: ["src/a.ts", "docs/readme.md"] });
+    expect(fake.runInputs[0]?.attachments).toEqual(["src/a.ts", "docs/readme.md"]);
+    fake.emit(event("s1", "done", "完成")); // 结束首轮（running 复位）再发第二轮
+    await controller.send("无引用");
+    expect(fake.runInputs[1]?.attachments).toBeUndefined();
+    controller.dispose();
+  });
+
   it("assistant_delta 流式累积 → assistant_message 定稿", async () => {
     const fake = new FakeDevwitApi();
     const controller = new ChatController({ api: fake.api, sessionId: "s1", workspaceRoot: "C:\\repo", modeId: "chat" });

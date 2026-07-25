@@ -123,7 +123,13 @@ export class AgentLoop {
         systemPrompt: this.deps.mode.systemPrompt,
         // 内置工具（模式声明）+ 动态工具（MCP 等，按服务器当前状态热聚合）
         tools: [...toolDefinitionsFor(this.deps.mode.tools), ...(this.deps.extraTools?.() ?? [])],
-        contextPolicy: { ...this.deps.mode.contextPolicy, conversation_history: true },
+        contextPolicy: {
+          ...this.deps.mode.contextPolicy,
+          conversation_history: true,
+          // AC28：本轮带 @附件时强制打开 file_fragment 类型闸（附件是用户显式引用；
+          // 用户全局逐项开关仍可压过——与 conversation_history 同层，保持 AC2 总闸语义）
+          ...(input.attachments !== undefined && input.attachments.length > 0 ? { file_fragment: true } : {}),
+        },
         workspaceRoot: input.workspaceRoot,
         ...(input.activeFile !== undefined ? { activeFile: input.activeFile } : {}),
         ...(input.selection !== undefined ? { selection: input.selection } : {}),
@@ -132,6 +138,8 @@ export class AgentLoop {
         // AC19：用户意图原文作为 codebase_match 源的检索查询（恒定为本轮意图，
         // 工具回填后的后续迭代仍按原始意图检索，保证注入代码块与任务相关）
         query: input.userText,
+        // AC28：@文件引用（渲染端 chips 采集的工作区相对路径）→ attachment 源注入
+        ...(input.attachments !== undefined ? { attachments: input.attachments } : {}),
       });
 
       let assistantText = "";

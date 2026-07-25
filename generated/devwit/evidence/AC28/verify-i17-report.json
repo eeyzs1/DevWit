@@ -1,0 +1,39 @@
+{
+  "steps": [
+    "本地端点就绪 http://127.0.0.1:53165/v1（/chat/completions，捕获请求体）",
+    "应用启动 + fixture 工作区打开（src/hello.ts / src/util.ts / docs/guide.md）",
+    "keyless provider 注入并选中（settings onChanged 热刷新链路）",
+    "@文件引用：下拉 → hel 过滤唯一命中（截图 01）→ Enter 成 chip 且输入框清空",
+    "chips 交互闭环：点击选中 / × 剔除 / 去重 / 重引用（截图 02）",
+    "发送完成：两附件全文注入（MAGIC_TOKEN/beta 服务端可见），用户原文干净，chips 清空",
+    "manifest 审计通过：attachment:* 独立 key 项 enabled + token 计数（已落盘 manifest-latest.json）",
+    "/斜杠命令：/age 过滤 → Enter 速切 agent（截图 03）→ / 全量列表点选切回 chat",
+    "速切模式后对话链路正常（截图 04）"
+  ],
+  "assertions": [
+    "placeholder 应含 @ / 提示（实际: 描述你的需求…（@ 引用文件，/ 切换模式，Enter 发送））",
+    "@ 空查询应列出工作区文件（实际: docs/guide.md/src/hello.ts/src/util.ts）",
+    "选中后 @查询 原文应清空（实际: \"\"）",
+    "选中后候选下拉应关闭",
+    "两 chip 就位（实际: src/hello.ts/src/util.ts）",
+    "× 剔除后应剩 src/util.ts（实际: src/util.ts）",
+    "重复引用应去重（实际 chips: src/util.ts）",
+    "重新引用后两 chip（实际: src/util.ts/src/hello.ts）",
+    "服务端应收到 1 次 /chat/completions（实际: 1）",
+    "请求体缺「## 引用文件 src/hello.ts」注入段",
+    "hello.ts 附件内容未注入（MAGIC_TOKEN 缺席）",
+    "util.ts 附件内容未注入",
+    "用户原文应无 @残留（实际: \"总结这两个文件\"）",
+    "发送后 chips 应清空",
+    "manifests 目录应有落盘文件",
+    "manifest 缺 enabled 的 attachment:src/hello.ts 项（实际: {\"id\":\"item-92b1f00f-e78c-42d9-af43-0ce7e68398e7\",\"type\":\"file_fragment\",\"label\":\"引用文件 src/hello.ts\",\"enabled\":true,\"tokens\":12,\"content\":\"export const MAGIC_TOKEN = \\\"at-file-injected-alpha\\\";\\n\",\"source\":\"attachment\",\"counting\":\"exact\",\"key\":\"attachment:src/hello.ts\"}）",
+    "manifest 缺 attachment:src/util.ts 项",
+    "附件项应有精确 token 计数（实际: 12）",
+    "/age 应过滤出 agent 模式（实际: agent）",
+    "斜杠速切后模式下拉应为 agent（实际: agent）",
+    "速切后命令原文应清空（实际: \"\"）",
+    "点选切回后模式下拉应为 chat（实际: chat）",
+    "切换模式后应完成第二轮对话（实际请求数: 2）"
+  ],
+  "failures": []
+}

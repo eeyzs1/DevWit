@@ -360,6 +360,15 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     container.appendChild(li);
   }
 
+  /** AC28：@文件引用候选清单（工作区相对路径，正斜杠），enterWorkspace 时随树重建。 */
+  let workspaceFiles: string[] = [];
+  function flattenTreeFiles(node: TreeNode, root: string, acc: string[]): void {
+    if (node.type === "file") {
+      acc.push(node.path.slice(root.length).replace(/^[/\\]+/, "").replace(/\\/g, "/"));
+    }
+    for (const child of node.children ?? []) flattenTreeFiles(child, root, acc);
+  }
+
   /** 进入工作区：设置根目录 + 构建文件树（打开对话框与 AC15 启动恢复共用）。 */
   async function enterWorkspace(root: string): Promise<void> {
     workspaceRoot = root;
@@ -369,6 +378,8 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     statusWorkspace.textContent = root;
     sidebar.textContent = "";
     const tree = (await api.workspace.tree(root)) as TreeNode;
+    workspaceFiles = [];
+    flattenTreeFiles(tree, root, workspaceFiles);
     const ul = el("ul", "dw-tree");
     for (const child of tree.children ?? []) renderTree(child, ul);
     sidebar.appendChild(ul);
@@ -428,6 +439,8 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     listModes: () => modes,
     listProviders: () => providers,
     collectContext,
+    // AC28：@文件引用候选（enterWorkspace 重建的工作区相对路径清单）
+    listWorkspaceFiles: () => workspaceFiles,
     onProposalReview: (assistantText) => reviewProposal(assistantText),
   });
   chatPanel.root.style.display = "flex";
