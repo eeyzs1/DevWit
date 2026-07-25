@@ -368,6 +368,24 @@ iteration_18:
   notes: E2E 隔离钩子——DEVWIT_USER_DATA_DIR 环境默认抑制向导（主进程启动时预置 onboarding.state.completed），DEVWIT_E2E_WIZARD=1 显式开启，既有 12 套 e2e 零改动回归通过
   e2e_report: evidence/AC27/verify-i16-report.json (18 项断言全 PASS) + 13 套 e2e 全量回归 PASSED
   unit_tests: 45 files / 371 tests passed
+iteration_19:
+  scope: 对话输入增强（AC28）——@文件引用（补全+chips+全文注入+manifest 审计）+ /斜杠命令速切模式
+  acceptance_criteria:
+  - description: '@文件引用：输入 @ 弹文件候选（basename 优先过滤，键鼠可选），选中成 chip（去重、×可剔除、@查询原文清除）；发送时 chips 经 ChatContextSnapshot.attachments → AgentRunInput → 主进程 attachmentSource 逐文件读全文注入为独立 file_fragment 项（key=attachment:<路径> 稳定，逐项可剔除，剔除项零注入 manifest 保留可见条目）'
+    id: AC28
+    status: completed
+    verifier: tests/e2e/verify-i17.mjs + evidence/AC28（服务端请求体两附件 MAGIC_TOKEN/beta 可见、用户原文无 @残留、manifest-latest.json attachment 项 enabled+token 精确计数）+ packages/context-engine/tests/sources.test.ts + agent-runtime/tests/agent-loop.test.ts（注入/剔除/默认关 3 项）
+  - description: '/斜杠命令：行首 / 弹模式候选（id 与本地化显示名均可过滤），Enter/Tab/点击选中即 setMode 并清空命令原文；候选打开时方向键导航、Esc 关闭，不触发发送'
+    id: AC28
+    status: completed
+    verifier: tests/e2e/verify-i17.mjs（/age 过滤唯一命中 agent → Enter 速切模式下拉变 agent 输入清空；/ 全量列表点选切回 chat；切后第二轮真实对话正常）+ packages/chat-ui/tests/input-triggers.test.ts（17 项）
+  - description: '数据链路：contracts AgentRunInput/ContextCollectInput 增 attachments；agent-loop 透传且本轮带附件时强制打开 file_fragment 类型闸（用户全局开关仍可压过，保持 AC2 总闸语义）；attachmentSource 注册进 ai-runtime 会话引擎与编排子引擎'
+    id: AC28
+    status: completed
+    verifier: packages/chat-ui/tests/chat-controller.test.ts（attachments 透传/空数组省略）+ tests/e2e/verify-i17.mjs（manifest 落盘审计）
+  notes: chip 化设计（引用不留在 textarea 文本）保证用户原文干净；input-triggers 纯函数模块独立可测；placeholder 双语更新为「@ 引用文件，/ 切换模式」
+  e2e_report: evidence/AC28/verify-i17-report.json (23 项断言全 PASS) + 14 套 e2e 全量回归 PASSED（smoke + i2~i17）
+  unit_tests: 46 files / 395 tests passed
 v020_release:
   scope: v0.2.0 发版 + 包管理器升版
   facts:
