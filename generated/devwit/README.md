@@ -6,13 +6,13 @@ DevWit 是一款自研的 AI 原生桌面 IDE：融合 VSCode 的编辑器能力
 
 ## 下载安装
 
-**最新版本 v0.2.0 · 免费软件 · MIT 协议**（全部构建产物见 [Releases](https://github.com/eeyzs1/DevWit/releases)）
+**最新版本 v0.3.0 · 免费软件 · MIT 协议**（全部构建产物见 [Releases](https://github.com/eeyzs1/DevWit/releases)）
 
 ### Windows（x64）
 
-直接下载：[DevWit.Setup.0.2.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.2.0/DevWit.Setup.0.2.0.exe)（NSIS 安装包，可选安装目录，支持 `/S` 静默安装）。
+直接下载：[DevWit.Setup.0.3.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.3.0/DevWit.Setup.0.3.0.exe)（NSIS 安装包，可选安装目录，支持 `/S` 静默安装）。
 
-winget（清单已完成实证验证，待提交 winget-pkgs 后可用）：
+winget（已提交 microsoft/winget-pkgs#407506，待社区审批通过后可用）：
 
 ```powershell
 winget install eeyzs1.DevWit
@@ -27,12 +27,12 @@ brew install --cask eeyzs1/tap/devwit
 xattr -dr com.apple.quarantine /Applications/DevWit.app   # 未签名分发，首次运行前去一次隔离
 ```
 
-或直接下载：[DevWit-0.2.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.2.0/DevWit-0.2.0-arm64.dmg)（Intel Mac 暂无构建）。
+或直接下载：[DevWit-0.3.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.3.0/DevWit-0.3.0-arm64.dmg)（Intel Mac 暂无构建）。
 
 ### Linux（x64）
 
-- AppImage（支持应用内自动更新）：[DevWit-0.2.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.2.0/DevWit-0.2.0.AppImage)，下载后 `chmod +x` 直接运行
-- Debian/Ubuntu：[devwit_0.2.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.2.0/devwit_0.2.0_amd64.deb)，`sudo dpkg -i` 安装
+- AppImage（支持应用内自动更新）：[DevWit-0.3.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.3.0/DevWit-0.3.0.AppImage)，下载后 `chmod +x` 直接运行
+- Debian/Ubuntu：[devwit_0.3.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.3.0/devwit_0.3.0_amd64.deb)，`sudo dpkg -i` 安装
 
 ### 自动更新
 

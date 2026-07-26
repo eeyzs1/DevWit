@@ -6,13 +6,13 @@ DevWit is a self-built AI-native desktop IDE. It combines VSCode-grade editing, 
 
 ## Download & Install
 
-**Latest v0.2.0 · Free software · MIT license** (all build artifacts on the [Releases](https://github.com/eeyzs1/DevWit/releases) page)
+**Latest v0.3.0 · Free software · MIT license** (all build artifacts on the [Releases](https://github.com/eeyzs1/DevWit/releases) page)
 
 ### Windows (x64)
 
-Direct download: [DevWit.Setup.0.2.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.2.0/DevWit.Setup.0.2.0.exe) (NSIS installer, custom install directory, supports `/S` silent install).
+Direct download: [DevWit.Setup.0.3.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.3.0/DevWit.Setup.0.3.0.exe) (NSIS installer, custom install directory, supports `/S` silent install).
 
-winget (manifest validated against the real installer; available once submitted to winget-pkgs):
+winget (submitted as microsoft/winget-pkgs#407506; available once community review completes):
 
 ```powershell
 winget install eeyzs1.DevWit
@@ -27,12 +27,12 @@ brew install --cask eeyzs1/tap/devwit
 xattr -dr com.apple.quarantine /Applications/DevWit.app   # unsigned distribution; de-quarantine once
 ```
 
-Or download directly: [DevWit-0.2.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.2.0/DevWit-0.2.0-arm64.dmg) (no Intel Mac build yet).
+Or download directly: [DevWit-0.3.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.3.0/DevWit-0.3.0-arm64.dmg) (no Intel Mac build yet).
 
 ### Linux (x64)
 
-- AppImage (in-app auto-update): [DevWit-0.2.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.2.0/DevWit-0.2.0.AppImage) — `chmod +x` and run
-- Debian/Ubuntu: [devwit_0.2.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.2.0/devwit_0.2.0_amd64.deb) — install with `sudo dpkg -i`
+- AppImage (in-app auto-update): [DevWit-0.3.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.3.0/DevWit-0.3.0.AppImage) — `chmod +x` and run
+- Debian/Ubuntu: [devwit_0.3.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.3.0/devwit_0.3.0_amd64.deb) — install with `sudo dpkg -i`
 
 ### Auto-Update
 
