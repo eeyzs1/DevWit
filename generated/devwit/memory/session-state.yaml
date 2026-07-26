@@ -503,5 +503,30 @@ iteration_28:
     verifier: tests/session-meta-store.test.ts（改名/删除/损坏容忍/字段清洗）+ tests/ai-runtime-trace.test.ts（删除幂等/任务会话误伤防护）+ tests/e2e/verify-i26.mjs（两段确认/删活跃兜底/轨迹文件移除）+ evidence/AC37/03-renamed.png + 05-delete-confirm.png + sessions-final.json
   notes: 修复单测暴露的真实缺陷——deleteChatSession 原实现只删磁盘文件，内存会话仍在（trace() 内存优先返回已删内容、续跑同 id 重写轨迹文件）；i18n sessions.* 9 键中英同型，组件内订阅 onDidChangeLocale 重绘工具栏与列表（evidence/AC37/06-sessions-en.png）
   e2e_report: evidence/AC37/verify-i26-report.json (21 项断言全 PASS)
+iteration_29:
+  scope: 代码智能 II（AC38）——符号级索引与 @符号 引用（启发式提取，零 embedding 依赖，RAG 未配置亦可用）
+  acceptance_criteria:
+  - description: '启发式符号提取：packages/rag/symbol-extractor.ts 纯正则多语言规则（TS/JS：function/class/interface/type/enum/const/类方法；Python：def/class/方法/ALL_CAPS 常量；Go：func/接收者方法/struct/interface；Rust：fn/struct/enum/trait/impl 容器+方法归属；Java/C#/Kotlin：class/interface/enum/方法；PHP/Ruby/Swift 同族覆盖），零新增依赖；符号含稳定 id/name/kind/relPath/startLine/endLine/signature/parentName；大括号深度（C 系）与缩进（Python/Ruby）定界，单符号 ≤200 行截断'
+    id: AC38
+    status: completed
+    verifier: packages/rag/tests/symbol-extractor.test.ts（18 例：多语言提取/容器归属/单行声明/≤200 行截断/排除规则按语言隔离）+ tests/e2e/verify-i29.mjs（索引行列精确断言 add L1-4 / UserService L1-5 / getName@UserService L2-4）
+  - description: '符号索引：SymbolIndex 全量构建 + 工作区文件事件增量同步（纯内存，重建廉价不落盘；与 RAG 索引生命周期解耦——无 OpenAI provider / RAG 关闭时仍可用）；query 评分排序（name 前缀 > name 子串 > parent > 路径）；resolve(id) 重读文件切片返回当前正文（内容为事实源，文件消失/过期 id 返回 null）'
+    id: AC38
+    status: completed
+    verifier: packages/rag/tests/symbol-index.test.ts（8 例：构建过滤/增量同步/删除移除/resolve 重读切片/未知 id null/无效根目录 error 态）+ tests/e2e/verify-i29.mjs（symbols.query IPC 直连 ready + 全量符号列出）
+  - description: '@符号 引用 UI：@ 触发下拉分「文件/符号」两区（符号候选经 symbols:query IPC 异步到达，序号防竞态，文件候选即时渲染不阻塞），符号项带本地化 kind 徽标与路径行号 hint；选中生成符号 chip（kind+name，去重），发送时 symbolRefs 随 AgentRunInput 传递，失败回滚 chips'
+    id: AC38
+    status: completed
+    verifier: tests/e2e/verify-i29.mjs（25 项断言全 PASS：双分区标题/徽标/hint 行列/Enter 与点击选中/ArrowDown 跨区导航/id 去重/× 剔除/重引用）+ evidence/AC38/01-at-suggest-sections.png + 02-symbol-chips.png
+  - description: '上下文注入：symbolRefSource 按 id 解析注入为 file_fragment 项（key=symbol:<id>，label 含符号名与路径行区间，逐项开关可剔除，manifest 落盘可审计）；本轮带 symbolRefs 时强制打开 file_fragment 类型闸（与附件同语义）；符号消失静默跳过不阻断对话'
+    id: AC38
+    status: completed
+    verifier: tests/e2e/verify-i29.mjs（服务端捕获请求体：「## 引用符号 add（src/calc.ts L1-4）」「## 引用符号 UserService（src/user.ts L1-5）」两段注入、正文 token 可见、用户原文无 @残留；manifest symbol:<id> 独立 key 项 enabled + file_fragment + 精确 token 计数）+ evidence/AC38/manifest-latest.json
+  - description: '质量门：symbol-extractor/symbol-index 单测覆盖多语言提取/定界/增量/解析；i18n symbols.* 与 chat.suggest.* 键中英同型；e2e verify-i29.mjs 全断言 PASS（离屏）；构建 + 全量单测 + 全量 e2e 回归 PASS'
+    id: AC38
+    status: completed
+    verifier: 构建 PASS + eslint PASS + vitest 545/545（61 文件）+ tests/e2e/verify-i29.mjs（25 项断言全 PASS，离屏）+ 全量回归 24 套（smoke/iteration2/i4/i6~i8/i10~i26/i29）全 PASS（verify-i25 首跑遇沙箱 EPERM 环境抖动，单独重跑 32 断言全 PASS）
+  notes: 修复 e2e 暴露的真实缺陷——scheduleSymbolQuery 以 lastSymbolQuery="" 初始化导致 @ 空查询首查被去重短路（符号区永不出现）；改为调用侧 keepSymbols 门控（prev 持有同串符号才不重取），空串首查/重开下拉均覆盖。i18n chat.suggest.* / chat.symbol.kind.* 11 键中英同型，placeholder 接线「@ 引用文件或符号」
+  e2e_report: evidence/AC38/report.json (25 项断言全 PASS)
 status: complete
-updated_at: '2026-07-26T12:10:00.000000'
+updated_at: '2026-07-26T16:55:00.000000'
