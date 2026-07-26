@@ -24,9 +24,13 @@ let terminal: TerminalService | null = null;
 let aiRuntime: AiRuntime | null = null;
 
 function createWindow(): void {
+  // E2E 无窗化钩子：DEVWIT_E2E_OFFSCREEN=1 时把窗口移到屏幕外——保持 shown 状态
+  // （渲染不节流、CDP 截图证据不受影响），但不弹出遮挡用户其他任务；生产不设置。
+  const offscreen = process.env.DEVWIT_E2E_OFFSCREEN === "1";
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
+    ...(offscreen ? { x: -3200, y: -3200, skipTaskbar: true } : {}),
     webPreferences: {
       contextIsolation: true,
       sandbox: true,

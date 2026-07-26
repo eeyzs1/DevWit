@@ -1,13 +1,13 @@
 {
-  "id": "manifest-9f30427e-0924-464e-bb61-574784d767ff",
-  "timestamp": "2026-07-26T02:37:16.108Z",
-  "sessionId": "session-1785033434445",
+  "id": "manifest-e1779edb-c1b5-4cae-a42d-0c95dd611580",
+  "timestamp": "2026-07-26T03:34:08.016Z",
+  "sessionId": "session-1785036845838",
   "modeId": "agent",
-  "providerId": "e2e-local-a",
-  "model": "e2e-model-a",
+  "providerId": "e2e-local-b",
+  "model": "e2e-model-b",
   "items": [
     {
-      "id": "item-6766f4a6-5564-4441-8dc4-70e10b3190bb",
+      "id": "item-02fe355e-d442-4909-ac54-c5969dbf5ea6",
       "type": "system_prompt",
       "label": "系统提示",
       "enabled": true,
@@ -17,7 +17,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-b60cadfb-2658-48dd-b85e-799cb8a3e471",
+      "id": "item-09673d14-c22b-4a79-a252-a257aa024b3d",
       "type": "tool_definitions",
       "label": "工具定义（7 个）",
       "enabled": true,
@@ -27,27 +27,27 @@
       "counting": "exact"
     },
     {
-      "id": "item-53a64afa-a389-480c-892b-d721449ec184",
+      "id": "item-e469bed6-f997-40ae-8057-bb58fdbf895c",
       "type": "conversation_history",
-      "label": "会话历史（5 条）",
+      "label": "会话历史（8 条）",
       "enabled": true,
-      "tokens": 84,
-      "content": "[user] 你好\n[assistant] 你好！我是 DevWit，简洁上下文的 AI 编程助手。\n[user] 请把 hello.txt 加一行\n[assistant] 这是修改后的 hello.txt：\n\n```\nE2E hello devwit\nline2\nadded by agent proposal\n```\n[user] 创建文件 agent-created.txt",
+      "tokens": 104,
+      "content": "[user] 你好\n[assistant] 你好！我是 DevWit，简洁上下文的 AI 编程助手。\n[user] 请把 hello.txt 加一行\n[assistant] 这是修改后的 hello.txt：\n\n```\nE2E hello devwit\nline2\nadded by agent proposal\n```\n[user] 创建文件 agent-created.txt\n[assistant] \n[assistant] 已完成：创建 agent-created.txt。\n[user] ping",
       "source": "conversation",
       "counting": "exact"
     },
     {
-      "id": "item-078db359-6bbf-44bd-aee7-87d83bad5576",
+      "id": "item-0aa0755d-a1c3-4197-80d8-34128ea2bb8c",
       "type": "file_fragment",
       "label": "文件片段 hello.txt",
       "enabled": false,
       "tokens": 0,
       "content": "",
-      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-Gi95Kx\\hello.txt",
+      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-SDLtkE\\hello.txt",
       "counting": "exact"
     },
     {
-      "id": "item-3ca21f19-924b-4d28-a44e-d88602d51f17",
+      "id": "item-d68ef2fc-5c10-4df4-9f6e-3dc23673ecec",
       "type": "git_status",
       "label": "Git 状态",
       "enabled": true,
@@ -57,7 +57,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-4876f891-108e-4cb4-8f74-6f9eed6fc930",
+      "id": "item-87e1391a-2f42-4a75-8c3e-b59a9d3e0a7b",
       "type": "codebase_match",
       "label": "代码库检索（索引未启用）",
       "enabled": false,
@@ -67,6 +67,6 @@
       "counting": "exact"
     }
   ],
-  "totalTokens": 1141,
+  "totalTokens": 1161,
   "systemPromptTokens": 86
 }

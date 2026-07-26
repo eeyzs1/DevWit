@@ -139,7 +139,7 @@ function launchElectron(cdpPort) {
     // --lang=zh-CN：固定中文界面（迭代 5 起首启语言跟随系统，测试环境可能是英文系统）
     const proc = spawn(exe, [`--remote-debugging-port=${cdpPort}`, "--lang=zh-CN", "."], {
       cwd: ROOT,
-      env: { ...process.env, DEVWIT_E2E_OPEN_DIR: fixture, DEVWIT_USER_DATA_DIR: userDataDir },
+      env: { ...process.env, DEVWIT_E2E_OPEN_DIR: fixture, DEVWIT_USER_DATA_DIR: userDataDir, DEVWIT_E2E_OFFSCREEN: "1" },
       stdio: ["ignore", "pipe", "pipe"],
     });
     electronProc = proc;

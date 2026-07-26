@@ -50,7 +50,7 @@ function launchElectron(cdpPort) {
       env: {
         ...process.env,
         DEVWIT_E2E_OPEN_DIR: fixture,
-        DEVWIT_USER_DATA_DIR: userDataDir,
+        DEVWIT_USER_DATA_DIR: userDataDir, DEVWIT_E2E_OFFSCREEN: "1",
         DEVWIT_E2E_EXPORT_PATH: shareFile,
         DEVWIT_E2E_IMPORT_PATH: shareFile,
       },

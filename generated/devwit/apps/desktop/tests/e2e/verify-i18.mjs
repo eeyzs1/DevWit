@@ -104,7 +104,7 @@ function launchElectron(cdpPort) {
       env: {
         ...process.env,
         DEVWIT_E2E_OPEN_DIR: fixture,
-        DEVWIT_USER_DATA_DIR: userDataDir,
+        DEVWIT_USER_DATA_DIR: userDataDir, DEVWIT_E2E_OFFSCREEN: "1",
       },
       stdio: ["ignore", "pipe", "pipe"],
     });

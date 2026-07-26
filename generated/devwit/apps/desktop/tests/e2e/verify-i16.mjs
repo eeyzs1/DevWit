@@ -86,7 +86,7 @@ function launchElectron(cdpPort) {
       env: {
         ...process.env,
         DEVWIT_E2E_OPEN_DIR: fixture,
-        DEVWIT_USER_DATA_DIR: userDataDir,
+        DEVWIT_USER_DATA_DIR: userDataDir, DEVWIT_E2E_OFFSCREEN: "1",
         DEVWIT_E2E_WIZARD: "1", // AC27：向导自身测试显式开启（其余套件默认抑制）
       },
       stdio: ["ignore", "pipe", "pipe"],
