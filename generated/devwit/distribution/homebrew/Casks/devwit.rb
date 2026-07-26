@@ -1,10 +1,10 @@
 # Homebrew Cask for DevWit — 个人 tap（eeyzs1/homebrew-tap）分发。
 # 用户安装：brew install --cask eeyzs1/tap/devwit
-# sha256 实证来源：v0.2.0 Release 实际 dmg 资产经 GitHub API octet-stream 下载后计算
-#（下载大小 111010464 字节与 Release 元数据一致）。
+# sha256 实证来源：v0.3.0 Release 实际 dmg 资产经 GitHub API octet-stream 下载后计算
+#（下载大小 111128211 字节与 Release 元数据一致）。
 cask "devwit" do
-  version "0.2.0"
-  sha256 "27bc9cbaff5c1d3b7c2d9223d3b9ba825726a1b1a1c286bd4239f907d3dc6327"
+  version "0.3.0"
+  sha256 "31f3e7c1eb615ff4e85f87f7de444d4e3e57b24c85be7e46f09cb9f818236f2e"
 
   url "https://github.com/eeyzs1/DevWit/releases/download/v#{version}/DevWit-#{version}-arm64.dmg"
   name "DevWit"

@@ -528,5 +528,15 @@ iteration_29:
     verifier: 构建 PASS + eslint PASS + vitest 545/545（61 文件）+ tests/e2e/verify-i29.mjs（25 项断言全 PASS，离屏）+ 全量回归 24 套（smoke/iteration2/i4/i6~i8/i10~i26/i29）全 PASS（verify-i25 首跑遇沙箱 EPERM 环境抖动，单独重跑 32 断言全 PASS）
   notes: 修复 e2e 暴露的真实缺陷——scheduleSymbolQuery 以 lastSymbolQuery="" 初始化导致 @ 空查询首查被去重短路（符号区永不出现）；改为调用侧 keepSymbols 门控（prev 持有同串符号才不重取），空串首查/重开下拉均覆盖。i18n chat.suggest.* / chat.symbol.kind.* 11 键中英同型，placeholder 接线「@ 引用文件或符号」
   e2e_report: evidence/AC38/report.json (25 项断言全 PASS)
+v030_release:
+  scope: v0.3.0 发版 + 包管理器升版
+  facts:
+  - 发版前质量门：build PASS + eslint PASS + vitest 545/545（61 文件）
+  - tag v0.3.0（4627199 版本 bump 提交）CI run 30202520216 四 job 全 success，Release 12 资产（exe/dmg/zip/AppImage/deb + blockmap + latest*.yml）prerelease
+  - 资产完整性实证：gh release download 重算 sha256 exe=E120D1D1…6473（95741006B）/ dmg=31F3E7C1…6F2E（111128211B）
+  - 本机真实安装实证：NSIS /S 静默装至 HKCU，注册表 DisplayVersion=0.3.0 / Publisher=eeyzs1，DevWit.exe ProductVersion=0.3.0.0（77 文件）
+  - 主仓库清单升版：winget 0.3.0 四分件（validate 通过）+ homebrew cask 0.3.0
+  - homebrew-tap 5f666eb「devwit 0.3.0」已推送，brew install --cask eeyzs1/tap/devwit 即装 0.3.0
+  - winget PR microsoft/winget-pkgs#407506（0.2.0 首包）仍 OPEN 待社区 moderator 审批；0.3.0 清单已入库，待首包合并后提 update PR
 status: complete
-updated_at: '2026-07-26T16:55:00.000000'
+updated_at: '2026-07-26T21:10:00.000000'
