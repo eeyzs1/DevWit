@@ -651,12 +651,42 @@ function renderGeneral(
   };
   void loadPricing();
 
+  // ---- 匿名遥测（AC39）：opt-in 开关 + 端点输入 + 收集清单明示 ----
+  // 即改即存（同语言切换语义），主进程 settings.onChanged 热重配置，无需重启。
+  // 默认关闭：从未设置过 "telemetry" 键时开关未勾选、端点为空，不发送任何字节。
+  const telemetryTitle = el("label", undefined, t("settings.telemetry.title"));
+  const telemetryEnableRow = el("div", "dw-settings-update");
+  const telemetryToggle = document.createElement("input");
+  telemetryToggle.type = "checkbox";
+  telemetryEnableRow.append(telemetryToggle, el("span", "dw-settings-update-status", t("settings.telemetry.enable")));
+  const telemetryEndpointRow = el("div", "dw-settings-update");
+  telemetryEndpointRow.appendChild(el("span", "dw-settings-update-status", t("settings.telemetry.endpoint")));
+  const telemetryEndpointInput = el("input", "dw-input") as HTMLInputElement;
+  telemetryEndpointInput.type = "text";
+  telemetryEndpointInput.placeholder = t("settings.telemetry.endpoint.placeholder");
+  telemetryEndpointRow.appendChild(telemetryEndpointInput);
+  const telemetryHint = el("div", "dw-modal-hint", t("settings.telemetry.hint"));
+  void deps.api.settings.get("telemetry").then((stored) => {
+    const record = typeof stored === "object" && stored !== null ? (stored as Record<string, unknown>) : {};
+    telemetryToggle.checked = record["enabled"] === true;
+    telemetryEndpointInput.value = typeof record["endpoint"] === "string" ? record["endpoint"] : "";
+  });
+  const saveTelemetry = (): void => {
+    void deps.api.settings.set("telemetry", {
+      enabled: telemetryToggle.checked,
+      endpoint: telemetryEndpointInput.value.trim(),
+    });
+  };
+  telemetryToggle.addEventListener("change", saveTelemetry);
+  telemetryEndpointInput.addEventListener("change", saveTelemetry);
+
   form.append(label, select, hint, updateLabel, updateRow, updateHint, ragLabel, ragRow, ragActions, ragHint,
     secTitle, secLearnRow, secThreshRow, secList, secHint,
     routeTitle, routeEnableRow, routeProviderRow, routeThreshRow, routeHint,
     wfTitle, wfEnableRow, wfList, wfHint,
     usageTitle, usageSummaryBox, usageActions, usageHint,
-    pricingTitle, pricingBox, pricingHint);
+    pricingTitle, pricingBox, pricingHint,
+    telemetryTitle, telemetryEnableRow, telemetryEndpointRow, telemetryHint);
 
   // ---- 首次运行向导（迭代 18 / AC27）：允许随时重跑（如换机/重装后引导同伴）----
   if (deps.onRerunWizard !== undefined) {

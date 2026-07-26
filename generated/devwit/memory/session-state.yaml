@@ -538,5 +538,30 @@ v030_release:
   - 主仓库清单升版：winget 0.3.0 四分件（validate 通过）+ homebrew cask 0.3.0
   - homebrew-tap 5f666eb「devwit 0.3.0」已推送，brew install --cask eeyzs1/tap/devwit 即装 0.3.0
   - winget PR microsoft/winget-pkgs#407506（0.2.0 首包）仍 OPEN 待社区 moderator 审批；0.3.0 清单已入库，待首包合并后提 update PR
+iteration_30:
+  scope: 度量基建（AC39）——README 双语徽章 + opt-in 匿名遥测（默认关/零内容/端点可配置/热生效）
+  acceptance_criteria:
+  - description: 'README 双语徽章：README.md 与 README_EN.md 顶部 shields.io 徽章行——版本（github/v/release）、累计下载量（github/downloads/total）、stars、license（MIT），徽章点击跳转 GitHub 仓库对应页面（北极星 100→1k→10k 的公开度量面）'
+    id: AC39
+    status: completed
+    verifier: README.md + README_EN.md 徽章行目检 + shields.io URL 指向 eeyzs1/DevWit（已完成）
+  - description: 'Opt-in 遥测 TelemetryService（apps/desktop/src/main/telemetry.ts，electron-free 依赖注入）：默认关闭（从未设置=不发送任何字节）；开启需用户显式勾选；匿名——随机 installId（crypto.randomUUID）持久化于 settings 键 telemetry.installId 并跨重启复用；零内容收集——事件载荷仅 事件名/ISO 时间/installId/应用版本/OS 平台/标量 props，构造上无自由文本入口；端点可配置（settings 键 telemetry.endpoint，空端点即使开启也不发送）；缓冲批量 POST（envelope {source:"devwit",events:[...]}，失败静默丢弃绝不拖垮应用）；配置热生效（settings.onChanged 重配置，无需重启）；opt_in/opt_out 状态切换事件透明记录'
+    id: AC39
+    status: completed
+    verifier: tests/telemetry.test.ts 8 项全 PASS（默认关零请求/开启后发 app_start/installId 跨实例复用/opt_in·opt_out 转换/失败容忍/热重配置端点）+ tests/e2e/verify-i30.mjs 17 断言全 PASS
+  - description: '设置 UI 明示清单：设置·通用分区遥测卡——开关 + 端点输入（即改即存热生效，同语言切换语义）+ 收集/绝不收集清单文案；i18n settings.telemetry.* 键中英同型（编译期 typeof zhCN 强制）'
+    id: AC39
+    status: completed
+    verifier: tests/e2e/verify-i30.mjs（卡片可见/默认未勾选/中英清单文案断言全 PASS）+ evidence/AC39/01-telemetry-card.png + 02-telemetry-card-en.png
+  - description: 'e2e 全链路：verify-i30.mjs 本地真实 HTTP 接收端——① 默认关：启动后等待 >flush 周期接收端零请求；② UI 填入端点并勾选开启：收到 telemetry_opt_in（形状断言：仅 事件名/ts/installId/version/os，无任何内容字段）；③ 关闭：收到 telemetry_opt_out 后不再有任何请求；④ 同 userData 重启：收到 app_start 且 installId 与首次一致（稳定性）；证据落盘 evidence/AC39'
+    id: AC39
+    status: completed
+    verifier: tests/e2e/verify-i30.mjs 17 断言全 PASS（默认关零请求/opt_in 五键形状/installId UUID 且跨重启稳定/opt_out 后静默/批量 POST 命中配置路径）+ evidence/AC39/report.json
+  - description: '质量门：构建 + eslint + 全量单测 + 全量 e2e 回归 PASS；证据与报告落盘 evidence/AC39'
+    id: AC39
+    status: completed
+    verifier: 构建 PASS + eslint PASS + vitest 553/553（62 文件，新增 telemetry.test.ts 8 项）+ 全量回归 25 套（smoke/iteration2/i4/i6~i8/i10~i26/i29/i30）全 PASS
+  notes: 本地使用统计（聚合服务 UsageStore + usage:summary/clear IPC + 设置·通用分区统计卡）已由迭代26 AC35 建成，本迭代不重复建设；遥测后端账号（PostHog）需用户本人注册，故默认端点留空、端点可配置先行。
+  e2e_report: evidence/AC39/report.json (17 项断言全 PASS)
 status: complete
-updated_at: '2026-07-26T21:10:00.000000'
+updated_at: '2026-07-27T10:20:00.000000'

@@ -49,6 +49,7 @@
     "test:e2e25": "node apps/desktop/tests/e2e/verify-i25.mjs",
     "test:e2e26": "node apps/desktop/tests/e2e/verify-i26.mjs",
     "test:e2e29": "node apps/desktop/tests/e2e/verify-i29.mjs",
+    "test:e2e30": "node apps/desktop/tests/e2e/verify-i30.mjs",
     "lint": "eslint .",
     "rebuild-native": "electron-rebuild -f -w node-pty",
     "pack": "npm run build && electron-builder --dir",

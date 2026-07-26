@@ -477,6 +477,41 @@ export interface ModelPricing {
 /** 成本单价表：key = "<providerId> <model>"（与 UsageSummary.byProvider 行同口径）。 */
 export type UsagePricing = Record<string, ModelPricing>;
 
+// ---------------------------------------------------------------------------
+// 匿名遥测（迭代 30 / AC39）
+// ---------------------------------------------------------------------------
+
+/**
+ * 遥测配置（settings 键 "telemetry" 的值）。opt-in 原则：
+ * 键不存在 / enabled !== true / endpoint 为空 —— 三者任一成立即不发送任何字节。
+ * 修改热生效：主进程订阅 settings.onChanged 即时重配置，无需重启。
+ */
+export interface TelemetryConfig {
+  /** 用户显式勾选后才为 true（默认关闭，绝不预勾选）。 */
+  enabled: boolean;
+  /** 接收端点 URL（POST JSON）。空串 = 未配置后端，即使开启也不发送。 */
+  endpoint: string;
+}
+
+/**
+ * 一条遥测事件（零内容收集）：构造上无自由文本入口——事件名来自代码内
+ * 固定字面量，props 仅标量。绝不包含代码、文件内容、路径、对话文本、凭证。
+ */
+export interface TelemetryEvent {
+  /** 事件名（如 app_start / telemetry_opt_in / telemetry_opt_out）。 */
+  event: string;
+  /** ISO 时间戳。 */
+  ts: string;
+  /** 匿名随机安装 ID（crypto.randomUUID，持久化复用，与任何账号无关）。 */
+  installId: string;
+  /** 应用版本（app.getVersion()）。 */
+  version: string;
+  /** 操作系统平台（process.platform，如 win32 / darwin / linux）。 */
+  os: string;
+  /** 可选标量属性（计数等；禁止字符串内容字段）。 */
+  props?: Record<string, string | number | boolean>;
+}
+
 /** 历史会话轨迹摘要（迭代 27 / AC36，agent:trace-list IPC 返回项，会话回放选择器用）。 */
 export interface TraceSessionInfo {
   sessionId: string;

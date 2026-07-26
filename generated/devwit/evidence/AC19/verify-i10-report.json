@@ -1,6 +1,6 @@
 {
   "steps": [
-    "本地端点就绪 http://127.0.0.1:49173（/chat/completions + /embeddings）",
+    "本地端点就绪 http://127.0.0.1:62125（/chat/completions + /embeddings）",
     "应用启动（默认中文）",
     "打开文件夹（fixture 工作区 login.ts + button.ts）",
     "provider 注册 + settings rag 键启用（热更新触发构建）",
@@ -19,7 +19,7 @@
     "fileCount 应为 2（实际: 2）",
     "chunkCount 应 ≥2（实际: 2）",
     "未发生真实 /embeddings 请求",
-    "设置页状态行缺「已就绪」: 界面语言跟随系统中文English切换后立即生效并持久化保存，无需重启。「跟随系统」：系统为中文时用中文，否则用英文。应用更新检查更新当前版本 v0.2.0启动时自动静默检查 GitHub Releases 新版本并后台下载，下载完成后状态栏提示重启生效。代码索引已就绪：2 个文件 / 2 个代码块重建索引启用后为当前工作区建立代码索引（embedding 经 OpenAI 兼容服务商）；检索命中",
+    "设置页状态行缺「已就绪」: 界面语言跟随系统中文English切换后立即生效并持久化保存，无需重启。「跟随系统」：系统为中文时用中文，否则用英文。应用更新检查更新当前版本 v0.3.0启动时自动静默检查 GitHub Releases 新版本并后台下载，下载完成后状态栏提示重启生效。代码索引已就绪：2 个文件 / 2 个代码块重建索引启用后为当前工作区建立代码索引（embedding 经 OpenAI 兼容服务商）；检索命中",
     "设置页缺「代码索引」区块",
     "manifest 无带 key 的 codebase_match 命中项",
     "login.ts 未命中（实际命中: login.ts,button.ts）",

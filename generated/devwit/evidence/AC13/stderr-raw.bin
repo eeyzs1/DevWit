@@ -1,6 +1,5 @@
 
-DevTools listening on ws://127.0.0.1:21443/devtools/browser/2aa8d995-2259-4ac4-9f67-dcf8429bd8b6
-[36372:0726/164544.028:ERROR:content\browser\devtools\devtools_http_handler.cc:303] Error writing DevTools active port to file C:\Users\eeyzs1\AppData\Roaming\devwit\DevToolsActivePort: Access is denied. (0x5)
+DevTools listening on ws://127.0.0.1:21160/devtools/browser/88bd4022-88ff-4f8d-9f54-55e8b1dc5537
 Error occurred in handler for 'agent:run': Error: DW_MODE_UNBOUND:chat
     at AiRuntime.run (file:///E:/AI_Generated_Projects/DevWit/generated/devwit/apps/desktop/dist/main/index.js:21874:13)
     at table.<computed> (file:///E:/AI_Generated_Projects/DevWit/generated/devwit/apps/desktop/dist/main/index.js:22577:49)

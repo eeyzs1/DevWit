@@ -2,6 +2,11 @@
 
 [English](README_EN.md)
 
+[![版本](https://img.shields.io/github/v/release/eeyzs1/DevWit?label=%E7%89%88%E6%9C%AC)](https://github.com/eeyzs1/DevWit/releases)
+[![累计下载](https://img.shields.io/github/downloads/eeyzs1/DevWit/total?label=%E4%B8%8B%E8%BD%BD%E9%87%8F)](https://github.com/eeyzs1/DevWit/releases)
+[![Stars](https://img.shields.io/github/stars/eeyzs1/DevWit)](https://github.com/eeyzs1/DevWit/stargazers)
+[![协议: MIT](https://img.shields.io/badge/%E5%8D%8F%E8%AE%AE-MIT-green)](LICENSE)
+
 DevWit 是一款自研的 AI 原生桌面 IDE：融合 VSCode 的编辑器能力、Cursor 的对话式编程、Claude Code 的 Agent 任务执行与 pi agent 的简洁上下文设计，避免长上下文膨胀，提供高效、透明、可审计的 AI 开发体验。
 
 ## 下载安装

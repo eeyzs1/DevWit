@@ -8,7 +8,7 @@
     "设置·模型分区 label dump 完成",
     "切英文：界面与模式名热切换",
     "英→中往返切换恢复",
-    "stderr 分析: 738B, hasCjk=false, invalidUtf8=0"
+    "stderr 分析: 527B, hasCjk=false, invalidUtf8=0"
   ],
   "assertions": [
     "中文界面模式下拉框显示「对话/智能体」（实际: 对话, 智能体, 编排)",
@@ -19,14 +19,14 @@
     "设置·模型表单 label 已本地化（实际: 预设|ID|类型|显示名|Base URL|模型|API Key|最大 tokens）",
     "英文界面模式下拉框显示 Chat/Agent（实际: Chat, Agent, Orchestrator)",
     "切回中文后模式下拉框恢复「对话/智能体」（实际: 对话, 智能体, 编排)",
-    "主进程 stderr 无 CJK 字符（738B，UTF-8 解码）",
+    "主进程 stderr 无 CJK 字符（527B，UTF-8 解码）",
     "主进程 stderr 无非法 UTF-8 序列（实际: 0 处）"
   ],
   "failures": [],
   "stderr": {
-    "bytes": 738,
+    "bytes": 527,
     "hasCjk": false,
     "invalidUtf8": 0,
-    "tail": "\r\nDevTools listening on ws://127.0.0.1:21443/devtools/browser/2aa8d995-2259-4ac4-9f67-dcf8429bd8b6\r\n[36372:0726/164544.028:ERROR:content\\browser\\devtools\\devtools_http_handler.cc:303] Error writing DevTools active port to file C:\\Users\\eeyzs1\\AppData\\Roaming\\devwit\\DevToolsActivePort: Access is denied. (0x5)\r\nError occurred in handler for 'agent:run': Error: DW_MODE_UNBOUND:chat\n    at AiRuntime.run (file:///E:/AI_Generated_Projects/DevWit/generated/devwit/apps/desktop/dist/main/index.js:21874:13)\n    at table.<computed> (file:///E:/AI_Generated_Projects/DevWit/generated/devwit/apps/desktop/dist/main/index.js:22577:49)\n    at Session.<anonymous> (node:electron/js2c/browser_init:2:107269)\n    at Session.emit (node:events:519:28)\n"
+    "tail": "\r\nDevTools listening on ws://127.0.0.1:21160/devtools/browser/88bd4022-88ff-4f8d-9f54-55e8b1dc5537\r\nError occurred in handler for 'agent:run': Error: DW_MODE_UNBOUND:chat\n    at AiRuntime.run (file:///E:/AI_Generated_Projects/DevWit/generated/devwit/apps/desktop/dist/main/index.js:21874:13)\n    at table.<computed> (file:///E:/AI_Generated_Projects/DevWit/generated/devwit/apps/desktop/dist/main/index.js:22577:49)\n    at Session.<anonymous> (node:electron/js2c/browser_init:2:107269)\n    at Session.emit (node:events:519:28)\n"
   }
 }

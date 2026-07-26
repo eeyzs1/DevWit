@@ -1,6 +1,6 @@
 {
   "steps": [
-    "本地端点就绪 http://127.0.0.1:49251/v1（脚本化 3 请求，usage 帧 50/6、40/15、60/5）",
+    "本地端点就绪 http://127.0.0.1:61460/v1（脚本化 3 请求，usage 帧 50/6、40/15、60/5）",
     "应用启动 + fixture 工作区打开",
     "keyless provider 注册 + agent/chat 双模式热绑定",
     "对话任务：用量行「输入 50 / 输出 6」先于完成行（截图 01）",
@@ -17,11 +17,11 @@
     "活动流用量行应显示跨迭代求和 100/20（实际: 用量本次真实用量：输入 100 / 输出 20 tokens）",
     "usage.jsonl 账本应已落盘",
     "账本应有 2 条记录（实际: 2）",
-    "chat 记录明细（实际: {\"ts\":\"2026-07-26T08:46:43.398Z\",\"sessionId\":\"session-1785055602928\",\"modeId\":\"chat\",\"providerId\":\"p-i24\",\"model\":\"i24-model\",\"inputTokens\":50,\"outputTokens\":6,\"finishReason\":\"completed\"}）",
-    "agent 记录应为求和量 100/20（实际: {\"ts\":\"2026-07-26T08:46:44.004Z\",\"sessionId\":\"task-session-1785055603539-1\",\"modeId\":\"agent\",\"providerId\":\"p-i24\",\"model\":\"i24-model\",\"inputTokens\":100,\"outputTokens\":20,\"finishReason\":\"completed\"}）",
+    "chat 记录明细（实际: {\"ts\":\"2026-07-26T15:57:50.607Z\",\"sessionId\":\"session-1785081470206\",\"modeId\":\"chat\",\"providerId\":\"p-i24\",\"model\":\"i24-model\",\"inputTokens\":50,\"outputTokens\":6,\"finishReason\":\"completed\"}）",
+    "agent 记录应为求和量 100/20（实际: {\"ts\":\"2026-07-26T15:57:51.163Z\",\"sessionId\":\"task-session-1785081470738-1\",\"modeId\":\"agent\",\"providerId\":\"p-i24\",\"model\":\"i24-model\",\"inputTokens\":100,\"outputTokens\":20,\"finishReason\":\"completed\"}）",
     "磁盘轨迹应有 usage×2（实际: 2）",
-    "会话 session-1785055602928 轨迹 usage 应先于 done（实际: route,user_message,assistant_message,usage,done）",
-    "会话 task-session-1785055603539-1 轨迹 usage 应先于 done（实际: route,user_message,assistant_message,tool_call,authorization_request,authorization_decision,tool_result,diagnostics,assistant_message,usage,done）",
+    "会话 session-1785081470206 轨迹 usage 应先于 done（实际: route,user_message,assistant_message,usage,done）",
+    "会话 task-session-1785081470738-1 轨迹 usage 应先于 done（实际: route,user_message,assistant_message,tool_call,authorization_request,authorization_decision,tool_result,diagnostics,assistant_message,usage,done）",
     "summary.total 应为 150/26·2（实际: {\"inputTokens\":150,\"outputTokens\":26,\"runs\":2}）",
     "summary.today 应为 150/26·2（实际: {\"inputTokens\":150,\"outputTokens\":26,\"runs\":2}）",
     "byMode 应为 agent 100/20 + chat 50/6（实际: [{\"modeId\":\"chat\",\"inputTokens\":50,\"outputTokens\":6,\"runs\":1},{\"modeId\":\"agent\",\"inputTokens\":100,\"outputTokens\":20,\"runs\":1}]）",

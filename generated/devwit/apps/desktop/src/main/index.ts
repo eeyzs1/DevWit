@@ -13,6 +13,7 @@ import { buildFileTree, WorkspaceService } from "@devwit/workspace";
 import { AiRuntime } from "./ai-runtime.js";
 import { registerIpcHandlers } from "./ipc.js";
 import { SafeStorageBackend } from "./safe-storage-backend.js";
+import { TelemetryService } from "./telemetry.js";
 import { UpdateService } from "./updater.js";
 import type { UpdateStatusInfo } from "@devwit/contracts";
 
@@ -22,6 +23,7 @@ let mainWindow: BrowserWindow | null = null;
 let workspace: WorkspaceService | null = null;
 let terminal: TerminalService | null = null;
 let aiRuntime: AiRuntime | null = null;
+let telemetry: TelemetryService | null = null;
 
 function createWindow(): void {
   // E2E 无窗化钩子：DEVWIT_E2E_OFFSCREEN=1 时把窗口移到屏幕外——保持 shown 状态
@@ -79,6 +81,21 @@ app.whenReady().then(() => {
   const send = (channel: string, ...args: unknown[]): void => {
     mainWindow?.webContents.send(channel, ...args);
   };
+
+  // 匿名遥测（AC39）：opt-in 默认关闭，零内容收集，端点可配置。
+  // 配置修改热生效——settings.onChanged("telemetry") 即时重配置，无需重启。
+  // E2E 钩子 DEVWIT_TELEMETRY_FLUSH_MS 缩短周期 flush 间隔（确定性断言）。
+  const telemetryFlushMs = Number(process.env.DEVWIT_TELEMETRY_FLUSH_MS);
+  telemetry = new TelemetryService({
+    settings,
+    version: app.getVersion(),
+    os: process.platform,
+    ...(Number.isFinite(telemetryFlushMs) && telemetryFlushMs > 0 ? { flushMs: telemetryFlushMs } : {}),
+  });
+  settings.onChanged((key) => {
+    if (key === "telemetry") telemetry?.configure();
+  });
+  telemetry.start();
 
   // 自动更新（AC16）：E2E 钩子 DEVWIT_E2E_FAKE_UPDATE 注入合成状态序列
   // （真实加载 electron-updater 验证 bundle 完整性，但不联网检查、不下载）。
@@ -183,4 +200,6 @@ app.on("will-quit", () => {
   workspace?.close();
   // AC17：退出前停止全部 MCP 子进程，避免孤儿进程驻留
   if (aiRuntime !== null) void aiRuntime.dispose();
+  // AC39：退出前尽力 flush 残余遥测缓冲（不阻塞退出）
+  telemetry?.stop();
 });

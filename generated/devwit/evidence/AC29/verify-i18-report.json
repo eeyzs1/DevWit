@@ -1,6 +1,6 @@
 {
   "steps": [
-    "本地端点就绪 http://127.0.0.1:49215/v1（脚本化 6 请求）",
+    "本地端点就绪 http://127.0.0.1:50368/v1（脚本化 6 请求）",
     "应用启动 + fixture 工作区打开",
     "keyless provider 注册 + agent 模式热绑定",
     "第 1 轮：授权行出现（学习计数 0→需询问）",
@@ -27,7 +27,7 @@
     "移除后应显示空态（实际: 白名单为空——批准的命令达到次数后会出现在这里。）",
     "任务二第 1 次批准不应毕业（实际: []）",
     "任务二批准后计数应为 1（实际: {\"echo ac29>> i18-marker.txt\":1}）",
-    "英文白名单分区缺失: LanguageFollow System中文EnglishApplies immediately and is persisted; no restart needed. Follow System: Chinese for Chinese systems, English otherwise.App updatesCheck for updatesCurrent version v0.2.0O"
+    "英文白名单分区缺失: LanguageFollow System中文EnglishApplies immediately and is persisted; no restart needed. Follow System: Chinese for Chinese systems, English otherwise.App updatesCheck for updatesCurrent version v0.3.0O"
   ],
   "failures": [],
   "fatal": null

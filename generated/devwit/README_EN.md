@@ -2,6 +2,11 @@
 
 [中文版](README.md)
 
+[![Release](https://img.shields.io/github/v/release/eeyzs1/DevWit)](https://github.com/eeyzs1/DevWit/releases)
+[![Downloads](https://img.shields.io/github/downloads/eeyzs1/DevWit/total)](https://github.com/eeyzs1/DevWit/releases)
+[![Stars](https://img.shields.io/github/stars/eeyzs1/DevWit)](https://github.com/eeyzs1/DevWit/stargazers)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 DevWit is a self-built AI-native desktop IDE. It combines VSCode-grade editing, Cursor-style conversational coding, Claude Code-style agent execution, and a pi-agent-inspired minimal context design that avoids long-context bloat — delivering an efficient, transparent, and auditable AI development experience.
 
 ## Download & Install
