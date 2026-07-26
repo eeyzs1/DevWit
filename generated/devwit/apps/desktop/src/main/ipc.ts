@@ -92,6 +92,7 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
       await workspace.openRoot(dir);
       workspace.watch();
       ai?.refreshRag(); // AC19：工作区确定后立即评估/构建代码索引
+      ai?.refreshSymbols(); // AC38：符号索引与 RAG 解耦，同址构建
     }
     return dir;
   };
@@ -100,6 +101,7 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     await workspace.openRoot(rootPath);
     workspace.watch();
     ai?.refreshRag();
+    ai?.refreshSymbols();
     return hooks.buildTree(rootPath);
   };
   table[IPC.WorkspaceRead] = (_e, filePath) => workspace.readFile(String(filePath));
@@ -261,6 +263,7 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
     table[IPC.SessionsList] = notWired;
     table[IPC.SessionsRename] = notWired;
     table[IPC.SessionsDelete] = notWired;
+    table[IPC.SymbolsQuery] = notWired;
     return;
   }
   table[IPC.AgentRun] = async (_e, input) => ai.run(input as AgentRunInput);
@@ -350,6 +353,8 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
   table[IPC.SessionsDelete] = (_e, sessionId) => {
     ai.deleteChatSession(String(sessionId));
   };
+  // ---- 符号级索引（迭代 29 / AC38）：@符号 引用候选查询 ----
+  table[IPC.SymbolsQuery] = (_e, query) => ai.querySymbols(String(query));
 }
 
 function readProviders(settings: SettingsStore): ProviderConfig[] {

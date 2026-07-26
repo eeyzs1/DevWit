@@ -1,0 +1,72 @@
+{
+  "id": "manifest-0d4a4414-4df6-4ee3-b0be-7ecfb141da88",
+  "timestamp": "2026-07-26T08:45:37.224Z",
+  "sessionId": "session-1785055536488",
+  "modeId": "chat",
+  "providerId": "e2e-local-a",
+  "model": "e2e-model-a",
+  "items": [
+    {
+      "id": "item-3ce5fe0c-8802-4621-98ca-251cb041c659",
+      "type": "system_prompt",
+      "label": "系统提示",
+      "enabled": true,
+      "tokens": 65,
+      "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-02ffd55c-e086-4eba-8917-15619cf991d9",
+      "type": "tool_definitions",
+      "label": "工具定义（0 个）",
+      "enabled": true,
+      "tokens": 1,
+      "content": "[]",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-8b0ff18c-cef8-4ad1-b510-90163dbf607d",
+      "type": "conversation_history",
+      "label": "会话历史（1 条）",
+      "enabled": true,
+      "tokens": 5,
+      "content": "[user] 你好",
+      "source": "conversation",
+      "counting": "exact"
+    },
+    {
+      "id": "item-03ec8c15-b8ab-4ead-80ae-e449e241a866",
+      "type": "file_fragment",
+      "label": "文件片段 hello.txt",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-QGBT37\\hello.txt",
+      "counting": "exact"
+    },
+    {
+      "id": "item-e93f839b-043c-4077-acce-6b38782ec718",
+      "type": "git_status",
+      "label": "Git 状态",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "git status",
+      "counting": "exact"
+    },
+    {
+      "id": "item-7974fd5e-0b7c-43df-9201-efaba7242bf8",
+      "type": "codebase_match",
+      "label": "代码库检索（索引未启用）",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "rag",
+      "counting": "exact"
+    }
+  ],
+  "totalTokens": 71,
+  "systemPromptTokens": 65
+}

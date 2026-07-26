@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ChatMessage, ContextItem, ContextItemType, ContextSource, DiagnosticEntry } from "@devwit/contracts";
+import type { ChatMessage, ContextItem, ContextItemType, ContextSource, DiagnosticEntry, ResolvedSymbol } from "@devwit/contracts";
 
 /**
  * 内置上下文源工厂。
@@ -91,6 +91,41 @@ export function attachmentSource(readFile: (path: string) => Promise<string>): C
           });
         } catch {
           // 渲染端只提供树内存在文件，此处仅兜底罕见竞态——静默跳过，manifest 中自然缺席
+        }
+      }
+      return items;
+    },
+  };
+}
+
+/**
+ * @符号 引用（迭代 29 / AC38）：用户在输入框显式提及的代码符号。
+ * 每个引用 = 独立 file_fragment 项，key=symbol:<id> 稳定（可逐项剔除，与附件同机制）。
+ * resolve 由主进程 SymbolIndex 注入（重读文件切片，内容为事实源）；
+ * 符号消失（编辑后行号漂移/文件删除）返回 null → 静默跳过不阻断整轮。
+ */
+export function symbolRefSource(resolve: (symbolId: string) => Promise<ResolvedSymbol | null>): ContextSource {
+  return {
+    type: "file_fragment",
+    async collect(input) {
+      const refs = input.symbolRefs;
+      if (refs === undefined || refs.length === 0) return [];
+      const items: ContextItem[] = [];
+      for (const ref of refs) {
+        try {
+          const resolved = await resolve(ref);
+          if (resolved === null) continue;
+          items.push({
+            ...makeRawItem(
+              "file_fragment",
+              `引用符号 ${resolved.name}（${resolved.relPath} L${resolved.startLine}-${resolved.endLine}）`,
+              resolved.text,
+              "symbol"
+            ),
+            key: `symbol:${ref}`,
+          });
+        } catch {
+          // 与附件源同策略：单符号失败不拖垮整轮注入
         }
       }
       return items;

@@ -1,17 +1,17 @@
 [
   {
-    "sessionId": "task-session-1785038962730-1",
+    "sessionId": "task-session-1785055661828-1",
     "eventCount": 10,
-    "startedAt": "2026-07-26T04:09:22.798Z",
-    "lastAt": "2026-07-26T04:09:23.165Z",
+    "startedAt": "2026-07-26T08:47:41.897Z",
+    "lastAt": "2026-07-26T08:47:42.270Z",
     "preview": "把 note.txt 改写成两行",
     "hasError": true
   },
   {
-    "sessionId": "session-1785038962052",
+    "sessionId": "session-1785055661148",
     "eventCount": 5,
-    "startedAt": "2026-07-26T04:09:22.298Z",
-    "lastAt": "2026-07-26T04:09:22.481Z",
+    "startedAt": "2026-07-26T08:47:41.413Z",
+    "lastAt": "2026-07-26T08:47:41.587Z",
     "preview": "总结一下今天的安排",
     "hasError": false
   }

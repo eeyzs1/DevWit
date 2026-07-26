@@ -118,6 +118,9 @@ const api: DevwitApi = {
     list: () => ipcRenderer.invoke(IPC.SessionsList) as ReturnType<DevwitApi["sessions"]["list"]>,
     rename: (sessionId, title) => ipcRenderer.invoke(IPC.SessionsRename, sessionId, title) as Promise<void>,
     delete: (sessionId) => ipcRenderer.invoke(IPC.SessionsDelete, sessionId) as Promise<void>
+  },
+  symbols: {
+    query: (q) => ipcRenderer.invoke(IPC.SymbolsQuery, q) as ReturnType<DevwitApi["symbols"]["query"]>
   }
 };
 

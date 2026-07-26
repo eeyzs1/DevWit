@@ -1,0 +1,43 @@
+{
+  "steps": [
+    "本地端点就绪 http://127.0.0.1:49266/v1（/chat/completions，捕获请求体）",
+    "应用启动 + fixture 工作区打开（src/calc.ts / src/user.ts / docs/readme.md）",
+    "符号索引 ready：add(L1-4) / UserService(L1-5) / getName@UserService(L2-4) 提取精确",
+    "keyless provider 注入并选中（settings onChanged 热刷新链路）",
+    "@ 空查询：文件/符号双分区下拉（截图 01），符号区含 add/UserService/UserService.getName",
+    "@add 过滤唯一命中（hint src/calc.ts:1）→ Enter 成符号 chip（徽标「函数」）且输入框清空",
+    "符号 chips 交互闭环：点击选中 / 去重 / × 剔除 / 重引用（截图 02）",
+    "发送完成：两符号切片注入（gamma/delta 服务端可见、行区间精确），用户原文干净，chips 清空",
+    "manifest 审计通过：symbol:* 独立 key 项 enabled + file_fragment + token 计数（已落盘 manifest-latest.json）"
+  ],
+  "assertions": [
+    "索引应含 add/UserService/getName 且行列精确（实际: function:add@src/calc.ts:L1-4 | method:getName@src/user.ts:L2-4 | class:UserService@src/user.ts:L1-5）",
+    "placeholder 应含「符号」提示（实际: 描述你的需求…（@ 引用文件或符号，/ 切换模式，Enter 发送））",
+    "双分区标题应出现（实际: 文件/符号）",
+    "空查询符号区应列全量符号（实际: add/UserService.getName/UserService）",
+    "add 候选位置提示应为 src/calc.ts:1（实际: src/calc.ts:1）",
+    "选中后 @查询 原文应清空（实际: \"\"）",
+    "选中后候选下拉应关闭",
+    "add chip 应带 kind 徽标「函数」（实际: 函数add×）",
+    "两符号 chip 就位（实际: 6a8d95f4ab5cb110/fc21685d6372786c）",
+    "重复引用应按 id 去重（实际 chips: 6a8d95f4ab5cb110/fc21685d6372786c）",
+    "× 剔除后应剩 add（实际: 6a8d95f4ab5cb110）",
+    "ArrowDown 后高亮应为 UserService 符号（实际: UserService）",
+    "重新引用后两 chip（实际: 6a8d95f4ab5cb110/fc21685d6372786c）",
+    "服务端应收到 1 次 /chat/completions（实际: 1）",
+    "请求体缺「## 引用符号 add」注入段",
+    "add 注入段标题应带精确行区间（实际段首: ## 引用符号 add（src/calc.ts L1-4））",
+    "add 符号正文未注入（MAGIC_SYMBOL_TOKEN 缺席）",
+    "UserService 符号正文未注入",
+    "用户原文应无 @残留（实际: \"总结这两个符号\"）",
+    "发送后 chips 应清空",
+    "manifests 目录应有落盘文件",
+    "manifest 缺 enabled 的 symbol:<addId> 项（实际: {\"id\":\"item-93aeb0b6-363c-4657-9f9e-6cfaf30a648c\",\"type\":\"file_fragment\",\"label\":\"引用符号 add（src/calc.ts L1-4）\",\"enabled\":true,\"tokens\":38,\"content\":\"export function add(a: number, b: number): number {\\n  const MAGIC_SYMBOL_TOKEN = \\\"symbol-injected-gamma\\\";\\n  return MAGIC_SYMBOL_TOKEN.length + a + b;\\n}\",\"source\":\"symbol\",\"counting\":\"exact\",\"key\":\"symbol:6a8d95f4ab5cb110\"}）",
+    "manifest 缺 enabled 的 symbol:<userId> 项（实际: {\"id\":\"item-465bfb58-e4f3-42de-9f92-7c808a4f9f99\",\"type\":\"file_fragment\",\"label\":\"引用符号 UserService（src/user.ts L1-5）\",\"enabled\":true,\"tokens\":21,\"content\":\"export class UserService {\\n  getName(): string {\\n    return \\\"user-svc-delta\\\";\\n  }\\n}\",\"source\":\"symbol\",\"counting\":\"exact\",\"key\":\"symbol:fc21685d6372786c\"}）",
+    "符号项应有精确 token 计数（实际: 38）",
+    "符号项 label 应含「引用符号 <名>」（实际: 引用符号 add（src/calc.ts L1-4） / 引用符号 UserService（src/user.ts L1-5））"
+  ],
+  "failures": [],
+  "fatal": null,
+  "ok": true
+}

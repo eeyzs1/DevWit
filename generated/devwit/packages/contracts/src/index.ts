@@ -210,6 +210,8 @@ export interface ContextCollectInput {
   query?: string;
   /** @文件引用路径（迭代 19 / AC28：attachment 源读取注入）。 */
   attachments?: string[];
+  /** @符号 引用 id（迭代 29 / AC38：symbolRef 源解析注入）。 */
+  symbolRefs?: string[];
 }
 
 // ============================================================================
@@ -253,6 +255,51 @@ export type RagStatusInfo =
   | { state: "indexing"; indexedFiles: number; totalFiles: number }
   | { state: "ready"; fileCount: number; chunkCount: number }
   | { state: "error"; code: string };
+
+// ============================================================================
+// 符号级索引 / @符号 引用（迭代 29 / AC38）
+// ============================================================================
+
+/** 符号种类（启发式提取的声明分类；struct→class、trait/protocol→interface、impl/mod→module）。 */
+export type SymbolKind =
+  | "function"
+  | "class"
+  | "interface"
+  | "method"
+  | "type"
+  | "enum"
+  | "constant"
+  | "variable"
+  | "module";
+
+/**
+ * 代码符号（@符号 引用候选，symbols:query IPC 返回项）。
+ * id 稳定：sha1(relPath:name:kind:startLine) 前 16 位——同位置同内容符号跨查询稳定；
+ * 文件编辑后行号漂移产生新 id，旧 id 引用自然失效（语义同 chunkId：用户引用的是"那一处声明"）。
+ */
+export interface CodeSymbol {
+  id: string;
+  name: string;
+  kind: SymbolKind;
+  relPath: string;
+  startLine: number;
+  endLine: number;
+  /** 声明行原文（去首尾空白，截断 120 字符），候选下拉与注入 label 展示用。 */
+  signature: string;
+  /** 所属容器名（类的方法 → 类名；Go 接收者方法 → 接收者类型），候选消歧展示用。 */
+  parentName?: string;
+}
+
+/** 符号解析结果（引用注入：符号元数据 + 当前文件切片正文，内容为事实源）。 */
+export interface ResolvedSymbol extends CodeSymbol {
+  text: string;
+}
+
+/** symbols:query IPC 返回：索引状态 + 命中符号（indexing 时 symbols 可为空，下拉据此给提示行）。 */
+export interface SymbolsQueryResult {
+  state: "disabled" | "indexing" | "ready" | "error";
+  symbols: CodeSymbol[];
+}
 
 // ============================================================================
 // 模式系统（WU011）
@@ -595,6 +642,11 @@ export interface AgentRunInput {
    * 主进程按路径读全文注入为独立 file_fragment 项（key=attachment:<路径>，可逐项剔除）。
    */
   attachments?: string[];
+  /**
+   * @符号 引用（迭代 29 / AC38）：用户经 @ 提及显式引用的符号 id。
+   * 主进程解析为当前文件切片注入为独立 file_fragment 项（key=symbol:<id>，可逐项剔除）。
+   */
+  symbolRefs?: string[];
 }
 
 export interface ToolResult {
@@ -784,6 +836,7 @@ export const IPC = {
   SessionsList: "sessions:list",
   SessionsRename: "sessions:rename",
   SessionsDelete: "sessions:delete",
+  SymbolsQuery: "symbols:query",
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];
@@ -829,6 +882,13 @@ export interface DevwitApi {
     rename(sessionId: string, title: string): Promise<void>;
     /** 删除会话：元数据标记 + 轨迹文件一并移除（用户语义上的彻底删除）。 */
     delete(sessionId: string): Promise<void>;
+  };
+  /**
+   * 符号级索引（迭代 29 / AC38）：@符号 引用候选查询。
+   * 与 RAG 解耦——纯启发式提取，无 embedding/provider 依赖，工作区打开即可用。
+   */
+  symbols: {
+    query(q: string): Promise<SymbolsQueryResult>;
   };
   providers: {
     list(): Promise<ProviderConfig[]>;

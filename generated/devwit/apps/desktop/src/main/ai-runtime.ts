@@ -29,6 +29,7 @@ import type {
   ProviderConfig,
   RagConfig,
   RagStatusInfo,
+  SymbolsQueryResult,
   TraceSessionInfo,
   UsagePricing,
   UsageSummary,
@@ -38,11 +39,11 @@ import type {
 import { DEFAULT_RAG_CONFIG, IPC, isFailureTraceEvent } from "@devwit/contracts";
 import { AgentLoop, AgentOrchestrator, AgentTrace, Authorizer, CommandWhitelistMemory, createNodeEnvironment, DEFAULT_LEARNING, decideRoute, DiagnosticsTracker, historyFromTrace, ModeStatsTracker, parseModeRunStats, parseRoutingConfig, parseWorkflowTemplates, WorkflowMemory } from "@devwit/agent-runtime";
 import type { AgentRunResult, CommandWhitelistSnapshot, ToolEnvironment, WhitelistLearningConfig } from "@devwit/agent-runtime";
-import { attachmentSource, ContextEngine, fileFragmentSource, gitStatusSource, selectionSource, TiktokenCounter, workflowSource } from "@devwit/context-engine";
+import { attachmentSource, ContextEngine, fileFragmentSource, gitStatusSource, selectionSource, symbolRefSource, TiktokenCounter, workflowSource } from "@devwit/context-engine";
 import { createEmbedder, ProviderRegistry } from "@devwit/llm-providers";
 import { McpManager, validateMcpServerConfig } from "@devwit/mcp";
 import { ModeStore } from "@devwit/modes";
-import { CodebaseIndex, codebaseMatchSource } from "@devwit/rag";
+import { CodebaseIndex, codebaseMatchSource, SymbolIndex } from "@devwit/rag";
 import type { SettingsStore } from "@devwit/settings";
 import { getGitStatus } from "@devwit/workspace";
 import type { WorkspaceService } from "@devwit/workspace";
@@ -129,6 +130,9 @@ export class AiRuntime {
   private ragStatus: RagStatusInfo = { state: "disabled" };
   private ragRoot: string | null = null;
   private readonly ragDir: string;
+  /** 符号级索引（AC38）：与 RAG 解耦——纯启发式，工作区打开即构建，无 provider 依赖。 */
+  private symbolIndex: SymbolIndex | null = null;
+  private symbolRoot: string | null = null;
   private readonly tokenCounter = new TiktokenCounter();
   /** 授权白名单学习（AC29）：store 实时读写 settings——设置页改动即刻生效，无需重启。 */
   private readonly authMemory: CommandWhitelistMemory;
@@ -195,8 +199,11 @@ export class AiRuntime {
       this.persistModes();
       this.deps.send(IPC.ModesChanged);
     });
-    // AC19 增量索引：工作区文件事件 → 单文件重嵌入（保存/外部变更/删除）
+    // AC19/AC38 增量索引：工作区文件事件 → 单文件重嵌入 + 符号重提取（两条索引独立）
     this.deps.workspace.onDidChange((event) => {
+      if (this.symbolIndex !== null && this.symbolRoot !== null) {
+        void this.symbolIndex.syncFile(path.join(this.symbolRoot, event.path));
+      }
       if (this.ragIndex === null || this.ragRoot === null) return;
       void this.ragIndex.syncFile(path.join(this.ragRoot, event.path));
     });
@@ -296,9 +303,10 @@ export class AiRuntime {
     this.settings.set(MCP_SERVERS_KEY, list);
   }
 
-  /** 应用退出（will-quit）：停止全部 MCP 子进程 + 关闭代码索引。 */
+  /** 应用退出（will-quit）：停止全部 MCP 子进程 + 关闭代码索引与符号索引。 */
   async dispose(): Promise<void> {
     this.teardownRag();
+    this.teardownSymbols();
     await this.mcpManager.dispose();
   }
 
@@ -384,6 +392,41 @@ export class AiRuntime {
     }
     this.ragRoot = null;
     this.setRagStatus({ state: "disabled" });
+  }
+
+  // --------------------------------------------------------------------------
+  // 符号级索引（迭代 29 / AC38）：工作区打开即构建，与 RAG 配置无关
+  // --------------------------------------------------------------------------
+
+  /**
+   * 评估工作区状态，建/换/关符号索引。触发点：IPC 打开工作区后（与 refreshRag 同址）。
+   * 无 settings 开关——启发式提取零成本零外呼，常开（与文件树同级的基础能力）。
+   */
+  refreshSymbols(): void {
+    const root = this.deps.workspace.rootPath;
+    if (root === null) {
+      this.teardownSymbols();
+      return;
+    }
+    if (this.symbolIndex !== null && this.symbolRoot === root) return; // 已就当前根就绪
+    this.teardownSymbols();
+    this.symbolRoot = root;
+    this.symbolIndex = new SymbolIndex(root);
+    void this.symbolIndex.buildAll();
+  }
+
+  /** @符号 引用候选查询（symbols:query IPC）；无索引时返回 disabled（渲染端按无工作区处理）。 */
+  querySymbols(query: string): SymbolsQueryResult {
+    if (this.symbolIndex === null) return { state: "disabled", symbols: [] };
+    return this.symbolIndex.result(query);
+  }
+
+  private teardownSymbols(): void {
+    if (this.symbolIndex !== null) {
+      this.symbolIndex.dispose();
+      this.symbolIndex = null;
+    }
+    this.symbolRoot = null;
   }
 
   private setRagStatus(status: RagStatusInfo): void {
@@ -910,6 +953,9 @@ export class AiRuntime {
     engine.registerSource(fileFragmentSource((filePath) => this.deps.workspace.readFile(filePath)));
     // AC28：@文件引用附件源。路径逃逸/文件消失由 workspace 防护与源内 try/catch 双层兜底
     engine.registerSource(attachmentSource((filePath) => this.deps.workspace.readFile(filePath)));
+    // AC38：@符号 引用源。resolve 动态取当前索引——索引换根/关闭即刻反映到下次请求；
+    // 符号消失（编辑漂移/文件删除）resolve 返 null，源静默跳过不阻断
+    engine.registerSource(symbolRefSource(async (symbolId) => (await this.symbolIndex?.resolve(symbolId)) ?? null));
     engine.registerSource(
       gitStatusSource(async (root) => {
         const status = await getGitStatus(root);

@@ -1002,6 +1002,58 @@ body,
   font-size: 11px;
 }
 
+/* ---- @符号 引用（迭代 29 / AC38）：分区标题 / 种类徽标 / 符号 chip ---- */
+.dw-suggest-section {
+  padding: 4px 8px 2px;
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  opacity: 0.55;
+  user-select: none;
+}
+
+.dw-suggest-symbol {
+  align-items: center;
+}
+
+.dw-suggest-kind {
+  flex: none;
+  font-size: 10px;
+  padding: 0 4px;
+  margin-right: 6px;
+  border: 1px solid currentcolor;
+  border-radius: 3px;
+  opacity: 0.75;
+}
+
+.dw-suggest-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dw-suggest-hintrow {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.dw-suggest-hintrow:hover {
+  background: transparent;
+  color: inherit;
+}
+
+.dw-atchip-kind {
+  font-size: 10px;
+  padding: 0 3px;
+  border: 1px solid currentcolor;
+  border-radius: 3px;
+  opacity: 0.7;
+}
+
+.dw-atchip-symbol {
+  border-style: dashed;
+}
+
 /* ---- 上下文面板 ---- */
 .dw-context {
   display: flex;

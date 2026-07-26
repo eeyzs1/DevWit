@@ -40,6 +40,8 @@ export interface ChatContextSnapshot {
   terminalTail?: string;
   /** @文件引用（迭代 19 / AC28）：面板 chips 采集的工作区相对路径（正斜杠）。 */
   attachments?: string[];
+  /** @符号 引用（迭代 29 / AC38）：面板 chips 采集的符号 id。 */
+  symbolRefs?: string[];
 }
 
 export interface ChatControllerDeps {
@@ -189,6 +191,9 @@ export class ChatController {
       ...(context.terminalTail !== undefined ? { terminalTail: context.terminalTail } : {}),
       ...(context.attachments !== undefined && context.attachments.length > 0
         ? { attachments: context.attachments }
+        : {}),
+      ...(context.symbolRefs !== undefined && context.symbolRefs.length > 0
+        ? { symbolRefs: context.symbolRefs }
         : {}),
     };
     try {

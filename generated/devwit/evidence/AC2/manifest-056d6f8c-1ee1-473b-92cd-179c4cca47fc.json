@@ -1,0 +1,72 @@
+{
+  "id": "manifest-056d6f8c-1ee1-473b-92cd-179c4cca47fc",
+  "timestamp": "2026-07-26T08:45:37.713Z",
+  "sessionId": "session-1785055536488",
+  "modeId": "chat",
+  "providerId": "e2e-local-a",
+  "model": "e2e-model-a",
+  "items": [
+    {
+      "id": "item-2e735f9f-b07c-4f07-ab5b-ce38d3470a26",
+      "type": "system_prompt",
+      "label": "系统提示",
+      "enabled": true,
+      "tokens": 65,
+      "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-7f9d1324-93d9-40f8-9788-524de49ead56",
+      "type": "tool_definitions",
+      "label": "工具定义（0 个）",
+      "enabled": true,
+      "tokens": 1,
+      "content": "[]",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-24146980-32ba-4618-8108-4dc546823583",
+      "type": "conversation_history",
+      "label": "会话历史（3 条）",
+      "enabled": true,
+      "tokens": 45,
+      "content": "[user] 你好\n[assistant] 你好！我是 DevWit，简洁上下文的 AI 编程助手。\n[user] 请把 hello.txt 加一行",
+      "source": "conversation",
+      "counting": "exact"
+    },
+    {
+      "id": "item-c1577c22-0811-4135-90ef-748ecab0293d",
+      "type": "file_fragment",
+      "label": "文件片段 hello.txt",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-QGBT37\\hello.txt",
+      "counting": "exact"
+    },
+    {
+      "id": "item-0747b0bd-6cc8-4c23-af2d-37920a9ee6b7",
+      "type": "git_status",
+      "label": "Git 状态",
+      "enabled": true,
+      "tokens": 8,
+      "content": "(非 git 仓库)",
+      "source": "git status",
+      "counting": "exact"
+    },
+    {
+      "id": "item-a00adc42-066c-4c19-94a9-aa3b6896b3f1",
+      "type": "codebase_match",
+      "label": "代码库检索（索引未启用）",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "rag",
+      "counting": "exact"
+    }
+  ],
+  "totalTokens": 119,
+  "systemPromptTokens": 65
+}

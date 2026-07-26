@@ -157,9 +157,12 @@ export class AgentLoop {
         contextPolicy: {
           ...this.deps.mode.contextPolicy,
           conversation_history: true,
-          // AC28：本轮带 @附件时强制打开 file_fragment 类型闸（附件是用户显式引用；
+          // AC28/AC38：本轮带 @附件/@符号 引用时强制打开 file_fragment 类型闸（显式引用；
           // 用户全局逐项开关仍可压过——与 conversation_history 同层，保持 AC2 总闸语义）
-          ...(input.attachments !== undefined && input.attachments.length > 0 ? { file_fragment: true } : {}),
+          ...((input.attachments !== undefined && input.attachments.length > 0) ||
+          (input.symbolRefs !== undefined && input.symbolRefs.length > 0)
+            ? { file_fragment: true }
+            : {}),
         },
         workspaceRoot: input.workspaceRoot,
         ...(input.activeFile !== undefined ? { activeFile: input.activeFile } : {}),
@@ -171,6 +174,8 @@ export class AgentLoop {
         query: input.userText,
         // AC28：@文件引用（渲染端 chips 采集的工作区相对路径）→ attachment 源注入
         ...(input.attachments !== undefined ? { attachments: input.attachments } : {}),
+        // AC38：@符号 引用（渲染端 chips 采集的符号 id）→ symbolRef 源解析注入
+        ...(input.symbolRefs !== undefined ? { symbolRefs: input.symbolRefs } : {}),
       });
 
       let assistantText = "";

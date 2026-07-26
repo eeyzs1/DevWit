@@ -1,4 +1,4 @@
-import type { ModeDefinition, ProviderConfig } from "@devwit/contracts";
+import type { CodeSymbol, ModeDefinition, ProviderConfig, SymbolsQueryResult, SymbolKind } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, t, ta } from "@devwit/i18n";
 import type { ChatContextSnapshot, ChatController, ChatItem } from "./chat-controller.js";
 import { detectAtTrigger, detectSlashTrigger, filterModesByQuery, filterWorkspaceFiles } from "./input-triggers.js";
@@ -9,6 +9,22 @@ const DECISION_KEY = {
   allow_session: "chat.decision.allow_session",
   deny: "chat.decision.deny",
 } as const;
+
+/** 符号种类 → 词典键（候选下拉与 chip 的种类徽标；显式映射保 MessageKey 类型）。 */
+const SYMBOL_KIND_KEY: Record<SymbolKind, Parameters<typeof t>[0]> = {
+  function: "chat.symbol.kind.function",
+  class: "chat.symbol.kind.class",
+  interface: "chat.symbol.kind.interface",
+  method: "chat.symbol.kind.method",
+  type: "chat.symbol.kind.type",
+  enum: "chat.symbol.kind.enum",
+  constant: "chat.symbol.kind.constant",
+  variable: "chat.symbol.kind.variable",
+  module: "chat.symbol.kind.module",
+};
+
+/** 符号候选查询防抖（@ 输入停顿后再发 IPC，避免逐键触发主进程全表评分）。 */
+const SYMBOL_QUERY_DEBOUNCE_MS = 120; // qg-allow: 交互防抖经验值，候选首屏由文件候选同步给出
 
 /**
  * chat-panel DOM 视图（WU012）：对话面板 + 模式/模型切换 + 授权裁决 + 流式渲染。
@@ -27,6 +43,11 @@ export interface ChatPanelOptions {
    * （正斜杠）。缺省时 @ 触发不出现（无工作区场景）。
    */
   listWorkspaceFiles?(): string[];
+  /**
+   * @符号 引用候选源（迭代 29 / AC38）：按查询串异步取符号候选与索引状态
+   * （主进程 symbols:query IPC，防抖 120ms）。缺省时 @ 下拉仅文件区。
+   */
+  querySymbols?(query: string): Promise<SymbolsQueryResult>;
   /** 请求审查 assistant 最新回复中的编辑提案（WU013 钩子，可选）。 */
   onProposalReview?: (assistantText: string) => void;
 }
@@ -83,15 +104,36 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
 
   /** 待发送的 @引用附件（工作区相对路径，正斜杠；发送后清空）。 */
   const attachments: string[] = [];
-  /** 候选下拉状态：file = @引用补全（含触发符下标）；mode = /斜杠命令。 */
+  /** 待发送的 @符号 引用（迭代 29 / AC38：保留完整元数据供 chip 展示；发送时取 id 列表）。 */
+  const symbolRefs: CodeSymbol[] = [];
+  /**
+   * 候选下拉状态：file = @引用补全（文件区 + 符号区，active 为 [文件…, 符号…] 扁平下标）；
+   * mode = /斜杠命令。kind 命名保持 "file"（AC28 语义与 e2e 契约不变）。
+   */
   type SuggestState =
-    | { kind: "file"; start: number; candidates: string[]; active: number }
+    | {
+        kind: "file";
+        start: number;
+        query: string;
+        candidates: string[];
+        symbols: CodeSymbol[];
+        symbolsState: SymbolsQueryResult["state"] | null;
+        active: number;
+      }
     | { kind: "mode"; candidates: ModeDefinition[]; active: number };
   let suggestState: SuggestState | null = null;
+  /** 符号查询防抖：seq 识别过期响应；同串去重由调用侧 keepSymbols 承担（prev 已持有该串符号则不重取）。 */
+  let symbolQueryTimer: ReturnType<typeof setTimeout> | null = null;
+  let symbolQuerySeq = 0;
+
+  /** 符号 chip 展示名（方法带容器名消歧：ClassName.method）。 */
+  function symbolDisplayName(symbol: CodeSymbol): string {
+    return symbol.parentName !== undefined ? `${symbol.parentName}.${symbol.name}` : symbol.name;
+  }
 
   function renderChips(): void {
     chipsRow.textContent = "";
-    chipsRow.style.display = attachments.length === 0 ? "none" : "flex";
+    chipsRow.style.display = attachments.length + symbolRefs.length === 0 ? "none" : "flex";
     for (const attachment of attachments) {
       const chip = document.createElement("span");
       chip.className = "dw-atchip";
@@ -112,6 +154,29 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
       chip.appendChild(remove);
       chipsRow.appendChild(chip);
     }
+    for (const symbol of symbolRefs) {
+      const chip = document.createElement("span");
+      chip.className = "dw-atchip dw-atchip-symbol";
+      chip.dataset["symbolId"] = symbol.id;
+      chip.title = `${symbol.relPath} L${symbol.startLine}-${symbol.endLine}`;
+      const badge = document.createElement("span");
+      badge.className = "dw-atchip-kind";
+      badge.textContent = t(SYMBOL_KIND_KEY[symbol.kind]);
+      chip.appendChild(badge);
+      chip.appendChild(document.createTextNode(symbolDisplayName(symbol)));
+      const remove = document.createElement("button");
+      remove.className = "dw-atchip-x";
+      remove.textContent = "×";
+      remove.title = t("chat.atchip.remove");
+      remove.addEventListener("click", () => {
+        const index = symbolRefs.findIndex((entry) => entry.id === symbol.id);
+        if (index >= 0) symbolRefs.splice(index, 1);
+        renderChips();
+        textarea.focus();
+      });
+      chip.appendChild(remove);
+      chipsRow.appendChild(chip);
+    }
   }
 
   function closeSuggest(): void {
@@ -125,7 +190,10 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
     suggest.textContent = "";
     suggest.dataset["kind"] = suggestState.kind;
     if (suggestState.kind === "file") {
-      const { candidates, active } = suggestState;
+      const { candidates, symbols, symbolsState, active } = suggestState;
+      // 文件区与符号区并存时给分区标题（仅单一区时保持 AC28 的纯净形态）
+      const showHeaders = candidates.length > 0 && symbols.length > 0;
+      if (showHeaders) suggest.appendChild(makeSectionHeader(t("chat.suggest.files")));
       candidates.forEach((candidate, index) => {
         const item = document.createElement("div");
         item.className = "dw-suggest-item" + (index === active ? " dw-suggest-active" : "");
@@ -138,6 +206,38 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
         });
         suggest.appendChild(item);
       });
+      if (symbols.length > 0) {
+        if (showHeaders) suggest.appendChild(makeSectionHeader(t("chat.suggest.symbols")));
+        symbols.forEach((symbol, symbolIndex) => {
+          const flatIndex = candidates.length + symbolIndex;
+          const item = document.createElement("div");
+          item.className = "dw-suggest-item dw-suggest-symbol" + (flatIndex === active ? " dw-suggest-active" : "");
+          item.dataset["value"] = symbol.id;
+          const badge = document.createElement("span");
+          badge.className = "dw-suggest-kind";
+          badge.textContent = t(SYMBOL_KIND_KEY[symbol.kind]);
+          item.appendChild(badge);
+          const name = document.createElement("span");
+          name.className = "dw-suggest-name";
+          name.textContent = symbolDisplayName(symbol);
+          item.appendChild(name);
+          const hint = document.createElement("span");
+          hint.className = "dw-suggest-hint";
+          hint.textContent = `${symbol.relPath}:${symbol.startLine}`;
+          item.appendChild(hint);
+          item.addEventListener("mousedown", (event) => {
+            event.preventDefault();
+            applySymbolCandidate(symbol);
+          });
+          suggest.appendChild(item);
+        });
+      } else if (symbolsState === "indexing" && candidates.length === 0) {
+        // 索引构建中且无文件候选：给明示行（否则下拉空闪退）
+        const hintRow = document.createElement("div");
+        hintRow.className = "dw-suggest-item dw-suggest-hintrow";
+        hintRow.textContent = t("chat.suggest.symbols.indexing");
+        suggest.appendChild(hintRow);
+      }
     } else {
       const { candidates, active } = suggestState;
       candidates.forEach((candidate, index) => {
@@ -159,7 +259,45 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
     suggest.style.display = "block";
   }
 
-  /** 按当前光标位置刷新候选：/ 开头 → 模式速切；@ 查询 → 文件补全；否则关闭。 */
+  function makeSectionHeader(text: string): HTMLElement {
+    const header = document.createElement("div");
+    header.className = "dw-suggest-section";
+    header.textContent = text;
+    return header;
+  }
+
+  /**
+   * 符号候选异步查询（防抖 + 过期丢弃）：响应到达时若下拉仍在同串 @ 态，
+   * 就地更新符号区并重绘（active 钳制到新区间）。
+   */
+  function scheduleSymbolQuery(query: string): void {
+    if (options.querySymbols === undefined) return;
+    if (symbolQueryTimer !== null) clearTimeout(symbolQueryTimer);
+    const seq = ++symbolQuerySeq;
+    symbolQueryTimer = setTimeout(() => {
+      symbolQueryTimer = null;
+      void options
+        .querySymbols!(query)
+        .then((result) => {
+          if (seq !== symbolQuerySeq) return;
+          if (suggestState?.kind !== "file" || suggestState.query !== query) return;
+          suggestState.symbols = result.symbols;
+          suggestState.symbolsState = result.state;
+          const total = suggestState.candidates.length + result.symbols.length;
+          if (total === 0 && result.state !== "indexing") {
+            closeSuggest();
+            return;
+          }
+          suggestState.active = Math.min(suggestState.active, total - 1);
+          renderSuggest();
+        })
+        .catch(() => {
+          // IPC 失败：保留文件区，符号区维持现状不阻断输入
+        });
+    }, SYMBOL_QUERY_DEBOUNCE_MS);
+  }
+
+  /** 按当前光标位置刷新候选：/ 开头 → 模式速切；@ 查询 → 文件补全 + 符号补全；否则关闭。 */
   function refreshSuggest(): void {
     const caret = textarea.selectionStart ?? textarea.value.length;
     const slash = detectSlashTrigger(textarea.value, caret);
@@ -175,16 +313,30 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
       return;
     }
     const at = detectAtTrigger(textarea.value, caret);
-    const files = options.listWorkspaceFiles?.() ?? [];
-    if (at !== null && files.length > 0) {
+    if (at !== null) {
+      const files = options.listWorkspaceFiles?.() ?? [];
       const candidates = filterWorkspaceFiles(files, at.query);
-      if (candidates.length === 0) {
+      const hasSymbolSource = options.querySymbols !== undefined;
+      if (candidates.length === 0 && !hasSymbolSource) {
         closeSuggest();
         return;
       }
-      const prev = suggestState?.kind === "file" ? suggestState.active : 0;
-      suggestState = { kind: "file", start: at.start, candidates, active: Math.min(prev, candidates.length - 1) };
+      const prev = suggestState?.kind === "file" ? suggestState : null;
+      // 同串查询保留已取回的符号区（避免逐键清空闪动）；异串清空等防抖后重取
+      const keepSymbols = prev !== null && prev.query === at.query;
+      const total = candidates.length + (keepSymbols ? prev.symbols.length : 0);
+      suggestState = {
+        kind: "file",
+        start: at.start,
+        query: at.query,
+        candidates,
+        symbols: keepSymbols ? prev.symbols : [],
+        symbolsState: keepSymbols ? prev.symbolsState : null,
+        active: Math.min(prev?.active ?? 0, Math.max(total - 1, 0)),
+      };
       renderSuggest();
+      // prev 已持有同串符号（逐键输入）时不重取；新串/重开下拉才发 IPC（空串首查亦覆盖）
+      if (!keepSymbols) scheduleSymbolQuery(at.query);
       return;
     }
     closeSuggest();
@@ -200,6 +352,22 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
     textarea.selectionEnd = start;
     if (!attachments.includes(candidate)) {
       attachments.push(candidate);
+      renderChips();
+    }
+    closeSuggest();
+    textarea.focus();
+  }
+
+  /** 选中符号候选（AC38）：同文件候选删除 @查询 原文 → 生成符号 chip（按 id 去重）。 */
+  function applySymbolCandidate(symbol: CodeSymbol): void {
+    if (suggestState?.kind !== "file") return;
+    const caret = textarea.selectionStart ?? textarea.value.length;
+    const start = suggestState.start;
+    textarea.value = textarea.value.slice(0, start) + textarea.value.slice(caret);
+    textarea.selectionStart = start;
+    textarea.selectionEnd = start;
+    if (!symbolRefs.some((entry) => entry.id === symbol.id)) {
+      symbolRefs.push(symbol);
       renderChips();
     }
     closeSuggest();
@@ -434,16 +602,20 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
     const text = textarea.value;
     textarea.value = "";
     closeSuggest();
-    // 附件随本轮发送；发送失败（如会话忙）时恢复 chips，避免用户引用丢失
+    // 附件与符号引用随本轮发送；发送失败（如会话忙）时恢复 chips，避免用户引用丢失
     const attached = [...attachments];
+    const refSymbols = [...symbolRefs];
     attachments.length = 0;
+    symbolRefs.length = 0;
     renderChips();
     const snapshot: ChatContextSnapshot = {
       ...options.collectContext(),
       ...(attached.length > 0 ? { attachments: attached } : {}),
+      ...(refSymbols.length > 0 ? { symbolRefs: refSymbols.map((symbol) => symbol.id) } : {}),
     };
     void controller.send(text, snapshot).catch(() => {
       attachments.push(...attached);
+      symbolRefs.push(...refSymbols);
       renderChips();
       // 错误已作为 error 项入列表（controller 内部处理）
     });
@@ -457,19 +629,29 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
         const delta = event.key === "ArrowDown" ? 1 : -1;
-        const size = suggestState.candidates.length;
+        const size =
+          suggestState.kind === "file"
+            ? suggestState.candidates.length + suggestState.symbols.length
+            : suggestState.candidates.length;
+        if (size === 0) return;
         suggestState.active = (suggestState.active + delta + size) % size;
         renderSuggest();
         return;
       }
       if (event.key === "Enter" || event.key === "Tab") {
         event.preventDefault();
-        const current = suggestState.candidates[suggestState.active];
-        if (current === undefined) return;
         if (suggestState.kind === "file") {
-          applyFileCandidate(current as string);
+          const { candidates, symbols, active } = suggestState;
+          if (active < candidates.length) {
+            const file = candidates[active];
+            if (file !== undefined) applyFileCandidate(file);
+          } else {
+            const symbol = symbols[active - candidates.length];
+            if (symbol !== undefined) applySymbolCandidate(symbol);
+          }
         } else {
-          applyModeCandidate(current as ModeDefinition);
+          const current = suggestState.candidates[suggestState.active];
+          if (current !== undefined) applyModeCandidate(current);
         }
         return;
       }
@@ -511,6 +693,8 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
     root,
     refreshSelectors,
     dispose(): void {
+      if (symbolQueryTimer !== null) clearTimeout(symbolQueryTimer);
+      symbolQuerySeq += 1; // 使在途响应失效
       unsubscribe();
       unsubscribeLocale();
       root.remove();

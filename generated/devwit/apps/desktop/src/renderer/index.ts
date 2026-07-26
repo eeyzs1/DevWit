@@ -445,6 +445,8 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     collectContext,
     // AC28：@文件引用候选（enterWorkspace 重建的工作区相对路径清单）
     listWorkspaceFiles: () => workspaceFiles,
+    // AC38：@符号 引用候选（主进程 SymbolIndex 查询，防抖在面板内）
+    querySymbols: (q) => api.symbols.query(q),
     onProposalReview: (assistantText) => reviewProposal(assistantText),
   });
   chatPanel.root.style.display = "flex";

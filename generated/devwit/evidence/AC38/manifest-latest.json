@@ -1,0 +1,84 @@
+{
+  "id": "manifest-cffaab46-f114-417e-95e3-1d7cd89ef3c7",
+  "timestamp": "2026-07-26T08:46:50.923Z",
+  "sessionId": "session-1785055609536",
+  "modeId": "chat",
+  "providerId": "p-i29",
+  "model": "i29-model",
+  "items": [
+    {
+      "id": "item-830d5208-0219-4bec-b636-af8e7b75f0c6",
+      "type": "system_prompt",
+      "label": "系统提示",
+      "enabled": true,
+      "tokens": 65,
+      "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-a829cf8a-4bc0-4121-afc1-f7da8ad464f6",
+      "type": "tool_definitions",
+      "label": "工具定义（0 个）",
+      "enabled": true,
+      "tokens": 1,
+      "content": "[]",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-541d03a9-679d-450f-acc3-fc7f724c387b",
+      "type": "conversation_history",
+      "label": "会话历史（1 条）",
+      "enabled": true,
+      "tokens": 10,
+      "content": "[user] 总结这两个符号",
+      "source": "conversation",
+      "counting": "exact"
+    },
+    {
+      "id": "item-93aeb0b6-363c-4657-9f9e-6cfaf30a648c",
+      "type": "file_fragment",
+      "label": "引用符号 add（src/calc.ts L1-4）",
+      "enabled": true,
+      "tokens": 38,
+      "content": "export function add(a: number, b: number): number {\n  const MAGIC_SYMBOL_TOKEN = \"symbol-injected-gamma\";\n  return MAGIC_SYMBOL_TOKEN.length + a + b;\n}",
+      "source": "symbol",
+      "counting": "exact",
+      "key": "symbol:6a8d95f4ab5cb110"
+    },
+    {
+      "id": "item-465bfb58-e4f3-42de-9f92-7c808a4f9f99",
+      "type": "file_fragment",
+      "label": "引用符号 UserService（src/user.ts L1-5）",
+      "enabled": true,
+      "tokens": 21,
+      "content": "export class UserService {\n  getName(): string {\n    return \"user-svc-delta\";\n  }\n}",
+      "source": "symbol",
+      "counting": "exact",
+      "key": "symbol:fc21685d6372786c"
+    },
+    {
+      "id": "item-12b67064-a5c9-4d5d-b5b2-6eaee784a5af",
+      "type": "git_status",
+      "label": "Git 状态",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "git status",
+      "counting": "exact"
+    },
+    {
+      "id": "item-7b1afd43-017a-4a0f-a271-9bba62475ae9",
+      "type": "codebase_match",
+      "label": "代码库检索（索引未启用）",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "rag",
+      "counting": "exact"
+    }
+  ],
+  "totalTokens": 135,
+  "systemPromptTokens": 65
+}
