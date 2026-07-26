@@ -1,6 +1,6 @@
 {
   "steps": [
-    "本地端点就绪 http://127.0.0.1:51125/v1（GET /models 返回 qwen3:8b + llama3.1:8b）",
+    "本地端点就绪 http://127.0.0.1:49849/v1（GET /models 返回 qwen3:8b + llama3.1:8b）",
     "应用启动 + fixture 工作区打开",
     "探测成功：状态行「连接成功 · 发现 2 个模型」+ datalist 回填 2 型号 + 自动填 qwen3:8b + 服务端零 authorization 头（截图 01）",
     "自定义 + apiKey：服务端确认 authorization: Bearer sk-e2e-probe 按原样送达（表单明文直传，不落盘）",

@@ -20,6 +20,7 @@ import type {
   ProviderType,
   RagStatusInfo,
   UpdateStatusInfo,
+  UsageTotals,
 } from "@devwit/contracts";
 import {
   LOCALES,
@@ -517,6 +518,21 @@ function renderGeneral(
   usageActions.append(usageRefreshBtn, usageClearBtn);
   const usageHint = el("div", "dw-modal-hint", t("settings.usage.hint"));
 
+  /** 成本格式化（AC36）：6 位小数截断后去尾零，小量级成本也可读（0.000202）。 */
+  const formatCost = (cost: number): string => String(Number(cost.toFixed(6)));
+  /**
+   * 成本列文案：已定价 → 「 · 成本 X」；部分覆盖追加未定价运行数；
+   * 全组未定价 → 「 · 未定价」（不虚构数字）。未配置单价表时整体为空串（零噪音）。
+   */
+  const costText = (row: UsageTotals): string => {
+    const unpriced = row.unpricedRuns ?? 0;
+    if (row.cost !== undefined) {
+      const base = t("settings.usage.cost", { cost: formatCost(row.cost) });
+      return unpriced > 0 ? `${base}${t("settings.usage.costPartial", { runs: unpriced })}` : base;
+    }
+    return unpriced > 0 ? t("settings.usage.unpriced") : "";
+  };
+
   const loadUsage = async (): Promise<void> => {
     const [summary, modeList] = await Promise.all([deps.api.usage.summary(), deps.api.modes.list()]);
     // 模式 id → 用户改名后的显示名（未找到时回退 id——模式已删的历史计量仍可见）
@@ -530,12 +546,12 @@ function renderGeneral(
       input: summary.today.inputTokens,
       output: summary.today.outputTokens,
       runs: summary.today.runs,
-    })));
+    }) + costText(summary.today)));
     usageSummaryBox.appendChild(el("div", "dw-settings-whitelist-row", t("settings.usage.total", {
       input: summary.total.inputTokens,
       output: summary.total.outputTokens,
       runs: summary.total.runs,
-    })));
+    }) + costText(summary.total)));
     if (summary.byMode.length > 0) {
       usageSummaryBox.appendChild(el("div", "dw-modal-hint", t("settings.usage.byMode")));
       for (const row of summary.byMode) {
@@ -544,7 +560,7 @@ function renderGeneral(
           input: row.inputTokens,
           output: row.outputTokens,
           runs: row.runs,
-        })));
+        }) + costText(row)));
       }
     }
     if (summary.byProvider.length > 0) {
@@ -555,7 +571,7 @@ function renderGeneral(
           input: row.inputTokens,
           output: row.outputTokens,
           runs: row.runs,
-        })));
+        }) + costText(row)));
       }
     }
   };
@@ -565,11 +581,82 @@ function renderGeneral(
     void deps.api.usage.clear().then(() => loadUsage());
   });
 
+  // ---- 成本单价（AC36）：按「服务商 · 型号」配置每百万 tokens 输入/输出单价 ----
+  // 存 settings "usage.pricing"；主进程 summary 每次实时读 → 改价即热生效。
+  // 输入/输出两格均填且非负才视为已定价（单边留空按未定价，不出半个估算值）。
+  const pricingTitle = el("label", undefined, t("settings.usage.pricing.title"));
+  const pricingBox = el("div", "dw-settings-whitelist");
+  const pricingHint = el("div", "dw-modal-hint", t("settings.usage.pricing.hint"));
+
+  /** 单价表草稿（编辑中间态允许单边缺省；两格均填才算已定价）。 */
+  type PricingDraft = Record<string, { inputPerMillion?: number; outputPerMillion?: number }>;
+  const readPricing = async (): Promise<PricingDraft> => {
+    const stored = await deps.api.settings.get("usage.pricing");
+    return typeof stored === "object" && stored !== null && !Array.isArray(stored)
+      ? { ...(stored as PricingDraft) }
+      : {};
+  };
+
+  const savePricingField = async (key: string, field: "inputPerMillion" | "outputPerMillion", rawValue: string): Promise<void> => {
+    const next = await readPricing();
+    const entry = { ...(next[key] ?? {}) };
+    const trimmed = rawValue.trim();
+    if (trimmed === "") {
+      delete entry[field];
+    } else {
+      const num = Number(trimmed);
+      if (!Number.isFinite(num) || num < 0) return; // 非法输入不落盘（保持原值）
+      entry[field] = num;
+    }
+    if (entry.inputPerMillion === undefined && entry.outputPerMillion === undefined) {
+      delete next[key];
+    } else {
+      next[key] = entry;
+    }
+    await deps.api.settings.set("usage.pricing", next);
+    await loadUsage(); // 成本列热更新
+  };
+
+  const loadPricing = async (): Promise<void> => {
+    const [summary, pricing] = await Promise.all([deps.api.usage.summary(), readPricing()]);
+    pricingBox.textContent = "";
+    if (summary.byProvider.length === 0) {
+      pricingBox.appendChild(el("div", "dw-modal-hint", t("settings.usage.pricing.empty")));
+      return;
+    }
+    for (const row of summary.byProvider) {
+      const key = `${row.providerId} ${row.model}`;
+      const entry = pricing[key];
+      const wrap = el("div", "dw-settings-whitelist-row dw-settings-pricing-row");
+      wrap.appendChild(el("span", "dw-settings-pricing-name", key));
+      const inputPrice = el("input", "dw-input dw-settings-pricing-input") as HTMLInputElement;
+      inputPrice.type = "number";
+      inputPrice.min = "0";
+      inputPrice.step = "any";
+      inputPrice.placeholder = t("settings.usage.pricing.input");
+      inputPrice.title = t("settings.usage.pricing.inputTitle");
+      if (typeof entry?.inputPerMillion === "number") inputPrice.value = String(entry.inputPerMillion);
+      const outputPrice = el("input", "dw-input dw-settings-pricing-input") as HTMLInputElement;
+      outputPrice.type = "number";
+      outputPrice.min = "0";
+      outputPrice.step = "any";
+      outputPrice.placeholder = t("settings.usage.pricing.output");
+      outputPrice.title = t("settings.usage.pricing.outputTitle");
+      if (typeof entry?.outputPerMillion === "number") outputPrice.value = String(entry.outputPerMillion);
+      inputPrice.addEventListener("change", () => void savePricingField(key, "inputPerMillion", inputPrice.value));
+      outputPrice.addEventListener("change", () => void savePricingField(key, "outputPerMillion", outputPrice.value));
+      wrap.append(inputPrice, outputPrice);
+      pricingBox.appendChild(wrap);
+    }
+  };
+  void loadPricing();
+
   form.append(label, select, hint, updateLabel, updateRow, updateHint, ragLabel, ragRow, ragActions, ragHint,
     secTitle, secLearnRow, secThreshRow, secList, secHint,
     routeTitle, routeEnableRow, routeProviderRow, routeThreshRow, routeHint,
     wfTitle, wfEnableRow, wfList, wfHint,
-    usageTitle, usageSummaryBox, usageActions, usageHint);
+    usageTitle, usageSummaryBox, usageActions, usageHint,
+    pricingTitle, pricingBox, pricingHint);
 
   // ---- 首次运行向导（迭代 18 / AC27）：允许随时重跑（如换机/重装后引导同伴）----
   if (deps.onRerunWizard !== undefined) {

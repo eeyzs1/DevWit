@@ -19,6 +19,7 @@ import {
   mountChatPanel,
   mountContextPanel,
   mountDiffView,
+  mountTraceTimeline,
   type TaskInfo,
 } from "@devwit/chat-ui";
 import { openSettingsDialog, type SettingsDialogDeps } from "./settings-dialog.js";
@@ -394,11 +395,12 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   openBtn.addEventListener("click", () => void openWorkspace());
   sidebar.appendChild(el("div", "dw-sidebar-empty", t("sidebar.empty")));
 
-  // ---- 右侧栏：对话 / 上下文 两个页签 ----
+  // ---- 右侧栏：对话 / 上下文 / 轨迹 三个页签 ----
   const tabs = el("div", "dw-tabs");
   const chatTab = el("div", "dw-tab dw-tab-active", t("tab.chat"));
   const contextTab = el("div", "dw-tab", t("tab.context"));
-  tabs.append(chatTab, contextTab);
+  const traceTab = el("div", "dw-tab", t("tab.trace"));
+  tabs.append(chatTab, contextTab, traceTab);
   const sideBody = el("div", "dw-side-body");
   side.append(tabs, sideBody);
 
@@ -448,19 +450,27 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   const contextPanel = mountContextPanel(sideBody, contextController);
   contextPanel.root.style.display = "none";
 
-  chatTab.addEventListener("click", () => {
-    chatTab.classList.add("dw-tab-active");
-    contextTab.classList.remove("dw-tab-active");
-    chatPanel.root.style.display = "flex";
-    contextPanel.root.style.display = "none";
+  // 轨迹时间线（迭代 27 / AC36）：当前会话实时事件 + 历史会话回放
+  const traceTimeline = mountTraceTimeline(sideBody, {
+    api,
+    liveSessionId: chatController.sessionId,
   });
-  contextTab.addEventListener("click", () => {
-    contextTab.classList.add("dw-tab-active");
-    chatTab.classList.remove("dw-tab-active");
-    contextPanel.root.style.display = "flex";
-    chatPanel.root.style.display = "none";
-    void contextController.refresh();
-  });
+  traceTimeline.root.style.display = "none";
+
+  /** 侧栏三页签切换（AC12 语言热生效时各自重绘文案）。 */
+  function activateSideTab(active: "chat" | "context" | "trace"): void {
+    chatTab.classList.toggle("dw-tab-active", active === "chat");
+    contextTab.classList.toggle("dw-tab-active", active === "context");
+    traceTab.classList.toggle("dw-tab-active", active === "trace");
+    chatPanel.root.style.display = active === "chat" ? "flex" : "none";
+    contextPanel.root.style.display = active === "context" ? "flex" : "none";
+    traceTimeline.root.style.display = active === "trace" ? "flex" : "none";
+    if (active === "context") void contextController.refresh();
+    if (active === "trace") void traceTimeline.refresh();
+  }
+  chatTab.addEventListener("click", () => activateSideTab("chat"));
+  contextTab.addEventListener("click", () => activateSideTab("context"));
+  traceTab.addEventListener("click", () => activateSideTab("trace"));
 
   // ==========================================================================
   // 指挥台（AC9）：任务列表 | Agent 活动流 | 工作区视图（代码 / Diff 页签）
@@ -790,6 +800,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     }
     chatTab.textContent = t("tab.chat");
     contextTab.textContent = t("tab.context");
+    traceTab.textContent = t("tab.trace");
     codeTab.textContent = t("tab.code");
     diffTab.textContent = t("tab.diff");
     taskColTitle.textContent = t("console.tasks");

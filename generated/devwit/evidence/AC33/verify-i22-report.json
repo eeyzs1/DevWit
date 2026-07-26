@@ -1,6 +1,6 @@
 {
   "steps": [
-    "本地端点就绪 http://127.0.0.1:51174/v1（脚本化 7 请求）",
+    "本地端点就绪 http://127.0.0.1:49907/v1（脚本化 7 请求）",
     "应用启动 + fixture 工作区打开（login.ts 就位）",
     "keyless provider 注册 + agent/chat 双模式热绑定",
     "任务1 完成：模板沉淀（modeId=agent）+ 统计 agent 1/1",
@@ -14,20 +14,20 @@
   ],
   "assertions": [
     "任务1 write 真实写盘（实际: \"export function login(name?: string) {\\n  if (!name) throw ne\"）",
-    "任务1 成功沉淀模板且 modeId=agent（实际: [{\"id\":\"wf-ms0pezns-1\",\"intent\":\"为 login.ts 加输入校验\",\"modeId\":\"agent\",\"tools\":[\"write\"],\"learnedAt\":\"2026-07-25T18:30:05.320Z\",\"reuseCount\":0}]）",
-    "定级：completed 记成功 → agent 1/1（实际: [{\"modeId\":\"agent\",\"runs\":1,\"successes\":1,\"lastRunAt\":\"2026-07-25T18:30:05.321Z\"}]）",
+    "任务1 成功沉淀模板且 modeId=agent（实际: [{\"id\":\"wf-ms16ve5a-1\",\"intent\":\"为 login.ts 加输入校验\",\"modeId\":\"agent\",\"tools\":[\"write\"],\"learnedAt\":\"2026-07-26T02:38:44.062Z\",\"reuseCount\":0}]）",
+    "定级：completed 记成功 → agent 1/1（实际: [{\"modeId\":\"agent\",\"runs\":1,\"successes\":1,\"lastRunAt\":\"2026-07-26T02:38:44.063Z\"}]）",
     "门槛闸：agent 仅 1 次定级（<3）→ 无推荐行（实际: 0 行）",
-    "chat 纯文本 completed 同样定级 → chat 1/1（实际: [{\"modeId\":\"agent\",\"runs\":1,\"successes\":1,\"lastRunAt\":\"2026-07-25T18:30:05.321Z\"},{\"modeId\":\"chat\",\"runs\":1,\"successes\":1,\"lastRunAt\":\"2026-07-25T18:30:05.647Z\"}]）",
+    "chat 纯文本 completed 同样定级 → chat 1/1（实际: [{\"modeId\":\"agent\",\"runs\":1,\"successes\":1,\"lastRunAt\":\"2026-07-26T02:38:44.063Z\"},{\"modeId\":\"chat\",\"runs\":1,\"successes\":1,\"lastRunAt\":\"2026-07-26T02:38:44.594Z\"}]）",
     "任务3 非相似意图：无工作流复用/推荐行",
     "任务4 非相似意图：无工作流复用/推荐行",
-    "任务3/4 后 agent 3/3（实际: [{\"modeId\":\"agent\",\"runs\":3,\"successes\":3,\"lastRunAt\":\"2026-07-25T18:30:06.343Z\"},{\"modeId\":\"chat\",\"runs\":1,\"successes\":1,\"lastRunAt\":\"2026-07-25T18:30:05.647Z\"}]）",
+    "任务3/4 后 agent 3/3（实际: [{\"modeId\":\"agent\",\"runs\":3,\"successes\":3,\"lastRunAt\":\"2026-07-26T02:38:45.440Z\"},{\"modeId\":\"chat\",\"runs\":1,\"successes\":1,\"lastRunAt\":\"2026-07-26T02:38:44.594Z\"}]）",
     "推荐行应含候选模式/成功率/定级数/当前模式/模板意图（实际: [模式推荐] 相似任务在「智能体」下成功率 100%（3 次定级），当前「对话」100%：为 login.ts 加输入校验切换到智能体）",
     "推荐行应有一键切换按钮「切换到智能体」",
     "轨迹 mode_recommend×1 且明细正确（实际: {\"count\":1,\"detail\":{\"phase\":\"recommend\",\"modeId\":\"agent\",\"currentModeId\":\"chat\",\"reason\":\"workflow_hit\",\"intent\":\"为 login.ts 加输入校验\",\"successRate\":1,\"currentSuccessRate\":1,\"runs\":3}}）",
     "切换后推荐行应转「已采纳」（实际: 已采纳，后续消息将使用推荐模式）",
     "采纳后对话面板模式下拉应为 agent（实际: agent）",
     "设置·模式分区应行内显示 agent 3/3 与 chat 2/2 成功率（实际: Chat（内置） · 工具 0 个 · 成功率 100%（2/2 次定级）导出编辑\nAgent（内置） · 工具 7 个 · 成功率 100%（3/3 次定级）导出编辑\nOrchestrator（内置） · 工具 7 个导出编辑）",
-    "采纳后后续消息应以 agent 定级（agent 4/4，chat 2/2）（实际: [{\"modeId\":\"agent\",\"runs\":4,\"successes\":4,\"lastRunAt\":\"2026-07-25T18:30:07.072Z\"},{\"modeId\":\"chat\",\"runs\":2,\"successes\":2,\"lastRunAt\":\"2026-07-25T18:30:06.575Z\"}]）",
+    "采纳后后续消息应以 agent 定级（agent 4/4，chat 2/2）（实际: [{\"modeId\":\"agent\",\"runs\":4,\"successes\":4,\"lastRunAt\":\"2026-07-26T02:38:46.152Z\"},{\"modeId\":\"chat\",\"runs\":2,\"successes\":2,\"lastRunAt\":\"2026-07-26T02:38:45.673Z\"}]）",
     "服务端应收到 7 次 /chat/completions（实际: 7）"
   ],
   "failures": [],

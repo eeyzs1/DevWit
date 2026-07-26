@@ -104,3 +104,65 @@ describe("UsageStore（AC35 用量账本）", () => {
     store.clear(); // 再次清零不抛
   });
 });
+
+describe("UsageStore 成本估算（迭代 27 / AC36）", () => {
+  it("按单价逐记录估算成本：total/today/byMode/byProvider 同步累加", () => {
+    const store = new UsageStore(file);
+    store.append(record({ inputTokens: 40, outputTokens: 15 })); // p-1 m-1
+    store.append(record({ inputTokens: 100, outputTokens: 50, sessionId: "s-2" }));
+    // 单价：input 2 元/百万、output 8 元/百万
+    // 记录1：(40*2 + 15*8)/1e6 = 0.0002；记录2：(100*2 + 50*8)/1e6 = 0.0006
+    const pricing = { "p-1 m-1": { inputPerMillion: 2, outputPerMillion: 8 } };
+    const summary = store.summary(new Date(), pricing);
+    expect(summary.total.cost).toBeCloseTo(0.0008, 10);
+    expect(summary.total.unpricedRuns).toBeUndefined();
+    expect(summary.today.cost).toBeCloseTo(0.0008, 10);
+    expect(summary.byMode[0]!.cost).toBeCloseTo(0.0008, 10);
+    expect(summary.byProvider[0]!.cost).toBeCloseTo(0.0008, 10);
+  });
+
+  it("部分覆盖：未匹配单价的记录计入 unpricedRuns，不虚构成本", () => {
+    const store = new UsageStore(file);
+    store.append(record({ inputTokens: 40, outputTokens: 15 })); // 有单价
+    store.append(record({ providerId: "p-2", model: "m-2", inputTokens: 100, outputTokens: 50 })); // 无单价
+    const pricing = { "p-1 m-1": { inputPerMillion: 2, outputPerMillion: 8 } };
+    const summary = store.summary(new Date(), pricing);
+    expect(summary.total.cost).toBeCloseTo(0.0002, 10); // 仅已定价记录的成本
+    expect(summary.total.unpricedRuns).toBe(1);
+    // byMode 同一模式聚合两条：成本与未定价计数并存
+    expect(summary.byMode[0]!.runs).toBe(2);
+    expect(summary.byMode[0]!.cost).toBeCloseTo(0.0002, 10);
+    expect(summary.byMode[0]!.unpricedRuns).toBe(1);
+    // byProvider 分行：p-2 行只有 unpricedRuns，无 cost
+    const p2 = summary.byProvider.find((row) => row.providerId === "p-2")!;
+    expect(p2.cost).toBeUndefined();
+    expect(p2.unpricedRuns).toBe(1);
+  });
+
+  it("非法单价项（负数/非数）按未定价处理", () => {
+    const store = new UsageStore(file);
+    store.append(record());
+    const pricing = { "p-1 m-1": { inputPerMillion: -1, outputPerMillion: Number.NaN } };
+    const summary = store.summary(new Date(), pricing);
+    expect(summary.total.cost).toBeUndefined();
+    expect(summary.total.unpricedRuns).toBe(1);
+  });
+
+  it("零单价合法：成本为 0 而非未定价", () => {
+    const store = new UsageStore(file);
+    store.append(record());
+    const pricing = { "p-1 m-1": { inputPerMillion: 0, outputPerMillion: 0 } };
+    const summary = store.summary(new Date(), pricing);
+    expect(summary.total.cost).toBe(0);
+    expect(summary.total.unpricedRuns).toBeUndefined();
+  });
+
+  it("不传 pricing：无 cost 与 unpricedRuns 字段（向后兼容）", () => {
+    const store = new UsageStore(file);
+    store.append(record());
+    const summary = store.summary();
+    expect(summary.total).toEqual({ inputTokens: 10, outputTokens: 5, runs: 1 });
+    expect(summary.total.cost).toBeUndefined();
+    expect(summary.total.unpricedRuns).toBeUndefined();
+  });
+});

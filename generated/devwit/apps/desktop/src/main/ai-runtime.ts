@@ -10,7 +10,7 @@
  * - 会话中切模型：AgentRunInput.providerId 覆盖模式绑定（AC5）。
  */
 import { promises as fs } from "node:fs";
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import type {
@@ -28,11 +28,13 @@ import type {
   ProviderConfig,
   RagConfig,
   RagStatusInfo,
+  TraceSessionInfo,
+  UsagePricing,
   UsageSummary,
   WorkflowReuse,
   WorkflowTemplate,
 } from "@devwit/contracts";
-import { DEFAULT_RAG_CONFIG, IPC } from "@devwit/contracts";
+import { DEFAULT_RAG_CONFIG, IPC, isFailureTraceEvent } from "@devwit/contracts";
 import { AgentLoop, AgentOrchestrator, AgentTrace, Authorizer, CommandWhitelistMemory, createNodeEnvironment, DEFAULT_LEARNING, decideRoute, DiagnosticsTracker, historyFromTrace, ModeStatsTracker, parseModeRunStats, parseRoutingConfig, parseWorkflowTemplates, WorkflowMemory } from "@devwit/agent-runtime";
 import type { AgentRunResult, CommandWhitelistSnapshot, ToolEnvironment, WhitelistLearningConfig } from "@devwit/agent-runtime";
 import { attachmentSource, ContextEngine, fileFragmentSource, gitStatusSource, selectionSource, TiktokenCounter, workflowSource } from "@devwit/context-engine";
@@ -66,6 +68,8 @@ const WORKFLOW_CONFIG_KEY = "workflow.memory";
 const WORKFLOW_TEMPLATES_KEY = "workflow.templates";
 /** settings 键：模式运行统计（迭代 24 / AC33，热更新——tracker 每次实时读）。 */
 const MODE_STATS_KEY = "modes.stats";
+/** settings 键：成本单价表（迭代 27 / AC36，热更新——summary 每次实时读）。 */
+const USAGE_PRICING_KEY = "usage.pricing";
 
 interface SessionState {
   engine: ContextEngine;
@@ -614,9 +618,13 @@ export class AiRuntime {
     }
   }
 
-  /** 用量统计聚合视图（AC35，usage:summary IPC）。 */
+  /** 用量统计聚合视图（AC35 + AC36 成本层，usage:summary IPC）。 */
   usageSummary(): UsageSummary {
-    return this.usageStore.summary();
+    // 单价表每次实时读：设置页改价即热生效，无需重启（硬约束）
+    const raw = this.settings.get(USAGE_PRICING_KEY);
+    const pricing =
+      typeof raw === "object" && raw !== null && !Array.isArray(raw) ? (raw as UsagePricing) : undefined;
+    return this.usageStore.summary(new Date(), pricing);
   }
 
   /** 清零用量账本（AC35，usage:clear IPC；不影响会话轨迹与设置）。 */
@@ -643,6 +651,55 @@ export class AiRuntime {
     if (session !== undefined) return session.trace.list();
     // AC15：进程内无此会话（如重启后）→ 从磁盘轨迹文件读回
     return this.readPersistedTrace(sessionId);
+  }
+
+  /**
+   * 历史会话轨迹摘要列表（迭代 27 / AC36，agent:trace-list IPC）：
+   * 扫描 traces/*.jsonl，逐文件解析事件构建摘要（首条用户消息为预览，
+   * hasError 与渲染端 isFailureTraceEvent 同规则）；按末事件时间倒序。
+   * 坏行/坏文件容忍跳过（审计目录不因单文件损坏整体不可用）。
+   */
+  listTraceSessions(): TraceSessionInfo[] {
+    let files: string[] = [];
+    try {
+      files = readdirSync(this.tracesDir).filter((name) => name.endsWith(".jsonl"));
+    } catch {
+      return [];
+    }
+    const out: TraceSessionInfo[] = [];
+    for (const name of files) {
+      let raw: string;
+      try {
+        raw = readFileSync(path.join(this.tracesDir, name), "utf-8");
+      } catch {
+        continue;
+      }
+      const events: AgentTraceEvent[] = [];
+      for (const line of raw.split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed === "") continue;
+        try {
+          const parsed = JSON.parse(trimmed) as AgentTraceEvent;
+          if (typeof parsed?.sessionId === "string" && typeof parsed?.timestamp === "string") {
+            events.push(parsed);
+          }
+        } catch {
+          // 单行损坏跳过
+        }
+      }
+      if (events.length === 0) continue;
+      const firstUser = events.find((event) => event.type === "user_message");
+      out.push({
+        sessionId: events[0]!.sessionId,
+        eventCount: events.length,
+        startedAt: events[0]!.timestamp,
+        lastAt: events[events.length - 1]!.timestamp,
+        preview: (firstUser ?? events[0]!).summary,
+        hasError: events.some((event) => isFailureTraceEvent(event)),
+      });
+    }
+    out.sort((a, b) => b.lastAt.localeCompare(a.lastAt));
+    return out;
   }
 
   // --------------------------------------------------------------------------

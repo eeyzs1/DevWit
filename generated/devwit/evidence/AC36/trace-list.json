@@ -1,0 +1,18 @@
+[
+  {
+    "sessionId": "task-session-1785033538380-1",
+    "eventCount": 10,
+    "startedAt": "2026-07-26T02:38:58.450Z",
+    "lastAt": "2026-07-26T02:38:58.811Z",
+    "preview": "把 note.txt 改写成两行",
+    "hasError": true
+  },
+  {
+    "sessionId": "session-1785033537704",
+    "eventCount": 5,
+    "startedAt": "2026-07-26T02:38:57.967Z",
+    "lastAt": "2026-07-26T02:38:58.132Z",
+    "preview": "总结一下今天的安排",
+    "hasError": false
+  }
+]

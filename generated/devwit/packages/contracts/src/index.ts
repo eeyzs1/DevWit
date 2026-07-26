@@ -399,6 +399,14 @@ export interface UsageTotals {
   outputTokens: number;
   /** 产生计量的 run 数（无 usage 帧的 run 不计入）。 */
   runs: number;
+  /**
+   * 估算成本（迭代 27 / AC36）：组内已定价记录的成本合计（货币单位随用户
+   * 配置的单价，汇率中性）。组内全部记录未定价时缺省——UI 显示「未定价」，
+   * 不虚构数字。
+   */
+  cost?: number;
+  /** 组内未配置单价的 run 数（>0 时 cost 仅为部分覆盖，UI 需标注）。 */
+  unpricedRuns?: number;
 }
 
 /** 用量统计视图（设置·通用分区「用量统计」区；usage:summary IPC 返回）。 */
@@ -408,6 +416,32 @@ export interface UsageSummary {
   today: UsageTotals;
   byMode: Array<{ modeId: string } & UsageTotals>;
   byProvider: Array<{ providerId: string; model: string } & UsageTotals>;
+}
+
+/**
+ * 单模型成本单价（迭代 27 / AC36，settings 键 "usage.pricing" 的值项）。
+ * 单位 = 每百万 tokens；货币种类由用户自定（免费软件不做汇率假设）。
+ */
+export interface ModelPricing {
+  inputPerMillion: number;
+  outputPerMillion: number;
+}
+
+/** 成本单价表：key = "<providerId> <model>"（与 UsageSummary.byProvider 行同口径）。 */
+export type UsagePricing = Record<string, ModelPricing>;
+
+/** 历史会话轨迹摘要（迭代 27 / AC36，agent:trace-list IPC 返回项，会话回放选择器用）。 */
+export interface TraceSessionInfo {
+  sessionId: string;
+  /** 持久化事件总数（assistant_delta 瞬时事件不落盘，不计入）。 */
+  eventCount: number;
+  /** 首/末事件时间戳（ISO 8601）。 */
+  startedAt: string;
+  lastAt: string;
+  /** 首条用户消息摘要（列表预览；无用户消息时回退首事件摘要）。 */
+  preview: string;
+  /** 含失败类事件（与 isFailureTraceEvent 同规则）。 */
+  hasError: boolean;
 }
 
 /** 本地路由配置（settings 键 "routing.local"）：简单任务路由本地小模型，复杂任务走模式绑定模型。 */
@@ -514,6 +548,25 @@ export interface AgentTraceEvent {
   /** 一行人类可读摘要，用于轨迹面板 */
   summary: string;
   detail?: unknown;
+}
+
+/**
+ * 失败类轨迹事件判定（迭代 27 / AC36）：时间线高亮、trace-list 的 hasError、
+ * 「跳到下一个失败」导航共用同一规则，主进程与渲染端行为一致。
+ * - error：run 级错误终态；
+ * - tool_result 且 result.ok === false：工具执行失败或被拒绝；
+ * - authorization_decision 且 decision === "deny"：授权被拒绝（工具未执行）。
+ */
+export function isFailureTraceEvent(event: AgentTraceEvent): boolean {
+  if (event.type === "error") return true;
+  if (event.type === "tool_result") {
+    const result = (event.detail as { result?: { ok?: unknown } } | undefined)?.result;
+    return result?.ok === false;
+  }
+  if (event.type === "authorization_decision") {
+    return (event.detail as { decision?: unknown } | undefined)?.decision === "deny";
+  }
+  return false;
 }
 
 export interface AgentRunInput {
@@ -684,6 +737,7 @@ export const IPC = {
   AgentEvent: "agent:event",
   AgentAuthorize: "agent:authorize",
   AgentTrace: "agent:trace",
+  AgentTraceList: "agent:trace-list",
   ProvidersList: "providers:list",
   ProvidersUpsert: "providers:upsert",
   ProviderPresets: "providers:presets",
@@ -753,6 +807,8 @@ export interface DevwitApi {
     authorize(sessionId: string, requestId: string, decision: AuthorizationDecision): void;
     onEvent(cb: (evt: AgentTraceEvent) => void): () => void;
     trace(sessionId: string): Promise<AgentTraceEvent[]>;
+    /** 历史会话轨迹摘要列表（迭代 27 / AC36）：扫描 traces/ 落盘文件，按末事件时间倒序。 */
+    traceList(): Promise<TraceSessionInfo[]>;
   };
   providers: {
     list(): Promise<ProviderConfig[]>;

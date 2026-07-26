@@ -236,6 +236,7 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
     table[IPC.AgentCancel] = notWired;
     table[IPC.AgentAuthorize] = notWired;
     table[IPC.AgentTrace] = notWired;
+    table[IPC.AgentTraceList] = notWired;
     table[IPC.ModesList] = notWired;
     table[IPC.ModesUpsert] = notWired;
     table[IPC.ModesDelete] = notWired;
@@ -266,6 +267,8 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
   table[IPC.AgentAuthorize] = (_e, sessionId, requestId, decision) =>
     ai.authorize(String(sessionId), String(requestId), decision as AuthorizationDecision);
   table[IPC.AgentTrace] = (_e, sessionId) => ai.trace(String(sessionId));
+  // ---- 历史会话轨迹摘要（迭代 27 / AC36）：会话回放选择器数据源 ----
+  table[IPC.AgentTraceList] = () => ai.listTraceSessions();
   table[IPC.ModesList] = () => ai.listModes();
   table[IPC.ModesUpsert] = (_e, mode) => {
     ai.upsertMode(mode as Parameters<AiRuntime["upsertMode"]>[0]);

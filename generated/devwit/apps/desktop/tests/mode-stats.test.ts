@@ -13,7 +13,6 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type {
   AgentTraceEvent,
-  ChatMessage,
   LLMProvider,
   ModeRecommendation,
   ModeRunStats,
@@ -42,7 +41,8 @@ class ScriptedProvider implements LLMProvider {
     this.scripts = [...scripts];
   }
 
-  streamChat(_messages: ChatMessage[]): AsyncIterable<StreamEvent> {
+  // 接口签名允许更少形参：本桩不消费 messages/tools/signal
+  streamChat(): AsyncIterable<StreamEvent> {
     const script: StreamEvent[] = this.scripts.shift() ?? [{ type: "done", stopReason: "end_turn" }];
     return {
       async *[Symbol.asyncIterator]() {

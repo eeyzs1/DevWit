@@ -6,7 +6,7 @@
  * 覆盖）——此处以确定性 StreamEvent 序列驱动 run，验证「落盘 → 新实例读回 →
  * 跨重启续跑注入历史」的完整链路。
  */
-import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -254,5 +254,86 @@ describe("AiRuntime 轨迹持久化（AC15）", () => {
       workspaceRoot: tmpRoot,
     });
     expect(runtime.usageSummary().total).toEqual({ inputTokens: 0, outputTokens: 0, runs: 0 });
+  });
+});
+
+describe("AiRuntime 会话轨迹扫描（迭代 27 / AC36）", () => {
+  it("listTraceSessions 按 lastAt 倒序：preview 取首条用户消息，无错误标记", async () => {
+    const provider = new ScriptedProvider([textThenDone("答一"), textThenDone("答二")]);
+    const { runtime } = makeRuntime(provider);
+    await runtime.run({
+      sessionId: "s-old",
+      userText: "旧问题",
+      modeId: "chat",
+      providerId: "p-test",
+      workspaceRoot: tmpRoot,
+    });
+    // 拉开 lastAt 间距，保证排序断言确定（ISO 字符串毫秒精度）
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await runtime.run({
+      sessionId: "s-new",
+      userText: "新问题",
+      modeId: "chat",
+      providerId: "p-test",
+      workspaceRoot: tmpRoot,
+    });
+
+    const sessions = runtime.listTraceSessions();
+    expect(sessions.map((s) => s.sessionId)).toEqual(["s-new", "s-old"]);
+    const oldSession = sessions[1]!;
+    expect(oldSession.preview).toBe("旧问题");
+    expect(oldSession.eventCount).toBe(4); // route / user_message / assistant_message / done
+    expect(oldSession.hasError).toBe(false);
+    expect(oldSession.startedAt <= oldSession.lastAt).toBe(true);
+    // 新实例（模拟重启）读同一 tracesDir：扫描结果一致
+    const { runtime: runtime2 } = makeRuntime(new ScriptedProvider([]));
+    expect(runtime2.listTraceSessions().map((s) => s.sessionId)).toEqual(["s-new", "s-old"]);
+  });
+
+  it("失败事件标记 hasError：error 事件 / 工具失败 / 授权拒绝（isFailureTraceEvent 同规则）", () => {
+    const { runtime } = makeRuntime(new ScriptedProvider([]));
+    const tracesDir = path.join(tmpRoot, "traces");
+    mkdirSync(tracesDir, { recursive: true });
+    const base = { sessionId: "s-err", summary: "x" };
+    const lines = [
+      { ...base, seq: 1, timestamp: "2026-07-26T10:00:00.000Z", type: "user_message", summary: "试探" },
+      { ...base, seq: 2, timestamp: "2026-07-26T10:00:01.000Z", type: "tool_result", detail: { result: { ok: false } } },
+      { ...base, seq: 3, timestamp: "2026-07-26T10:00:02.000Z", type: "done" },
+    ];
+    writeFileSync(
+      path.join(tracesDir, "s-err.jsonl"),
+      lines.map((line) => JSON.stringify(line)).join("\n") + "\n",
+      "utf-8"
+    );
+    const sessions = runtime.listTraceSessions();
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]!.hasError).toBe(true);
+    expect(sessions[0]!.preview).toBe("试探");
+    expect(sessions[0]!.eventCount).toBe(3);
+  });
+
+  it("坏行容忍：非法 JSON 行与缺字段行跳过；无 user_message 时 preview 回退首条事件", () => {
+    const { runtime } = makeRuntime(new ScriptedProvider([]));
+    const tracesDir = path.join(tmpRoot, "traces");
+    mkdirSync(tracesDir, { recursive: true });
+    const good = { sessionId: "s-mix", seq: 2, timestamp: "2026-07-26T10:00:01.000Z", type: "done", summary: "完成" };
+    writeFileSync(
+      path.join(tracesDir, "s-mix.jsonl"),
+      `{"broken\n${JSON.stringify({ sessionId: "s-mix" })}\n${JSON.stringify(good)}\n`,
+      "utf-8"
+    );
+    const sessions = runtime.listTraceSessions();
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]!.eventCount).toBe(1); // 仅合法行计入
+    expect(sessions[0]!.preview).toBe("完成"); // 无 user_message → 回退 events[0].summary
+  });
+
+  it("空目录/目录不存在/全坏文件均返回空数组", () => {
+    const { runtime } = makeRuntime(new ScriptedProvider([]));
+    expect(runtime.listTraceSessions()).toEqual([]); // tracesDir 尚未创建
+    const tracesDir = path.join(tmpRoot, "traces");
+    mkdirSync(tracesDir, { recursive: true });
+    writeFileSync(path.join(tracesDir, "s-bad.jsonl"), "not-json\n", "utf-8");
+    expect(runtime.listTraceSessions()).toEqual([]); // 文件无有效事件 → 跳过
   });
 });

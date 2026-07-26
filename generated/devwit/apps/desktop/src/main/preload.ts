@@ -60,7 +60,8 @@ const api: DevwitApi = {
       void ipcRenderer.invoke(IPC.AgentAuthorize, sessionId, requestId, decision);
     },
     onEvent: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.AgentEvent, cb),
-    trace: (sessionId) => ipcRenderer.invoke(IPC.AgentTrace, sessionId) as ReturnType<DevwitApi["agent"]["trace"]>
+    trace: (sessionId) => ipcRenderer.invoke(IPC.AgentTrace, sessionId) as ReturnType<DevwitApi["agent"]["trace"]>,
+    traceList: () => ipcRenderer.invoke(IPC.AgentTraceList) as ReturnType<DevwitApi["agent"]["traceList"]>
   },
   providers: {
     list: () => ipcRenderer.invoke(IPC.ProvidersList) as ReturnType<DevwitApi["providers"]["list"]>,

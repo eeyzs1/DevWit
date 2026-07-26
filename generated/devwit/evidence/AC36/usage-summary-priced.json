@@ -1,0 +1,40 @@
+{
+  "total": {
+    "inputTokens": 150,
+    "outputTokens": 26,
+    "runs": 2,
+    "cost": 0.000508
+  },
+  "today": {
+    "inputTokens": 150,
+    "outputTokens": 26,
+    "runs": 2,
+    "cost": 0.000508
+  },
+  "byMode": [
+    {
+      "modeId": "chat",
+      "inputTokens": 50,
+      "outputTokens": 6,
+      "runs": 1,
+      "cost": 0.000148
+    },
+    {
+      "modeId": "agent",
+      "inputTokens": 100,
+      "outputTokens": 20,
+      "runs": 1,
+      "cost": 0.00036
+    }
+  ],
+  "byProvider": [
+    {
+      "providerId": "p-i25",
+      "model": "i25-model",
+      "inputTokens": 150,
+      "outputTokens": 26,
+      "runs": 2,
+      "cost": 0.000508
+    }
+  ]
+}

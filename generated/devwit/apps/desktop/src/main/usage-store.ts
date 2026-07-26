@@ -9,7 +9,7 @@
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
-import type { UsageRecord, UsageSummary, UsageTotals } from "@devwit/contracts";
+import type { UsagePricing, UsageRecord, UsageSummary, UsageTotals } from "@devwit/contracts";
 
 /** 本地时区日期键（YYYY-MM-DD）——today 聚合按用户本地日切分。 */
 function localDateKey(d: Date): string {
@@ -66,34 +66,50 @@ export class UsageStore {
     return out;
   }
 
-  /** 聚合视图：今日（本地日）/累计/按模式/按服务商（同名服务商不同型号分行）。 */
-  summary(now: Date = new Date()): UsageSummary {
+  /**
+   * 聚合视图：今日（本地日）/累计/按模式/按服务商（同名服务商不同型号分行）。
+   * AC36：传入 pricing（键 "<providerId> <model>"，元/百万 tokens）时逐记录计算
+   * 估算成本——已定价记录累入 cost，未定价记录计入 unpricedRuns（部分覆盖可见，
+   * 绝不虚构数字）。非法单价项（非数/负数）按未定价处理。
+   */
+  summary(now: Date = new Date(), pricing?: UsagePricing): UsageSummary {
     const todayKey = localDateKey(now);
     const total = emptyTotals();
     const today = emptyTotals();
     const byMode = new Map<string, UsageTotals>();
     const byProvider = new Map<string, { providerId: string; model: string } & UsageTotals>();
+    /** 把一条记录累进目标组（成本可选）：token/runs 恒计，cost 仅已定价时累加。 */
+    const accumulate = (target: UsageTotals, record: UsageRecord, cost: number | null): void => {
+      target.inputTokens += record.inputTokens;
+      target.outputTokens += record.outputTokens;
+      target.runs += 1;
+      if (cost !== null) {
+        target.cost = (target.cost ?? 0) + cost;
+      } else if (pricing !== undefined) {
+        target.unpricedRuns = (target.unpricedRuns ?? 0) + 1;
+      }
+    };
     for (const record of this.readAll()) {
-      total.inputTokens += record.inputTokens;
-      total.outputTokens += record.outputTokens;
-      total.runs += 1;
+      const price = pricing?.[`${record.providerId} ${record.model}`];
+      const priced =
+        price !== undefined &&
+        Number.isFinite(price.inputPerMillion) && price.inputPerMillion >= 0 &&
+        Number.isFinite(price.outputPerMillion) && price.outputPerMillion >= 0;
+      const cost = priced
+        ? (record.inputTokens * price.inputPerMillion + record.outputTokens * price.outputPerMillion) / 1_000_000
+        : null;
+      accumulate(total, record, cost);
       const recordDate = new Date(record.ts);
       if (!Number.isNaN(recordDate.getTime()) && localDateKey(recordDate) === todayKey) {
-        today.inputTokens += record.inputTokens;
-        today.outputTokens += record.outputTokens;
-        today.runs += 1;
+        accumulate(today, record, cost);
       }
       const modeTotals = byMode.get(record.modeId) ?? emptyTotals();
-      modeTotals.inputTokens += record.inputTokens;
-      modeTotals.outputTokens += record.outputTokens;
-      modeTotals.runs += 1;
+      accumulate(modeTotals, record, cost);
       byMode.set(record.modeId, modeTotals);
-      const providerKey = `${record.providerId}${record.model}`;
+      const providerKey = `${record.providerId} ${record.model}`;
       const providerTotals =
         byProvider.get(providerKey) ?? { providerId: record.providerId, model: record.model, ...emptyTotals() };
-      providerTotals.inputTokens += record.inputTokens;
-      providerTotals.outputTokens += record.outputTokens;
-      providerTotals.runs += 1;
+      accumulate(providerTotals, record, cost);
       byProvider.set(providerKey, providerTotals);
     }
     return {
