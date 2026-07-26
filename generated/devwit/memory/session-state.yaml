@@ -486,5 +486,22 @@ iteration_27:
     verifier: tests/usage-store.test.ts（按单价逐记录估算/部分定价/非法单价/零单价/无定价兼容）+ tests/e2e/verify-i25.mjs（单价回填热显成本）+ evidence/AC36/04-settings-cost.png + usage-summary-priced.json + usage-summary-unpriced.json
   notes: i18n 全部新文案词典化（trace.*/settings.pricing.* 等键，中英同型校验），语言热切换后页签/过滤/按钮/空态即时重绘（evidence/AC36/05-trace-en.png）
   e2e_report: evidence/AC36/verify-i25-report.json (32 项断言全 PASS)
+iteration_28:
+  scope: 对话生产力 II（AC37）——会话持久化与多会话管理（列表/新建/切换/改名/删除）
+  acceptance_criteria:
+  - description: '多会话列表：侧栏新增「会话」页签（packages/chat-ui/session-list.ts），数据源 sessions:list IPC——AiRuntime.listChatSessions 筛 sessionId 前缀对话会话（与指挥台 task-session- 任务会话隔离），按 lastAt 倒序；未改名标题回退首条用户消息预览，元信息 时间 · 事件数，当前会话「当前」徽标；空会话无轨迹不入列表'
+    id: AC37
+    status: completed
+    verifier: tests/ai-runtime-trace.test.ts（AC37×3：前缀过滤/倒序/预览回退）+ tests/e2e/verify-i26.mjs（21 项断言全 PASS）+ evidence/AC37/01-sessions-two-rows.png
+  - description: '新建/切换：ChatController.switchSession 清空消息列表改挂新 sessionId（进行中的 run 拒绝切换）；切换历史会话经 api.agent.trace 磁盘轨迹回放 ingestHistory（resumed 语义——不标 running、不触发新 LLM 请求），「当前」徽标随行迁移；session.state 持久化活跃会话 id'
+    id: AC37
+    status: completed
+    verifier: tests/e2e/verify-i26.mjs（新会话清空面板/切换回放无 running/重启恢复请求数仍为 2）+ evidence/AC37/02-switched-back.png + 04-restart-restored.png
+  - description: '改名/删除：SessionMetaStore（userData/sessions.json 整体 JSON overlay，轨迹文件仍是内容事实源）rename 空标题清除回退预览、markDeleted 与改名共存、损坏文件按空表启动；删除两段确认（3s 超时复位），deleteChatSession 元数据标记 + 轨迹文件移除 + 主进程内存会话摘除（abort + sessions.delete，防已删会话经内存复活）；删除活跃会话渲染端自动开新会话兜底；任务会话前缀一律拒绝改名/删除'
+    id: AC37
+    status: completed
+    verifier: tests/session-meta-store.test.ts（改名/删除/损坏容忍/字段清洗）+ tests/ai-runtime-trace.test.ts（删除幂等/任务会话误伤防护）+ tests/e2e/verify-i26.mjs（两段确认/删活跃兜底/轨迹文件移除）+ evidence/AC37/03-renamed.png + 05-delete-confirm.png + sessions-final.json
+  notes: 修复单测暴露的真实缺陷——deleteChatSession 原实现只删磁盘文件，内存会话仍在（trace() 内存优先返回已删内容、续跑同 id 重写轨迹文件）；i18n sessions.* 9 键中英同型，组件内订阅 onDidChangeLocale 重绘工具栏与列表（evidence/AC37/06-sessions-en.png）
+  e2e_report: evidence/AC37/verify-i26-report.json (21 项断言全 PASS)
 status: complete
-updated_at: '2026-07-26T10:50:00.000000'
+updated_at: '2026-07-26T12:10:00.000000'
