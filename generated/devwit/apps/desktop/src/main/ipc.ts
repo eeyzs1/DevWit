@@ -258,6 +258,9 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
     table[IPC.McpCommunityImport] = notWired;
     table[IPC.UsageSummary] = notWired;
     table[IPC.UsageClear] = notWired;
+    table[IPC.SessionsList] = notWired;
+    table[IPC.SessionsRename] = notWired;
+    table[IPC.SessionsDelete] = notWired;
     return;
   }
   table[IPC.AgentRun] = async (_e, input) => ai.run(input as AgentRunInput);
@@ -338,6 +341,14 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
   table[IPC.UsageSummary] = () => ai.usageSummary();
   table[IPC.UsageClear] = () => {
     ai.usageClear();
+  };
+  // ---- 对话会话管理（迭代 28 / AC37）：多会话列表 / 重命名 / 删除 ----
+  table[IPC.SessionsList] = () => ai.listChatSessions();
+  table[IPC.SessionsRename] = (_e, sessionId, title) => {
+    ai.renameChatSession(String(sessionId), String(title));
+  };
+  table[IPC.SessionsDelete] = (_e, sessionId) => {
+    ai.deleteChatSession(String(sessionId));
   };
 }
 

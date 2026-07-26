@@ -337,3 +337,85 @@ describe("AiRuntime 会话轨迹扫描（迭代 27 / AC36）", () => {
     expect(runtime.listTraceSessions()).toEqual([]); // 文件无有效事件 → 跳过
   });
 });
+
+describe("AiRuntime 对话会话管理（迭代 28 / AC37）", () => {
+  /** 造一个对话会话与一个指挥台任务会话（后者 sessionId 前缀 task-session-）。 */
+  async function seedSessions(runtime: AiRuntime): Promise<void> {
+    await runtime.run({
+      sessionId: "session-old",
+      userText: "对话旧问题",
+      modeId: "chat",
+      providerId: "p-test",
+      workspaceRoot: tmpRoot,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await runtime.run({
+      sessionId: "session-new",
+      userText: "对话新问题",
+      modeId: "chat",
+      providerId: "p-test",
+      workspaceRoot: tmpRoot,
+    });
+    await runtime.run({
+      sessionId: "task-session-1",
+      userText: "指挥台任务",
+      modeId: "agent",
+      providerId: "p-test",
+      workspaceRoot: tmpRoot,
+    });
+  }
+
+  it("listChatSessions 只含对话会话（排除 task-session-），按 lastAt 倒序，标题回退首条用户消息", async () => {
+    const provider = new ScriptedProvider([textThenDone("答"), textThenDone("答"), textThenDone("答")]);
+    const { runtime } = makeRuntime(provider);
+    await seedSessions(runtime);
+
+    const sessions = runtime.listChatSessions();
+    expect(sessions.map((s) => s.sessionId)).toEqual(["session-new", "session-old"]);
+    expect(sessions[1]!.title).toBe("对话旧问题"); // 未改名 → 预览
+    expect(sessions[1]!.eventCount).toBe(4); // route / user / assistant / done
+  });
+
+  it("改名叠加到列表（优先于预览），新实例读回；空标题清除改名；任务会话不可改", async () => {
+    const provider = new ScriptedProvider([textThenDone("答"), textThenDone("答"), textThenDone("答")]);
+    const { runtime } = makeRuntime(provider);
+    await seedSessions(runtime);
+
+    runtime.renameChatSession("session-old", "登录页重构讨论");
+    expect(runtime.listChatSessions()[1]!.title).toBe("登录页重构讨论");
+
+    // 模拟重启：新实例（新 SessionMetaStore 读同一 sessions.json）改名仍在
+    const { runtime: runtime2 } = makeRuntime(new ScriptedProvider([]));
+    expect(runtime2.listChatSessions()[1]!.title).toBe("登录页重构讨论");
+
+    // 空标题清除 → 回退预览
+    runtime2.renameChatSession("session-old", "  ");
+    expect(runtime2.listChatSessions()[1]!.title).toBe("对话旧问题");
+
+    // 非对话会话前缀一律拒绝（防误碰任务会话元数据）
+    runtime2.renameChatSession("task-session-1", "不该生效");
+    expect(runtime2.listTraceSessions().find((s) => s.sessionId === "task-session-1")!.preview).toBe("指挥台任务");
+  });
+
+  it("删除会话：列表隐藏 + 轨迹文件移除 + 元数据标记 deleted；重复删除幂等", async () => {
+    const provider = new ScriptedProvider([textThenDone("答"), textThenDone("答"), textThenDone("答")]);
+    const { runtime } = makeRuntime(provider);
+    await seedSessions(runtime);
+    runtime.renameChatSession("session-old", "待删除");
+
+    runtime.deleteChatSession("session-old");
+    expect(runtime.listChatSessions().map((s) => s.sessionId)).toEqual(["session-new"]);
+    expect(existsSync(path.join(tmpRoot, "traces", "session-old.jsonl"))).toBe(false); // 内容事实源已移除
+    expect(runtime.trace("session-old")).toEqual([]);
+
+    // 新实例：deleted 标记仍在（即便轨迹文件因故残留也不会在列表复活）
+    const { runtime: runtime2 } = makeRuntime(new ScriptedProvider([]));
+    expect(runtime2.listChatSessions().map((s) => s.sessionId)).toEqual(["session-new"]);
+
+    // 幂等：重复删除 / 删除未知会话 / 删除任务会话均不抛、不误伤
+    runtime2.deleteChatSession("session-old");
+    runtime2.deleteChatSession("session-never-existed");
+    runtime2.deleteChatSession("task-session-1"); // 前缀拒绝：任务会话轨迹保留
+    expect(runtime2.trace("task-session-1").length).toBeGreaterThan(0);
+  });
+});

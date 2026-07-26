@@ -10,13 +10,14 @@
  * - 会话中切模型：AgentRunInput.providerId 覆盖模式绑定（AC5）。
  */
 import { promises as fs } from "node:fs";
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import type {
   AgentRunInput,
   AgentTraceEvent,
   AuthorizationDecision,
+  ChatSessionInfo,
   ContextItemType,
   ContextManifest,
   Embedder,
@@ -46,6 +47,7 @@ import type { SettingsStore } from "@devwit/settings";
 import { getGitStatus } from "@devwit/workspace";
 import type { WorkspaceService } from "@devwit/workspace";
 import { collectTscDiagnostics } from "./diagnostics.js";
+import { SessionMetaStore } from "./session-meta-store.js";
 import { UsageStore } from "./usage-store.js";
 
 /** settings 键：用户逐项上下文开关（全局，对每个新会话引擎生效）。 */
@@ -103,6 +105,8 @@ export interface AiRuntimeDeps {
   ragDir?: string;
   /** 用量账本文件（迭代 26 / AC35）。缺省取 manifestsDir 同级 usage.jsonl。 */
   usageFile?: string;
+  /** 对话会话元数据文件（迭代 28 / AC37）。缺省取 manifestsDir 同级 sessions.json。 */
+  sessionMetaFile?: string;
 }
 
 export class AiRuntime {
@@ -134,6 +138,8 @@ export class AiRuntime {
   private readonly modeStats: ModeStatsTracker;
   /** 真实 token 用量账本（AC35）：每 run 一条 UsageRecord 追加落盘，读侧聚合。 */
   private readonly usageStore: UsageStore;
+  /** 对话会话元数据（AC37）：改名/删除标记 overlay。 */
+  private readonly sessionMeta: SessionMetaStore;
 
   constructor(deps: AiRuntimeDeps) {
     this.deps = deps;
@@ -168,6 +174,8 @@ export class AiRuntime {
     });
     // AC35：用量账本（append-only JSONL，与 traces 同目录层级，不进 settings）。
     this.usageStore = new UsageStore(deps.usageFile ?? path.join(path.dirname(deps.manifestsDir), "usage.jsonl"));
+    // AC37：对话会话元数据（改名/删除 overlay；轨迹文件仍是内容事实源）。
+    this.sessionMeta = new SessionMetaStore(deps.sessionMetaFile ?? path.join(path.dirname(deps.manifestsDir), "sessions.json"));
     this.hydrateProviders();
     this.hydrateModes();
     this.hydrateMcpServers();
@@ -700,6 +708,56 @@ export class AiRuntime {
     }
     out.sort((a, b) => b.lastAt.localeCompare(a.lastAt));
     return out;
+  }
+
+  // --------------------------------------------------------------------------
+  // 对话会话管理（迭代 28 / AC37）
+  // --------------------------------------------------------------------------
+
+  /**
+   * 对话会话列表（sessions:list IPC）：trace 摘要中筛出对话会话（sessionId 前缀
+   * "session-"，与指挥台任务会话 "task-session-" 区分），叠加元数据——
+   * 改名优先于首条用户消息预览；deleted 标记过滤；按末事件时间倒序。
+   */
+  listChatSessions(): ChatSessionInfo[] {
+    return this.listTraceSessions()
+      .filter((info) => info.sessionId.startsWith("session-") && !this.sessionMeta.isDeleted(info.sessionId))
+      .map((info) => {
+        const meta = this.sessionMeta.get(info.sessionId);
+        return {
+          sessionId: info.sessionId,
+          title: meta.title ?? info.preview,
+          lastAt: info.lastAt,
+          eventCount: info.eventCount,
+        };
+      });
+  }
+
+  /** 会话改名（空标题清除改名，回退预览）。仅对话会话可改（防误碰任务会话）。 */
+  renameChatSession(sessionId: string, title: string): void {
+    if (!sessionId.startsWith("session-")) return;
+    this.sessionMeta.rename(sessionId, title);
+  }
+
+  /**
+   * 删除对话会话：元数据标记 deleted + 轨迹文件一并移除（用户语义上的彻底删除；
+   * 与 usage.clear 的审计隔离不同——会话内容是用户私有数据，删除即不可见亦不可恢复）。
+   * 内存态同步清除：进行中的 run 先中断，会话从 sessions 表摘除——否则 trace() 会
+   * 从内存复活已删内容，续跑同 id 还会把轨迹文件重新写出来。
+   */
+  deleteChatSession(sessionId: string): void {
+    if (!sessionId.startsWith("session-")) return;
+    const session = this.sessions.get(sessionId);
+    if (session !== undefined) {
+      session.abort.abort();
+      this.sessions.delete(sessionId);
+    }
+    this.sessionMeta.markDeleted(sessionId);
+    try {
+      rmSync(this.traceFile(sessionId), { force: true });
+    } catch {
+      // 轨迹文件移除失败不阻断：deleted 标记已保证列表不可见
+    }
   }
 
   // --------------------------------------------------------------------------

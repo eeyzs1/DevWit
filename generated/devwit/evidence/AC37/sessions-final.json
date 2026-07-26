@@ -1,0 +1,20 @@
+{
+  "sessions": [
+    {
+      "sessionId": "session-1785038851097",
+      "title": "给编辑器加行号",
+      "lastAt": "2026-07-26T04:07:31.313Z",
+      "eventCount": 4
+    }
+  ],
+  "traceList": [
+    {
+      "sessionId": "session-1785038851097",
+      "eventCount": 4,
+      "startedAt": "2026-07-26T04:07:31.198Z",
+      "lastAt": "2026-07-26T04:07:31.313Z",
+      "preview": "给编辑器加行号",
+      "hasError": false
+    }
+  ]
+}

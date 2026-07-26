@@ -1,0 +1,38 @@
+[
+  {
+    "model": "i26-model",
+    "messages": [
+      {
+        "role": "system",
+        "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。"
+      },
+      {
+        "role": "user",
+        "content": "讨论登录页的重构思路"
+      }
+    ],
+    "stream": true,
+    "max_tokens": 2048,
+    "stream_options": {
+      "include_usage": true
+    }
+  },
+  {
+    "model": "i26-model",
+    "messages": [
+      {
+        "role": "system",
+        "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。"
+      },
+      {
+        "role": "user",
+        "content": "给编辑器加行号"
+      }
+    ],
+    "stream": true,
+    "max_tokens": 2048,
+    "stream_options": {
+      "include_usage": true
+    }
+  }
+]

@@ -1,13 +1,13 @@
 {
-  "id": "manifest-0d8ee224-857e-496f-b482-7af2fd3ed9da",
-  "timestamp": "2026-07-26T02:36:55.108Z",
-  "sessionId": "session-1785033413942",
+  "id": "manifest-65a8593b-7f6d-49cd-91fb-9a0493380309",
+  "timestamp": "2026-07-26T04:08:45.322Z",
+  "sessionId": "session-1785038924235",
   "modeId": "chat",
   "providerId": "i10-local",
   "model": "i10-model",
   "items": [
     {
-      "id": "item-1b6730dc-d5a5-4037-b54e-38fcb8d77cdd",
+      "id": "item-9af880df-8c2d-4c4e-ace4-8567a0db9451",
       "type": "system_prompt",
       "label": "系统提示",
       "enabled": true,
@@ -17,7 +17,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-08a87121-5d76-425f-bda4-ef6b36934b5c",
+      "id": "item-0c7a1d90-7d89-4ac5-ae75-1ebfc096cb85",
       "type": "tool_definitions",
       "label": "工具定义（0 个）",
       "enabled": true,
@@ -27,7 +27,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-29f61ccc-6cad-400a-8599-f24a59c78fa7",
+      "id": "item-ed3fa4da-73c8-4045-a10b-ca378ef91597",
       "type": "conversation_history",
       "label": "会话历史（3 条）",
       "enabled": true,
@@ -37,7 +37,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-19e561bf-379c-4495-ac21-20e65596f35e",
+      "id": "item-9c06e6c6-5642-4223-900b-20ad6e384d56",
       "type": "git_status",
       "label": "Git 状态",
       "enabled": false,
@@ -47,7 +47,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-f7c9d2ef-f95d-4530-9f69-112274269e76",
+      "id": "item-1bedf794-96c5-450b-b309-6215a64a2277",
       "type": "codebase_match",
       "label": "login.ts L1-4 · 0.632",
       "enabled": false,
@@ -59,7 +59,7 @@
       "score": 0.6324555320336759
     },
     {
-      "id": "item-d731a64a-39d0-4f74-b3a0-51be2d609f56",
+      "id": "item-5c1a80bd-5b76-470f-a12e-911bbf169953",
       "type": "codebase_match",
       "label": "button.ts L1-4 · 0.000",
       "enabled": true,

@@ -444,6 +444,16 @@ export interface TraceSessionInfo {
   hasError: boolean;
 }
 
+/** 对话会话条目（迭代 28 / AC37，sessions:list IPC 返回项，会话管理页签用）。 */
+export interface ChatSessionInfo {
+  sessionId: string;
+  /** 显示标题：用户改名优先，否则取首条用户消息摘要。 */
+  title: string;
+  /** 末事件时间戳（ISO 8601），列表按此倒序。 */
+  lastAt: string;
+  eventCount: number;
+}
+
 /** 本地路由配置（settings 键 "routing.local"）：简单任务路由本地小模型，复杂任务走模式绑定模型。 */
 export interface LocalRoutingConfig {
   /** 总开关；关=所有任务走模式绑定模型。 */
@@ -771,6 +781,9 @@ export const IPC = {
   McpChanged: "mcp:changed",
   UsageSummary: "usage:summary",
   UsageClear: "usage:clear",
+  SessionsList: "sessions:list",
+  SessionsRename: "sessions:rename",
+  SessionsDelete: "sessions:delete",
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];
@@ -809,6 +822,13 @@ export interface DevwitApi {
     trace(sessionId: string): Promise<AgentTraceEvent[]>;
     /** 历史会话轨迹摘要列表（迭代 27 / AC36）：扫描 traces/ 落盘文件，按末事件时间倒序。 */
     traceList(): Promise<TraceSessionInfo[]>;
+  };
+  /** 对话会话管理（迭代 28 / AC37）：多会话列表 / 重命名 / 删除（元数据 userData/sessions.json）。 */
+  sessions: {
+    list(): Promise<ChatSessionInfo[]>;
+    rename(sessionId: string, title: string): Promise<void>;
+    /** 删除会话：元数据标记 + 轨迹文件一并移除（用户语义上的彻底删除）。 */
+    delete(sessionId: string): Promise<void>;
   };
   providers: {
     list(): Promise<ProviderConfig[]>;

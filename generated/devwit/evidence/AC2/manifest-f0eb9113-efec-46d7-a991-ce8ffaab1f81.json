@@ -1,13 +1,13 @@
 {
-  "id": "manifest-e988edb5-5002-4086-aed1-b5171e4f9a83",
-  "timestamp": "2026-07-26T03:34:06.982Z",
-  "sessionId": "session-1785036845838",
+  "id": "manifest-f0eb9113-efec-46d7-a991-ce8ffaab1f81",
+  "timestamp": "2026-07-26T04:08:20.313Z",
+  "sessionId": "session-1785038899549",
   "modeId": "chat",
   "providerId": "e2e-local-a",
   "model": "e2e-model-a",
   "items": [
     {
-      "id": "item-65f2f743-018d-4e11-adc5-84910f9c13d7",
+      "id": "item-2245e9d7-6510-4568-81c7-e9dbcd2301c4",
       "type": "system_prompt",
       "label": "系统提示",
       "enabled": true,
@@ -17,7 +17,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-a0d6fb8f-136e-4501-80b6-4674c89840b7",
+      "id": "item-c0dbb32f-6f6f-427b-b1e0-d6d64e74f640",
       "type": "tool_definitions",
       "label": "工具定义（0 个）",
       "enabled": true,
@@ -27,37 +27,37 @@
       "counting": "exact"
     },
     {
-      "id": "item-8b98ecf7-b549-4bf3-ba87-04aa615c7d52",
+      "id": "item-fd31bd76-19f7-40dd-ad67-84c1f4b70c02",
       "type": "conversation_history",
-      "label": "会话历史（3 条）",
+      "label": "会话历史（1 条）",
       "enabled": true,
-      "tokens": 45,
-      "content": "[user] 你好\n[assistant] 你好！我是 DevWit，简洁上下文的 AI 编程助手。\n[user] 请把 hello.txt 加一行",
+      "tokens": 5,
+      "content": "[user] 你好",
       "source": "conversation",
       "counting": "exact"
     },
     {
-      "id": "item-291906c0-7be8-432c-a982-78103089fecd",
+      "id": "item-2a71ea5e-6ef3-484f-a1ff-8d3bb36cbd01",
       "type": "file_fragment",
       "label": "文件片段 hello.txt",
       "enabled": false,
       "tokens": 0,
       "content": "",
-      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-SDLtkE\\hello.txt",
+      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-wYJuCl\\hello.txt",
       "counting": "exact"
     },
     {
-      "id": "item-fba1e9c3-6d51-4654-ba9a-383aeaf2a292",
+      "id": "item-603a5007-5c34-4159-b52a-14d5b9cca99d",
       "type": "git_status",
       "label": "Git 状态",
-      "enabled": true,
-      "tokens": 8,
-      "content": "(非 git 仓库)",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
       "source": "git status",
       "counting": "exact"
     },
     {
-      "id": "item-b3c5a015-e117-40ba-b3e9-7762cf9ccf29",
+      "id": "item-9378d94f-84ef-457d-9d49-188ecc9df8af",
       "type": "codebase_match",
       "label": "代码库检索（索引未启用）",
       "enabled": false,
@@ -67,6 +67,6 @@
       "counting": "exact"
     }
   ],
-  "totalTokens": 119,
+  "totalTokens": 71,
   "systemPromptTokens": 65
 }

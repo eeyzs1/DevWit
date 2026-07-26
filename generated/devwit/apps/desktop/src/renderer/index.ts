@@ -19,6 +19,7 @@ import {
   mountChatPanel,
   mountContextPanel,
   mountDiffView,
+  mountSessionList,
   mountTraceTimeline,
   type TaskInfo,
 } from "@devwit/chat-ui";
@@ -395,12 +396,13 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   openBtn.addEventListener("click", () => void openWorkspace());
   sidebar.appendChild(el("div", "dw-sidebar-empty", t("sidebar.empty")));
 
-  // ---- 右侧栏：对话 / 上下文 / 轨迹 三个页签 ----
+  // ---- 右侧栏：对话 / 会话 / 上下文 / 轨迹 四个页签 ----
   const tabs = el("div", "dw-tabs");
   const chatTab = el("div", "dw-tab dw-tab-active", t("tab.chat"));
+  const sessionsTab = el("div", "dw-tab", t("tab.sessions"));
   const contextTab = el("div", "dw-tab", t("tab.context"));
   const traceTab = el("div", "dw-tab", t("tab.trace"));
-  tabs.append(chatTab, contextTab, traceTab);
+  tabs.append(chatTab, sessionsTab, contextTab, traceTab);
   const sideBody = el("div", "dw-side-body");
   side.append(tabs, sideBody);
 
@@ -457,18 +459,59 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   });
   traceTimeline.root.style.display = "none";
 
-  /** 侧栏三页签切换（AC12 语言热生效时各自重绘文案）。 */
-  function activateSideTab(active: "chat" | "context" | "trace"): void {
+  // 对话会话管理（迭代 28 / AC37）：多会话列表 / 新建 / 切换 / 改名 / 删除
+  /** 开新对话会话（空会话无轨迹，不入列表——首条消息落盘后自然出现）。 */
+  function startNewChatSession(): void {
+    if (chatController.isRunning) return;
+    chatController.switchSession(`session-${Date.now()}`);
+    traceTimeline.setLiveSession(chatController.sessionId);
+    activateSideTab("chat");
+    schedulePersist();
+  }
+  /** 切换到历史会话：轨迹回放重建消息列表（resumed 语义——不标 running）。 */
+  async function switchChatSession(sessionId: string): Promise<void> {
+    if (sessionId !== chatController.sessionId) {
+      if (chatController.isRunning) return; // 进行中的 run 不切（先停止或等终态）
+      chatController.switchSession(sessionId);
+      traceTimeline.setLiveSession(sessionId);
+      try {
+        const trace = await api.agent.trace(sessionId);
+        if (trace.length > 0) chatController.ingestHistory(trace, { resumed: true });
+      } catch {
+        // 轨迹读取失败按空会话处理，不阻断切换
+      }
+      schedulePersist();
+    }
+    activateSideTab("chat");
+  }
+  const sessionList = mountSessionList(sideBody, {
+    api,
+    getActiveSessionId: () => chatController.sessionId,
+    onSwitch: (sessionId) => void switchChatSession(sessionId),
+    onNew: () => startNewChatSession(),
+    onDeleted: (sessionId) => {
+      // 删除的是活跃会话：当前面板内容的事实源（轨迹）已移除，开新会话兜底
+      if (sessionId === chatController.sessionId) startNewChatSession();
+    },
+  });
+  sessionList.root.style.display = "none";
+
+  /** 侧栏四页签切换（AC12 语言热生效时各自重绘文案）。 */
+  function activateSideTab(active: "chat" | "sessions" | "context" | "trace"): void {
     chatTab.classList.toggle("dw-tab-active", active === "chat");
+    sessionsTab.classList.toggle("dw-tab-active", active === "sessions");
     contextTab.classList.toggle("dw-tab-active", active === "context");
     traceTab.classList.toggle("dw-tab-active", active === "trace");
     chatPanel.root.style.display = active === "chat" ? "flex" : "none";
+    sessionList.root.style.display = active === "sessions" ? "flex" : "none";
     contextPanel.root.style.display = active === "context" ? "flex" : "none";
     traceTimeline.root.style.display = active === "trace" ? "flex" : "none";
+    if (active === "sessions") void sessionList.refresh();
     if (active === "context") void contextController.refresh();
     if (active === "trace") void traceTimeline.refresh();
   }
   chatTab.addEventListener("click", () => activateSideTab("chat"));
+  sessionsTab.addEventListener("click", () => activateSideTab("sessions"));
   contextTab.addEventListener("click", () => activateSideTab("context"));
   traceTab.addEventListener("click", () => activateSideTab("trace"));
 
@@ -799,6 +842,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       }
     }
     chatTab.textContent = t("tab.chat");
+    sessionsTab.textContent = t("tab.sessions");
     contextTab.textContent = t("tab.context");
     traceTab.textContent = t("tab.trace");
     codeTab.textContent = t("tab.code");

@@ -346,6 +346,108 @@ body,
   font-variant-numeric: tabular-nums;
 }
 
+/* ---- 对话会话管理（迭代 28 / AC37）---- */
+.dw-sessions {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dw-sessions-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--dw-border);
+}
+
+.dw-sessions-list {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dw-sessions-empty {
+  color: var(--dw-fg-dim);
+  padding: 12px 4px;
+}
+
+.dw-sessions-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.dw-sessions-row:hover {
+  background: var(--dw-bg-elevated);
+}
+
+.dw-sessions-row-active {
+  border-color: var(--dw-accent);
+}
+
+.dw-sessions-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.dw-sessions-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dw-sessions-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dw-sessions-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--dw-bg-elevated);
+  color: var(--dw-accent);
+  border: 1px solid var(--dw-accent);
+}
+
+.dw-sessions-meta {
+  color: var(--dw-fg-dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dw-sessions-actions {
+  flex-shrink: 0;
+  display: flex;
+  gap: 4px;
+}
+
+.dw-sessions-action {
+  font-size: 12px;
+  padding: 2px 6px;
+}
+
+.dw-sessions-confirm {
+  color: var(--dw-danger, #d33);
+  border-color: var(--dw-danger, #d33);
+}
+
+.dw-sessions-rename-input {
+  flex: 1;
+  min-width: 0;
+}
+
 .dw-settings-pricing-row {
   justify-content: space-between;
 }

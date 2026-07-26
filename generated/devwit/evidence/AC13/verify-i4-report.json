@@ -27,6 +27,6 @@
     "bytes": 527,
     "hasCjk": false,
     "invalidUtf8": 0,
-    "tail": "\r\nDevTools listening on ws://127.0.0.1:21240/devtools/browser/914f5540-f71c-40c1-811e-699ec6550836\r\nError occurred in handler for 'agent:run': Error: DW_MODE_UNBOUND:chat\n    at AiRuntime.run (file:///E:/AI_Generated_Projects/DevWit/generated/devwit/apps/desktop/dist/main/index.js:21173:13)\n    at table.<computed> (file:///E:/AI_Generated_Projects/DevWit/generated/devwit/apps/desktop/dist/main/index.js:21826:49)\n    at Session.<anonymous> (node:electron/js2c/browser_init:2:107269)\n    at Session.emit (node:events:519:28)\n"
+    "tail": "\r\nDevTools listening on ws://127.0.0.1:21247/devtools/browser/42eddaf2-f09e-429f-92eb-42d34eb5c0cd\r\nError occurred in handler for 'agent:run': Error: DW_MODE_UNBOUND:chat\n    at AiRuntime.run (file:///E:/AI_Generated_Projects/DevWit/generated/devwit/apps/desktop/dist/main/index.js:21240:13)\n    at table.<computed> (file:///E:/AI_Generated_Projects/DevWit/generated/devwit/apps/desktop/dist/main/index.js:21939:49)\n    at Session.<anonymous> (node:electron/js2c/browser_init:2:107269)\n    at Session.emit (node:events:519:28)\n"
   }
 }

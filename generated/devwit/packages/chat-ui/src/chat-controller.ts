@@ -141,6 +141,19 @@ export class ChatController {
     this.emit();
   }
 
+  /**
+   * 切换到另一个对话会话（迭代 28 / AC37 多会话管理）：
+   * 清空当前消息列表并改挂新 sessionId——事件过滤按 deps.sessionId 动态判定，
+   * 切换后旧会话事件自然不再落入本控制器；调用方随后以 ingestHistory 回放新会话轨迹。
+   * 进行中的 run 不允许切换（先 cancel 或等待终态），避免遗留 running 态。
+   */
+  switchSession(sessionId: string): void {
+    if (this.running) return;
+    this.deps.sessionId = sessionId;
+    this.items.length = 0;
+    this.emit();
+  }
+
   /** 工作区变更后更新 agent run 的根目录（打开文件夹后生效）。 */
   setWorkspaceRoot(root: string): void {
     this.workspaceRoot = root;

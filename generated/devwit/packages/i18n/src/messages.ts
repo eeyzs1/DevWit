@@ -61,6 +61,7 @@ const zhCN = {
   "tab.chat": "对话",
   "tab.context": "上下文",
   "tab.trace": "轨迹",
+  "tab.sessions": "会话",
   "tab.code": "代码",
   "tab.diff": "Diff",
 
@@ -106,6 +107,16 @@ const zhCN = {
   "trace.type.subagent_done": "子任务完成",
   "trace.type.error": "错误",
   "trace.type.done": "完成",
+
+  // ---- 对话会话管理（迭代 28 / AC37）----
+  "sessions.new": "新会话",
+  "sessions.empty": "暂无历史会话。",
+  "sessions.active": "当前",
+  "sessions.meta": "{time} · {count} 条事件",
+  "sessions.rename.tooltip": "重命名会话（Enter 确认，Esc 取消）",
+  "sessions.delete": "删除",
+  "sessions.delete.confirm": "确认删除",
+  "sessions.delete.tooltip": "删除该会话及其轨迹（不可恢复）",
 
   // ---- 任务指挥台（AC9）----
   "console.tasks": "任务",
@@ -526,6 +537,7 @@ const enUS: Messages = {
   "tab.chat": "Chat",
   "tab.context": "Context",
   "tab.trace": "Trace",
+  "tab.sessions": "Sessions",
   "tab.code": "Code",
   "tab.diff": "Diff",
 
@@ -571,6 +583,16 @@ const enUS: Messages = {
   "trace.type.subagent_done": "Subtask done",
   "trace.type.error": "Error",
   "trace.type.done": "Done",
+
+  // ---- 对话会话管理（迭代 28 / AC37）----
+  "sessions.new": "New session",
+  "sessions.empty": "No past sessions yet.",
+  "sessions.active": "Active",
+  "sessions.meta": "{time} · {count} events",
+  "sessions.rename.tooltip": "Rename session (Enter to confirm, Esc to cancel)",
+  "sessions.delete": "Delete",
+  "sessions.delete.confirm": "Confirm delete",
+  "sessions.delete.tooltip": "Delete this session and its trace (unrecoverable)",
 
   "console.tasks": "Tasks",
   "console.newTask.placeholder": "New task intent, e.g.: add form validation to the login page",

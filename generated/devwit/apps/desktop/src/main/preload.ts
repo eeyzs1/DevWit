@@ -113,6 +113,11 @@ const api: DevwitApi = {
   usage: {
     summary: () => ipcRenderer.invoke(IPC.UsageSummary) as ReturnType<DevwitApi["usage"]["summary"]>,
     clear: () => ipcRenderer.invoke(IPC.UsageClear) as Promise<void>
+  },
+  sessions: {
+    list: () => ipcRenderer.invoke(IPC.SessionsList) as ReturnType<DevwitApi["sessions"]["list"]>,
+    rename: (sessionId, title) => ipcRenderer.invoke(IPC.SessionsRename, sessionId, title) as Promise<void>,
+    delete: (sessionId) => ipcRenderer.invoke(IPC.SessionsDelete, sessionId) as Promise<void>
   }
 };
 

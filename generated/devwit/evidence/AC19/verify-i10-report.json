@@ -1,6 +1,6 @@
 {
   "steps": [
-    "本地端点就绪 http://127.0.0.1:49782（/chat/completions + /embeddings）",
+    "本地端点就绪 http://127.0.0.1:55794（/chat/completions + /embeddings）",
     "应用启动（默认中文）",
     "打开文件夹（fixture 工作区 login.ts + button.ts）",
     "provider 注册 + settings rag 键启用（热更新触发构建）",

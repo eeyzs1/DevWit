@@ -1,6 +1,6 @@
 {
   "steps": [
-    "本地端点就绪 http://127.0.0.1:49865/v1（/chat/completions，捕获请求体）",
+    "本地端点就绪 http://127.0.0.1:55834/v1（/chat/completions，捕获请求体）",
     "应用启动 + fixture 工作区打开（src/hello.ts / src/util.ts / docs/guide.md）",
     "keyless provider 注入并选中（settings onChanged 热刷新链路）",
     "@文件引用：下拉 → hel 过滤唯一命中（截图 01）→ Enter 成 chip 且输入框清空",
@@ -26,7 +26,7 @@
     "用户原文应无 @残留（实际: \"总结这两个文件\"）",
     "发送后 chips 应清空",
     "manifests 目录应有落盘文件",
-    "manifest 缺 enabled 的 attachment:src/hello.ts 项（实际: {\"id\":\"item-0245c507-6685-4b25-96ff-4c7022588af6\",\"type\":\"file_fragment\",\"label\":\"引用文件 src/hello.ts\",\"enabled\":true,\"tokens\":12,\"content\":\"export const MAGIC_TOKEN = \\\"at-file-injected-alpha\\\";\\n\",\"source\":\"attachment\",\"counting\":\"exact\",\"key\":\"attachment:src/hello.ts\"}）",
+    "manifest 缺 enabled 的 attachment:src/hello.ts 项（实际: {\"id\":\"item-f304a471-35cc-4ec9-b1cb-da6c4ad348b9\",\"type\":\"file_fragment\",\"label\":\"引用文件 src/hello.ts\",\"enabled\":true,\"tokens\":12,\"content\":\"export const MAGIC_TOKEN = \\\"at-file-injected-alpha\\\";\\n\",\"source\":\"attachment\",\"counting\":\"exact\",\"key\":\"attachment:src/hello.ts\"}）",
     "manifest 缺 attachment:src/util.ts 项",
     "附件项应有精确 token 计数（实际: 12）",
     "/age 应过滤出 agent 模式（实际: agent）",

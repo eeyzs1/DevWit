@@ -10,3 +10,4 @@ export * from "./task-center.js";
 export * from "./activity-stream.js";
 export * from "./input-triggers.js";
 export * from "./trace-timeline.js";
+export * from "./session-list.js";
