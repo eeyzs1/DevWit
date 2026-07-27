@@ -15,6 +15,7 @@
     { "path": "packages/agent-runtime" },
     { "path": "packages/mcp" },
     { "path": "packages/rag" },
+    { "path": "packages/lsp" },
     { "path": "packages/chat-ui" },
     { "path": "apps/desktop" }
   ]

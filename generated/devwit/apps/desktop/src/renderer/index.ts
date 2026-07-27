@@ -5,7 +5,7 @@
  * 全部界面文案经 @devwit/i18n 词典渲染；启动时从 settings "ui.locale" 恢复语言，
  * 订阅 onDidChangeLocale 全量重写静态文案与动态列表（语言热生效）。
  */
-import type { DevwitApi, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
+import type { DevwitApi, LspDiagnosticItem, LspStatusInfo, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, resolveSystemLocale, setLocale, t, ta, type Locale } from "@devwit/i18n";
 import { TextDocument } from "@devwit/editor-core";
 import { EditorView, normalizeSelection } from "@devwit/editor-render";
@@ -146,9 +146,11 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   const statusWorkspace = el("span", undefined, t("status.noWorkspace"));
   const statusDirty = el("span");
   const statusMessage = el("span", "dw-status-message");
+  // LSP 代码智能（AC40）：服务状态 + 诊断计数（error ✕ / warning ⚠）
+  const statusLsp = el("span", "dw-status-lsp");
   // 更新提示区（AC16）：ready 状态常驻「重启更新」按钮，其余状态走瞬态提示
   const updateBox = el("span", "dw-update");
-  statusbar.append(statusWorkspace, statusDirty, statusMessage, updateBox);
+  statusbar.append(statusWorkspace, statusDirty, statusMessage, statusLsp, updateBox);
   // 瞬态提示只进状态栏：活动文件标签始终显示当前文件，不被临时文案覆盖
   function showStatus(message: string): void {
     statusMessage.textContent = message;
@@ -182,6 +184,17 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   editorArea.appendChild(canvas);
   const welcomeDoc = TextDocument.fromString(t("editor.welcome"));
   const editor = new EditorView(canvas, welcomeDoc);
+  // E2E 几何钩子（AC40）：preload 标记激活时安装——把「文档位置→客户区坐标」
+  // 反解暴露给 Playwright，鼠标可精确驻留/Ctrl+Click 指定行列（无此钩子则
+  // canvas 内部几何对外不可达）；editorSelections 供断言跳转落点光标。
+  // 生产环境 window.devwitE2E 不存在，不安装。
+  const e2eFlag = (window as { devwitE2E?: { active: boolean } }).devwitE2E;
+  if (e2eFlag?.active === true) {
+    (window as { __devwitE2E?: unknown }).__devwitE2E = {
+      editorClientPoint: (line: number, character: number) => editor.clientPointForPosition({ line, character }),
+      editorSelections: () => editor.getSelections(),
+    };
+  }
   const setActiveDoc = (file: OpenFile | null): void => {
     openFile = file;
     if (file !== null) {
@@ -286,12 +299,150 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     const content = await api.workspace.read(filePath);
     const doc = TextDocument.fromString(content);
     doc.onDidChange(refreshDirty);
+    // LSP 文档生命周期（AC40）：关旧（清其诊断快照）→ 开新（缓冲区全文同步）
+    if (openFile !== null && workspaceRoot !== "") {
+      void api.lsp.didClose(relPathOf(openFile.path));
+    }
     setActiveDoc({ path: filePath, doc });
+    if (workspaceRoot !== "") {
+      syncOpenFileToLsp();
+      doc.onDidChange(scheduleLspSync);
+      applyEditorDiagnostics(); // 该文件既有诊断立即上波浪线
+    }
     sidebar.querySelectorAll(".dw-tree-node").forEach((node) => {
       node.classList.toggle("dw-tree-active", (node as HTMLElement).dataset["path"] === filePath);
     });
     editor.focus();
   }
+
+  // ---- LSP 代码智能（迭代 31 / AC40）：悬停 / Ctrl+Click 定义 / 实时诊断 ----
+  let lspStatus: LspStatusInfo = { state: "idle" };
+  let lspDiags: LspDiagnosticItem[] = [];
+
+  /** 绝对路径 → 工作区相对路径（正斜杠；与 flattenTreeFiles 同一口径）。 */
+  function relPathOf(absPath: string): string {
+    return absPath.slice(workspaceRoot.length).replace(/^[/\\]+/, "").replace(/\\/g, "/");
+  }
+
+  function renderLspStatus(): void {
+    if (lspStatus.state === "idle") {
+      statusLsp.textContent = "";
+      return;
+    }
+    if (lspStatus.state === "starting") {
+      statusLsp.textContent = t("lsp.status.starting");
+      return;
+    }
+    if (lspStatus.state === "error") {
+      statusLsp.textContent = t("lsp.status.error", { code: lspStatus.code });
+      return;
+    }
+    const errors = lspDiags.filter((d) => d.severity === "error").length;
+    const warnings = lspDiags.filter((d) => d.severity === "warning").length;
+    statusLsp.textContent = t("lsp.diag.count", { errors: String(errors), warnings: String(warnings) });
+  }
+
+  /** 当前文件波浪线（诊断推送与文件切换共用；只取当前文件的诊断）。 */
+  function applyEditorDiagnostics(): void {
+    if (openFile === null || workspaceRoot === "") {
+      editor.setDiagnostics([]);
+      return;
+    }
+    const rel = relPathOf(openFile.path);
+    editor.setDiagnostics(lspDiags.filter((d) => d.file === rel));
+  }
+
+  /** 活动文档同步给 tsserver（didOpen 全文；服务器未就绪时主进程丢弃，ready 推送时补偿重放）。 */
+  function syncOpenFileToLsp(): void {
+    if (openFile === null || workspaceRoot === "") return;
+    void api.lsp.didOpen(relPathOf(openFile.path), openFile.doc.getText());
+  }
+
+  // didChange 防抖 300ms（编辑器缓冲区即事实源，Full 同步语义，未保存内容参与分析）
+  let lspSyncTimer: number | undefined;
+  function scheduleLspSync(): void {
+    window.clearTimeout(lspSyncTimer);
+    lspSyncTimer = window.setTimeout(() => {
+      if (openFile !== null && workspaceRoot !== "") {
+        void api.lsp.didChange(relPathOf(openFile.path), openFile.doc.getText());
+      }
+    }, 300);
+  }
+
+  // 悬停浮层：鼠标驻留 500ms → IPC hover → DOM tooltip；移动/输入/点击/Esc/滚动关闭
+  const hoverTip = el("div", "dw-lsp-hover");
+  hoverTip.style.display = "none";
+  editorArea.appendChild(hoverTip);
+  let hoverTimer: number | undefined;
+  function hideHover(): void {
+    window.clearTimeout(hoverTimer);
+    hoverTip.style.display = "none";
+  }
+  async function showHoverAt(clientX: number, clientY: number): Promise<void> {
+    const current = openFile;
+    if (current === null || workspaceRoot === "" || lspStatus.state !== "ready") return;
+    const pos = editor.positionFromClientPoint(clientX, clientY);
+    const info = await api.lsp.hover(relPathOf(current.path), pos.line, pos.character);
+    // 驻留期间文件已切换 → 丢弃迟到响应
+    if (openFile !== current || info === null || info.text.trim() === "") return;
+    const areaRect = editorArea.getBoundingClientRect();
+    hoverTip.textContent = info.text;
+    hoverTip.style.left = `${clientX - areaRect.left + 14}px`;
+    hoverTip.style.top = `${clientY - areaRect.top + 18}px`;
+    hoverTip.style.display = "block";
+  }
+  canvas.addEventListener("mousemove", (ev) => {
+    hideHover(); // 任何移动先关闭旧浮层并重置驻留计时
+    if (openFile === null || lspStatus.state !== "ready") return;
+    const { clientX, clientY } = ev;
+    hoverTimer = window.setTimeout(() => void showHoverAt(clientX, clientY), 500);
+  });
+  canvas.addEventListener("mouseleave", hideHover);
+  canvas.addEventListener("mousedown", hideHover);
+  canvas.addEventListener("wheel", hideHover);
+  window.addEventListener("keydown", hideHover);
+
+  // Ctrl/Cmd+Click 跳转定义：同文件 revealPosition；跨文件打开后定位（0-based 行列直传）
+  editor.onDefinitionRequest = (pos) => {
+    const current = openFile;
+    if (current === null || workspaceRoot === "" || lspStatus.state !== "ready") return;
+    const currentRel = relPathOf(current.path);
+    void (async () => {
+      const targets = await api.lsp.definition(currentRel, pos.line, pos.character);
+      const target = targets[0];
+      if (target === undefined) return;
+      if (target.file === currentRel && openFile === current) {
+        editor.revealPosition({ line: target.line, character: target.character });
+      } else {
+        const abs = `${workspaceRoot.replace(/[/\\]+$/, "")}/${target.file}`;
+        await openFileByPath(abs);
+        editor.revealPosition({ line: target.line, character: target.character });
+      }
+    })();
+  };
+
+  api.lsp.onStatus((status) => {
+    const wasReady = lspStatus.state === "ready";
+    lspStatus = status;
+    renderLspStatus();
+    // 服务器后于文件打开才就绪：补偿重放 didOpen（未就绪期间的 didOpen 被主进程丢弃）
+    if (!wasReady && status.state === "ready") syncOpenFileToLsp();
+  });
+  api.lsp.onDiagnostics((items) => {
+    lspDiags = items;
+    renderLspStatus();
+    applyEditorDiagnostics();
+  });
+  // 启动恢复（AC15 工作区恢复后主进程已启动 LSP）：主动拉一次当前态
+  void api.lsp.getStatus().then((status) => {
+    lspStatus = status;
+    renderLspStatus();
+  });
+  void api.lsp.diagnostics().then((items) => {
+    lspDiags = items;
+    renderLspStatus();
+    applyEditorDiagnostics();
+  });
 
   // ---- 首次使用引导（AC11）：未打开工作区时主区显示三步引导 ----
   const onboarding = el("div", "dw-onboarding");
@@ -862,6 +1013,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     }
     renderUpdateBox();
     buildOnboarding();
+    renderLspStatus(); // LSP 状态项随语言热生效
     // 欢迎文档仅在无打开文件时随语言重建（不触碰用户文件内容）
     if (openFile === null) {
       editor.setDocument(TextDocument.fromString(t("editor.welcome")));

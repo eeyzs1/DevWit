@@ -797,6 +797,49 @@ export interface McpServerView {
 }
 
 // ============================================================================
+// LSP 代码智能（迭代 31 / AC40）：TypeScript language server 悬停/定义/诊断
+// ============================================================================
+
+/** LSP 服务状态（主→渲染推送 + 状态栏展示）。idle=未打开工作区。 */
+export type LspStatusInfo =
+  | { state: "idle" }
+  | { state: "starting" }
+  | { state: "ready" }
+  | { state: "error"; code: string };
+
+/**
+ * 一条 LSP 诊断（lsp:diagnostics IPC 返回项 + lsp:diagnostics-changed 推送载荷元素）。
+ * 行列采用 LSP 原生 0-based（与编辑器 Position 语义一致），UI 展示时自行 +1。
+ * file 为工作区相对路径（正斜杠）。
+ */
+export interface LspDiagnosticItem {
+  file: string;
+  line: number;
+  character: number;
+  endLine: number;
+  endCharacter: number;
+  severity: "error" | "warning" | "info" | "hint";
+  /** 诊断码（如 TS2322）；无码诊断缺省。 */
+  code?: string;
+  message: string;
+}
+
+/** 悬停信息（lsp:hover IPC 返回；null 表示该位置无悬停内容）。 */
+export interface LspHoverInfo {
+  /** 归一化文本（可能含 markdown 代码围栏，UI 原样呈现）。 */
+  text: string;
+}
+
+/** 定义跳转目标（lsp:definition IPC 返回项）。0-based 行列，file 为工作区相对路径。 */
+export interface LspDefinitionTarget {
+  file: string;
+  line: number;
+  character: number;
+  endLine: number;
+  endCharacter: number;
+}
+
+// ============================================================================
 // 终端（WU006）
 // ============================================================================
 
@@ -872,6 +915,15 @@ export const IPC = {
   SessionsRename: "sessions:rename",
   SessionsDelete: "sessions:delete",
   SymbolsQuery: "symbols:query",
+  LspGetStatus: "lsp:get-status",
+  LspStatus: "lsp:status",
+  LspDidOpen: "lsp:did-open",
+  LspDidChange: "lsp:did-change",
+  LspDidClose: "lsp:did-close",
+  LspHover: "lsp:hover",
+  LspDefinition: "lsp:definition",
+  LspDiagnostics: "lsp:diagnostics",
+  LspDiagnosticsChanged: "lsp:diagnostics-changed",
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];
@@ -924,6 +976,32 @@ export interface DevwitApi {
    */
   symbols: {
     query(q: string): Promise<SymbolsQueryResult>;
+  };
+  /**
+   * LSP 代码智能（迭代 31 / AC40）：TypeScript/JavaScript 悬停、跳转定义、实时诊断。
+   * 工作区打开后主进程自动启动 typescript-language-server（ELECTRON_RUN_AS_NODE，
+   * 零系统依赖）。file 参数一律为工作区相对路径（正斜杠）；行列 0-based。
+   * 编辑器缓冲区即事实源：didOpen/didChange 同步未保存内容（Full 同步语义）。
+   */
+  lsp: {
+    /** 当前 LSP 服务状态（状态栏展示）。 */
+    getStatus(): Promise<LspStatusInfo>;
+    /** 打开文档：同步全量文本并注册语言 id（按扩展名推断）。 */
+    didOpen(file: string, text: string): Promise<void>;
+    /** 文档变更：Full 同步（防抖由渲染端控制）。 */
+    didChange(file: string, text: string): Promise<void>;
+    /** 关闭文档（同时清除该文件诊断）。 */
+    didClose(file: string): Promise<void>;
+    /** 悬停信息；服务未就绪或该位置无内容时返回 null。 */
+    hover(file: string, line: number, character: number): Promise<LspHoverInfo | null>;
+    /** 跳转定义候选（空数组 = 无定义）；首个为主目标。 */
+    definition(file: string, line: number, character: number): Promise<LspDefinitionTarget[]>;
+    /** 当前全部诊断快照（跨文件）。 */
+    diagnostics(): Promise<LspDiagnosticItem[]>;
+    /** 订阅服务状态推送。 */
+    onStatus(cb: (status: LspStatusInfo) => void): () => void;
+    /** 订阅诊断变化推送（载荷为全量快照，小工作区直接替换语义）。 */
+    onDiagnostics(cb: (items: LspDiagnosticItem[]) => void): () => void;
   };
   providers: {
     list(): Promise<ProviderConfig[]>;

@@ -18,6 +18,15 @@ export interface HighlightTokenProvider {
   tokensForLine(line: number): Array<{ startChar: number; endChar: number; scope: string }>;
 }
 
+/** 一条诊断标记（LSP 0-based 行列；波浪线绘制，error 红 / warning 黄，info/hint 淡化）。 */
+export interface DiagnosticRange {
+  line: number;
+  character: number;
+  endLine: number;
+  endCharacter: number;
+  severity: "error" | "warning" | "info" | "hint";
+}
+
 export interface EditorViewOptions {
   theme?: Theme;
   fontSize?: number;
@@ -29,7 +38,9 @@ export interface EditorViewOptions {
 
 /**
  * Canvas 自绘编辑器视图：绑定一个 HTMLCanvasElement 与一个 editor-core TextDocument。
- * 只渲染可视行（虚拟化），支持滚动、鼠标选区、多光标（Ctrl/Cmd+Click）、IME 合成输入。
+ * 只渲染可视行（虚拟化），支持滚动、鼠标选区、多光标（Alt+Click）、IME 合成输入。
+ * 代码智能（迭代 31 / AC40）：Ctrl/Cmd+Click 经 onDefinitionRequest 回调跳转定义，
+ * 诊断经 setDiagnostics 注入并以波浪线绘制。
  * 坐标计算等纯逻辑全部委托 ./layout.js，本类只做 DOM 交互与绘制。
  */
 export class EditorView {
@@ -62,6 +73,10 @@ export class EditorView {
   private renderScheduled = false;
   private disposed = false;
   private readonly removeWindowListeners: Array<() => void> = [];
+  /** 当前文档的诊断标记（setDiagnostics 注入；渲染为波浪线）。 */
+  private diagnostics: DiagnosticRange[] = [];
+  /** Ctrl/Cmd+Click 回调（跳转定义；由集成方接 LSP）。null 时该组合键等同普通点击。 */
+  onDefinitionRequest: ((pos: Position) => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement, doc: TextDocument, options: EditorViewOptions = {}) {
     this.canvas = canvas;
@@ -143,6 +158,43 @@ export class EditorView {
     this.scheduleRender();
   }
 
+  /** 注入诊断标记（全量替换语义，与 LSP publishDiagnostics 一致）；波浪线随下次渲染绘制。 */
+  setDiagnostics(ranges: DiagnosticRange[]): void {
+    this.diagnostics = ranges;
+    this.scheduleRender();
+  }
+
+  /** 浏览器客户区坐标 → 文档位置（悬停/跳转定义等外部交互的公共入口）。 */
+  positionFromClientPoint(clientX: number, clientY: number): Position {
+    const rect = this.canvas.getBoundingClientRect();
+    const x = clientX - rect.left + this.scrollLeft - this.gutterWidth;
+    const y = clientY - rect.top + this.scrollTop - this.padding;
+    const line = Math.max(0, Math.min(this.doc.lineCount - 1, Math.floor(y / this.lineHeight)));
+    const character = columnForX(this.lineText(line), x, this.measurer);
+    return { line, character };
+  }
+
+  /**
+   * 文档位置 → 浏览器客户区坐标（positionFromClientPoint 的逆映射）：
+   * 返回该字符格的水平起点与行垂直中心。自动完成补全浮层/e2e 精确定位共用。
+   */
+  clientPointForPosition(pos: Position): { x: number; y: number } {
+    const rect = this.canvas.getBoundingClientRect();
+    const clamped = this.clampPosition(pos);
+    const x = rect.left + this.gutterWidth + xForColumn(this.lineText(clamped.line), clamped.character, this.measurer) - this.scrollLeft;
+    const y = rect.top + this.padding + clamped.line * this.lineHeight - this.scrollTop + this.lineHeight / 2;
+    return { x, y };
+  }
+
+  /** 光标定位到指定位置并滚动至可见（跳转定义落点；折叠多光标为单光标）。 */
+  revealPosition(pos: Position): void {
+    const clamped = this.clampPosition(pos);
+    this.selections = [{ anchor: clamped, active: clamped }];
+    this.wakeCursor();
+    this.ensureCursorVisible();
+    this.scheduleRender();
+  }
+
   setTheme(theme: Theme): void {
     this.theme = theme;
     this.scheduleRender();
@@ -210,14 +262,18 @@ export class EditorView {
       // 扩展主选区
       const primary = this.primarySelection();
       primary.active = pos;
-    } else if (ev.ctrlKey || ev.metaKey) {
-      // 添加光标
+    } else if (ev.altKey) {
+      // 添加光标（VS Code 惯例：Alt+Click 多光标，Ctrl/Cmd+Click 跳转定义）
       const exists = this.selections.some((sel) => comparePositions(sel.active, pos) === 0);
       if (!exists) {
         this.selections.push({ anchor: pos, active: pos });
       }
     } else {
       this.selections = [{ anchor: pos, active: pos }];
+      if ((ev.ctrlKey || ev.metaKey) && this.onDefinitionRequest !== null) {
+        // 跳转定义：光标先落定（用户可见反馈），目标解析由集成方异步完成
+        this.onDefinitionRequest(pos);
+      }
     }
     this.dragging = true;
     this.ensureCursorVisible();
@@ -716,6 +772,9 @@ export class EditorView {
       this.renderLineText(line, y);
     }
 
+    // 诊断波浪线（文本之上、光标之下；只画可视行相交段）
+    this.renderDiagnostics(range.first, range.last);
+
     // IME 合成串（画在主光标处，带下划线）
     if (this.compositionText.length > 0) {
       this.renderComposition();
@@ -816,6 +875,52 @@ export class EditorView {
     ctx.fillText(this.compositionText, x, y + this.lineHeight / 2);
     ctx.fillStyle = this.theme.compositionUnderline;
     ctx.fillRect(x, y + this.lineHeight - 2, width, 1);
+  }
+
+  /** 诊断波浪线：逐可视行求交段，正弦波 path 绘制（error 红 / warning 黄 / info·hint 灰）。 */
+  private renderDiagnostics(firstLine: number, lastLine: number): void {
+    if (this.diagnostics.length === 0) {
+      return;
+    }
+    for (const diag of this.diagnostics) {
+      if (diag.endLine < firstLine || diag.line > lastLine) {
+        continue;
+      }
+      const color =
+        diag.severity === "error"
+          ? this.theme.diagnosticError
+          : diag.severity === "warning"
+            ? this.theme.diagnosticWarning
+            : this.theme.lineNumberForeground;
+      for (let line = Math.max(diag.line, firstLine); line <= Math.min(diag.endLine, lastLine); line++) {
+        const lineText = this.lineText(line);
+        const startChar = line === diag.line ? Math.min(diag.character, lineText.length) : 0;
+        // 跨行诊断的中间行/末行：末行取 endCharacter，中间行取整行；空段退化为单字符宽
+        const endChar = line === diag.endLine ? Math.min(diag.endCharacter, lineText.length) : lineText.length;
+        const x1 = this.gutterWidth + xForColumn(lineText, startChar, this.measurer) - this.scrollLeft;
+        const width = Math.max(xForColumn(lineText, endChar, this.measurer) - xForColumn(lineText, startChar, this.measurer), this.charWidth);
+        const baseY = this.padding + line * this.lineHeight - this.scrollTop + this.lineHeight - 3;
+        this.strokeSquiggle(x1, baseY, width, color);
+      }
+    }
+  }
+
+  /** 单个波浪线段（振幅 1.5px、周期 4px 的三角波近似，性能优于正弦采样）。 */
+  private strokeSquiggle(x: number, baseY: number, width: number, color: string): void {
+    const ctx = this.ctx;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const startX = Math.round(x) + 0.5; // 半像素对齐防模糊
+    const endX = startX + width;
+    let up = true;
+    ctx.moveTo(startX, baseY);
+    for (let px = startX + 2; px < endX; px += 2) {
+      ctx.lineTo(px, up ? baseY - 1.5 : baseY + 1);
+      up = !up;
+    }
+    ctx.lineTo(endX, baseY);
+    ctx.stroke();
   }
 
   private renderCursors(): void {

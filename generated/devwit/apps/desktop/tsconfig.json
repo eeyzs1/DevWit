@@ -59,6 +59,9 @@
       "path": "../../packages/rag"
     },
     {
+      "path": "../../packages/lsp"
+    },
+    {
       "path": "../../packages/chat-ui"
     }
   ]

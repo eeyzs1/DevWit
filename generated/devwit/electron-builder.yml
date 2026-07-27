@@ -5,10 +5,17 @@ directories:
   output: release
 files:
   # 主进程/preload/渲染层均已 esbuild 打包进 apps/desktop/dist（含全部 @devwit/* 依赖），
-  # 无需 node_modules 随行；node-pty 为可选原生依赖，缺失时自动回退 pipe 后端。
+  # node-pty 为可选原生依赖，缺失时自动回退 pipe 后端。
+  # typescript-language-server + typescript（tsserver）为 LSP 代码智能运行时依赖（AC40），
+  # 经 require.resolve 定位，必须随行；asarUnpack 保证 spawn 的子进程可读。
   - apps/desktop/dist/**
   - package.json
+  - node_modules/typescript-language-server/lib/**
+  - node_modules/typescript/lib/**
 asar: true
+asarUnpack:
+  - node_modules/typescript-language-server/**
+  - node_modules/typescript/**
 # 本机已装 Electron dist（与 devDependency 同版本），打包零下载，规避 GitHub 直连不可达。
 electronDist: node_modules/electron/dist
 win:

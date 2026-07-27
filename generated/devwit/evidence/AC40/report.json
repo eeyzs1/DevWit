@@ -1,0 +1,32 @@
+{
+  "steps": [
+    "应用启动 + fixture 工作区打开（math.ts / main.ts / tsconfig.json）",
+    "LSP ready：真实 typescript-language-server 子进程握手完成（零系统依赖）",
+    "实时诊断：error 条目 IPC 返回 + 状态栏 ✕ 1（波浪线 canvas 渲染，截图 01）",
+    "悬停：真实鼠标驻留 → IPC hover → tooltip 含类型签名（截图 02）",
+    "编辑同步：didChange 防抖 → 诊断 ✕ 1→2（截图 03）",
+    "Ctrl+Click：跨文件跳转定义 math.ts，光标落点 0 行（截图 04）",
+    "文件切换：didClose/didOpen 生命周期无回归"
+  ],
+  "assertions": [
+    "LSP 状态机应达 ready（实际: {\"state\":\"ready\"}）",
+    "publishDiagnostics 应推送 main.ts 类型错误（lsp:diagnostics IPC）",
+    "错误行应为 3（0-based，实际: 3）",
+    "错误消息应为类型不匹配（实际: Type 'string' is not assignable to type 'number'.）",
+    "诊断码应存在（实际: 2322）",
+    "状态栏应显示 ✕ 1（实际: \"✕ 1  ⚠ 0\"）",
+    "E2E 几何钩子应返回客户区坐标（实际: {\"x\":439.037109375,\"y\":94}）",
+    "鼠标驻留 500ms 后 .dw-lsp-hover tooltip 应出现",
+    "tooltip 应含 add 签名（实际: \n```typescript\n(alias) add(a: number, b: number): number\nimport add\n```\n）",
+    "鼠标移开后 tooltip 应关闭（实际 display: none）",
+    "编辑后应推送第二条错误（未保存缓冲区参与分析）",
+    "新错误应在第 4 行（实际行集: 3/4）",
+    "状态栏应更新为 ✕ 2（实际: \"✕ 2  ⚠ 0\"）",
+    "Ctrl+Click 后应跳转到 math.ts（活动文件: C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-verify-i31-4uaXYN/math.ts）",
+    "跳转落点光标应在第 0 行（add 定义处，实际: {\"line\":0,\"character\":16}）",
+    "切回 main.ts 后其诊断仍在（缓冲区 didOpen 重放）"
+  ],
+  "failures": [],
+  "fatal": null,
+  "ok": true
+}

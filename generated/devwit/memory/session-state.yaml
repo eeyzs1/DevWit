@@ -563,5 +563,30 @@ iteration_30:
     verifier: 构建 PASS + eslint PASS + vitest 553/553（62 文件，新增 telemetry.test.ts 8 项）+ 全量回归 25 套（smoke/iteration2/i4/i6~i8/i10~i26/i29/i30）全 PASS
   notes: 本地使用统计（聚合服务 UsageStore + usage:summary/clear IPC + 设置·通用分区统计卡）已由迭代26 AC35 建成，本迭代不重复建设；遥测后端账号（PostHog）需用户本人注册，故默认端点留空、端点可配置先行。
   e2e_report: evidence/AC39/report.json (17 项断言全 PASS)
+iteration_31:
+  scope: 留存工程·代码智能 III（AC40）——LSP 集成：TypeScript language server（悬停/跳转定义/实时诊断），主力 IDE 定位的第一块留存基石
+  acceptance_criteria:
+  - description: 'LSP stdio 客户端（packages/lsp，electron-free 依赖注入）：Content-Length 分帧 JSON-RPC 2.0（粘包/半包/单 chunk 多消息正确处理）；initialize(rootUri)→initialized→shutdown→exit 完整生命周期；hover/definition 请求超时拒绝；进程退出拒绝全部挂起（DW_LSP_* ASCII 错误码）；publishDiagnostics 通知回调聚合'
+    id: AC40
+    status: completed
+    verifier: packages/lsp 单测 30 项全 PASS（lsp-client 13 项：分帧/粘包/半包/UTF-8 跨 chunk/非法 JSON 容错/握手/重复 start 拒绝/超时/退出拒绝/强杀兜底 + ts-server 17 项：真实 typescript-language-server temp fixture 上 hover/definition/diagnostics 真实应答）
+  - description: 'TsLanguageServer 生命周期：工作区打开即 spawn（ELECTRON_RUN_AS_NODE 使 Electron 二进制当 node 用，零系统依赖）；didOpen/didChange（Full 同步）/didClose 文档同步；诊断聚合 store（per-uri）；状态机 starting/ready/error；应用 will-quit 先 LSP shutdown 请求、超时强杀，零孤儿进程（同 MCP 口径）'
+    id: AC40
+    status: completed
+    verifier: ts-server 单测 17 项全 PASS（文档同步/诊断聚合/shutdown 序列/代际防串扰）+ verify-i31.mjs 全链路 PASS + verify-pack-lsp.mjs 退出后零孤儿进程（系统进程表硬断言残留 0）
+  - description: '编辑器 LSP UI（真实渲染端，无 mock）：① 悬停——鼠标驻留 500ms → IPC hover → HTML tooltip 浮层（类型签名，移动/输入/Esc 关闭）；② Ctrl+Click 跳转定义——同文件直接 revealPosition（光标+滚动），跨文件 openFileByPath 后定位；③ 实时诊断——publishDiagnostics 推送 → 当前文件波浪线（canvas 绘制，error 红/warning 黄）+ 状态栏 dw-status-lsp 计数项；didOpen/didChange 防抖同步编辑器缓冲区（未保存内容也参与分析，真实 IDE 语义）'
+    id: AC40
+    status: completed
+    verifier: verify-i31.mjs 16 断言全 PASS（ready 握手/main.ts 错误行 3+码 2322/状态栏 ✕ 1/鼠标驻留 tooltip 含 add 签名/移开关闭/编辑后 ✕ 2/Ctrl+Click 跳 math.ts 光标 0 行/切回诊断重放）+ evidence/AC40 截图 01-04
+  - description: 'i18n status.lsp.* 键中英同型（启动中/就绪/错误/问题计数）；打包配置：dependencies 声明 typescript-language-server+typescript，electron-builder files/asarUnpack 含对应 node_modules 子集（spawn 子进程不可读 asar 内文件）'
+    id: AC40
+    status: completed
+    verifier: i18n 单测同型校验 PASS + verify-pack-lsp.mjs 4 断言全 PASS（electron-builder --dir 产物直启：ready/诊断行 3/零孤儿）+ 产物目检 app.asar.unpacked 含 typescript-language-server/lib/cli.mjs 与 typescript/lib/tsserver.js（检修发现并修复：typescript 原列 devDependencies 未进包，已移入 dependencies）
+  - description: '质量门：构建 + eslint + 全量单测 + 全量 e2e 回归 PASS；证据与报告落盘 evidence/AC40'
+    id: AC40
+    status: completed
+    verifier: 构建 PASS + eslint PASS + vitest 583/583（64 文件）+ 全量回归 26 套全 PASS（smoke/iteration2/i4/i6~i8/i10~i26/i29/i30/i31）+ verify-pack-lsp.mjs 4 断言 PASS；evidence/AC40/report.json + pack-report.json
+  notes: LSP 客户端与 MCP 客户端同为 stdio JSON-RPC，但分帧协议不同（MCP 换行分隔/LSP Content-Length 头），独立实现不复用；tsserver 定位经 require.resolve（dev）与 app.asar.unpacked（packaged）双路径；本迭代仅 TypeScript/JavaScript，多语言复用同一 LspClient 后续迭代扩展。检修补录：① verify-i31 末项断言补轮询（tsserver 重推诊断需时，一次性读竞态）；② 打包烟测发现 typescript 未随行（devDependency 不被 electron-builder 收集），移入 dependencies 后 verify-pack-lsp.mjs 验证通过；③ TsLanguageServer 代际+inflight 去重修复并发 openWorkspace 竞态（openDialog/WorkspaceTree 双钩子）
+  e2e_report: evidence/AC40/report.json (16 断言全 PASS) + evidence/AC40/pack-report.json (4 断言全 PASS)
 status: complete
-updated_at: '2026-07-27T10:20:00.000000'
+updated_at: '2026-07-27T13:30:00.000000'

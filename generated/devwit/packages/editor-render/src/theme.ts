@@ -9,6 +9,10 @@ export interface Theme {
   cursor: string;
   compositionForeground: string;
   compositionUnderline: string;
+  /** 诊断波浪线：错误（LSP severity=error）。 */
+  diagnosticError: string;
+  /** 诊断波浪线：警告（LSP severity=warning）。 */
+  diagnosticWarning: string;
   /** 高亮 scope → 颜色，如 "keyword"/"string"/"comment"；未配置的 scope 用 foreground */
   scopes: Partial<Record<string, string>>;
 }
@@ -23,6 +27,8 @@ export const defaultDarkTheme: Theme = {
   cursor: "#aeafad",
   compositionForeground: "#d4d4d4",
   compositionUnderline: "#569cd6",
+  diagnosticError: "#f14c4c",
+  diagnosticWarning: "#cca700",
   scopes: {
     keyword: "#569cd6",
     string: "#ce9178",

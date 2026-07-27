@@ -20,6 +20,11 @@ const zhCN = {
   "status.noWorkspace": "未打开工作区",
   "status.unsaved": "● 未保存",
   "status.openFileFirst": "请先打开一个文件",
+
+  // ---- LSP 代码智能（迭代 31 / AC40）----
+  "lsp.status.starting": "LSP 启动中…",
+  "lsp.status.error": "LSP 启动失败 ({code})",
+  "lsp.diag.count": "✕ {errors}  ⚠ {warnings}",
   "editor.welcome":
     "// 欢迎使用 DevWit\n// 打开文件夹后点击左侧文件开始编辑；右侧对话面板可请求 AI 修改代码。\n",
   "sidebar.empty": "点击「打开文件夹」选择项目目录",
@@ -520,6 +525,11 @@ const enUS: Messages = {
   "status.noWorkspace": "No workspace opened",
   "status.unsaved": "● Unsaved",
   "status.openFileFirst": "Open a file first",
+
+  // ---- LSP code intelligence (iteration 31 / AC40) ----
+  "lsp.status.starting": "LSP starting…",
+  "lsp.status.error": "LSP failed to start ({code})",
+  "lsp.diag.count": "✕ {errors}  ⚠ {warnings}",
   "editor.welcome":
     "// Welcome to DevWit\n// Open a folder and click a file on the left to edit; ask AI to modify code in the chat panel.\n",
   "sidebar.empty": 'Click "Open Folder" to choose a project directory',

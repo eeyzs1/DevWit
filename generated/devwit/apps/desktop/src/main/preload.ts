@@ -121,7 +121,24 @@ const api: DevwitApi = {
   },
   symbols: {
     query: (q) => ipcRenderer.invoke(IPC.SymbolsQuery, q) as ReturnType<DevwitApi["symbols"]["query"]>
+  },
+  lsp: {
+    getStatus: () => ipcRenderer.invoke(IPC.LspGetStatus) as ReturnType<DevwitApi["lsp"]["getStatus"]>,
+    didOpen: (file, text) => ipcRenderer.invoke(IPC.LspDidOpen, file, text) as Promise<void>,
+    didChange: (file, text) => ipcRenderer.invoke(IPC.LspDidChange, file, text) as Promise<void>,
+    didClose: (file) => ipcRenderer.invoke(IPC.LspDidClose, file) as Promise<void>,
+    hover: (file, line, character) => ipcRenderer.invoke(IPC.LspHover, file, line, character) as ReturnType<DevwitApi["lsp"]["hover"]>,
+    definition: (file, line, character) => ipcRenderer.invoke(IPC.LspDefinition, file, line, character) as ReturnType<DevwitApi["lsp"]["definition"]>,
+    diagnostics: () => ipcRenderer.invoke(IPC.LspDiagnostics) as ReturnType<DevwitApi["lsp"]["diagnostics"]>,
+    onStatus: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.LspStatus, cb),
+    onDiagnostics: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.LspDiagnosticsChanged, cb)
   }
 };
 
 contextBridge.exposeInMainWorld("devwit", api);
+
+// E2E 模式标记（迭代 31 / AC40）：主进程 DEVWIT_E2E_OPEN_DIR 钩子族同源——
+// 渲染端据此安装编辑器几何反解钩子（window.__devwitE2E），生产构建无影响。
+contextBridge.exposeInMainWorld("devwitE2E", {
+  active: process.env.DEVWIT_E2E_OPEN_DIR !== undefined && process.env.DEVWIT_E2E_OPEN_DIR !== ""
+});

@@ -10,7 +10,7 @@
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { IPC } from "@devwit/contracts";
-import type { AgentRunInput, AuthorizationDecision, ContextItemType, ExternalEditorConfig, ProviderConfig, ProviderProbeRequest, ProviderProbeResult } from "@devwit/contracts";
+import type { AgentRunInput, AuthorizationDecision, ContextItemType, ExternalEditorConfig, LspDefinitionTarget, LspDiagnosticItem, LspHoverInfo, LspStatusInfo, ProviderConfig, ProviderProbeRequest, ProviderProbeResult } from "@devwit/contracts";
 import { PROVIDER_PRESETS, probeProvider } from "@devwit/llm-providers";
 import { fetchCommunityIndex, fetchCommunityMode, materializeImport, parseExportFile, resolveModesIndexBase, toExportFile } from "@devwit/modes";
 import { fetchCommunityMcpIndex, fetchCommunityMcpServer, materializeMcpImport } from "@devwit/mcp";
@@ -63,11 +63,26 @@ export const PUSH_CHANNELS: readonly string[] = [
   IPC.ModesChanged,
   IPC.UpdateStatus,
   IPC.McpChanged,
-  IPC.RagStatus
+  IPC.RagStatus,
+  IPC.LspStatus,
+  IPC.LspDiagnosticsChanged
 ];
 
 const AI_NOT_WIRED = "DW_AI_NOT_WIRED";
 const UPDATE_NOT_WIRED = "DW_UPDATE_NOT_WIRED";
+const LSP_NOT_WIRED = "DW_LSP_NOT_WIRED";
+
+/** LSP 接线参数（迭代 31 / AC40）：结构子集与 LspService 对齐（保持本文件无包运行时依赖）。 */
+export interface LspIpcService {
+  openWorkspace(root: string): void;
+  status(): LspStatusInfo;
+  didOpen(file: string, text: string): void;
+  didChange(file: string, text: string): void;
+  didClose(file: string): void;
+  hover(file: string, line: number, character: number): Promise<LspHoverInfo | null>;
+  definition(file: string, line: number, character: number): Promise<LspDefinitionTarget[]>;
+  diagnostics(): LspDiagnosticItem[];
+}
 
 /** 自动更新接线参数（迭代 7 / AC16）：service 由 index.ts 以 app.isPackaged 构造。 */
 export interface UpdateIpcDeps {
@@ -81,7 +96,7 @@ export interface UpdateIpcDeps {
 // ---------------------------------------------------------------------------
 
 /** 构建全部 invoke handler。key 集合 == IPC 常量全集 − PUSH_CHANNELS。 */
-export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: AiRuntime, update?: UpdateIpcDeps): Record<string, IpcHandler> {
+export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: AiRuntime, update?: UpdateIpcDeps, lsp?: LspIpcService): Record<string, IpcHandler> {
   const { workspace, terminal, settings } = services;
   const table: Record<string, IpcHandler> = {};
 
@@ -93,6 +108,7 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
       workspace.watch();
       ai?.refreshRag(); // AC19：工作区确定后立即评估/构建代码索引
       ai?.refreshSymbols(); // AC38：符号索引与 RAG 解耦，同址构建
+      lsp?.openWorkspace(dir); // AC40：工作区打开即启动 tsserver（零系统依赖）
     }
     return dir;
   };
@@ -102,6 +118,7 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     workspace.watch();
     ai?.refreshRag();
     ai?.refreshSymbols();
+    lsp?.openWorkspace(rootPath);
     return hooks.buildTree(rootPath);
   };
   table[IPC.WorkspaceRead] = (_e, filePath) => workspace.readFile(String(filePath));
@@ -211,6 +228,36 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
       update.service.install();
     };
     table[IPC.UpdateVersion] = () => update.version;
+  }
+
+  // ---- LSP 代码智能（迭代 31 / AC40）：未接线时抛明确错误码（白名单通道恒在表内）----
+  if (lsp === undefined) {
+    const notWired = (): never => {
+      throw new Error(LSP_NOT_WIRED);
+    };
+    table[IPC.LspGetStatus] = notWired;
+    table[IPC.LspDidOpen] = notWired;
+    table[IPC.LspDidChange] = notWired;
+    table[IPC.LspDidClose] = notWired;
+    table[IPC.LspHover] = notWired;
+    table[IPC.LspDefinition] = notWired;
+    table[IPC.LspDiagnostics] = notWired;
+  } else {
+    table[IPC.LspGetStatus] = () => lsp.status();
+    table[IPC.LspDidOpen] = (_e, file, text) => {
+      lsp.didOpen(String(file), String(text));
+    };
+    table[IPC.LspDidChange] = (_e, file, text) => {
+      lsp.didChange(String(file), String(text));
+    };
+    table[IPC.LspDidClose] = (_e, file) => {
+      lsp.didClose(String(file));
+    };
+    table[IPC.LspHover] = async (_e, file, line, character) =>
+      lsp.hover(String(file), Number(line), Number(character));
+    table[IPC.LspDefinition] = async (_e, file, line, character) =>
+      lsp.definition(String(file), Number(line), Number(character));
+    table[IPC.LspDiagnostics] = () => lsp.diagnostics();
   }
 
   registerAiIpc(table, ai, services, hooks);
@@ -374,11 +421,13 @@ export interface RegisterIpcDeps {
   ai?: AiRuntime;
   /** 生产环境注入 UpdateService + 版本号；缺省则 update 通道抛未接线错误。 */
   update?: UpdateIpcDeps;
+  /** 生产环境注入 LspService；缺省则 lsp 通道抛未接线错误。 */
+  lsp?: LspIpcService;
 }
 
 /** 注册全部 IPC handler 与主→渲染事件转发。 */
 export function registerIpcHandlers(deps: RegisterIpcDeps): void {
-  const table = buildHandlerTable(deps.services, deps.hooks, deps.ai, deps.update);
+  const table = buildHandlerTable(deps.services, deps.hooks, deps.ai, deps.update, deps.lsp);
   for (const [channel, handler] of Object.entries(table)) {
     deps.ipcMain.handle(channel, handler);
   }

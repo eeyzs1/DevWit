@@ -1,13 +1,13 @@
 {
-  "id": "manifest-acfb75e9-9d03-4c48-b757-7c8ac67d4d55",
-  "timestamp": "2026-07-26T15:57:32.274Z",
-  "sessionId": "session-1785081451580",
+  "id": "manifest-e287e54d-e315-481a-abe8-04d339ee6559",
+  "timestamp": "2026-07-27T04:57:33.183Z",
+  "sessionId": "session-1785128252412",
   "modeId": "chat",
   "providerId": "p-i17",
   "model": "i17-model",
   "items": [
     {
-      "id": "item-1f15c4a3-bd70-4199-a4b4-013268f5919e",
+      "id": "item-abdba1bc-5c09-4f79-b1f2-f8c967df713b",
       "type": "system_prompt",
       "label": "系统提示",
       "enabled": true,
@@ -17,7 +17,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-9dcd9db1-a8e1-4c59-a0d5-c456c2fceacb",
+      "id": "item-322969e2-2118-4ae9-a5c5-6a3d0568bbc0",
       "type": "tool_definitions",
       "label": "工具定义（0 个）",
       "enabled": true,
@@ -27,7 +27,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-3045275f-3541-40a3-8344-c830c77f8f0d",
+      "id": "item-fc61cbf8-bd79-43ef-8fe3-339c764ebd67",
       "type": "conversation_history",
       "label": "会话历史（1 条）",
       "enabled": true,
@@ -37,7 +37,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-7bcaad0d-8c87-46f7-bfa2-dadd64dfb36f",
+      "id": "item-993d4911-63ec-4354-88a4-af6db8e17a1c",
       "type": "file_fragment",
       "label": "引用文件 src/util.ts",
       "enabled": true,
@@ -48,7 +48,7 @@
       "key": "attachment:src/util.ts"
     },
     {
-      "id": "item-65a12202-7db2-4f83-9868-1e5fd464cece",
+      "id": "item-f33036e5-6912-41b5-ab23-ec031c86b0da",
       "type": "file_fragment",
       "label": "引用文件 src/hello.ts",
       "enabled": true,
@@ -59,7 +59,7 @@
       "key": "attachment:src/hello.ts"
     },
     {
-      "id": "item-29a7d9ac-2e5f-4825-868e-3f80ff72990f",
+      "id": "item-479e00a3-47b2-4ccc-82ab-b27b4b72def9",
       "type": "git_status",
       "label": "Git 状态",
       "enabled": false,
@@ -69,7 +69,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-f0998103-8761-4159-b882-4f3693b7608a",
+      "id": "item-767c4a8c-c9f5-42f2-b81e-360f73e685c7",
       "type": "codebase_match",
       "label": "代码库检索（索引未启用）",
       "enabled": false,

@@ -1,13 +1,13 @@
 [
   {
     "seq": 2,
-    "timestamp": "2026-07-26T15:57:43.269Z",
-    "sessionId": "task-session-1785081463202-2",
+    "timestamp": "2026-07-27T04:57:44.807Z",
+    "sessionId": "task-session-1785128264740-2",
     "type": "workflow",
-    "summary": "workflow: reuse wf-ms1zew54-1 (shared: login.ts, 输入, 入校, 校验)",
+    "summary": "workflow: reuse wf-ms2ra0g0-1 (shared: login.ts, 输入, 入校, 校验)",
     "detail": {
       "phase": "reuse",
-      "templateId": "wf-ms1zew54-1",
+      "templateId": "wf-ms2ra0g0-1",
       "intent": "为 login.ts 加输入校验",
       "tools": [
         "write"

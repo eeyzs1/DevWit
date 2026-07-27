@@ -1234,6 +1234,32 @@ body,
   white-space: nowrap;
 }
 
+/* ---- LSP 代码智能（AC40）---- */
+.dw-status-lsp {
+  flex-shrink: 0;
+  color: var(--dw-fg-dim);
+}
+
+.dw-lsp-hover {
+  position: absolute;
+  z-index: 20;
+  max-width: 480px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 8px 10px;
+  background: var(--dw-bg-panel);
+  border: 1px solid var(--dw-border);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  color: var(--dw-fg);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  pointer-events: none; /* 不拦截鼠标——浮层纯展示，移动即关 */
+}
+
 /* ---- 自动更新（AC16）---- */
 .dw-update {
   display: inline-flex;
