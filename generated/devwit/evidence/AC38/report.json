@@ -1,6 +1,6 @@
 {
   "steps": [
-    "本地端点就绪 http://127.0.0.1:52792/v1（/chat/completions，捕获请求体）",
+    "本地端点就绪 http://127.0.0.1:64409/v1（/chat/completions，捕获请求体）",
     "应用启动 + fixture 工作区打开（src/calc.ts / src/user.ts / docs/readme.md）",
     "符号索引 ready：add(L1-4) / UserService(L1-5) / getName@UserService(L2-4) 提取精确",
     "keyless provider 注入并选中（settings onChanged 热刷新链路）",
@@ -32,8 +32,8 @@
     "用户原文应无 @残留（实际: \"总结这两个符号\"）",
     "发送后 chips 应清空",
     "manifests 目录应有落盘文件",
-    "manifest 缺 enabled 的 symbol:<addId> 项（实际: {\"id\":\"item-9dbae692-bda0-456c-9206-817d46fc55e5\",\"type\":\"file_fragment\",\"label\":\"引用符号 add（src/calc.ts L1-4）\",\"enabled\":true,\"tokens\":38,\"content\":\"export function add(a: number, b: number): number {\\n  const MAGIC_SYMBOL_TOKEN = \\\"symbol-injected-gamma\\\";\\n  return MAGIC_SYMBOL_TOKEN.length + a + b;\\n}\",\"source\":\"symbol\",\"counting\":\"exact\",\"key\":\"symbol:6a8d95f4ab5cb110\"}）",
-    "manifest 缺 enabled 的 symbol:<userId> 项（实际: {\"id\":\"item-42a68831-f66f-4a02-b93e-0a2ed56529d7\",\"type\":\"file_fragment\",\"label\":\"引用符号 UserService（src/user.ts L1-5）\",\"enabled\":true,\"tokens\":21,\"content\":\"export class UserService {\\n  getName(): string {\\n    return \\\"user-svc-delta\\\";\\n  }\\n}\",\"source\":\"symbol\",\"counting\":\"exact\",\"key\":\"symbol:fc21685d6372786c\"}）",
+    "manifest 缺 enabled 的 symbol:<addId> 项（实际: {\"id\":\"item-34b91f9d-fba4-4f60-8bea-5da1083798e9\",\"type\":\"file_fragment\",\"label\":\"引用符号 add（src/calc.ts L1-4）\",\"enabled\":true,\"tokens\":38,\"content\":\"export function add(a: number, b: number): number {\\n  const MAGIC_SYMBOL_TOKEN = \\\"symbol-injected-gamma\\\";\\n  return MAGIC_SYMBOL_TOKEN.length + a + b;\\n}\",\"source\":\"symbol\",\"counting\":\"exact\",\"key\":\"symbol:6a8d95f4ab5cb110\"}）",
+    "manifest 缺 enabled 的 symbol:<userId> 项（实际: {\"id\":\"item-fe488e9a-c98e-472e-a032-3234c1a7bb8d\",\"type\":\"file_fragment\",\"label\":\"引用符号 UserService（src/user.ts L1-5）\",\"enabled\":true,\"tokens\":21,\"content\":\"export class UserService {\\n  getName(): string {\\n    return \\\"user-svc-delta\\\";\\n  }\\n}\",\"source\":\"symbol\",\"counting\":\"exact\",\"key\":\"symbol:fc21685d6372786c\"}）",
     "符号项应有精确 token 计数（实际: 38）",
     "符号项 label 应含「引用符号 <名>」（实际: 引用符号 add（src/calc.ts L1-4） / 引用符号 UserService（src/user.ts L1-5））"
   ],

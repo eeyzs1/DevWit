@@ -132,6 +132,14 @@ const api: DevwitApi = {
     diagnostics: () => ipcRenderer.invoke(IPC.LspDiagnostics) as ReturnType<DevwitApi["lsp"]["diagnostics"]>,
     onStatus: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.LspStatus, cb),
     onDiagnostics: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.LspDiagnosticsChanged, cb)
+  },
+  git: {
+    getStatus: () => ipcRenderer.invoke(IPC.GitGetStatus) as ReturnType<DevwitApi["git"]["getStatus"]>,
+    diff: (file) => ipcRenderer.invoke(IPC.GitDiff, file) as ReturnType<DevwitApi["git"]["diff"]>,
+    stage: (file) => ipcRenderer.invoke(IPC.GitStage, file) as Promise<void>,
+    unstage: (file) => ipcRenderer.invoke(IPC.GitUnstage, file) as Promise<void>,
+    commit: (message) => ipcRenderer.invoke(IPC.GitCommit, message) as Promise<void>,
+    onChanged: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.GitChanged, cb)
   }
 };
 

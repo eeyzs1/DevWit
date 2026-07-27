@@ -1,6 +1,6 @@
 {
   "steps": [
-    "双端点就绪 local=http://127.0.0.1:52735/v1 cloud=http://127.0.0.1:52736/v1",
+    "双端点就绪 local=http://127.0.0.1:64350/v1 cloud=http://127.0.0.1:64351/v1",
     "应用启动 + fixture 工作区打开",
     "p-local / p-cloud 注册（keyless）+ agent 模式绑定 p-cloud",
     "设置 UI：开启路由 + 选 p-local + 阈值 30，热持久化 routing.local",

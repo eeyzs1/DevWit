@@ -12,6 +12,7 @@ import { TerminalService } from "@devwit/terminal";
 import { buildFileTree, WorkspaceService } from "@devwit/workspace";
 import { AiRuntime } from "./ai-runtime.js";
 import { registerIpcHandlers } from "./ipc.js";
+import { GitMainService } from "./git-service.js";
 import { LspService } from "./lsp-service.js";
 import { SafeStorageBackend } from "./safe-storage-backend.js";
 import { TelemetryService } from "./telemetry.js";
@@ -125,6 +126,9 @@ app.whenReady().then(() => {
   // ELECTRON_RUN_AS_NODE 复用 Electron 二进制，用户机器零系统依赖。
   lspService = new LspService({ send });
 
+  // Git 版本控制（迭代 32 / AC41）：工作区打开钩子换绑仓库根；操作后推送 git:changed。
+  const gitService = new GitMainService({ send });
+
   registerIpcHandlers({
     ipcMain,
     services: { workspace, terminal, settings },
@@ -179,6 +183,7 @@ app.whenReady().then(() => {
     ai,
     update: { service: updater, version: app.getVersion() },
     lsp: lspService,
+    git: gitService,
   });
 
   createWindow();

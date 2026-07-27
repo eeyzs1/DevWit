@@ -154,5 +154,11 @@ export function localizeError(raw: string, opts?: LocalizeErrorOptions): string 
   if (probeHttp !== null) return t("err.probeHttp", { status: probeHttp[1] ?? "" });
   if (raw.includes("DW_PROBE_UNREACHABLE")) return t("err.probeUnreachable");
   if (raw.includes("DW_PROBE_INVALID_URL")) return t("err.probeInvalidUrl");
+  // 迭代 32 / AC41 Git 版本控制错误码（detail 为 git stderr 摘要，随码剥离不展示）
+  if (raw.includes("DW_GIT_NOT_REPO")) return t("err.gitNotRepo");
+  if (raw.includes("DW_GIT_STAGE_FAILED")) return t("err.gitStageFailed");
+  if (raw.includes("DW_GIT_UNSTAGE_FAILED")) return t("err.gitUnstageFailed");
+  if (raw.includes("DW_GIT_COMMIT_FAILED")) return t("err.gitCommitFailed");
+  if (raw.includes("DW_GIT_NOT_WIRED")) return t("err.gitNotWired");
   return raw.replace(IPC_ERROR_PREFIX, "");
 }

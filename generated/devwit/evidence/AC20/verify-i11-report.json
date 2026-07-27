@@ -1,6 +1,6 @@
 {
   "steps": [
-    "本地 SSE 端点就绪 http://127.0.0.1:52668（Planner/子Agent/综合 三路分流）",
+    "本地 SSE 端点就绪 http://127.0.0.1:54882（Planner/子Agent/综合 三路分流）",
     "应用启动（默认中文）",
     "打开文件夹（fixture 工作区）",
     "provider 注册 + 模型选中 + onEvent 轨迹订阅",

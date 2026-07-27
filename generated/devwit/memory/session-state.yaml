@@ -588,5 +588,30 @@ iteration_31:
     verifier: 构建 PASS + eslint PASS + vitest 583/583（64 文件）+ 全量回归 26 套全 PASS（smoke/iteration2/i4/i6~i8/i10~i26/i29/i30/i31）+ verify-pack-lsp.mjs 4 断言 PASS；evidence/AC40/report.json + pack-report.json
   notes: LSP 客户端与 MCP 客户端同为 stdio JSON-RPC，但分帧协议不同（MCP 换行分隔/LSP Content-Length 头），独立实现不复用；tsserver 定位经 require.resolve（dev）与 app.asar.unpacked（packaged）双路径；本迭代仅 TypeScript/JavaScript，多语言复用同一 LspClient 后续迭代扩展。检修补录：① verify-i31 末项断言补轮询（tsserver 重推诊断需时，一次性读竞态）；② 打包烟测发现 typescript 未随行（devDependency 不被 electron-builder 收集），移入 dependencies 后 verify-pack-lsp.mjs 验证通过；③ TsLanguageServer 代际+inflight 去重修复并发 openWorkspace 竞态（openDialog/WorkspaceTree 双钩子）
   e2e_report: evidence/AC40/report.json (16 断言全 PASS) + evidence/AC40/pack-report.json (4 断言全 PASS)
+iteration_32:
+  scope: 留存工程·版本控制（AC41）——Git 集成（状态徽章/diff 视图/暂存提交），主力 IDE 底线能力
+  acceptance_criteria:
+  - description: 'GitService（packages/workspace，electron-free 依赖注入）：真实 git CLI 执行 status/diff/stage/unstage/commit；porcelain v1 双列解析（index/worktree 分列），输出 staged/unstaged/untracked 三组 + branch 名；非 git 仓库/git 不可用/超时返回明确状态不抛错；diff(file) 取 HEAD 版与工作区版双文本（git show HEAD:path + 读盘，untracked 原文为空串、deleted 新文为空串），统一 diff 计算复用 chat-ui computeDiff 纯逻辑'
+    id: AC41
+    status: completed
+    verifier: packages/workspace/tests/git-service.test.ts 12 项全 PASS（真实 temp git 仓库全序列 + 非仓库 null + 双文本 diff + unstage 旧版 git 回退 reset + 空提交消息拒绝）
+  - description: 'IPC 面（contracts 白名单）：git:get-status/git:diff/git:stage/git:unstage/git:commit invoke 通道 + git:changed 推送通道；DevwitApi.git 类型 + preload 暴露；i18n git.* 键中英同型（面板标题/已暂存/变更/未跟踪/提交占位/非仓库态/状态栏分支）'
+    id: AC41
+    status: completed
+    verifier: 白名单完整性单测 PASS + i18n 同型单测 PASS + verify-i32.mjs 全链路 15 断言 PASS；未接线时 handler 抛 DW_GIT_NOT_WIRED 明确错误码
+  - description: '侧栏 Git 面板（真实渲染端，无 mock）：左栏双页签「文件/Git」；面板含分支名 + 刷新钮 + 变更文件列表（已暂存/变更分组，状态徽章 M/A/D/U 着色），文件行 hover 显 stage/unstage 钮；点击变更文件在编辑区开只读 diff 视图（HEAD ↔ 工作区，+/- 行着色复用 dw-diff 样式，可关闭）；底部提交框（输入消息 → 提交已暂存，无暂存禁用）；非 git 工作区显引导态'
+    id: AC41
+    status: completed
+    verifier: verify-i32.mjs 15 断言全 PASS（页签切换/分支头 main/变更（1)+未跟踪（1）分组/diff 含 -world +devwit 行/关闭/stage 迁移「已暂存 (1)」+ porcelain CLI 双通道一致/commit 落盘 git log 硬断言）+ evidence/AC41 截图 01-05
+  - description: '状态栏 git 项（branch + 变更计数）+ 自动刷新：工作区文件事件（WorkspaceEvent 推送）防抖触发状态重取；stage/unstage/commit 操作后即时刷新 + git:changed 推送同步渲染端；编辑器保存后状态联动'
+    id: AC41
+    status: completed
+    verifier: verify-i32.mjs（状态栏 ⑂ main ✚2 → 提交后 ✚1；文件树 hello.ts M 徽章；文件事件 800ms 防抖联动 refreshGit）
+  - description: '质量门：构建 + eslint + 全量单测 + 全量 e2e 回归 PASS；证据与报告落盘 evidence/AC41'
+    id: AC41
+    status: completed
+    verifier: 构建 PASS + eslint PASS + vitest 595/595（65 文件，新增 git-service 12 项）+ 全量回归 27 套全 PASS（smoke/iteration2/i4/i6~i8/i10~i26/i29/i30/i31/i32）+ evidence/AC41/report.json
+  notes: git 可用性依赖用户机 git CLI（与上下文引擎 git_status 同口径，主力 IDE 场景合理）；提交=用户直接动作不经授权门（与编辑器保存同语义）；合并/rebase/分支切换等高级操作后续迭代；diff 复用 computeDiff 保证与 agent diff 渲染一致。收口补录：① 左栏双页签改造时 enterWorkspace/语言热生效仍清空整个 sidebar（会抹掉页签 DOM），改 scoped 到 filesPane；② 文件树徽章经 updateTreeBadges 增量更新（不重建树，保展开/选中态），git:changed 先于树到达时 enterWorkspace 后回填；③ 打开中的 git diff 标题随语言热生效
+  e2e_report: evidence/AC41/report.json (15 断言全 PASS)
 status: complete
-updated_at: '2026-07-27T13:30:00.000000'
+updated_at: '2026-07-27T14:00:00.000000'

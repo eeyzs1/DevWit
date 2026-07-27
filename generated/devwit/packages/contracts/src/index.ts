@@ -840,6 +840,31 @@ export interface LspDefinitionTarget {
 }
 
 // ============================================================================
+// Git 版本控制（迭代 32 / AC41）：状态面板 / diff 双文本 / 暂存提交
+// ============================================================================
+
+/** 面板用单文件变更项（path 相对仓库根，正斜杠；rename 取新路径）。 */
+export interface GitFileChange {
+  path: string;
+  /** porcelain 单列字母：M/A/D/R/C/U/? */
+  status: string;
+}
+
+/** Git 面板状态快照（git:get-status 返回 + git:changed 推送载荷）。 */
+export interface GitPanelStatus {
+  branch: string;
+  staged: GitFileChange[];
+  unstaged: GitFileChange[];
+  untracked: GitFileChange[];
+}
+
+/** diff 双文本（git:diff 返回）：original=HEAD 版（untracked 为 ""），modified=工作区版（deleted 为 ""）。 */
+export interface GitDiffTexts {
+  original: string;
+  modified: string;
+}
+
+// ============================================================================
 // 终端（WU006）
 // ============================================================================
 
@@ -924,6 +949,12 @@ export const IPC = {
   LspDefinition: "lsp:definition",
   LspDiagnostics: "lsp:diagnostics",
   LspDiagnosticsChanged: "lsp:diagnostics-changed",
+  GitGetStatus: "git:get-status",
+  GitDiff: "git:diff",
+  GitStage: "git:stage",
+  GitUnstage: "git:unstage",
+  GitCommit: "git:commit",
+  GitChanged: "git:changed",
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];
@@ -1002,6 +1033,25 @@ export interface DevwitApi {
     onStatus(cb: (status: LspStatusInfo) => void): () => void;
     /** 订阅诊断变化推送（载荷为全量快照，小工作区直接替换语义）。 */
     onDiagnostics(cb: (items: LspDiagnosticItem[]) => void): () => void;
+  };
+  /**
+   * Git 版本控制（迭代 32 / AC41）：工作区打开后可用；非 git 仓库 getStatus 返回 null。
+   * file 参数一律为仓库根相对路径（正斜杠）。stage/unstage/commit 失败抛
+   * DW_GIT_* ASCII 错误码（渲染端 localizeError 本地化）。提交=用户直接动作，不经授权门。
+   */
+  git: {
+    /** 面板状态快照（分支 + 已暂存/变更/未跟踪三组）。 */
+    getStatus(): Promise<GitPanelStatus | null>;
+    /** 文件 diff 双文本：original=HEAD 版（untracked 为 ""），modified=工作区版（deleted 为 ""）。 */
+    diff(file: string): Promise<GitDiffTexts>;
+    /** git add：移入已暂存组。 */
+    stage(file: string): Promise<void>;
+    /** git restore --staged：移回变更组（旧 git 回退 reset HEAD）。 */
+    unstage(file: string): Promise<void>;
+    /** git commit -m：提交已暂存；空消息/无暂存抛 DW_GIT_COMMIT_FAILED。 */
+    commit(message: string): Promise<void>;
+    /** 订阅状态变化推送（操作后/工作区文件事件防抖刷新，载荷为全量快照；null=非 git 仓库）。 */
+    onChanged(cb: (status: GitPanelStatus | null) => void): () => void;
   };
   providers: {
     list(): Promise<ProviderConfig[]>;

@@ -10,7 +10,7 @@
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { IPC } from "@devwit/contracts";
-import type { AgentRunInput, AuthorizationDecision, ContextItemType, ExternalEditorConfig, LspDefinitionTarget, LspDiagnosticItem, LspHoverInfo, LspStatusInfo, ProviderConfig, ProviderProbeRequest, ProviderProbeResult } from "@devwit/contracts";
+import type { AgentRunInput, AuthorizationDecision, ContextItemType, ExternalEditorConfig, GitDiffTexts, GitPanelStatus, LspDefinitionTarget, LspDiagnosticItem, LspHoverInfo, LspStatusInfo, ProviderConfig, ProviderProbeRequest, ProviderProbeResult } from "@devwit/contracts";
 import { PROVIDER_PRESETS, probeProvider } from "@devwit/llm-providers";
 import { fetchCommunityIndex, fetchCommunityMode, materializeImport, parseExportFile, resolveModesIndexBase, toExportFile } from "@devwit/modes";
 import { fetchCommunityMcpIndex, fetchCommunityMcpServer, materializeMcpImport } from "@devwit/mcp";
@@ -65,12 +65,24 @@ export const PUSH_CHANNELS: readonly string[] = [
   IPC.McpChanged,
   IPC.RagStatus,
   IPC.LspStatus,
-  IPC.LspDiagnosticsChanged
+  IPC.LspDiagnosticsChanged,
+  IPC.GitChanged
 ];
 
 const AI_NOT_WIRED = "DW_AI_NOT_WIRED";
 const UPDATE_NOT_WIRED = "DW_UPDATE_NOT_WIRED";
 const LSP_NOT_WIRED = "DW_LSP_NOT_WIRED";
+const GIT_NOT_WIRED = "DW_GIT_NOT_WIRED";
+
+/** Git 接线参数（迭代 32 / AC41）：结构子集与 GitService 对齐（保持本文件无包运行时依赖）。 */
+export interface GitIpcService {
+  openWorkspace(root: string): void;
+  status(): Promise<GitPanelStatus | null>;
+  diffTexts(relPath: string): Promise<GitDiffTexts>;
+  stage(relPath: string): Promise<void>;
+  unstage(relPath: string): Promise<void>;
+  commit(message: string): Promise<void>;
+}
 
 /** LSP 接线参数（迭代 31 / AC40）：结构子集与 LspService 对齐（保持本文件无包运行时依赖）。 */
 export interface LspIpcService {
@@ -96,7 +108,7 @@ export interface UpdateIpcDeps {
 // ---------------------------------------------------------------------------
 
 /** 构建全部 invoke handler。key 集合 == IPC 常量全集 − PUSH_CHANNELS。 */
-export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: AiRuntime, update?: UpdateIpcDeps, lsp?: LspIpcService): Record<string, IpcHandler> {
+export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: AiRuntime, update?: UpdateIpcDeps, lsp?: LspIpcService, git?: GitIpcService): Record<string, IpcHandler> {
   const { workspace, terminal, settings } = services;
   const table: Record<string, IpcHandler> = {};
 
@@ -109,6 +121,7 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
       ai?.refreshRag(); // AC19：工作区确定后立即评估/构建代码索引
       ai?.refreshSymbols(); // AC38：符号索引与 RAG 解耦，同址构建
       lsp?.openWorkspace(dir); // AC40：工作区打开即启动 tsserver（零系统依赖）
+      git?.openWorkspace(dir); // AC41：Git 服务绑定仓库根（非 git 目录状态为 null）
     }
     return dir;
   };
@@ -119,6 +132,7 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     ai?.refreshRag();
     ai?.refreshSymbols();
     lsp?.openWorkspace(rootPath);
+    git?.openWorkspace(rootPath);
     return hooks.buildTree(rootPath);
   };
   table[IPC.WorkspaceRead] = (_e, filePath) => workspace.readFile(String(filePath));
@@ -258,6 +272,30 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     table[IPC.LspDefinition] = async (_e, file, line, character) =>
       lsp.definition(String(file), Number(line), Number(character));
     table[IPC.LspDiagnostics] = () => lsp.diagnostics();
+  }
+
+  // ---- Git 版本控制（迭代 32 / AC41）：未接线时抛明确错误码（白名单通道恒在表内）----
+  if (git === undefined) {
+    const notWired = (): never => {
+      throw new Error(GIT_NOT_WIRED);
+    };
+    table[IPC.GitGetStatus] = notWired;
+    table[IPC.GitDiff] = notWired;
+    table[IPC.GitStage] = notWired;
+    table[IPC.GitUnstage] = notWired;
+    table[IPC.GitCommit] = notWired;
+  } else {
+    table[IPC.GitGetStatus] = () => git.status();
+    table[IPC.GitDiff] = (_e, file) => git.diffTexts(String(file));
+    table[IPC.GitStage] = async (_e, file) => {
+      await git.stage(String(file));
+    };
+    table[IPC.GitUnstage] = async (_e, file) => {
+      await git.unstage(String(file));
+    };
+    table[IPC.GitCommit] = async (_e, message) => {
+      await git.commit(String(message));
+    };
   }
 
   registerAiIpc(table, ai, services, hooks);
@@ -423,11 +461,13 @@ export interface RegisterIpcDeps {
   update?: UpdateIpcDeps;
   /** 生产环境注入 LspService；缺省则 lsp 通道抛未接线错误。 */
   lsp?: LspIpcService;
+  /** 生产环境注入 GitMainService；缺省则 git 通道抛未接线错误。 */
+  git?: GitIpcService;
 }
 
 /** 注册全部 IPC handler 与主→渲染事件转发。 */
 export function registerIpcHandlers(deps: RegisterIpcDeps): void {
-  const table = buildHandlerTable(deps.services, deps.hooks, deps.ai, deps.update, deps.lsp);
+  const table = buildHandlerTable(deps.services, deps.hooks, deps.ai, deps.update, deps.lsp, deps.git);
   for (const [channel, handler] of Object.entries(table)) {
     deps.ipcMain.handle(channel, handler);
   }

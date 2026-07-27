@@ -1,6 +1,6 @@
 {
   "steps": [
-    "本地端点就绪 http://127.0.0.1:52699/v1（/models + /chat/completions，记录 authorization 头）",
+    "本地端点就绪 http://127.0.0.1:54913/v1（/models + /chat/completions，记录 authorization 头）",
     "首启向导自动弹出：标题 + 三步进度指示就绪",
     "语言步：English 热生效（截图 01）→ 切回中文并持久化",
     "模型步：默认 Ollama + 改指本地端点 + 探测成功自动填型号（截图 02），零 authorization 头",
@@ -22,7 +22,7 @@
     "datalist 应回填 2 个真实型号（实际: 2）",
     "keyless 探测不应携带 authorization 头: [{\"method\":\"GET\",\"url\":\"/v1/models\",\"authorization\":null}]",
     "保存后应有 1 个 provider（实际: 1）",
-    "provider 持久化应为 keyless + 本地端点 + qwen3:8b（实际: {\"id\":\"p-ms2r9mzz\",\"type\":\"openai\",\"label\":\"Ollama\",\"baseUrl\":\"http://127.0.0.1:52699/v1\",\"model\":\"qwen3:8b\",\"credentialRef\":\"cred-p-ms2r9mzz\",\"maxTokens\":4096,\"keyless\":true}）",
+    "provider 持久化应为 keyless + 本地端点 + qwen3:8b（实际: {\"id\":\"p-ms301gfe\",\"type\":\"openai\",\"label\":\"Ollama\",\"baseUrl\":\"http://127.0.0.1:54913/v1\",\"model\":\"qwen3:8b\",\"credentialRef\":\"cred-p-ms301gfe\",\"maxTokens\":4096,\"keyless\":true}）",
     "keyless 保存不应写入任何凭证",
     "打开文件夹后向导应关闭",
     "向导配置的 provider 对话不应携带 authorization 头: [{\"method\":\"POST\",\"url\":\"/v1/chat/completions\",\"authorization\":null}]",

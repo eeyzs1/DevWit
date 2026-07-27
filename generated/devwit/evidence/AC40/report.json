@@ -22,7 +22,7 @@
     "编辑后应推送第二条错误（未保存缓冲区参与分析）",
     "新错误应在第 4 行（实际行集: 3/4）",
     "状态栏应更新为 ✕ 2（实际: \"✕ 2  ⚠ 0\"）",
-    "Ctrl+Click 后应跳转到 math.ts（活动文件: C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-verify-i31-4uaXYN/math.ts）",
+    "Ctrl+Click 后应跳转到 math.ts（活动文件: C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-verify-i31-DRoCjj/math.ts）",
     "跳转落点光标应在第 0 行（add 定义处，实际: {\"line\":0,\"character\":16}）",
     "切回 main.ts 后其诊断仍在（缓冲区 didOpen 重放）"
   ],

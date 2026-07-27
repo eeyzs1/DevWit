@@ -1,0 +1,31 @@
+{
+  "steps": [
+    "应用启动 + git fixture 工作区打开（hello.ts 修改 / new-file.ts 未跟踪）",
+    "状态栏：⑂ main ✚2（1 修改 + 1 未跟踪）",
+    "文件树徽章：hello.ts → M（截图 01）",
+    "Git 面板：变更/未跟踪分组 + 分支头（截图 02）",
+    "只读 diff 视图：HEAD ↔ 工作区，删除/新增行硬断言（截图 03）",
+    "暂存：UI 分组迁移 + git CLI 事实一致（截图 04）",
+    "提交：真实 commit 落盘（git log 硬断言）+ 状态栏 ✚2→✚1（截图 05）"
+  ],
+  "assertions": [
+    "状态栏应显示 git 分支（非 git 工作区应为空）",
+    "分支应为 main（实际: \"⑂ main  ✚2\"）",
+    "状态栏应显示变更计数 ✚2（实际: \"⑂ main  ✚2\"）",
+    "hello.ts 文件树徽章应为 M（实际: \"M\"）",
+    "应有「变更 (1)」分组（实际: [\"变更 (1)\",\"未跟踪 (1)\"]）",
+    "应有「未跟踪 (1)」分组（实际: [\"变更 (1)\",\"未跟踪 (1)\"]）",
+    "面板头部应显示分支 main（实际: \"⑂ main\"）",
+    "diff 标题应含 hello.ts（实际: \"hello.ts（HEAD ↔ 工作区）关闭\"）",
+    "diff 应含删除行（world，实际: [\"- export const hello = 'world';\"]）",
+    "diff 应含新增行（devwit，实际: [\"+ export const hello = 'devwit';\",\"+ export const v = 2;\"]）",
+    "暂存后应出现「已暂存 (1)」分组（实际: [\"已暂存 (1)\",\"未跟踪 (1)\"]）",
+    "hello.ts 应入 index（porcelain: \"M  hello.ts\\n?? new-file.ts\\n\"）",
+    "提交后已暂存分组应消失",
+    "提交后状态栏应为 ✚1（剩未跟踪，实际: \"⑂ main  ✚1\"）",
+    "git log 应含新提交（实际: \"9460d27 e2e: stage hello\\n\"）"
+  ],
+  "failures": [],
+  "fatal": null,
+  "ok": true
+}

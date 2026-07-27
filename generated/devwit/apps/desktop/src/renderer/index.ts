@@ -5,7 +5,7 @@
  * 全部界面文案经 @devwit/i18n 词典渲染；启动时从 settings "ui.locale" 恢复语言，
  * 订阅 onDidChangeLocale 全量重写静态文案与动态列表（语言热生效）。
  */
-import type { DevwitApi, LspDiagnosticItem, LspStatusInfo, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
+import type { DevwitApi, GitPanelStatus, LspDiagnosticItem, LspStatusInfo, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, resolveSystemLocale, setLocale, t, ta, type Locale } from "@devwit/i18n";
 import { TextDocument } from "@devwit/editor-core";
 import { EditorView, normalizeSelection } from "@devwit/editor-render";
@@ -14,6 +14,7 @@ import {
   ContextPanelController,
   DiffController,
   TaskCenter,
+  computeDiff,
   extractEditProposal,
   mountActivityStream,
   mountChatPanel,
@@ -122,6 +123,27 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   ide.append(sidebar, editorArea, side);
   main.appendChild(ide);
 
+  // 左栏双页签（AC41）：文件树 | Git 面板，各自 DOM 保持（切页签不重建树）
+  const leftTabs = el("div", "dw-tabs dw-left-tabs");
+  const filesTab = el("div", "dw-tab dw-tab-active", t("tab.files"));
+  const gitTab = el("div", "dw-tab", t("tab.git"));
+  leftTabs.append(filesTab, gitTab);
+  const filesPane = el("div", "dw-left-pane");
+  const gitPane = el("div", "dw-left-pane dw-git");
+  gitPane.style.display = "none";
+  sidebar.append(leftTabs, filesPane, gitPane);
+  function activateLeftTab(active: "files" | "git"): void {
+    filesTab.classList.toggle("dw-tab-active", active === "files");
+    gitTab.classList.toggle("dw-tab-active", active === "git");
+    filesPane.style.display = active === "files" ? "" : "none";
+    gitPane.style.display = active === "git" ? "flex" : "none";
+  }
+  filesTab.addEventListener("click", () => activateLeftTab("files"));
+  gitTab.addEventListener("click", () => {
+    activateLeftTab("git");
+    void refreshGit(); // 切到面板即取最新（外部 git 操作可能绕过 watcher）
+  });
+
   // 指挥台形态（AC9：任务列表 | Agent 活动流 | 工作区视图）
   const consoleRoot = el("div", "dw-console");
   consoleRoot.style.display = "none";
@@ -148,9 +170,11 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   const statusMessage = el("span", "dw-status-message");
   // LSP 代码智能（AC40）：服务状态 + 诊断计数（error ✕ / warning ⚠）
   const statusLsp = el("span", "dw-status-lsp");
+  // Git 版本控制（AC41）：分支 + 变更计数（非 git 工作区不显示）
+  const statusGit = el("span", "dw-status-git");
   // 更新提示区（AC16）：ready 状态常驻「重启更新」按钮，其余状态走瞬态提示
   const updateBox = el("span", "dw-update");
-  statusbar.append(statusWorkspace, statusDirty, statusMessage, statusLsp, updateBox);
+  statusbar.append(statusWorkspace, statusDirty, statusMessage, statusLsp, statusGit, updateBox);
   // 瞬态提示只进状态栏：活动文件标签始终显示当前文件，不被临时文案覆盖
   function showStatus(message: string): void {
     statusMessage.textContent = message;
@@ -444,6 +468,207 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     applyEditorDiagnostics();
   });
 
+  // ---- Git 版本控制（迭代 32 / AC41）：面板 / 状态栏 / 只读 diff 视图 ----
+  let gitStatus: GitPanelStatus | null = null;
+  let gitDiffOverlay: HTMLElement | null = null;
+  let gitDiffTitleSpan: HTMLElement | null = null;
+  let gitDiffFile: string | null = null;
+
+  /** 状态栏 git 项：branch 常驻（git 工作区），变更计数 >0 时追加。 */
+  function renderGitStatus(): void {
+    if (gitStatus === null || workspaceRoot === "") {
+      statusGit.textContent = "";
+      return;
+    }
+    const count = gitStatus.staged.length + gitStatus.unstaged.length + gitStatus.untracked.length;
+    statusGit.textContent =
+      count === 0 ? `⑂ ${gitStatus.branch}` : t("status.git", { branch: gitStatus.branch, count: String(count) });
+  }
+
+  /** 徽章字母：untracked 的 "?" 统一显示为 U（与 VS Code 同口径）。 */
+  function gitBadgeLetter(status: string): string {
+    return status === "?" ? "U" : status;
+  }
+
+  function renderGitGroup(
+    parent: HTMLElement,
+    title: string,
+    items: Array<{ path: string; status: string }>,
+    action: "stage" | "unstage"
+  ): void {
+    if (items.length === 0) return;
+    const group = el("div", "dw-git-group");
+    group.appendChild(el("div", "dw-git-group-title", `${title} (${items.length})`));
+    for (const item of items) {
+      const row = el("div", "dw-git-row");
+      const badge = el("span", `dw-git-badge dw-git-badge-${gitBadgeLetter(item.status)}`, gitBadgeLetter(item.status));
+      const name = el("span", "dw-git-path", item.path);
+      name.title = item.path;
+      const actionBtn = el("button", "dw-git-action", action === "stage" ? "+" : "−");
+      actionBtn.title = t(action === "stage" ? "git.stage" : "git.unstage");
+      actionBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        void (action === "stage" ? doGitOp(() => api.git.stage(item.path)) : doGitOp(() => api.git.unstage(item.path)));
+      });
+      row.append(badge, name, actionBtn);
+      row.addEventListener("click", () => void openGitDiff(item.path));
+      group.appendChild(row);
+    }
+    parent.appendChild(group);
+  }
+
+  /** stage/unstage 操作统一入口：失败本地化提示；成功由 git:changed 推送刷新面板。 */
+  async function doGitOp(op: () => Promise<void>): Promise<void> {
+    try {
+      await op();
+    } catch (error) {
+      showStatus(toLocalError(error instanceof Error ? error.message : String(error)));
+    }
+  }
+
+  function renderGitPanel(): void {
+    gitPane.textContent = "";
+    const head = el("div", "dw-git-head");
+    head.append(
+      el("span", "dw-git-branch", gitStatus !== null && workspaceRoot !== "" ? `⑂ ${gitStatus.branch}` : ""),
+    );
+    const refreshBtn = el("button", "dw-btn dw-btn-small", t("git.refresh"));
+    refreshBtn.addEventListener("click", () => void refreshGit());
+    head.appendChild(refreshBtn);
+    gitPane.appendChild(head);
+
+    if (workspaceRoot === "" || gitStatus === null) {
+      gitPane.appendChild(el("div", "dw-sidebar-empty", t("git.notRepo")));
+      return;
+    }
+    const body = el("div", "dw-git-body");
+    gitPane.appendChild(body);
+    const total = gitStatus.staged.length + gitStatus.unstaged.length + gitStatus.untracked.length;
+    if (total === 0) {
+      body.appendChild(el("div", "dw-sidebar-empty", t("git.clean")));
+    }
+    renderGitGroup(body, t("git.staged"), gitStatus.staged, "unstage");
+    renderGitGroup(body, t("git.changes"), gitStatus.unstaged, "stage");
+    renderGitGroup(body, t("git.untracked"), gitStatus.untracked, "stage");
+
+    const foot = el("div", "dw-git-foot");
+    const commitInput = el("input", "dw-git-commit-input");
+    commitInput.placeholder = t("git.commitPlaceholder");
+    const commitBtn = el("button", "dw-btn dw-btn-small dw-btn-primary", t("git.commit"));
+    commitBtn.disabled = gitStatus.staged.length === 0;
+    const doCommit = async (): Promise<void> => {
+      const message = commitInput.value.trim();
+      if (message === "") return;
+      commitBtn.disabled = true;
+      try {
+        await api.git.commit(message);
+        commitInput.value = "";
+        showStatus(t("git.commitDone"));
+      } catch (error) {
+        showStatus(toLocalError(error instanceof Error ? error.message : String(error)));
+        commitBtn.disabled = false;
+      }
+    };
+    commitBtn.addEventListener("click", () => void doCommit());
+    commitInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") void doCommit();
+    });
+    foot.append(commitInput, commitBtn);
+    gitPane.appendChild(foot);
+  }
+
+  /** 只读 git diff 视图（HEAD ↔ 工作区）：复用 dw-diff 样式与 computeDiff 纯逻辑，无接受/拒绝语义。 */
+  async function openGitDiff(relPath: string): Promise<void> {
+    closeGitDiff();
+    let texts: { original: string; modified: string };
+    try {
+      texts = await api.git.diff(relPath);
+    } catch (error) {
+      showStatus(toLocalError(error instanceof Error ? error.message : String(error)));
+      return;
+    }
+    const computation = computeDiff(texts.original, texts.modified);
+    gitDiffFile = relPath;
+    gitDiffOverlay = el("div", "dw-diff-overlay");
+    const box = el("div", "dw-diff");
+    const header = el("div", "dw-diff-header");
+    gitDiffTitleSpan = el("span", undefined, t("git.diffTitle", { file: relPath }));
+    const closeBtn = el("button", "dw-btn dw-btn-small", t("git.diffClose"));
+    closeBtn.addEventListener("click", closeGitDiff);
+    header.append(gitDiffTitleSpan, closeBtn);
+    const body = el("div", "dw-diff-body");
+    for (const segment of computation.segments) {
+      if (segment.kind === "context") {
+        for (const text of segment.lines) {
+          body.appendChild(el("div", "dw-diff-line dw-diff-context", `  ${text}`));
+        }
+      } else {
+        for (const line of segment.hunk.lines) {
+          body.appendChild(
+            el(
+              "div",
+              line.kind === "add" ? "dw-diff-line dw-diff-add" : "dw-diff-line dw-diff-remove",
+              `${line.kind === "add" ? "+" : "-"} ${line.text}`
+            )
+          );
+        }
+      }
+    }
+    box.append(header, body);
+    gitDiffOverlay.appendChild(box);
+    editorArea.appendChild(gitDiffOverlay);
+  }
+  function closeGitDiff(): void {
+    gitDiffOverlay?.remove();
+    gitDiffOverlay = null;
+    gitDiffTitleSpan = null;
+    gitDiffFile = null;
+  }
+
+  function applyGitStatus(status: GitPanelStatus | null): void {
+    gitStatus = status;
+    renderGitStatus();
+    renderGitPanel();
+    updateTreeBadges();
+  }
+
+  /** 文件树徽章（AC41）：工作区相对路径 → 状态字母；工作区文件覆盖暂存同名项。 */
+  function updateTreeBadges(): void {
+    const map = new Map<string, string>();
+    if (gitStatus !== null && workspaceRoot !== "") {
+      for (const item of gitStatus.staged) map.set(item.path, gitBadgeLetter(item.status));
+      for (const item of gitStatus.untracked) map.set(item.path, gitBadgeLetter(item.status));
+      for (const item of gitStatus.unstaged) map.set(item.path, gitBadgeLetter(item.status));
+    }
+    for (const node of filesPane.querySelectorAll<HTMLElement>(".dw-tree-node")) {
+      const badge = node.querySelector<HTMLElement>(".dw-tree-badge");
+      const path = node.dataset["path"];
+      if (badge === null || path === undefined) continue;
+      const letter = map.get(relPathOf(path));
+      if (letter === undefined) {
+        badge.textContent = "";
+        badge.className = "dw-tree-badge";
+      } else {
+        badge.textContent = letter;
+        badge.className = `dw-tree-badge dw-git-badge-${letter}`;
+      }
+    }
+  }
+  async function refreshGit(): Promise<void> {
+    if (workspaceRoot === "") {
+      applyGitStatus(null);
+      return;
+    }
+    applyGitStatus(await api.git.getStatus());
+  }
+  api.git.onChanged(applyGitStatus);
+  // 工作区文件事件防抖联动（编辑器保存/外部改动经 watcher 推送，800ms 合并突发写入）
+  let gitRefreshTimer: number | undefined;
+  api.workspace.onEvent(() => {
+    window.clearTimeout(gitRefreshTimer);
+    gitRefreshTimer = window.setTimeout(() => void refreshGit(), 800);
+  });
+
   // ---- 首次使用引导（AC11）：未打开工作区时主区显示三步引导 ----
   const onboarding = el("div", "dw-onboarding");
   function buildOnboarding(): void {
@@ -495,6 +720,8 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     label.dataset["path"] = node.path;
     label.title = node.path;
     if (node.type === "file") {
+      // Git 徽章占位（AC41）：内容由 updateTreeBadges 按最新 status 填充
+      label.appendChild(el("span", "dw-tree-badge"));
       label.addEventListener("click", () => void openFileByPath(node.path));
       const externalLink = el("button", "dw-tree-external", "↗");
       externalLink.title = t("tree.external");
@@ -529,13 +756,16 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     taskCenter.setWorkspaceRoot(root);
     refreshOnboarding();
     statusWorkspace.textContent = root;
-    sidebar.textContent = "";
+    filesPane.textContent = "";
     const tree = (await api.workspace.tree(root)) as TreeNode;
     workspaceFiles = [];
     flattenTreeFiles(tree, root, workspaceFiles);
     const ul = el("ul", "dw-tree");
     for (const child of tree.children ?? []) renderTree(child, ul);
-    sidebar.appendChild(ul);
+    filesPane.appendChild(ul);
+    // 树重建后回填徽章（git:changed 可能先于树到达）；并主动拉一次最新状态
+    updateTreeBadges();
+    void refreshGit();
   }
 
   async function openWorkspace(): Promise<void> {
@@ -545,7 +775,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     schedulePersist();
   }
   openBtn.addEventListener("click", () => void openWorkspace());
-  sidebar.appendChild(el("div", "dw-sidebar-empty", t("sidebar.empty")));
+  filesPane.appendChild(el("div", "dw-sidebar-empty", t("sidebar.empty")));
 
   // ---- 右侧栏：对话 / 会话 / 上下文 / 轨迹 四个页签 ----
   const tabs = el("div", "dw-tabs");
@@ -986,8 +1216,8 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     if (workspaceRoot === "") statusWorkspace.textContent = t("status.noWorkspace");
     refreshDirty();
     if (workspaceRoot === "") {
-      sidebar.textContent = "";
-      sidebar.appendChild(el("div", "dw-sidebar-empty", t("sidebar.empty")));
+      filesPane.textContent = "";
+      filesPane.appendChild(el("div", "dw-sidebar-empty", t("sidebar.empty")));
     } else {
       // 文件树 ↗ 按钮 tooltip 随语言更新（树本身不重建，保留展开/选中状态）
       for (const btn of sidebar.querySelectorAll<HTMLElement>(".dw-tree-external")) {
@@ -998,6 +1228,14 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     sessionsTab.textContent = t("tab.sessions");
     contextTab.textContent = t("tab.context");
     traceTab.textContent = t("tab.trace");
+    filesTab.textContent = t("tab.files");
+    gitTab.textContent = t("tab.git");
+    renderGitStatus();
+    renderGitPanel();
+    // 打开中的 git diff 标题随语言热生效
+    if (gitDiffFile !== null && gitDiffTitleSpan !== null) {
+      gitDiffTitleSpan.textContent = t("git.diffTitle", { file: gitDiffFile });
+    }
     codeTab.textContent = t("tab.code");
     diffTab.textContent = t("tab.diff");
     taskColTitle.textContent = t("console.tasks");

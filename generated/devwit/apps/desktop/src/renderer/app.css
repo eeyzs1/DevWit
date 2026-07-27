@@ -707,13 +707,14 @@ body,
   font-size: 12px;
 }
 
-/* ---- 侧栏：文件树 ---- */
+/* ---- 侧栏：文件树 / Git 双页签（AC41）---- */
 .dw-sidebar {
   grid-area: sidebar;
   background: var(--dw-bg-panel);
   border-right: 1px solid var(--dw-border);
-  overflow: auto;
-  padding: 6px 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .dw-tree,
@@ -1258,6 +1259,151 @@ body,
   white-space: pre-wrap;
   word-break: break-word;
   pointer-events: none; /* 不拦截鼠标——浮层纯展示，移动即关 */
+}
+
+/* ---- Git 版本控制（AC41）---- */
+.dw-left-tabs {
+  flex-shrink: 0;
+}
+
+.dw-left-pane {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.dw-status-git {
+  flex-shrink: 0;
+  color: var(--dw-fg-dim);
+}
+
+.dw-git {
+  padding: 0;
+}
+
+.dw-git-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--dw-border);
+  flex-shrink: 0;
+}
+
+.dw-git-branch {
+  flex: 1;
+  color: var(--dw-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dw-git-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.dw-git-group-title {
+  padding: 6px 10px 2px;
+  color: var(--dw-fg-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dw-git-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  cursor: pointer;
+  color: var(--dw-fg-dim);
+}
+
+.dw-git-row:hover {
+  background: var(--dw-bg-elevated);
+  color: var(--dw-fg);
+}
+
+.dw-git-path {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dw-git-action {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--dw-border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--dw-fg-dim);
+  cursor: pointer;
+  line-height: 1;
+  opacity: 0;
+}
+
+.dw-git-row:hover .dw-git-action {
+  opacity: 1;
+}
+
+.dw-git-action:hover {
+  color: var(--dw-accent);
+  border-color: var(--dw-accent);
+}
+
+.dw-git-badge,
+.dw-tree-badge {
+  flex-shrink: 0;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  width: 14px;
+  text-align: center;
+}
+
+.dw-git-badge-M,
+.dw-git-badge-R,
+.dw-git-badge-C {
+  color: var(--dw-add-fg);
+}
+
+.dw-git-badge-A,
+.dw-git-badge-U {
+  color: var(--dw-accent);
+}
+
+.dw-git-badge-D {
+  color: var(--dw-danger);
+}
+
+.dw-git-foot {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--dw-border);
+  flex-shrink: 0;
+}
+
+.dw-git-commit-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  background: var(--dw-bg);
+  border: 1px solid var(--dw-border);
+  border-radius: 3px;
+  color: var(--dw-fg);
+}
+
+.dw-git-commit-input:focus {
+  outline: none;
+  border-color: var(--dw-accent);
 }
 
 /* ---- 自动更新（AC16）---- */
