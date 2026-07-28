@@ -51,7 +51,23 @@ jobs:
           if (!(Test-Path node_modules/electron/dist/electron.exe)) { Write-Error "electron.exe 仍缺失"; exit 1 }
           Write-Host "electron $ver 二进制就绪"
 
+      # Azure Trusted Signing（P0 信任基建）：仓库 Variables AZURE_SIGN_ENABLED=true 时
+      # 注入 azureSignOptions（账户元数据走 Variables，证书公开信息非密）；未启用即跳过，
+      # 构建保持未签名现状。认证三要素走 Secrets，由下方 dist 步骤 env 透传。
+      - name: Enable Azure Trusted Signing (if configured)
+        if: vars.AZURE_SIGN_ENABLED == 'true'
+        env:
+          AZURE_SIGN_PUBLISHER: ${{ vars.AZURE_SIGN_PUBLISHER }}
+          AZURE_SIGN_ENDPOINT: ${{ vars.AZURE_SIGN_ENDPOINT }}
+          AZURE_SIGN_ACCOUNT: ${{ vars.AZURE_SIGN_ACCOUNT }}
+          AZURE_SIGN_PROFILE: ${{ vars.AZURE_SIGN_PROFILE }}
+        run: node scripts/enable-azure-signing.mjs
+
       - name: Build NSIS installer + portable
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: npm run dist
 
       - name: Publish GitHub Release

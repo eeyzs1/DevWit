@@ -24,6 +24,9 @@ electronDist: node_modules/electron/dist
 win:
   target:
     - nsis
+  # Azure Trusted Signing（P0 信任基建）：azureSignOptions 不落盘仓库，
+  # 由 CI（release.yml，vars.AZURE_SIGN_ENABLED=true 门控）经 scripts/enable-azure-signing.mjs 注入；
+  # 未启用时 electron-builder 找不到签名配置自动跳过签名，保持现状。
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true

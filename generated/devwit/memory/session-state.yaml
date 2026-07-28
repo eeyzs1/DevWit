@@ -638,5 +638,20 @@ iteration_33:
     verifier: 构建 PASS + eslint PASS + vitest 614/614（67 文件）+ 全量回归 28 套全 PASS（smoke/iteration2/i4/i6~i8/i10~i26/i29/i30/i31/i32/i33）+ evidence/AC42/report.json + pack 产物目检 app.asar.unpacked/vendor/js-debug 完整落包（dapDebugServer.js + bootloader + hash/wasm 运行时依赖）
   notes: js-debug 不在 npm 注册表（微软仅发 GitHub release tarball），vendor 钉版 v1.102.0 保离线可复现；首迭代仅 JS/TS（pwa-node），其他语言复用同一 DapClient 后续迭代扩展；调试启动=用户直接动作不经授权门（与保存/提交同语义）。收口补录（架构级）：① 弃用 js-debug launch 改 attach 模式——launch 硬编码删除 ELECTRON_RUN_AS_NODE（dapDebugServer.js 内 env 注入 null），Electron 被调试进程误入 GUI 模式永不退出、terminated 永不到达；attach 模式被调试进程由 JsDebugSession 直接 spawn 持有（--inspect-brk 停入口零竞态，env 全控 ELECTRON_RUN_AS_NODE=1），stdout/stderr 管道直挂 onOutput（不经 DAP 转述零重复），close 事件=terminated 唯一权威来源；② dapDebugServer 是伴随会话模型——C1 根连接 initialize→attach→configurationDone 仅作引导，收 startDebugging 反向请求后开 C2 伴随连接（同服务器第二 socket）跑真实会话，断点/栈/变量/步进/求值全在 C2；③ entry pause 兜底——探针实测 js-debug 对 configurationDone 后到达的 --inspect-brk break-on-start 暂停不自 resume（无断点路径上报 stopped reason=pause 悬挂），客户端兜底：启动后首个 stopped 若 reason=pause 自动 continue（debugger 语句 reason=debugger statement 不误伤）；④ evaluate 缺省 frameId 取栈顶帧（js-debug 对无帧 repl 求值直接拒答）
   e2e_report: evidence/AC42/report.json (15 断言全 PASS)
+growth_launch_1:
+  scope: 增长执行（P0 信任基建 + P0 定位与首发）——签名 CI 门控落地 + 首发素材包 + 用户注册清单
+  release_status_verified: 'v0.3.0 = Latest（非 prerelease/draft），12 资产，published 2026-07-26T12:40:15Z；downloads=2（2026-07-28 gh api 核实，发布刚起步）；winget PR microsoft/winget-pkgs#407506 OPEN，license/cla SUCCESS，待 moderator 审批'
+  signing_infra:
+    - scripts/enable-azure-signing.mjs：CI 辅助，读 AZURE_SIGN_PUBLISHER/ENDPOINT/ACCOUNT/PROFILE 四元数据注入 electron-builder.yml azureSignOptions（缺变量拒答 DW_SIGN_ENV_MISSING；delete signtoolOptions 守互斥约束）
+    - release.yml build-windows 新增门控步骤（if: vars.AZURE_SIGN_ENABLED == 'true'）+ dist 步骤 env 透传 AZURE_TENANT_ID/CLIENT_ID/CLIENT_SECRET（secrets）；未启用即跳过，构建保持未签名现状零行为变化
+    - electron-builder.yml 不落盘签名配置（注释说明门控机制）；electron-builder 25.1.8 已原生支持 azureSignOptions 无需升级
+    - 验证：本地 dummy env 注入→js-yaml 结构断言 INJECT_OK→恢复后 RESTORE_OK（committed yml 无 azureSignOptions）；release.yml 门控表达式 + vars/secrets 接线逐项断言 RELEASE_YML_OK
+  signing_eligibility_finding: '关键修正（Microsoft Learn 2026-07 核实）：Azure Artifact Signing（原 Trusted Signing）公共信任证书——个人开发者仅限美国/加拿大，组织限美/加/欧盟/英且需 3 年税务记录。中国个人开发者不可用，原 Azure 选型不适用。主路径转 SignPath Foundation（OSS 免费、全球可申请、与免费软件定位契合，审核数天到数周）；Certum OV 证书（~€100/年、全球个人可申请）付费兜底；Azure CI 门控保留，资格放宽即开即用。另核实：除 Microsoft Store MSIX 外任何签名方案 SmartScreen 信誉均需积累，初期警告不可避免（签名价值=身份可验证+防篡改）'
+  launch_assets:
+    - distribution/launch/product-hunt.md——tagline（60 字符主选+2 备选）/description（244 字符）/first comment/topics/gallery 规格（1270×760，复用 docs/screenshots 六图定顺序）/排期建议（周二至周四 00:01 PT）
+    - distribution/launch/blog-devto-en.md——英文发布博客（dev.to front matter 齐备，published:false 待账号）
+    - distribution/launch/blog-juejin-zh.md——掘金中文版（非直译，按中文读者重组织）
+    - distribution/launch/signup-checklist.md——七平台注册清单（SignPath/PH/PostHog/dev.to/掘金/B站/winget 在途），含 GitHub Variables/Secrets 精确键名与建议执行顺序（SignPath 审核周期最长先排队 → 三平台同日首发 → PostHog → B站）
+  next: 用户注册 SignPath Foundation（先排队）→ Product Hunt + dev.to + 掘金同日三连发（素材齐备只欠账号）→ PostHog key 接入遥测端点 → B站专栏跟进；SignPath API token 到手后接入 release.yml 自定义签名钩子
 status: complete
-updated_at: '2026-07-28T03:45:00.000000'
+updated_at: '2026-07-28T09:30:00.000000'
