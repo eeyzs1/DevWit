@@ -65,7 +65,8 @@ WAIVER_MARKER = "qg-allow"
 # 配置文件（*.config.*）是此类字面量的正当归宿，不做 hardcoded_config 检查
 CONFIG_FILE_RE = re.compile(r'\.config\.[a-z]+$', re.IGNORECASE)
 
-SKIP_DIRS = {".git", "node_modules", "__pycache__", "venv", ".venv", "dist", "build", ".next", "generated", "tests", "test", "spec", "release"}
+# vendor/ 为钉版第三方发行代码（js-debug 等，字节级固定不可改），与 node_modules 同口径排除
+SKIP_DIRS = {".git", "node_modules", "__pycache__", "venv", ".venv", "dist", "build", ".next", "generated", "tests", "test", "spec", "release", "vendor"}
 # 统计测试文件时不能跳过测试目录本身，只跳过依赖/产物目录
 COUNT_SKIP_DIRS = SKIP_DIRS - {"tests", "test", "spec"}
 CODE_EXTENSIONS = {".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs", ".java", ".kt", ".swift", ".rb"}

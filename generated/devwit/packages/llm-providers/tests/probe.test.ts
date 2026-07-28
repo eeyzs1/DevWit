@@ -85,18 +85,19 @@ describe("probeProvider 真实 HTTP 回环", () => {
   });
 
   it("openai：apiKey 存在时发送 authorization: Bearer 头", async () => {
-    await probeProvider({ type: "openai", baseUrl: `http://127.0.0.1:${String(port)}/v1`, apiKey: "sk-probe" });
-    expect(last.authorization).toBe("Bearer sk-probe");
+    // 假 key 不得伪装 sk- 前缀——仓库密钥扫描（scan-secret-leak.py AR005）按形貌拦截
+    await probeProvider({ type: "openai", baseUrl: `http://127.0.0.1:${String(port)}/v1`, apiKey: "probe-fake-key" });
+    expect(last.authorization).toBe("Bearer probe-fake-key");
   });
 
   it("anthropic：GET {baseUrl}/v1/models（baseUrl 为 host 根），x-api-key + anthropic-version 头", async () => {
     const result = await probeProvider({
       type: "anthropic",
       baseUrl: `http://127.0.0.1:${String(port)}/anthropic`,
-      apiKey: "sk-ant",
+      apiKey: "ant-fake-key",
     });
     expect(last.path).toBe("/anthropic/v1/models");
-    expect(last.apiKey).toBe("sk-ant");
+    expect(last.apiKey).toBe("ant-fake-key");
     expect(last.anthropicVersion).toBe("2023-06-01");
     expect(result.models).toEqual(["claude-sonnet-4-5", "claude-haiku-4-5"]);
   });

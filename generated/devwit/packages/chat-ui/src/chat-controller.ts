@@ -322,7 +322,7 @@ export class ChatController {
           routed: typeof detail?.routed === "string" ? detail.routed : "disabled",
           providerId: typeof detail?.providerId === "string" ? detail.providerId : "",
           score: typeof detail?.score === "number" ? detail.score : 0,
-          threshold: typeof detail?.threshold === "number" ? detail.threshold : 0,
+          threshold: typeof detail?.threshold === "number" ? detail.threshold : 0, // qg-allow: 事件反序列化缺省回退（非调参常量）
         });
         break;
       }
@@ -352,7 +352,7 @@ export class ChatController {
             modeId: detail.modeId,
             currentModeId: typeof detail.currentModeId === "string" ? detail.currentModeId : "",
             intent: typeof detail.intent === "string" ? detail.intent : "",
-            successRate: typeof detail.successRate === "number" ? detail.successRate : 0,
+            successRate: typeof detail.successRate === "number" ? detail.successRate : 0, // qg-allow: 事件反序列化缺省回退（非调参常量）
             currentSuccessRate: typeof detail.currentSuccessRate === "number" ? detail.currentSuccessRate : null,
             runs: typeof detail.runs === "number" ? detail.runs : 0,
           });

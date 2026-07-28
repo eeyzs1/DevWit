@@ -99,7 +99,7 @@ export function decideRoute(config: LocalRoutingConfig, input: RouteInput): Rout
 }
 
 /** settings 反序列化：非法/缺省回退（默认关、阈值 30）。 */
-export const DEFAULT_ROUTING: LocalRoutingConfig = { enabled: false, providerId: "", threshold: 30 };
+export const DEFAULT_ROUTING: LocalRoutingConfig = { enabled: false, providerId: "", threshold: 30 }; // qg-allow: 路由默认复杂度阈值，settings 可覆盖的导出常量
 
 export function parseRoutingConfig(stored: unknown): LocalRoutingConfig {
   if (typeof stored !== "object" || stored === null) return DEFAULT_ROUTING;

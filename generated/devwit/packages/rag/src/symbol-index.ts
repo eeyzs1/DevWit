@@ -95,7 +95,7 @@ export class SymbolIndex {
   }
 
   /** IPC 返回形状：索引状态 + 命中（indexing 时可为空数组，下拉给提示行）。 */
-  result(text: string, limit = 8): SymbolsQueryResult {
+  result(text: string, limit = 8): SymbolsQueryResult { // qg-allow: 候选下拉默认页大小，与 query() 同口径（调用方可覆盖）
     return { state: this.state, symbols: this.query(text, limit) };
   }
 

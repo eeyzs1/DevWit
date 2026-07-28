@@ -38,7 +38,7 @@ export interface CommandWhitelistStore {
   write(whitelist: string[], approvals: Record<string, number>): void;
 }
 
-export const DEFAULT_LEARNING: WhitelistLearningConfig = { enabled: true, threshold: 2 };
+export const DEFAULT_LEARNING: WhitelistLearningConfig = { enabled: true, threshold: 2 }; // qg-allow: 白名单毕业默认批准次数，settings 可覆盖的导出常量
 
 export class CommandWhitelistMemory implements AuthorizationMemory {
   constructor(
