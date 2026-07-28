@@ -1,0 +1,7 @@
+{
+  "name": "devwit-vendored-js-debug",
+  "private": true,
+  "version": "0.0.0",
+  "type": "commonjs",
+  "description": "Vendored Microsoft vscode-js-debug DAP adapter distribution (CJS bundle). This package.json only scopes CommonJS module interpretation away from the repo root ESM default."
+}

@@ -23,7 +23,7 @@
     "hello.ts 应入 index（porcelain: \"M  hello.ts\\n?? new-file.ts\\n\"）",
     "提交后已暂存分组应消失",
     "提交后状态栏应为 ✚1（剩未跟踪，实际: \"⑂ main  ✚1\"）",
-    "git log 应含新提交（实际: \"9460d27 e2e: stage hello\\n\"）"
+    "git log 应含新提交（实际: \"679f2b5 e2e: stage hello\\n\"）"
   ],
   "failures": [],
   "fatal": null,

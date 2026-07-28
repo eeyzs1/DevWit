@@ -865,6 +865,43 @@ export interface GitDiffTexts {
 }
 
 // ============================================================================
+// DAP 调试（迭代 33 / AC42）：js-debug 适配器 JS 断点调试
+// ============================================================================
+
+/**
+ * 调试状态机（debug:get-state 返回 + debug:state 推送载荷 + 状态栏展示）。
+ * file/line 仅在 stopped 时存在（file 为绝对路径，line 为 1-based 行）。
+ */
+export type DebugStateInfo =
+  | { state: "idle" }
+  | { state: "starting" }
+  | { state: "running" }
+  | { state: "stopped"; threadId: number; reason: string; file?: string; line?: number }
+  | { state: "terminated"; exitCode?: number };
+
+/** 调用栈帧（debug:stack 返回项）。file 为绝对路径（无源码帧缺省），line 1-based。 */
+export interface DebugStackFrameItem {
+  id: number;
+  name: string;
+  file?: string;
+  line: number;
+  column: number;
+}
+
+/** 作用域（debug:scopes 返回项；variablesReference 传给 debug:variables 展开）。 */
+export interface DebugScopeItem {
+  name: string;
+  variablesReference: number;
+}
+
+/** 变量（debug:variables / debug:evaluate 返回项；variablesReference > 0 可继续展开）。 */
+export interface DebugVariableItem {
+  name: string;
+  value: string;
+  variablesReference: number;
+}
+
+// ============================================================================
 // 终端（WU006）
 // ============================================================================
 
@@ -955,6 +992,19 @@ export const IPC = {
   GitUnstage: "git:unstage",
   GitCommit: "git:commit",
   GitChanged: "git:changed",
+  DebugStart: "debug:start",
+  DebugStop: "debug:stop",
+  DebugGetState: "debug:get-state",
+  DebugContinue: "debug:continue",
+  DebugNext: "debug:next",
+  DebugStepIn: "debug:step-in",
+  DebugStepOut: "debug:step-out",
+  DebugStack: "debug:stack",
+  DebugScopes: "debug:scopes",
+  DebugVariables: "debug:variables",
+  DebugEvaluate: "debug:evaluate",
+  DebugState: "debug:state",
+  DebugOutput: "debug:output",
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];
@@ -1052,6 +1102,38 @@ export interface DevwitApi {
     commit(message: string): Promise<void>;
     /** 订阅状态变化推送（操作后/工作区文件事件防抖刷新，载荷为全量快照；null=非 git 仓库）。 */
     onChanged(cb: (status: GitPanelStatus | null) => void): () => void;
+  };
+  /**
+   * DAP 调试（迭代 33 / AC42）：JS 文件断点调试（真实 js-debug 适配器，零系统依赖）。
+   * program 为入口文件绝对路径；breakpoints 为 绝对路径 → 1-based 行号集。
+   * 会话全局单例：start 冲突抛 DW_DAP_ALREADY_ACTIVE；步进/查询要求 stopped 态，
+   * 否则抛 DW_DAP_NOT_STOPPED；适配器/握手失败抛 DW_DAP_* ASCII 错误码
+   * （渲染端 localizeError 本地化）。
+   */
+  debug: {
+    /** 启动调试会话（完整握手后 resolve：程序在跑或已停首断点）。 */
+    start(program: string, breakpoints: Record<string, number[]>): Promise<void>;
+    /** 停止调试（disconnect + 强杀适配器服务器；幂等）。 */
+    stop(): Promise<void>;
+    /** 当前调试状态（状态栏轮询初态；之后靠 onState 推送）。 */
+    getState(): Promise<DebugStateInfo>;
+    /** 以下步进/查询方法要求 stopped 态。 */
+    continue(): Promise<void>;
+    next(): Promise<void>;
+    stepIn(): Promise<void>;
+    stepOut(): Promise<void>;
+    /** 调用栈（stopped 态）。 */
+    stack(): Promise<DebugStackFrameItem[]>;
+    /** 作用域列表（指定帧）。 */
+    scopes(frameId: number): Promise<DebugScopeItem[]>;
+    /** 变量列表（作用域或子对象引用）。 */
+    variables(reference: number): Promise<DebugVariableItem[]>;
+    /** 表达式求值（暂停上下文；frameId 缺省取栈顶）。 */
+    evaluate(expression: string, frameId?: number): Promise<DebugVariableItem>;
+    /** 订阅调试状态推送（idle/starting/running/stopped/terminated）。 */
+    onState(cb: (state: DebugStateInfo) => void): () => void;
+    /** 订阅被调试进程输出推送（console.log 等，category 为 DAP output category）。 */
+    onOutput(cb: (category: string, text: string) => void): () => void;
   };
   providers: {
     list(): Promise<ProviderConfig[]>;

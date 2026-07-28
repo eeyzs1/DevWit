@@ -1,6 +1,6 @@
 {
   "steps": [
-    "遥测接收端就绪 http://127.0.0.1:64415/telemetry（捕获全部 POST）",
+    "遥测接收端就绪 http://127.0.0.1:51804/telemetry（捕获全部 POST）",
     "默认关闭：新鲜 userData 启动 1.2s（4 个 flush 周期）接收端零请求",
     "遥测卡可见：标题/默认未勾选开关/端点输入/清单文案（截图 01）",
     "英文热切换：Anonymous telemetry / Never collects 文案（截图 02），切回中文",
@@ -17,7 +17,7 @@
     "英文清单文案缺席",
     "开启后应收到 telemetry_opt_in",
     "opt_in 载荷应仅五键（实际: event/installId/os/ts/version）",
-    "installId 应为 UUID（实际: 997668a5-3f24-4c0d-b217-d6302291b939）",
+    "installId 应为 UUID（实际: 03942755-347b-461a-a6af-3b47a545d690）",
     "version/os 应为非空字符串",
     "ts 应为 ISO 时间",
     "批量 POST 应打到配置的端点路径（实际: /telemetry）",
@@ -25,7 +25,7 @@
     "关闭后应静默（opt_out 后又有 0 条请求）",
     "重新开启应再次收到 telemetry_opt_in",
     "重启后应收到 app_start（开启状态持久化）",
-    "installId 跨重启应稳定（首次 997668a5-3f24-4c0d-b217-d6302291b939 / 重启 997668a5-3f24-4c0d-b217-d6302291b939）"
+    "installId 跨重启应稳定（首次 03942755-347b-461a-a6af-3b47a545d690 / 重启 03942755-347b-461a-a6af-3b47a545d690）"
   ],
   "failures": [],
   "fatal": null,

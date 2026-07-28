@@ -5,7 +5,7 @@
  * 全部界面文案经 @devwit/i18n 词典渲染；启动时从 settings "ui.locale" 恢复语言，
  * 订阅 onDidChangeLocale 全量重写静态文案与动态列表（语言热生效）。
  */
-import type { DevwitApi, GitPanelStatus, LspDiagnosticItem, LspStatusInfo, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
+import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitPanelStatus, LspDiagnosticItem, LspStatusInfo, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, resolveSystemLocale, setLocale, t, ta, type Locale } from "@devwit/i18n";
 import { TextDocument } from "@devwit/editor-core";
 import { EditorView, normalizeSelection } from "@devwit/editor-render";
@@ -123,26 +123,32 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   ide.append(sidebar, editorArea, side);
   main.appendChild(ide);
 
-  // 左栏双页签（AC41）：文件树 | Git 面板，各自 DOM 保持（切页签不重建树）
+  // 左栏三页签（AC41 文件/Git + AC42 调试）：各自 DOM 保持（切页签不重建树）
   const leftTabs = el("div", "dw-tabs dw-left-tabs");
   const filesTab = el("div", "dw-tab dw-tab-active", t("tab.files"));
   const gitTab = el("div", "dw-tab", t("tab.git"));
-  leftTabs.append(filesTab, gitTab);
+  const debugTab = el("div", "dw-tab", t("tab.debug"));
+  leftTabs.append(filesTab, gitTab, debugTab);
   const filesPane = el("div", "dw-left-pane");
   const gitPane = el("div", "dw-left-pane dw-git");
   gitPane.style.display = "none";
-  sidebar.append(leftTabs, filesPane, gitPane);
-  function activateLeftTab(active: "files" | "git"): void {
+  const debugPane = el("div", "dw-left-pane dw-debug");
+  debugPane.style.display = "none";
+  sidebar.append(leftTabs, filesPane, gitPane, debugPane);
+  function activateLeftTab(active: "files" | "git" | "debug"): void {
     filesTab.classList.toggle("dw-tab-active", active === "files");
     gitTab.classList.toggle("dw-tab-active", active === "git");
+    debugTab.classList.toggle("dw-tab-active", active === "debug");
     filesPane.style.display = active === "files" ? "" : "none";
     gitPane.style.display = active === "git" ? "flex" : "none";
+    debugPane.style.display = active === "debug" ? "flex" : "none";
   }
   filesTab.addEventListener("click", () => activateLeftTab("files"));
   gitTab.addEventListener("click", () => {
     activateLeftTab("git");
     void refreshGit(); // 切到面板即取最新（外部 git 操作可能绕过 watcher）
   });
+  debugTab.addEventListener("click", () => activateLeftTab("debug"));
 
   // 指挥台形态（AC9：任务列表 | Agent 活动流 | 工作区视图）
   const consoleRoot = el("div", "dw-console");
@@ -172,9 +178,11 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   const statusLsp = el("span", "dw-status-lsp");
   // Git 版本控制（AC41）：分支 + 变更计数（非 git 工作区不显示）
   const statusGit = el("span", "dw-status-git");
+  // DAP 调试（AC42）：调试状态（idle 不显示）
+  const statusDebug = el("span", "dw-status-debug");
   // 更新提示区（AC16）：ready 状态常驻「重启更新」按钮，其余状态走瞬态提示
   const updateBox = el("span", "dw-update");
-  statusbar.append(statusWorkspace, statusDirty, statusMessage, statusLsp, statusGit, updateBox);
+  statusbar.append(statusWorkspace, statusDirty, statusMessage, statusLsp, statusGit, statusDebug, updateBox);
   // 瞬态提示只进状态栏：活动文件标签始终显示当前文件，不被临时文案覆盖
   function showStatus(message: string): void {
     statusMessage.textContent = message;
@@ -328,6 +336,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       void api.lsp.didClose(relPathOf(openFile.path));
     }
     setActiveDoc({ path: filePath, doc });
+    syncEditorBreakpoints(); // 断点红点随文件切换重挂（AC42）
     if (workspaceRoot !== "") {
       syncOpenFileToLsp();
       doc.onDidChange(scheduleLspSync);
@@ -668,6 +677,349 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     window.clearTimeout(gitRefreshTimer);
     gitRefreshTimer = window.setTimeout(() => void refreshGit(), 800);
   });
+
+  // ---- DAP 调试（迭代 33 / AC42）：行号槽断点 + 调试工具栏 + 调用栈/变量面板 + 状态栏 ----
+  /** 断点：文件绝对路径 → 1-based 行号集（会话内有效；启动调试时全量下发）。 */
+  const breakpoints = new Map<string, Set<number>>();
+  let debugState: DebugStateInfo = { state: "idle" };
+  let debugFrames: DebugStackFrameItem[] = [];
+  let debugScopes: DebugScopeItem[] = [];
+  /** 变量树缓存：variablesReference → 已加载子项。 */
+  const debugVarCache = new Map<number, DebugVariableItem[]>();
+  /** 变量树展开态：variablesReference 集。 */
+  const debugVarExpanded = new Set<number>();
+  let selectedFrameId: number | null = null;
+  /** 调试输出滚动区文本（output 事件累积，上限 200KB 防无限增长）。 */
+  let debugOutputText = "";
+
+  function isJsFile(filePath: string): boolean {
+    return /\.(js|mjs|cjs)$/i.test(filePath);
+  }
+
+  /** 当前文件断点同步到编辑器（切文件/切断点后调用；0-based 转换在此）。 */
+  function syncEditorBreakpoints(): void {
+    if (openFile === null) {
+      editor.setBreakpoints(new Set());
+      return;
+    }
+    const lines = breakpoints.get(openFile.path);
+    editor.setBreakpoints(new Set([...(lines ?? [])].map((line) => line - 1)));
+  }
+
+  editor.onGutterClick = (line) => {
+    if (openFile === null) return;
+    const path = openFile.path;
+    const line1 = line + 1;
+    let set = breakpoints.get(path);
+    if (set === undefined) {
+      set = new Set();
+      breakpoints.set(path, set);
+    }
+    if (set.has(line1)) {
+      set.delete(line1);
+      if (set.size === 0) breakpoints.delete(path);
+    } else {
+      set.add(line1);
+    }
+    syncEditorBreakpoints();
+    renderDebugPanel();
+  };
+
+  function renderDebugStatus(): void {
+    if (debugState.state === "idle") {
+      statusDebug.textContent = "";
+      return;
+    }
+    if (debugState.state === "starting") {
+      statusDebug.textContent = t("debug.state.starting");
+      return;
+    }
+    if (debugState.state === "running") {
+      statusDebug.textContent = t("debug.state.running");
+      return;
+    }
+    if (debugState.state === "terminated") {
+      statusDebug.textContent = t("debug.state.terminated");
+      return;
+    }
+    statusDebug.textContent =
+      debugState.file !== undefined && debugState.line !== undefined
+        ? t("debug.state.stopped", {
+            reason: debugState.reason,
+            file: debugState.file.replace(/\\/g, "/").split("/").pop() ?? debugState.file,
+            line: String(debugState.line),
+          })
+        : t("debug.state.stoppedNoLoc", { reason: debugState.reason });
+  }
+
+  /** 调试操作统一入口：失败本地化提示（DW_DAP_* 经 localizeError 映射）。 */
+  async function doDebugOp(op: () => Promise<void>): Promise<void> {
+    try {
+      await op();
+    } catch (error) {
+      showStatus(toLocalError(error instanceof Error ? error.message : String(error)));
+    }
+  }
+
+  async function startDebugging(): Promise<void> {
+    if (workspaceRoot === "") {
+      showStatus(t("debug.noWorkspace"));
+      return;
+    }
+    if (openFile === null || !isJsFile(openFile.path)) {
+      showStatus(t("debug.needJsFile"));
+      return;
+    }
+    const program = openFile.path;
+    // 断点全量下发（仅当前工作区内的 .js 文件；空行号集不下发）
+    const payload: Record<string, number[]> = {};
+    for (const [file, lines] of breakpoints) {
+      if (lines.size > 0 && isJsFile(file)) payload[file] = [...lines].sort((a, b) => a - b);
+    }
+    debugOutputText = "";
+    await doDebugOp(() => api.debug.start(program, payload));
+  }
+
+  /** stopped 态数据装载：调用栈 → 首帧作用域 → 首作用域变量。 */
+  async function loadStoppedData(): Promise<void> {
+    try {
+      debugFrames = await api.debug.stack();
+    } catch {
+      debugFrames = [];
+    }
+    const top = debugFrames[0];
+    selectedFrameId = top?.id ?? null;
+    debugScopes = [];
+    debugVarCache.clear();
+    debugVarExpanded.clear();
+    if (top !== undefined) {
+      try {
+        debugScopes = await api.debug.scopes(top.id);
+      } catch {
+        debugScopes = [];
+      }
+      const first = debugScopes[0];
+      if (first !== undefined) {
+        try {
+          debugVarCache.set(first.variablesReference, await api.debug.variables(first.variablesReference));
+          debugVarExpanded.add(first.variablesReference);
+        } catch {
+          // 变量装载失败仅缺展示，不阻塞调试
+        }
+      }
+    }
+  }
+
+  /** 选帧切换：重载作用域与变量。 */
+  async function selectFrame(frameId: number): Promise<void> {
+    selectedFrameId = frameId;
+    debugScopes = [];
+    debugVarCache.clear();
+    debugVarExpanded.clear();
+    renderDebugPanel();
+    try {
+      debugScopes = await api.debug.scopes(frameId);
+      const first = debugScopes[0];
+      if (first !== undefined) {
+        debugVarCache.set(first.variablesReference, await api.debug.variables(first.variablesReference));
+        debugVarExpanded.add(first.variablesReference);
+      }
+    } catch {
+      // 会话可能已继续/终止：忽略迟到响应
+    }
+    renderDebugPanel();
+  }
+
+  /** 变量节点展开/收起（展开时懒加载子变量）。 */
+  async function toggleVariable(reference: number): Promise<void> {
+    if (debugVarExpanded.has(reference)) {
+      debugVarExpanded.delete(reference);
+      renderDebugPanel();
+      return;
+    }
+    debugVarExpanded.add(reference);
+    if (!debugVarCache.has(reference)) {
+      try {
+        debugVarCache.set(reference, await api.debug.variables(reference));
+      } catch {
+        debugVarCache.set(reference, []);
+      }
+    }
+    renderDebugPanel();
+  }
+
+  /** 变量树递归渲染（缩进表达层级；variablesReference > 0 可展开）。 */
+  function renderVariableRows(parent: HTMLElement, reference: number, depth: number): void {
+    const vars = debugVarCache.get(reference) ?? [];
+    for (const variable of vars) {
+      const row = el("div", "dw-debug-var");
+      row.style.paddingLeft = `${8 + depth * 14}px`;
+      const expandable = variable.variablesReference > 0;
+      const expanded = expandable && debugVarExpanded.has(variable.variablesReference);
+      const toggle = el(
+        "span",
+        "dw-debug-var-toggle",
+        expandable ? (expanded ? "▾" : "▸") : " "
+      );
+      const name = el("span", "dw-debug-var-name", variable.name);
+      const value = el("span", "dw-debug-var-value", variable.value);
+      value.title = variable.value;
+      row.append(toggle, name, value);
+      if (expandable) {
+        row.addEventListener("click", () => void toggleVariable(variable.variablesReference));
+      }
+      parent.appendChild(row);
+      if (expanded) renderVariableRows(parent, variable.variablesReference, depth + 1);
+    }
+  }
+
+  function renderDebugPanel(): void {
+    debugPane.textContent = "";
+
+    // ---- 工具栏：启动/停止 + 步进（stopped 才可用） ----
+    const toolbar = el("div", "dw-debug-toolbar");
+    const active = debugState.state === "starting" || debugState.state === "running" || debugState.state === "stopped";
+    const stoppedNow = debugState.state === "stopped";
+    const startBtn = el("button", "dw-btn dw-btn-small dw-btn-primary", active ? t("debug.stop") : t("debug.start"));
+    startBtn.title = t("debug.start.tooltip");
+    startBtn.addEventListener("click", () => {
+      if (active) {
+        void doDebugOp(() => api.debug.stop());
+      } else {
+        void startDebugging();
+      }
+    });
+    toolbar.appendChild(startBtn);
+    const stepDefs: Array<[string, () => Promise<void>]> = [
+      [t("debug.continue"), () => api.debug.continue()],
+      [t("debug.next"), () => api.debug.next()],
+      [t("debug.stepIn"), () => api.debug.stepIn()],
+      [t("debug.stepOut"), () => api.debug.stepOut()],
+    ];
+    for (const [label, op] of stepDefs) {
+      const btn = el("button", "dw-btn dw-btn-small", label);
+      btn.disabled = !stoppedNow;
+      btn.addEventListener("click", () => void doDebugOp(op));
+      toolbar.appendChild(btn);
+    }
+    debugPane.appendChild(toolbar);
+
+    const body = el("div", "dw-debug-body");
+    debugPane.appendChild(body);
+
+    // ---- 调用栈（stopped 态；点帧切换变量上下文） ----
+    body.appendChild(el("div", "dw-debug-section", t("debug.stack")));
+    if (!stoppedNow || debugFrames.length === 0) {
+      body.appendChild(el("div", "dw-sidebar-empty", t("debug.empty.stack")));
+    } else {
+      for (const frame of debugFrames) {
+        const row = el("div", `dw-debug-frame${frame.id === selectedFrameId ? " dw-debug-frame-active" : ""}`);
+        const loc = frame.file !== undefined ? `${frame.file.replace(/\\/g, "/").split("/").pop()}:${frame.line}` : `:${frame.line}`;
+        row.append(el("span", "dw-debug-frame-name", frame.name), el("span", "dw-debug-frame-loc", loc));
+        row.title = frame.file ?? "";
+        row.addEventListener("click", () => void selectFrame(frame.id));
+        body.appendChild(row);
+      }
+    }
+
+    // ---- 变量（选中帧的作用域 → 变量树） ----
+    body.appendChild(el("div", "dw-debug-section", t("debug.variables")));
+    if (!stoppedNow) {
+      body.appendChild(el("div", "dw-sidebar-empty", t("debug.empty.variables")));
+    } else {
+      for (const scope of debugScopes) {
+        const scopeRow = el("div", "dw-debug-scope");
+        const expanded = debugVarExpanded.has(scope.variablesReference);
+        scopeRow.append(
+          el("span", "dw-debug-var-toggle", expanded ? "▾" : "▸"),
+          el("span", "dw-debug-scope-name", /local/i.test(scope.name) ? t("debug.scope.local") : scope.name)
+        );
+        scopeRow.addEventListener("click", () => void toggleVariable(scope.variablesReference));
+        body.appendChild(scopeRow);
+        if (expanded) renderVariableRows(body, scope.variablesReference, 1);
+      }
+    }
+
+    // ---- 断点列表（点击定位文件行） ----
+    body.appendChild(el("div", "dw-debug-section", t("debug.breakpoints")));
+    let bpCount = 0;
+    for (const [file, lines] of breakpoints) {
+      for (const line of [...lines].sort((a, b) => a - b)) {
+        bpCount += 1;
+        const row = el("div", "dw-debug-bp");
+        row.append(
+          el("span", "dw-debug-bp-dot", "●"),
+          el("span", "dw-debug-bp-loc", `${file.replace(/\\/g, "/").split("/").pop()}:${line}`)
+        );
+        row.title = file;
+        row.addEventListener("click", () => {
+          void openFileByPath(file).then(() => editor.revealPosition({ line: line - 1, character: 0 }));
+        });
+        body.appendChild(row);
+      }
+    }
+    if (bpCount === 0) {
+      body.appendChild(el("div", "dw-sidebar-empty", t("debug.empty.breakpoints")));
+    }
+
+    // ---- 调试输出（被调试进程 console 输出） ----
+    body.appendChild(el("div", "dw-debug-section", t("debug.output.title")));
+    const output = el("pre", "dw-debug-output");
+    output.textContent = debugOutputText;
+    body.appendChild(output);
+    output.scrollTop = output.scrollHeight;
+  }
+
+  /** stopped 事件定位：打开停止文件（如需）并高亮停止行。 */
+  async function revealStoppedLocation(file: string | undefined, line: number | undefined): Promise<void> {
+    if (file === undefined || line === undefined) {
+      editor.setDebugLine(null);
+      return;
+    }
+    try {
+      if (openFile?.path !== file) {
+        await openFileByPath(file);
+      }
+      editor.setDebugLine(line - 1);
+      editor.revealPosition({ line: line - 1, character: 0 });
+    } catch {
+      editor.setDebugLine(null); // 文件不可读（已删除/移动）：仅不高亮，调试继续
+    }
+  }
+
+  api.debug.onState((state) => {
+    debugState = state;
+    renderDebugStatus();
+    if (state.state === "stopped") {
+      void revealStoppedLocation(state.file, state.line);
+      void loadStoppedData().then(renderDebugPanel);
+    } else {
+      editor.setDebugLine(null);
+      if (state.state !== "starting") {
+        debugFrames = [];
+        debugScopes = [];
+        debugVarCache.clear();
+        debugVarExpanded.clear();
+        selectedFrameId = null;
+      }
+    }
+    renderDebugPanel();
+  });
+  api.debug.onOutput((_category, text) => {
+    debugOutputText = (debugOutputText + text).slice(-200_000);
+    const output = debugPane.querySelector<HTMLElement>(".dw-debug-output");
+    if (output !== null) {
+      output.textContent = debugOutputText;
+      output.scrollTop = output.scrollHeight;
+    }
+  });
+  // 启动恢复：主动拉一次当前态（e2e/重连场景主进程可能已有会话）
+  void api.debug.getState().then((state) => {
+    debugState = state;
+    renderDebugStatus();
+    renderDebugPanel();
+  });
+  renderDebugPanel();
 
   // ---- 首次使用引导（AC11）：未打开工作区时主区显示三步引导 ----
   const onboarding = el("div", "dw-onboarding");
@@ -1230,6 +1582,9 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     traceTab.textContent = t("tab.trace");
     filesTab.textContent = t("tab.files");
     gitTab.textContent = t("tab.git");
+    debugTab.textContent = t("tab.debug");
+    renderDebugStatus(); // 调试状态项随语言热生效
+    renderDebugPanel();
     renderGitStatus();
     renderGitPanel();
     // 打开中的 git diff 标题随语言热生效

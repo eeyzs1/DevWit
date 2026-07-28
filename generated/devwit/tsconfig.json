@@ -16,6 +16,7 @@
     { "path": "packages/mcp" },
     { "path": "packages/rag" },
     { "path": "packages/lsp" },
+    { "path": "packages/dap" },
     { "path": "packages/chat-ui" },
     { "path": "apps/desktop" }
   ]

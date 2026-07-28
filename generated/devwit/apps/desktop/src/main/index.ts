@@ -11,6 +11,7 @@ import { SettingsStore } from "@devwit/settings";
 import { TerminalService } from "@devwit/terminal";
 import { buildFileTree, WorkspaceService } from "@devwit/workspace";
 import { AiRuntime } from "./ai-runtime.js";
+import { DebugMainService } from "./debug-service.js";
 import { registerIpcHandlers } from "./ipc.js";
 import { GitMainService } from "./git-service.js";
 import { LspService } from "./lsp-service.js";
@@ -27,6 +28,7 @@ let terminal: TerminalService | null = null;
 let aiRuntime: AiRuntime | null = null;
 let telemetry: TelemetryService | null = null;
 let lspService: LspService | null = null;
+let debugService: DebugMainService | null = null;
 
 function createWindow(): void {
   // E2E 无窗化钩子：DEVWIT_E2E_OFFSCREEN=1 时把窗口移到屏幕外——保持 shown 状态
@@ -129,6 +131,10 @@ app.whenReady().then(() => {
   // Git 版本控制（迭代 32 / AC41）：工作区打开钩子换绑仓库根；操作后推送 git:changed。
   const gitService = new GitMainService({ send });
 
+  // DAP 调试（迭代 33 / AC42）：js-debug 适配器全局单例会话；
+  // ELECTRON_RUN_AS_NODE 复用 Electron 二进制跑适配器与被调试进程，零系统依赖。
+  debugService = new DebugMainService({ send });
+
   registerIpcHandlers({
     ipcMain,
     services: { workspace, terminal, settings },
@@ -184,6 +190,7 @@ app.whenReady().then(() => {
     update: { service: updater, version: app.getVersion() },
     lsp: lspService,
     git: gitService,
+    debug: debugService,
   });
 
   createWindow();
@@ -214,6 +221,8 @@ app.on("will-quit", () => {
   if (aiRuntime !== null) void aiRuntime.dispose();
   // AC40：退出前 LSP shutdown 请求 → exit 通知 → 超时强杀（同 MCP 口径，零孤儿进程）
   if (lspService !== null) void lspService.shutdown();
+  // AC42：退出前 DAP disconnect + 强杀 js-debug 服务器（零孤儿进程）
+  if (debugService !== null) void debugService.shutdown();
   // AC39：退出前尽力 flush 残余遥测缓冲（不阻塞退出）
   telemetry?.stop();
 });

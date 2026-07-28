@@ -1,0 +1,33 @@
+{
+  "steps": [
+    "应用启动 + fixture 工作区打开 + main.js 入编辑器",
+    "行号槽点击 → 断点 main.js:3 入列",
+    "启动调试 → 真实 js-debug 断点命中停 main.js:3（截图 01）",
+    "调用栈：首帧 main.js:3",
+    "变量面板：Local 自动展开 alpha=10 / beta=20（截图 02）",
+    "evaluate 求值：alpha + beta = 30（全链路真实适配器）",
+    "单步跳过：main.js:3 → main.js:4，gamma=30 可见（截图 03）",
+    "继续 → terminated，被调试进程输出全量回传（截图 04）",
+    "会话收尾：状态机归零，可再次启动"
+  ],
+  "assertions": [
+    "main.js 应打开为活动文件",
+    "断点点击坐标应有效（实际: {\"x\":235,\"y\":94}）",
+    "断点列表应含 main.js:3（实际: [\"●main.js:3\"]）",
+    "状态栏应进入「已暂停」（实际: \"已暂停：breakpoint main.js:3\"）",
+    "停止位置应为 main.js:3（实际: \"已暂停：breakpoint main.js:3\"）",
+    "调用栈首帧应为 main.js:3（实际: [\"<anonymous>main.js:3\",\"Module._compileloader:1710\",\"Module._extensions..jsloader:1848\",\"Module.loadloader:1448\",\"Module._loadloader:1270\",\"c._loadnode_init:2\",\"TracingChannel.traceSyncdiagnostics_channel:328\",\"wrapModuleLoadloader:244\",\"function Module(id = '', parent) {.executeUserEntryPointrun_main:186\",\"<anonymous>run_main_module:36\"]）",
+    "Local 应含 alpha=10（实际: [\"__dirname='C:\\\\\\\\Users\\\\\\\\eeyzs1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\devwit-verify-i33-nKTQxJ'\",\"__filename='C:\\\\\\\\Users\\\\\\\\eeyzs1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\devwit-verify-i33-nKTQxJ\\\\\\\\main.js'\",\"alpha=10\",\"beta=20\",\"exports={}\",\"module=Module {id: '.', path: 'C:\\\\\\\\Users\\\\\\\\eeyzs1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\devwit-verify-i33-nKTQxJ', exports: {…}, filename: 'C:\\\\\\\\Users\\\\\\\\eeyzs1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\devwit-verify-i33-nKTQxJ\\\\\\\\main.js', loaded: false, …}\",\"require=ƒ require(path) {\\n    return mod.require(path);\\n  }\",\"this=Object\"]）",
+    "Local 应含 beta=20（实际: [\"__dirname='C:\\\\\\\\Users\\\\\\\\eeyzs1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\devwit-verify-i33-nKTQxJ'\",\"__filename='C:\\\\\\\\Users\\\\\\\\eeyzs1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\devwit-verify-i33-nKTQxJ\\\\\\\\main.js'\",\"alpha=10\",\"beta=20\",\"exports={}\",\"module=Module {id: '.', path: 'C:\\\\\\\\Users\\\\\\\\eeyzs1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\devwit-verify-i33-nKTQxJ', exports: {…}, filename: 'C:\\\\\\\\Users\\\\\\\\eeyzs1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\devwit-verify-i33-nKTQxJ\\\\\\\\main.js', loaded: false, …}\",\"require=ƒ require(path) {\\n    return mod.require(path);\\n  }\",\"this=Object\"]）",
+    "evaluate 应为 30（实际: \"alpha + beta=30\"）",
+    "单步跳过应停 main.js:4（实际: \"已暂停：step main.js:4\"）",
+    "第 4 行 Local 应含 gamma=30（实际: [\"__dirname='C:\\\\\\\\Users\\\\\\\\eeyzs1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\devwit-verify-i33-nKTQxJ'\",\"__filename='C:\\\\\\\\Users\\\\\\\\eeyzs1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\devwit-verify-i33-nKTQxJ\\\\\\\\main.js'\",\"alpha=10\",\"beta=20\",\"exports={}\",\"gamma=30\",\"module=Module {id: '.', path: 'C:\\\\\\\\Users\\\\\\\\eeyzs1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\devwit-verify-i33-nKTQxJ', exports: {…}, filename: 'C:\\\\\\\\Users\\\\\\\\eeyzs1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\devwit-verify-i33-nKTQxJ\\\\\\\\main.js', loaded: false, …}\",\"require=ƒ require(path) {\\n    return mod.require(path);\\n  }\",\"this=Object\"]）",
+    "继续后应「调试已结束」（实际: \"调试已结束\"）",
+    "调试输出应含 \"result-is 30\"（实际: \"result-is 30\\ndone\\n\"）",
+    "调试输出应含 \"done\"（程序跑完）",
+    "terminated 后工具栏应回到可启动态"
+  ],
+  "failures": [],
+  "fatal": null,
+  "ok": true
+}

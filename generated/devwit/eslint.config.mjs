@@ -7,7 +7,8 @@ export default tseslint.config(
       "**/node_modules/**",
       "release/**",
       "evidence/**",
-      "runtime/sources/workitems/**"
+      "runtime/sources/workitems/**",
+      "vendor/**"
     ]
   },
   ...tseslint.configs.recommended,

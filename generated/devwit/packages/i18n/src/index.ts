@@ -160,5 +160,14 @@ export function localizeError(raw: string, opts?: LocalizeErrorOptions): string 
   if (raw.includes("DW_GIT_UNSTAGE_FAILED")) return t("err.gitUnstageFailed");
   if (raw.includes("DW_GIT_COMMIT_FAILED")) return t("err.gitCommitFailed");
   if (raw.includes("DW_GIT_NOT_WIRED")) return t("err.gitNotWired");
+  // 迭代 33 / AC42 DAP 调试错误码（detail 为适配器 stderr 摘要，随码剥离不展示）
+  if (raw.includes("DW_DAP_ALREADY_ACTIVE")) return t("err.debugAlreadyActive");
+  if (raw.includes("DW_DAP_NOT_STOPPED")) return t("err.debugNotStopped");
+  if (raw.includes("DW_DAP_SPAWN_FAILED")) return t("err.debugSpawnFailed");
+  if (raw.includes("DW_DAP_CONNECT_FAILED")) return t("err.debugConnectFailed");
+  if (raw.includes("DW_DAP_COMPANION_TIMEOUT")) return t("err.debugCompanionTimeout");
+  if (raw.includes("DW_DAP_TIMEOUT")) return t("err.debugTimeout");
+  if (raw.includes("DW_DAP_ADAPTER_EXIT")) return t("err.debugAdapterExit");
+  if (raw.includes("DW_DEBUG_NOT_WIRED")) return t("err.debugNotWired");
   return raw.replace(IPC_ERROR_PREFIX, "");
 }

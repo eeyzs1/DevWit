@@ -10,7 +10,7 @@
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { IPC } from "@devwit/contracts";
-import type { AgentRunInput, AuthorizationDecision, ContextItemType, ExternalEditorConfig, GitDiffTexts, GitPanelStatus, LspDefinitionTarget, LspDiagnosticItem, LspHoverInfo, LspStatusInfo, ProviderConfig, ProviderProbeRequest, ProviderProbeResult } from "@devwit/contracts";
+import type { AgentRunInput, AuthorizationDecision, ContextItemType, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, ExternalEditorConfig, GitDiffTexts, GitPanelStatus, LspDefinitionTarget, LspDiagnosticItem, LspHoverInfo, LspStatusInfo, ProviderConfig, ProviderProbeRequest, ProviderProbeResult } from "@devwit/contracts";
 import { PROVIDER_PRESETS, probeProvider } from "@devwit/llm-providers";
 import { fetchCommunityIndex, fetchCommunityMode, materializeImport, parseExportFile, resolveModesIndexBase, toExportFile } from "@devwit/modes";
 import { fetchCommunityMcpIndex, fetchCommunityMcpServer, materializeMcpImport } from "@devwit/mcp";
@@ -66,13 +66,31 @@ export const PUSH_CHANNELS: readonly string[] = [
   IPC.RagStatus,
   IPC.LspStatus,
   IPC.LspDiagnosticsChanged,
-  IPC.GitChanged
+  IPC.GitChanged,
+  IPC.DebugState,
+  IPC.DebugOutput
 ];
 
 const AI_NOT_WIRED = "DW_AI_NOT_WIRED";
 const UPDATE_NOT_WIRED = "DW_UPDATE_NOT_WIRED";
 const LSP_NOT_WIRED = "DW_LSP_NOT_WIRED";
 const GIT_NOT_WIRED = "DW_GIT_NOT_WIRED";
+const DEBUG_NOT_WIRED = "DW_DEBUG_NOT_WIRED";
+
+/** DAP 调试接线参数（迭代 33 / AC42）：结构子集与 DebugMainService 对齐（保持本文件无包运行时依赖）。 */
+export interface DebugIpcService {
+  start(program: string, breakpoints: Record<string, number[]>): Promise<void>;
+  stop(): Promise<void>;
+  getState(): DebugStateInfo;
+  continue(): Promise<void>;
+  next(): Promise<void>;
+  stepIn(): Promise<void>;
+  stepOut(): Promise<void>;
+  stack(): Promise<DebugStackFrameItem[]>;
+  scopes(frameId: number): Promise<DebugScopeItem[]>;
+  variables(reference: number): Promise<DebugVariableItem[]>;
+  evaluate(expression: string, frameId?: number): Promise<DebugVariableItem>;
+}
 
 /** Git 接线参数（迭代 32 / AC41）：结构子集与 GitService 对齐（保持本文件无包运行时依赖）。 */
 export interface GitIpcService {
@@ -108,7 +126,7 @@ export interface UpdateIpcDeps {
 // ---------------------------------------------------------------------------
 
 /** 构建全部 invoke handler。key 集合 == IPC 常量全集 − PUSH_CHANNELS。 */
-export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: AiRuntime, update?: UpdateIpcDeps, lsp?: LspIpcService, git?: GitIpcService): Record<string, IpcHandler> {
+export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: AiRuntime, update?: UpdateIpcDeps, lsp?: LspIpcService, git?: GitIpcService, debug?: DebugIpcService): Record<string, IpcHandler> {
   const { workspace, terminal, settings } = services;
   const table: Record<string, IpcHandler> = {};
 
@@ -298,6 +316,38 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     };
   }
 
+  // ---- DAP 调试（迭代 33 / AC42）：未接线时抛明确错误码（白名单通道恒在表内）----
+  if (debug === undefined) {
+    const notWired = (): never => {
+      throw new Error(DEBUG_NOT_WIRED);
+    };
+    table[IPC.DebugStart] = notWired;
+    table[IPC.DebugStop] = notWired;
+    table[IPC.DebugGetState] = notWired;
+    table[IPC.DebugContinue] = notWired;
+    table[IPC.DebugNext] = notWired;
+    table[IPC.DebugStepIn] = notWired;
+    table[IPC.DebugStepOut] = notWired;
+    table[IPC.DebugStack] = notWired;
+    table[IPC.DebugScopes] = notWired;
+    table[IPC.DebugVariables] = notWired;
+    table[IPC.DebugEvaluate] = notWired;
+  } else {
+    table[IPC.DebugStart] = async (_e, program, breakpoints) =>
+      debug.start(String(program), breakpoints as Record<string, number[]>);
+    table[IPC.DebugStop] = async () => debug.stop();
+    table[IPC.DebugGetState] = () => debug.getState();
+    table[IPC.DebugContinue] = async () => debug.continue();
+    table[IPC.DebugNext] = async () => debug.next();
+    table[IPC.DebugStepIn] = async () => debug.stepIn();
+    table[IPC.DebugStepOut] = async () => debug.stepOut();
+    table[IPC.DebugStack] = async () => debug.stack();
+    table[IPC.DebugScopes] = async (_e, frameId) => debug.scopes(Number(frameId));
+    table[IPC.DebugVariables] = async (_e, reference) => debug.variables(Number(reference));
+    table[IPC.DebugEvaluate] = async (_e, expression, frameId) =>
+      debug.evaluate(String(expression), typeof frameId === "number" ? frameId : undefined);
+  }
+
   registerAiIpc(table, ai, services, hooks);
   return table;
 }
@@ -463,11 +513,13 @@ export interface RegisterIpcDeps {
   lsp?: LspIpcService;
   /** 生产环境注入 GitMainService；缺省则 git 通道抛未接线错误。 */
   git?: GitIpcService;
+  /** 生产环境注入 DebugMainService；缺省则 debug 通道抛未接线错误。 */
+  debug?: DebugIpcService;
 }
 
 /** 注册全部 IPC handler 与主→渲染事件转发。 */
 export function registerIpcHandlers(deps: RegisterIpcDeps): void {
-  const table = buildHandlerTable(deps.services, deps.hooks, deps.ai, deps.update, deps.lsp, deps.git);
+  const table = buildHandlerTable(deps.services, deps.hooks, deps.ai, deps.update, deps.lsp, deps.git, deps.debug);
   for (const [channel, handler] of Object.entries(table)) {
     deps.ipcMain.handle(channel, handler);
   }

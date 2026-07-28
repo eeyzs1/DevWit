@@ -75,8 +75,14 @@ export class EditorView {
   private readonly removeWindowListeners: Array<() => void> = [];
   /** 当前文档的诊断标记（setDiagnostics 注入；渲染为波浪线）。 */
   private diagnostics: DiagnosticRange[] = [];
+  /** 断点行集（0-based；setBreakpoints 注入；行号槽绘制红点）。 */
+  private breakpointLines: ReadonlySet<number> = new Set();
+  /** 调试停止行（0-based；null=无；整行底色 + 行号槽箭头）。 */
+  private debugLine: number | null = null;
   /** Ctrl/Cmd+Click 回调（跳转定义；由集成方接 LSP）。null 时该组合键等同普通点击。 */
   onDefinitionRequest: ((pos: Position) => void) | null = null;
+  /** 行号槽点击回调（断点切换；由集成方接 DAP）。null 时槽点击等同普通点击。 */
+  onGutterClick: ((line: number) => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement, doc: TextDocument, options: EditorViewOptions = {}) {
     this.canvas = canvas;
@@ -161,6 +167,18 @@ export class EditorView {
   /** 注入诊断标记（全量替换语义，与 LSP publishDiagnostics 一致）；波浪线随下次渲染绘制。 */
   setDiagnostics(ranges: DiagnosticRange[]): void {
     this.diagnostics = ranges;
+    this.scheduleRender();
+  }
+
+  /** 注入断点行集（0-based，全量替换语义）；红点随下次渲染绘制。 */
+  setBreakpoints(lines: ReadonlySet<number>): void {
+    this.breakpointLines = lines;
+    this.scheduleRender();
+  }
+
+  /** 设置调试停止行（0-based；null 清除）；高亮随下次渲染绘制。 */
+  setDebugLine(line: number | null): void {
+    this.debugLine = line;
     this.scheduleRender();
   }
 
@@ -253,6 +271,13 @@ export class EditorView {
 
   private onMouseDown(ev: MouseEvent): void {
     if (ev.button !== 0) {
+      return;
+    }
+    // 行号槽点击（断点切换）：命中槽区即消费事件，不动光标不拖选
+    const gutterHit = this.gutterLineFromEvent(ev);
+    if (gutterHit !== null && this.onGutterClick !== null) {
+      this.onGutterClick(gutterHit);
+      ev.preventDefault();
       return;
     }
     this.ime.focus();
@@ -659,6 +684,17 @@ export class EditorView {
     return { line, character };
   }
 
+  /** 命中行号槽 → 0-based 行号；未命中返回 null（槽区 = 客户区 x 落在 gutterWidth 内）。 */
+  private gutterLineFromEvent(ev: MouseEvent): number | null {
+    const rect = this.canvas.getBoundingClientRect();
+    const x = ev.clientX - rect.left;
+    if (x < 0 || x >= this.gutterWidth) return null;
+    const y = ev.clientY - rect.top + this.scrollTop - this.padding;
+    const line = Math.floor(y / this.lineHeight);
+    if (line < 0 || line >= this.doc.lineCount) return null;
+    return line;
+  }
+
   private visiblePageLines(): number {
     return Math.max(1, Math.floor(this.viewportHeight() / this.lineHeight) - 1);
   }
@@ -743,9 +779,9 @@ export class EditorView {
     ctx.scale(this.dpr, this.dpr);
     this.applyFont();
 
-    // 行号槽宽：按行数位数自适应
+    // 行号槽宽：按行数位数自适应 + 14px 断点圆点区（左缘）
     const digits = Math.max(2, String(this.doc.lineCount).length);
-    this.gutterWidth = Math.ceil(digits * this.charWidth + 16);
+    this.gutterWidth = Math.ceil(digits * this.charWidth + 16 + 14);
 
     // 背景
     ctx.fillStyle = this.theme.background;
@@ -758,6 +794,13 @@ export class EditorView {
     if (primaryLine >= range.first && primaryLine <= range.last) {
       const y = this.padding + primaryLine * this.lineHeight - this.scrollTop;
       ctx.fillStyle = this.theme.currentLineBackground;
+      ctx.fillRect(this.gutterWidth, y, viewW - this.gutterWidth, this.lineHeight);
+    }
+
+    // 调试停止行高亮（整行底色；箭头在行号槽段绘制）
+    if (this.debugLine !== null && this.debugLine >= range.first && this.debugLine <= range.last) {
+      const y = this.padding + this.debugLine * this.lineHeight - this.scrollTop;
+      ctx.fillStyle = this.theme.debugLineBackground;
       ctx.fillRect(this.gutterWidth, y, viewW - this.gutterWidth, this.lineHeight);
     }
 
@@ -788,6 +831,28 @@ export class EditorView {
     // 行号槽
     ctx.fillStyle = this.theme.gutterBackground;
     ctx.fillRect(0, 0, this.gutterWidth, viewH);
+    // 断点圆点（左缘 14px 区，垂直居中）
+    if (this.breakpointLines.size > 0) {
+      ctx.fillStyle = this.theme.breakpoint;
+      for (let line = range.first; line <= range.last; line++) {
+        if (!this.breakpointLines.has(line)) continue;
+        const cy = this.padding + line * this.lineHeight - this.scrollTop + this.lineHeight / 2;
+        ctx.beginPath();
+        ctx.arc(7, cy, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    // 调试停止行箭头（行号槽 ▶，与整行底色配套）
+    if (this.debugLine !== null && this.debugLine >= range.first && this.debugLine <= range.last) {
+      const cy = this.padding + this.debugLine * this.lineHeight - this.scrollTop + this.lineHeight / 2;
+      ctx.fillStyle = this.theme.diagnosticWarning;
+      ctx.beginPath();
+      ctx.moveTo(3, cy - 5);
+      ctx.lineTo(11, cy);
+      ctx.lineTo(3, cy + 5);
+      ctx.closePath();
+      ctx.fill();
+    }
     ctx.fillStyle = this.theme.lineNumberForeground;
     ctx.textAlign = "right";
     for (let line = range.first; line <= range.last; line++) {

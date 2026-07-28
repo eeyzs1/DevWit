@@ -13,6 +13,10 @@ export interface Theme {
   diagnosticError: string;
   /** 诊断波浪线：警告（LSP severity=warning）。 */
   diagnosticWarning: string;
+  /** 断点圆点（DAP 调试，行号槽内）。 */
+  breakpoint: string;
+  /** 调试停止行背景（整行 + 行号槽箭头）。 */
+  debugLineBackground: string;
   /** 高亮 scope → 颜色，如 "keyword"/"string"/"comment"；未配置的 scope 用 foreground */
   scopes: Partial<Record<string, string>>;
 }
@@ -29,6 +33,8 @@ export const defaultDarkTheme: Theme = {
   compositionUnderline: "#569cd6",
   diagnosticError: "#f14c4c",
   diagnosticWarning: "#cca700",
+  breakpoint: "#e51400",
+  debugLineBackground: "rgba(204, 167, 0, 0.15)",
   scopes: {
     keyword: "#569cd6",
     string: "#ce9178",

@@ -140,6 +140,21 @@ const api: DevwitApi = {
     unstage: (file) => ipcRenderer.invoke(IPC.GitUnstage, file) as Promise<void>,
     commit: (message) => ipcRenderer.invoke(IPC.GitCommit, message) as Promise<void>,
     onChanged: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.GitChanged, cb)
+  },
+  debug: {
+    start: (program, breakpoints) => ipcRenderer.invoke(IPC.DebugStart, program, breakpoints) as Promise<void>,
+    stop: () => ipcRenderer.invoke(IPC.DebugStop) as Promise<void>,
+    getState: () => ipcRenderer.invoke(IPC.DebugGetState) as ReturnType<DevwitApi["debug"]["getState"]>,
+    continue: () => ipcRenderer.invoke(IPC.DebugContinue) as Promise<void>,
+    next: () => ipcRenderer.invoke(IPC.DebugNext) as Promise<void>,
+    stepIn: () => ipcRenderer.invoke(IPC.DebugStepIn) as Promise<void>,
+    stepOut: () => ipcRenderer.invoke(IPC.DebugStepOut) as Promise<void>,
+    stack: () => ipcRenderer.invoke(IPC.DebugStack) as ReturnType<DevwitApi["debug"]["stack"]>,
+    scopes: (frameId) => ipcRenderer.invoke(IPC.DebugScopes, frameId) as ReturnType<DevwitApi["debug"]["scopes"]>,
+    variables: (reference) => ipcRenderer.invoke(IPC.DebugVariables, reference) as ReturnType<DevwitApi["debug"]["variables"]>,
+    evaluate: (expression, frameId) => ipcRenderer.invoke(IPC.DebugEvaluate, expression, frameId) as ReturnType<DevwitApi["debug"]["evaluate"]>,
+    onState: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.DebugState, cb),
+    onOutput: (cb) => subscribe<[string, string]>(IPC.DebugOutput, cb)
   }
 };
 
