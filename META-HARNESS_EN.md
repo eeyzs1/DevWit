@@ -2,7 +2,7 @@
 
 > Just say what you want. The system handles the rest.
 
-[中文版](README.md)
+[中文版](META-HARNESS.md)
 
 ## What Is This?
 

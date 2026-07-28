@@ -28,3 +28,6 @@ task.yaml
 # IDE / tooling working dirs
 .trae/
 .vscode/
+
+# 发布凭证收集表（含真实密钥，严禁入库）
+launch-credentials.env
