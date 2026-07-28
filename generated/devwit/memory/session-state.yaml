@@ -653,5 +653,12 @@ growth_launch_1:
     - distribution/launch/blog-juejin-zh.md——掘金中文版（非直译，按中文读者重组织）
     - distribution/launch/signup-checklist.md——七平台注册清单（SignPath/PH/PostHog/dev.to/掘金/B站/winget 在途），含 GitHub Variables/Secrets 精确键名与建议执行顺序（SignPath 审核周期最长先排队 → 三平台同日首发 → PostHog → B站）
   next: 用户注册 SignPath Foundation（先排队）→ Product Hunt + dev.to + 掘金同日三连发（素材齐备只欠账号）→ PostHog key 接入遥测端点 → B站专栏跟进；SignPath API token 到手后接入 release.yml 自定义签名钩子
+ci_repair_2026_07_28:
+  symptom: CI 自迭代17（4d45feb，2026-07-25）起连红 15 个 run；最后绿 run=4ff6fc7（2026-07-24）
+  root_cause_1: probe.test.ts 假 key 字面量 "sk-probe"/"sk-ant" 命中 scan-secret-leak.py plaintext_api_key_assign（apiKey: "sk-…" 形貌拦截）——代码问题非 CI 问题；修复：假 key 去 sk- 前缀（probe-fake-key/ant-fake-key），行为断言同步
+  root_cause_2: quality-gate.py SKIP_DIRS 未含 vendor/——迭代33 引入 vendor/js-debug 钉版第三方代码贡献 15 条 hardcoded + 2 条 simplification 误报（CI 按序停在 scan-secret-leak，此失败被遮蔽，本地跑全套件才暴露）；修复：SKIP_DIRS 增 vendor（与 node_modules 同口径，字节级固定不可改代码不做工程门禁）
+  root_cause_3: 自有代码 5 处合法常量（DEFAULT_LEARNING/DEFAULT_ROUTING 导出常量、chat-controller 反序列化回退 ×2、symbol-index result 页大小）触发 hardcoded_config——逐一评审确认与既有 12 条豁免同类，按 qg-allow 机制豁免并注明原因
+  lesson: 推送前必须本地跑 CI 同款七项验证套件（本次根因 1 若本地跑过 scan-secret-leak 即不会红 4 天）；CI 顺序短路会遮蔽后续检查，修一个后需本地全量确认再推
+  evidence: 本地 7 项验证全 PASS + vitest 614/614 + eslint PASS；CI run 30327163000 双 job success（14e8f07）
 status: complete
-updated_at: '2026-07-28T09:30:00.000000'
+updated_at: '2026-07-28T12:10:00.000000'
