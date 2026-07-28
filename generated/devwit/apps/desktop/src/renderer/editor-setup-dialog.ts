@@ -8,6 +8,7 @@
  */
 import type { DevwitApi } from "@devwit/contracts";
 import { t } from "@devwit/i18n";
+import { captureEvent } from "./posthog.js";
 
 /** 常用编辑器预设（设置页编辑器分区共用此表）。 */
 export const EXTERNAL_EDITOR_PRESETS: ReadonlyArray<{ label: string; command: string }> = [
@@ -88,6 +89,7 @@ export function openEditorSetupDialog(deps: EditorSetupDialogDeps): void {
       return false;
     }
     await deps.api.settings.set("externalEditor", { command });
+    captureEvent("external_editor_configured");
     return true;
   }
 

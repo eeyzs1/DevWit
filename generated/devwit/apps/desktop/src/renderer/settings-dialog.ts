@@ -32,6 +32,7 @@ import {
   t,
   type Locale,
 } from "@devwit/i18n";
+import { captureEvent } from "./posthog.js";
 
 export type SettingsSection = "general" | "providers" | "editor" | "modes" | "mcp";
 
@@ -965,6 +966,7 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps): void {
         ...(keyless ? { keyless: true } : {}),
       };
       await api.providers.upsert(config);
+      captureEvent("provider_configured", { provider_type: config.type, is_keyless: config.keyless === true });
       deps.onProvidersChanged();
       await renderList();
       errorBox.textContent = t("provider.saved");

@@ -10,3 +10,4 @@ test-results.json
 
 # 验收证据入库（可追溯）：覆盖根 .gitignore 的 *.log 全局规则
 !evidence/**/*.log
+.env

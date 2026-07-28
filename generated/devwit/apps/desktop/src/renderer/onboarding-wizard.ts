@@ -21,6 +21,7 @@ import {
   t,
   type Locale,
 } from "@devwit/i18n";
+import { captureEvent } from "./posthog.js";
 
 export interface OnboardingWizardDeps {
   api: DevwitApi;
@@ -68,6 +69,7 @@ export function openOnboardingWizard(deps: OnboardingWizardDeps): void {
   };
   const close = (): void => {
     markCompleted();
+    captureEvent("onboarding_completed", { completed_step: step });
     unsubscribe();
     mask.remove();
   };

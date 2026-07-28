@@ -19,7 +19,7 @@
   },
   "scripts": {
     "build": "tsc -b && npm run build:renderer && npm run build:main && npm run build:preload && npm run copy:html",
-    "build:renderer": "esbuild apps/desktop/src/renderer/index.ts --bundle --outfile=apps/desktop/dist/renderer/index.js --format=iife --target=chrome130 --sourcemap --loader:.css=css",
+    "build:renderer": "node scripts/build-renderer.mjs",
     "build:main": "esbuild apps/desktop/src/main/index.ts --bundle --outfile=apps/desktop/dist/main/index.js --format=esm --platform=node --target=node20 --external:electron --external:node-pty --banner:js=\"import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);\"",
     "build:preload": "esbuild apps/desktop/src/main/preload.ts --bundle --outfile=apps/desktop/dist/main/preload.cjs --format=cjs --platform=node --external:electron",
     "copy:html": "node -e \"require('node:fs').copyFileSync('apps/desktop/src/renderer/index.html','apps/desktop/dist/renderer/index.html')\"",
@@ -70,6 +70,7 @@
     "vitest": "^3.0.0"
   },
   "dependencies": {
+    "posthog-js": "^1.407.3",
     "typescript": "~5.8.0",
     "typescript-language-server": "^5.3.0"
   }

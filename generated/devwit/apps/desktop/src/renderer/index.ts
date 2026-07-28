@@ -27,6 +27,7 @@ import {
 import { openSettingsDialog, type SettingsDialogDeps } from "./settings-dialog.js";
 import { openEditorSetupDialog } from "./editor-setup-dialog.js";
 import { openOnboardingWizard } from "./onboarding-wizard.js";
+import { captureEvent, captureError, identifyInstall, initPostHog } from "./posthog.js";
 import "./app.css";
 
 declare global {
@@ -346,6 +347,8 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       node.classList.toggle("dw-tree-active", (node as HTMLElement).dataset["path"] === filePath);
     });
     editor.focus();
+    const ext = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
+    captureEvent("file_opened", { extension: ext });
   }
 
   // ---- LSP 代码智能（迭代 31 / AC40）：悬停 / Ctrl+Click 定义 / 实时诊断 ----
@@ -571,9 +574,11 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       commitBtn.disabled = true;
       try {
         await api.git.commit(message);
+        captureEvent("git_commit_made", { staged_count: gitStatus?.staged.length ?? 0 });
         commitInput.value = "";
         showStatus(t("git.commitDone"));
       } catch (error) {
+        captureError(error, { context: "git_commit" });
         showStatus(toLocalError(error instanceof Error ? error.message : String(error)));
         commitBtn.disabled = false;
       }
@@ -778,6 +783,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     }
     debugOutputText = "";
     await doDebugOp(() => api.debug.start(program, payload));
+    captureEvent("debug_session_started", { breakpoint_count: Object.values(payload).reduce((s, l) => s + l.length, 0) });
   }
 
   /** stopped 态数据装载：调用栈 → 首帧作用域 → 首作用域变量。 */
@@ -1124,6 +1130,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     const root = await api.workspace.openDialog();
     if (root === null) return;
     await enterWorkspace(root);
+    captureEvent("workspace_opened");
     schedulePersist();
   }
   openBtn.addEventListener("click", () => void openWorkspace());
@@ -1200,6 +1207,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     if (chatController.isRunning) return;
     chatController.switchSession(`session-${Date.now()}`);
     traceTimeline.setLiveSession(chatController.sessionId);
+    captureEvent("new_chat_session_started");
     activateSideTab("chat");
     schedulePersist();
   }
@@ -1304,8 +1312,10 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     newTaskInput.value = "";
     try {
       await taskCenter.createTask(text, collectContext());
+      captureEvent("ai_task_created", { has_active_file: openFile !== null });
       activityStream.resubscribe();
     } catch (error) {
+      captureError(error, { context: "create_task" });
       showStatus(toLocalError(error instanceof Error ? error.message : String(error)));
     }
   }
@@ -1346,6 +1356,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     const text = activityTextarea.value;
     if (text.trim() === "") return;
     activityTextarea.value = "";
+    captureEvent("chat_message_sent", { form: "console" });
     void taskCenter.sendToActive(text, collectContext()).catch((error: unknown) => {
       showStatus(toLocalError(error instanceof Error ? error.message : String(error)));
     });
@@ -1398,6 +1409,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   function switchForm(next: "chat" | "console"): void {
     if (form === next) return;
     form = next;
+    captureEvent("form_mode_switched", { to: next });
     if (next === "console") {
       ide.style.display = "none";
       consoleRoot.style.display = "grid";
@@ -1513,6 +1525,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       title: t("review.title", { path: target.path }),
       onApply: (result) => {
         target.doc.applyEdit({ offset: 0, length: target.doc.length, text: result });
+        captureEvent("diff_applied", { form });
         closeDiff();
         editor.focus();
       },
@@ -1644,6 +1657,12 @@ window.addEventListener("DOMContentLoaded", () => {
       setLocale(saved as Locale);
     } else {
       setLocale(resolveSystemLocale());
+    }
+    initPostHog();
+    // Identify by stable install ID (same ID used by built-in telemetry)
+    const installId = await api.settings.get("telemetry.installId");
+    if (typeof installId === "string" && installId !== "") {
+      identifyInstall(installId);
     }
     await bootstrap(api);
   })();
