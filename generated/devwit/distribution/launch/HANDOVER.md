@@ -25,9 +25,15 @@
 1. 电脑开机且不休眠；
 2. 发布用 Chrome 以 CDP 模式运行且 PH 登录有效。若浏览器被关，用以下命令重启（junction alias 指向真实 Chrome 配置，登录态在其中）：
 
+Chrome（CDP 9222）：
 ```
 "C:\Program Files\Google\Chrome\Application\chrome.exe" --user-data-dir=C:\Users\eeyzs1\chrome-ud-alias --remote-debugging-port=9222 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --hide-crash-restore-bubble about:blank
 ```
+Edge（CDP 9223，掘金用）：
+```
+"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --user-data-dir=C:\Users\eeyzs1\edge-ud-alias --remote-debugging-port=9223 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --hide-crash-restore-bubble about:blank
+```
+> 注意：不要加 `--proxy-server` 参数，代理由用户代理客户端自动分流。
 
 ### 验证结果
 - 日志：`generated/devwit/distribution/launch/evidence/ph-first-comment.log`（`COMMENT POSTED: true` 即成功）
