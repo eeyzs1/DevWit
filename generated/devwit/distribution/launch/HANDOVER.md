@@ -26,7 +26,7 @@
 2. 发布用 Chrome 以 CDP 模式运行且 PH 登录有效。若浏览器被关，用以下命令重启（junction alias 指向真实 Chrome 配置，登录态在其中）：
 
 ```
-"C:\Program Files\Google\Chrome\Application\chrome.exe" --user-data-dir=C:\Users\eeyzs1\chrome-ud-alias --remote-debugging-port=9222 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --hide-crash-restore-bubble --proxy-server=127.0.0.1:10809 --proxy-bypass-list=<local>;*.cn;juejin.cn;*.juejin.cn about:blank
+"C:\Program Files\Google\Chrome\Application\chrome.exe" --user-data-dir=C:\Users\eeyzs1\chrome-ud-alias --remote-debugging-port=9222 --no-first-run --no-default-browser-check --disable-session-crashed-bubble --hide-crash-restore-bubble about:blank
 ```
 
 ### 验证结果
@@ -67,7 +67,7 @@ junction alias `C:\Users\eeyzs1\chrome-ud-alias` 可保留（以后任何 PH/dev
 
 ## 六、环境备忘
 
-- 代理：`127.0.0.1:10809`；PH/dev.to 走代理，掘金直连（bypass-list 已配）；
+- 代理：由用户代理客户端（Clash/V2Ray 等）自动分流，Chrome 不加 `--proxy-server` 参数；
 - Chrome 150+ 禁止 CDP 连默认 profile → 用 junction alias 绕过（已建好）；
 - 三平台均用 GitHub OAuth 登录（账号 eeyzs1），PH 用户名 @eeyzs1；
 - Playwright 连浏览器统一 `chromium.connectOverCDP("http://localhost:9222")`。
