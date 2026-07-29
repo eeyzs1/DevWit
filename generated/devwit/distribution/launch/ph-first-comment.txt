@@ -1,0 +1,13 @@
+Hi Product Hunt! I'm the maker of DevWit.
+
+I built it because I kept hitting the same wall with AI coding tools: I couldn't tell what was being sent to the model, or what the agent was about to do to my files. DevWit makes both fully visible:
+
+1. Context Panel — every LLM request lists its system prompt, tools, and each injected item (file, RAG chunk, terminal output) with token counts. Toggle any item off and the request shrinks accordingly.
+2. Authorization Gate — the agent cannot write a file or run a shell command without your one-click approval. Approvals can be remembered per-project.
+3. Lean context — a task router sends simple requests to local models (Ollama) and complex ones to cloud models, with a per-session cost ledger.
+
+It's a real IDE, not a wrapper: TypeScript LSP (diagnostics/hover/definition), integrated Git, breakpoint debugging (DAP/js-debug), MCP tool servers, multi-agent orchestration, custom modes — all free, all open source.
+
+v0.3.0 ships Windows/macOS/Linux builds verified by 614 unit tests and 28 end-to-end suites. No accounts, no cloud sync, telemetry is opt-in and off by default.
+
+I'd love your feedback — especially from teams with compliance/audit needs.
