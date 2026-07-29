@@ -65,8 +65,8 @@ CI 已完成：`release.yml` 以 `vars.AZURE_SIGN_ENABLED == 'true'` 门控，�
 - **所需材料**: 邮箱
 - **步骤**:
   1. 创建组织 + 项目（如 "devwit"）
-  2. Project Settings 取 **Project API Key** 与 **Host**
-  3. 告诉我 key + host，我写入默认遥测端点配置（应用内仍可由用户改端点/关闭）
+  2. Project Settings 取 **Project token**（`phc_` 开头；不要给 `phx_` 开头的 Personal API key）与 **Host**（US=`https://us.i.posthog.com`，EU=`https://eu.i.posthog.com`）
+  3. 告诉我 token + host，我写入默认遥测端点配置（应用内仍可由用户改端点/关闭）
 - **成本**: $0（免费档 100 万事件/月，远超早期需求）
 - **注意**: 与定位一致——遥测保持默认关闭、匿名、零内容采集，仅事件名/计数+版本+OS+随机 installId
 

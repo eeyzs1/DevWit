@@ -483,13 +483,14 @@ export type UsagePricing = Record<string, ModelPricing>;
 
 /**
  * 遥测配置（settings 键 "telemetry" 的值）。opt-in 原则：
- * 键不存在 / enabled !== true / endpoint 为空 —— 三者任一成立即不发送任何字节。
+ * 键不存在 / enabled !== true —— 二者任一成立即不发送任何字节。
  * 修改热生效：主进程订阅 settings.onChanged 即时重配置，无需重启。
  */
 export interface TelemetryConfig {
   /** 用户显式勾选后才为 true（默认关闭，绝不预勾选）。 */
   enabled: boolean;
-  /** 接收端点 URL（POST JSON）。空串 = 未配置后端，即使开启也不发送。 */
+  /** 接收端点 URL（POST JSON）。空串 = 内建 PostHog 匿名端点（只写 token）；
+   *  非空 = 用户自建收集器（{source, events} 信封）。 */
   endpoint: string;
 }
 

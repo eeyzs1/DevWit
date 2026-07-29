@@ -16,7 +16,20 @@ import type { TelemetryFetch } from "../src/main/telemetry.js";
 
 interface SentBatch {
   url: string;
+  /** 原始请求体（PostHog 信封用独立类型解析，避免污染既有自建信封断言）。 */
+  raw: string;
   body: { source: string; events: TelemetryEvent[] };
+}
+
+/** PostHog /batch/ 官方信封（内建默认端点）。 */
+interface PostHogBatch {
+  api_key: string;
+  batch: Array<{
+    event: string;
+    distinct_id: string;
+    timestamp: string;
+    properties: Record<string, unknown>;
+  }>;
 }
 
 /** 记录桩：捕获每次 flush 的 url 与解析后的 JSON body；可脚本化抛错。 */
@@ -28,7 +41,7 @@ function makeFetchStub() {
       failNext = false;
       throw new Error("network down");
     }
-    batches.push({ url, body: JSON.parse(init.body) as SentBatch["body"] });
+    batches.push({ url, raw: init.body, body: JSON.parse(init.body) as SentBatch["body"] });
   };
   return {
     batches,
@@ -76,14 +89,25 @@ describe("TelemetryService（迭代 30 / AC39）", () => {
     service.stop();
   });
 
-  it("开启但端点为空：不发送（双条件缺一不发）", async () => {
+  it("开启但端点为空：走内建 PostHog 端点（api_key + batch 官方信封）", async () => {
     const stub = makeFetchStub();
     const { service, settings } = makeService(stub);
     settings.set("telemetry", { enabled: true, endpoint: "" });
-    service.configure();
-    service.start();
+    service.configure(); // 关→开：telemetry_opt_in 立即 flush
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(stub.batches).toEqual([]);
+
+    expect(stub.batches.length).toBeGreaterThanOrEqual(1);
+    const first = stub.batches[0]!;
+    expect(first.url).toBe("https://us.i.posthog.com/batch/");
+    const envelope = JSON.parse(first.raw) as PostHogBatch;
+    expect(envelope.api_key).toMatch(/^phc_/);
+    expect(envelope.batch.length).toBeGreaterThanOrEqual(1);
+    const event = envelope.batch[0]!;
+    expect(event.event).toBe("telemetry_opt_in");
+    expect(event.distinct_id).toMatch(/^[0-9a-f-]{36}$/); // 匿名 installId，与账号无关
+    expect(Number.isNaN(Date.parse(event.timestamp))).toBe(false);
+    // 零内容硬断言：properties 仅 source/version/os 标量
+    expect(event.properties).toEqual({ source: "devwit", version: "0.3.0-test", os: "win32" });
     service.stop();
   });
 

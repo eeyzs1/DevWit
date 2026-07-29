@@ -2,8 +2,11 @@
  * 匿名遥测服务（迭代 30 / AC39）：opt-in、零内容、端点可配置的最小度量。
  *
  * 原则（与产品信任基建同口径）：
- * - 默认关闭：settings 键 "telemetry" 不存在 / enabled !== true / endpoint 为空，
- *   三者任一成立即不发送任何字节（track 直接丢弃，不缓冲）；
+ * - 默认关闭：settings 键 "telemetry" 不存在 / enabled !== true，
+ *   二者任一成立即不发送任何字节（track 直接丢弃，不缓冲）；
+ * - 端点双轨：endpoint 非空 = 发往用户自建收集器（{source, events} 信封）；
+ *   endpoint 留空 = 发往内建 PostHog 官方端点（{api_key, batch} 信封，
+ *   project token 为公开只写密钥——设计即嵌入客户端分发，无法读回任何数据）；
  * - 匿名：installId 为 crypto.randomUUID，首次需要时生成并持久化到
  *   settings 键 "telemetry.installId"，跨重启复用；与任何账号/机器标识无关；
  * - 零内容收集：事件载荷仅 事件名/ISO 时间/installId/版本/OS 平台/标量 props，
@@ -51,6 +54,13 @@ const DEFAULT_FLUSH_MS = 30_000;
 const DEFAULT_TIMEOUT_MS = 5_000;
 /** 缓冲上限：达到即提前 flush（防长会话无限累积）。 */
 const BUFFER_FLUSH_AT = 20;
+/**
+ * 内建默认上报端点（PostHog 官方 batch API，US 区）。endpoint 留空 + 启用时走这里。
+ * project token 是公开只写密钥：PostHog 设计即嵌入客户端分发（posthog-js 代码片段
+ * 同样明文暴露于每个网页），仅允许写入事件，无任何数据读取权限。
+ */
+const DEFAULT_POSTHOG_BATCH_URL = "https://us.i.posthog.com/batch/";
+const POSTHOG_PROJECT_TOKEN = "phc_tXGp8bn4evvPDXLjCFQwvu9uR962PRX8brwkhEid5xwQ";
 
 function readConfig(settings: TelemetrySettingsLike): TelemetryConfig {
   const raw = settings.get(CONFIG_KEY);
@@ -132,9 +142,9 @@ export class TelemetryService {
     void this.flush();
   }
 
-  /** 当前是否激活（开启 + 端点非空，双条件缺一不发）。 */
+  /** 当前是否激活（开启即激活：端点留空走内建 PostHog，非空走自建端点）。 */
   isActive(): boolean {
-    return this.config.enabled && this.config.endpoint.trim() !== "";
+    return this.config.enabled;
   }
 
   /** 当前缓冲长度（测试观测用）。 */
@@ -185,16 +195,36 @@ export class TelemetryService {
   /** 批量 POST；失败静默丢弃（不重试不累积）。并发 flush 合并为空操作。 */
   private async flush(): Promise<void> {
     if (this.flushing) return;
-    const endpoint = this.config.endpoint.trim();
-    if (endpoint === "" || this.buffer.length === 0) return;
+    const customEndpoint = this.config.endpoint.trim();
+    const endpoint = customEndpoint !== "" ? customEndpoint : DEFAULT_POSTHOG_BATCH_URL;
+    if (this.buffer.length === 0) return;
     const batch = this.buffer;
     this.buffer = [];
+    // 信封双轨：自建端点保持 {source, events}（自建收集器协议）；
+    // 内建端点走 PostHog /batch/ 官方格式（api_key + batch[]，distinct_id=匿名 installId）
+    const body =
+      customEndpoint !== ""
+        ? JSON.stringify({ source: "devwit", events: batch })
+        : JSON.stringify({
+            api_key: POSTHOG_PROJECT_TOKEN,
+            batch: batch.map((event) => ({
+              event: event.event,
+              distinct_id: event.installId,
+              timestamp: event.ts,
+              properties: {
+                source: "devwit",
+                version: event.version,
+                os: event.os,
+                ...(event.props ?? {}),
+              },
+            })),
+          });
     this.flushing = true;
     try {
       await this.fetchImpl(endpoint, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ source: "devwit", events: batch }),
+        body,
         signal: AbortSignal.timeout(this.timeoutMs),
       });
     } catch {

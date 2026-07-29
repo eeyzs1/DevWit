@@ -542,9 +542,9 @@ const zhCN = {
   "settings.telemetry.title": "匿名遥测（默认停用）",
   "settings.telemetry.enable": "启用匿名使用事件上报",
   "settings.telemetry.endpoint": "上报端点",
-  "settings.telemetry.endpoint.placeholder": "https://<你的遥测接收端点>（留空则不发送）",
+  "settings.telemetry.endpoint.placeholder": "https://<你的遥测接收端点>（留空走内建 PostHog 匿名端点）",
   "settings.telemetry.hint":
-    "仅收集：事件名（如 app_start）、应用版本、操作系统、随机安装 ID（与账号无关）。绝不收集：代码、文件内容、路径、对话文本、API Key。开关与端点修改即时生效；端点留空时即使启用也不会发送任何数据。",
+    "仅收集：事件名（如 app_start）、应用版本、操作系统、随机安装 ID（与账号无关）。绝不收集：代码、文件内容、路径、对话文本、API Key。开关与端点修改即时生效；端点留空时上报至内建 PostHog 匿名端点（只写 token，无法读回数据），填入自有端点则改发该端点。",
 
   // ---- diff 审查视图（AC3）----
   "diff.title": "变更审查",
@@ -1089,9 +1089,9 @@ const enUS: Messages = {
   "settings.telemetry.title": "Anonymous telemetry (off by default)",
   "settings.telemetry.enable": "Enable anonymous usage event reporting",
   "settings.telemetry.endpoint": "Endpoint",
-  "settings.telemetry.endpoint.placeholder": "https://<your telemetry receiver> (blank = never send)",
+  "settings.telemetry.endpoint.placeholder": "https://<your telemetry receiver> (blank = built-in PostHog endpoint)",
   "settings.telemetry.hint":
-    "Collects only: event names (e.g. app_start), app version, OS platform, and a random install ID (not tied to any account). Never collects: code, file contents, paths, chat text, or API keys. Toggle and endpoint changes apply instantly; with a blank endpoint nothing is sent even when enabled.",
+    "Collects only: event names (e.g. app_start), app version, OS platform, and a random install ID (not tied to any account). Never collects: code, file contents, paths, chat text, or API keys. Toggle and endpoint changes apply instantly; a blank endpoint reports to the built-in PostHog anonymous endpoint (write-only token, no data read-back), or set your own endpoint to override.",
 
   "diff.title": "Review Changes",
   "diff.acceptAll": "Accept all",
