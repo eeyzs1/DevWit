@@ -92,6 +92,11 @@ export class DebugMainService {
     return this.requireSession().continue();
   }
 
+  /** 动态更新断点（会话进行中可调用）。 */
+  setBreakpoints(file: string, lines: number[]): Promise<void> {
+    return this.requireSession().setBreakpoints(file, lines);
+  }
+
   next(): Promise<void> {
     return this.requireSession().next();
   }

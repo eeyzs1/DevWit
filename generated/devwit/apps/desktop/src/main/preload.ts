@@ -139,10 +139,14 @@ const api: DevwitApi = {
     stage: (file) => ipcRenderer.invoke(IPC.GitStage, file) as Promise<void>,
     unstage: (file) => ipcRenderer.invoke(IPC.GitUnstage, file) as Promise<void>,
     commit: (message) => ipcRenderer.invoke(IPC.GitCommit, message) as Promise<void>,
+    pull: () => ipcRenderer.invoke(IPC.GitPull) as Promise<void>,
+    push: () => ipcRenderer.invoke(IPC.GitPush) as Promise<void>,
+    log: (limit) => ipcRenderer.invoke(IPC.GitLog, limit) as ReturnType<DevwitApi["git"]["log"]>,
     onChanged: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.GitChanged, cb)
   },
   debug: {
     start: (program, breakpoints) => ipcRenderer.invoke(IPC.DebugStart, program, breakpoints) as Promise<void>,
+    setBreakpoints: (file, lines) => ipcRenderer.invoke(IPC.DebugSetBreakpoints, file, lines) as Promise<void>,
     stop: () => ipcRenderer.invoke(IPC.DebugStop) as Promise<void>,
     getState: () => ipcRenderer.invoke(IPC.DebugGetState) as ReturnType<DevwitApi["debug"]["getState"]>,
     continue: () => ipcRenderer.invoke(IPC.DebugContinue) as Promise<void>,

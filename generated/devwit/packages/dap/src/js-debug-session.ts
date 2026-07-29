@@ -515,6 +515,16 @@ export class JsDebugSession {
     await client.request("stepOut", { threadId });
   }
 
+  /** 动态更新断点（会话进行中可调用；空 lines=清除该文件全部断点）。 */
+  async setBreakpoints(file: string, lines: number[]): Promise<void> {
+    const client = this.client;
+    if (client === null) throw new Error("DW_DAP_NOT_RUNNING");
+    await client.request("setBreakpoints", {
+      source: { path: file },
+      breakpoints: lines.map((line) => ({ line })),
+    });
+  }
+
   /** 调用栈（stopped 态）。 */
   async stack(): Promise<DebugStackFrame[]> {
     const { client, threadId } = this.requireStopped();

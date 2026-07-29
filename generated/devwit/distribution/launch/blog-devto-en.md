@@ -67,9 +67,10 @@ cost, so the routing decision is auditable too.
 Under the AI features is a daily-driver editor:
 
 - **TypeScript language server** — live diagnostics, hover, go-to-definition
-- **Integrated Git** — status badges in the file tree, stage/commit, inline diff
-- **Breakpoint debugging** — DAP via js-debug: breakpoints, stepping, variable
-  inspection
+- **Integrated Git** — status badges in the file tree, stage/commit, inline diff,
+  pull/push, commit history
+- **Breakpoint debugging** — DAP via js-debug: breakpoints (including runtime
+  add/remove), stepping, variable inspection
 - **Multi-agent orchestration** — a planner mode decomposes intent into
   parallel sub-agents with per-agent activity streams
 - **Custom modes** — define your own system prompt / tool set / model /
@@ -79,7 +80,7 @@ Under the AI features is a daily-driver editor:
 
 ## Engineering honesty
 
-v0.3.0 is verified by **614 unit tests and 28 end-to-end suites** that drive
+v0.3.0 is verified by **618 unit tests and 28 end-to-end suites** that drive
 the real packaged app (not mocks). Ships for Windows (NSIS), macOS (dmg/zip),
 and Linux (AppImage/deb), with auto-update from GitHub Releases.
 

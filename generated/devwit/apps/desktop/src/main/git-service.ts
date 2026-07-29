@@ -6,7 +6,7 @@
  * 非 git 仓库 status 返回 null（渲染端显引导态），不抛错。
  */
 import { IPC } from "@devwit/contracts";
-import type { GitDiffTexts, GitPanelStatus } from "@devwit/contracts";
+import type { GitDiffTexts, GitLogEntry, GitPanelStatus } from "@devwit/contracts";
 import { GitService } from "@devwit/workspace";
 
 export interface GitMainServiceDeps {
@@ -45,6 +45,19 @@ export class GitMainService {
   async commit(message: string): Promise<void> {
     await this.requireService().commit(message);
     await this.pushChanged();
+  }
+
+  async pull(): Promise<void> {
+    await this.requireService().pull();
+    await this.pushChanged();
+  }
+
+  async push(): Promise<void> {
+    await this.requireService().push();
+  }
+
+  log(limit?: number): Promise<GitLogEntry[]> {
+    return this.requireService().log(limit);
   }
 
   private requireService(): GitService {

@@ -147,4 +147,37 @@ describe("GitService（真实 temp 仓库）", () => {
     initRepo(root);
     await expect(service.commit("nothing staged")).rejects.toThrow("DW_GIT_COMMIT_FAILED");
   });
+
+  it.skipIf(!hasGit)("log 返回提交历史", async () => {
+    initRepo(root);
+    fs.writeFileSync(path.join(root, "second.txt"), "2\n", "utf-8");
+    git(root, ["add", "."]);
+    git(root, ["commit", "-m", "second commit"]);
+
+    const entries = await service.log(10);
+    expect(entries.length).toBe(2);
+    expect(entries[0].message).toBe("second commit");
+    expect(entries[1].message).toBe("init");
+    expect(entries[0].hash).toHaveLength(40);
+    expect(entries[0].author).toBe("DevWit Test");
+    expect(entries[0].date.length).toBeGreaterThan(0);
+  });
+
+  it.skipIf(!hasGit)("log 空仓库返回空数组", async () => {
+    git(root, ["init"]);
+    git(root, ["config", "user.email", "test@devwit.local"]);
+    git(root, ["config", "user.name", "DevWit Test"]);
+    const entries = await service.log();
+    expect(entries).toEqual([]);
+  });
+
+  it.skipIf(!hasGit)("log 非 git 仓库返回空数组", async () => {
+    const entries = await service.log();
+    expect(entries).toEqual([]);
+  });
+
+  it.skipIf(!hasGit)("pull/push 非 git 仓库抛 DW_GIT_NOT_REPO", async () => {
+    await expect(service.pull()).rejects.toThrow("DW_GIT_PULL_FAILED");
+    await expect(service.push()).rejects.toThrow("DW_GIT_PUSH_FAILED");
+  });
 });

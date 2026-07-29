@@ -36,6 +36,14 @@ export interface GitDiffTexts {
   modified: string;
 }
 
+/** git log 单条。 */
+export interface GitLogEntry {
+  hash: string;
+  message: string;
+  author: string;
+  date: string;
+}
+
 const GIT_TIMEOUT_MS = 5000;
 const GIT_COMMIT_TIMEOUT_MS = 30_000;
 const MAX_BUFFER = 16 * 1024 * 1024;
@@ -146,6 +154,42 @@ export class GitService {
       throw new Error("DW_GIT_COMMIT_FAILED:empty-message");
     }
     await this.runMutating(["commit", "-m", trimmed], "DW_GIT_COMMIT_FAILED", GIT_COMMIT_TIMEOUT_MS);
+  }
+
+  /** git pull --no-rebase；失败抛 DW_GIT_PULL_FAILED:* */
+  async pull(): Promise<void> {
+    await this.runMutating(["pull", "--no-rebase"], "DW_GIT_PULL_FAILED", GIT_COMMIT_TIMEOUT_MS);
+  }
+
+  /** git push；失败抛 DW_GIT_PUSH_FAILED:* */
+  async push(): Promise<void> {
+    await this.runMutating(["push"], "DW_GIT_PUSH_FAILED", GIT_COMMIT_TIMEOUT_MS);
+  }
+
+  /** git log --format=%H%x00%s%x00%an%x00%ai；返回最近 limit 条（默认 50）。 */
+  log(limit = 50): Promise<GitLogEntry[]> {
+    return new Promise((resolve) => {
+      this.execImpl(
+        "git",
+        ["log", `--format=%H%x00%s%x00%an%x00%ai`, `-n`, String(limit)],
+        { cwd: this.root, timeout: GIT_TIMEOUT_MS, maxBuffer: MAX_BUFFER },
+        (error, stdout) => {
+          if (error) {
+            resolve([]);
+            return;
+          }
+          const entries: GitLogEntry[] = [];
+          const lines = stdout.split("\n").filter((l) => l.length > 0);
+          for (const line of lines) {
+            const [hash, message, author, date] = line.split("\0");
+            if (hash && message) {
+              entries.push({ hash, message, author: author ?? "", date: date ?? "" });
+            }
+          }
+          resolve(entries);
+        }
+      );
+    });
   }
 
   private runMutating(args: string[], code: string, timeout = GIT_TIMEOUT_MS): Promise<void> {

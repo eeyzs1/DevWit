@@ -865,6 +865,14 @@ export interface GitDiffTexts {
   modified: string;
 }
 
+/** git log 单条（git:log 返回项）。 */
+export interface GitLogEntry {
+  hash: string;
+  message: string;
+  author: string;
+  date: string;
+}
+
 // ============================================================================
 // DAP 调试（迭代 33 / AC42）：js-debug 适配器 JS 断点调试
 // ============================================================================
@@ -992,6 +1000,9 @@ export const IPC = {
   GitStage: "git:stage",
   GitUnstage: "git:unstage",
   GitCommit: "git:commit",
+  GitPull: "git:pull",
+  GitPush: "git:push",
+  GitLog: "git:log",
   GitChanged: "git:changed",
   DebugStart: "debug:start",
   DebugStop: "debug:stop",
@@ -1003,6 +1014,7 @@ export const IPC = {
   DebugStack: "debug:stack",
   DebugScopes: "debug:scopes",
   DebugVariables: "debug:variables",
+  DebugSetBreakpoints: "debug:set-breakpoints",
   DebugEvaluate: "debug:evaluate",
   DebugState: "debug:state",
   DebugOutput: "debug:output",
@@ -1101,6 +1113,12 @@ export interface DevwitApi {
     unstage(file: string): Promise<void>;
     /** git commit -m：提交已暂存；空消息/无暂存抛 DW_GIT_COMMIT_FAILED。 */
     commit(message: string): Promise<void>;
+    /** git pull：拉取远程并合并；失败抛 DW_GIT_PULL_FAILED。 */
+    pull(): Promise<void>;
+    /** git push：推送本地提交到远程；失败抛 DW_GIT_PUSH_FAILED。 */
+    push(): Promise<void>;
+    /** git log：提交历史（默认 50 条）。 */
+    log(limit?: number): Promise<GitLogEntry[]>;
     /** 订阅状态变化推送（操作后/工作区文件事件防抖刷新，载荷为全量快照；null=非 git 仓库）。 */
     onChanged(cb: (status: GitPanelStatus | null) => void): () => void;
   };
@@ -1114,6 +1132,8 @@ export interface DevwitApi {
   debug: {
     /** 启动调试会话（完整握手后 resolve：程序在跑或已停首断点）。 */
     start(program: string, breakpoints: Record<string, number[]>): Promise<void>;
+    /** 动态更新断点（会话进行中可调用；file 为绝对路径，lines 为 1-based 行号集，空数组=清除该文件断点）。 */
+    setBreakpoints(file: string, lines: number[]): Promise<void>;
     /** 停止调试（disconnect + 强杀适配器服务器；幂等）。 */
     stop(): Promise<void>;
     /** 当前调试状态（状态栏轮询初态；之后靠 onState 推送）。 */

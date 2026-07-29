@@ -10,7 +10,7 @@
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { IPC } from "@devwit/contracts";
-import type { AgentRunInput, AuthorizationDecision, ContextItemType, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, ExternalEditorConfig, GitDiffTexts, GitPanelStatus, LspDefinitionTarget, LspDiagnosticItem, LspHoverInfo, LspStatusInfo, ProviderConfig, ProviderProbeRequest, ProviderProbeResult } from "@devwit/contracts";
+import type { AgentRunInput, AuthorizationDecision, ContextItemType, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, ExternalEditorConfig, GitDiffTexts, GitLogEntry, GitPanelStatus, LspDefinitionTarget, LspDiagnosticItem, LspHoverInfo, LspStatusInfo, ProviderConfig, ProviderProbeRequest, ProviderProbeResult } from "@devwit/contracts";
 import { PROVIDER_PRESETS, probeProvider } from "@devwit/llm-providers";
 import { fetchCommunityIndex, fetchCommunityMode, materializeImport, parseExportFile, resolveModesIndexBase, toExportFile } from "@devwit/modes";
 import { fetchCommunityMcpIndex, fetchCommunityMcpServer, materializeMcpImport } from "@devwit/mcp";
@@ -86,6 +86,7 @@ export interface DebugIpcService {
   next(): Promise<void>;
   stepIn(): Promise<void>;
   stepOut(): Promise<void>;
+  setBreakpoints(file: string, lines: number[]): Promise<void>;
   stack(): Promise<DebugStackFrameItem[]>;
   scopes(frameId: number): Promise<DebugScopeItem[]>;
   variables(reference: number): Promise<DebugVariableItem[]>;
@@ -100,6 +101,9 @@ export interface GitIpcService {
   stage(relPath: string): Promise<void>;
   unstage(relPath: string): Promise<void>;
   commit(message: string): Promise<void>;
+  pull(): Promise<void>;
+  push(): Promise<void>;
+  log(limit?: number): Promise<GitLogEntry[]>;
 }
 
 /** LSP 接线参数（迭代 31 / AC40）：结构子集与 LspService 对齐（保持本文件无包运行时依赖）。 */
@@ -302,6 +306,9 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     table[IPC.GitStage] = notWired;
     table[IPC.GitUnstage] = notWired;
     table[IPC.GitCommit] = notWired;
+    table[IPC.GitPull] = notWired;
+    table[IPC.GitPush] = notWired;
+    table[IPC.GitLog] = notWired;
   } else {
     table[IPC.GitGetStatus] = () => git.status();
     table[IPC.GitDiff] = (_e, file) => git.diffTexts(String(file));
@@ -314,6 +321,13 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     table[IPC.GitCommit] = async (_e, message) => {
       await git.commit(String(message));
     };
+    table[IPC.GitPull] = async () => {
+      await git.pull();
+    };
+    table[IPC.GitPush] = async () => {
+      await git.push();
+    };
+    table[IPC.GitLog] = (_e, limit) => git.log(typeof limit === "number" ? limit : undefined);
   }
 
   // ---- DAP 调试（迭代 33 / AC42）：未接线时抛明确错误码（白名单通道恒在表内）----
@@ -331,10 +345,13 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     table[IPC.DebugStack] = notWired;
     table[IPC.DebugScopes] = notWired;
     table[IPC.DebugVariables] = notWired;
+    table[IPC.DebugSetBreakpoints] = notWired;
     table[IPC.DebugEvaluate] = notWired;
   } else {
     table[IPC.DebugStart] = async (_e, program, breakpoints) =>
       debug.start(String(program), breakpoints as Record<string, number[]>);
+    table[IPC.DebugSetBreakpoints] = async (_e, file, lines) =>
+      debug.setBreakpoints(String(file), lines as number[]);
     table[IPC.DebugStop] = async () => debug.stop();
     table[IPC.DebugGetState] = () => debug.getState();
     table[IPC.DebugContinue] = async () => debug.continue();

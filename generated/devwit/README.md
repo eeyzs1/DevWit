@@ -63,6 +63,9 @@ xattr -dr com.apple.quarantine /Applications/DevWit.app   # 未签名分发，�
 | 模式自定义 | 创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略，修改热生效无需重启 |
 | 社区模式生态 | 零账号分享：模式可导出/导入 JSON 文件；内置社区索引（eeyzs1/devwit-modes）一键导入，导入后可编辑、重绑模型 |
 | MCP 服务器 | 设置页管理 MCP 服务器（增删改查 + 状态徽标 + 工具计数），MCP 工具经授权门并入 Agent 工具集 |
+| 代码智能 (LSP) | 内置 TypeScript/JavaScript 语言服务器（typescript-language-server），实时诊断、悬停信息、跳转定义，零系统依赖 |
+| Git 版本控制 | 文件树状态徽标、暂存/取消暂存/提交、内联 diff 查看、pull/push 远程同步、提交历史查看 |
+| 断点调试 (DAP) | 内置 vscode-js-debug 调试适配器，断点设置（支持运行时动态增删）、单步调试、变量查看、表达式求值，零系统依赖 |
 | 国际化 | 界面中英双语，语言切换热生效无需重启；主进程错误以 ASCII 错误码输出，渲染端按当前语言本地化 |
 | 跨平台分发 | Windows NSIS / macOS dmg / Linux AppImage+deb，GitHub Actions 三平台构建，Windows 与 AppImage 支持应用内自动更新 |
 
@@ -125,7 +128,7 @@ npm run dev              # 构建并启动
 ## 测试与验证
 
 ```powershell
-npm test                 # 362 项单元测试（44 个测试文件）
+npm test                 # 618 项单元测试（67 个测试文件）
 npm run lint             # ESLint，0 违规
 npm run test:e2e         # E2E 冒烟：启动→编辑保存→上下文开关→diff 审查→Agent 授权→切模型→模式热更新
 ```
