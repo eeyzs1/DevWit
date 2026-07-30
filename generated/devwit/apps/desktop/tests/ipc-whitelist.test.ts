@@ -103,7 +103,10 @@ describe("IPC 白名单", () => {
       IPC.McpUpsert,
       IPC.McpDelete,
       IPC.UsageSummary,
-      IPC.UsageClear
+      IPC.UsageClear,
+      IPC.UsageDaily,
+      IPC.UsageBudget,
+      IPC.UsageExport
     ];
     for (const ch of aiChannels) {
       const handler = table[ch];

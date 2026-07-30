@@ -8,6 +8,6 @@ I built it because I kept hitting the same wall with AI coding tools: I couldn't
 
 It's a real IDE, not a wrapper: TypeScript LSP (diagnostics/hover/definition), integrated Git, breakpoint debugging (DAP/js-debug), MCP tool servers, multi-agent orchestration, custom modes — all free, all open source.
 
-v0.3.0 ships Windows/macOS/Linux builds verified by 614 unit tests and 28 end-to-end suites. No accounts, no cloud sync, telemetry is opt-in and off by default.
+v0.3.0 ships Windows/macOS/Linux builds verified by 618 unit tests and 28 end-to-end suites. No accounts, no cloud sync, telemetry is opt-in and off by default.
 
 I'd love your feedback — especially from teams with compliance/audit needs.

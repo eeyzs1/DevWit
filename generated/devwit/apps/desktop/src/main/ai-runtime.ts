@@ -33,6 +33,9 @@ import type {
   TraceSessionInfo,
   UsagePricing,
   UsageSummary,
+  UsageDailySummary,
+  UsageBudgetAlert,
+  UsageExportFormat,
   WorkflowReuse,
   WorkflowTemplate,
 } from "@devwit/contracts";
@@ -671,16 +674,38 @@ export class AiRuntime {
 
   /** 用量统计聚合视图（AC35 + AC36 成本层，usage:summary IPC）。 */
   usageSummary(): UsageSummary {
-    // 单价表每次实时读：设置页改价即热生效，无需重启（硬约束）
-    const raw = this.settings.get(USAGE_PRICING_KEY);
-    const pricing =
-      typeof raw === "object" && raw !== null && !Array.isArray(raw) ? (raw as UsagePricing) : undefined;
-    return this.usageStore.summary(new Date(), pricing);
+    return this.usageStore.summary(new Date(), this.loadPricing());
   }
 
   /** 清零用量账本（AC35，usage:clear IPC；不影响会话轨迹与设置）。 */
   usageClear(): void {
     this.usageStore.clear();
+  }
+
+  /** 按日/按会话成本汇总（usage:daily IPC）。 */
+  usageDailySummary(): UsageDailySummary {
+    const pricing = this.loadPricing();
+    return this.usageStore.dailySummary(pricing);
+  }
+
+  /** 成本预警检查（usage:budget IPC）。 */
+  usageCheckBudget(threshold: number, period: "day" | "week" | "month" | "total"): UsageBudgetAlert {
+    const pricing = this.loadPricing();
+    return this.usageStore.checkBudget(threshold, period, new Date(), pricing);
+  }
+
+  /** 导出成本报告（usage:export IPC）。 */
+  usageExport(format: UsageExportFormat): string {
+    const pricing = this.loadPricing();
+    return format === "csv"
+      ? this.usageStore.exportCSV(pricing)
+      : this.usageStore.exportJSON(new Date(), pricing);
+  }
+
+  /** 读取单价表（设置页改价即热生效）。 */
+  private loadPricing(): UsagePricing | undefined {
+    const raw = this.settings.get(USAGE_PRICING_KEY);
+    return typeof raw === "object" && raw !== null && !Array.isArray(raw) ? (raw as UsagePricing) : undefined;
   }
 
   cancel(sessionId: string): void {

@@ -112,7 +112,10 @@ const api: DevwitApi = {
   },
   usage: {
     summary: () => ipcRenderer.invoke(IPC.UsageSummary) as ReturnType<DevwitApi["usage"]["summary"]>,
-    clear: () => ipcRenderer.invoke(IPC.UsageClear) as Promise<void>
+    clear: () => ipcRenderer.invoke(IPC.UsageClear) as Promise<void>,
+    dailySummary: () => ipcRenderer.invoke(IPC.UsageDaily) as ReturnType<DevwitApi["usage"]["dailySummary"]>,
+    checkBudget: (threshold, period) => ipcRenderer.invoke(IPC.UsageBudget, threshold, period) as ReturnType<DevwitApi["usage"]["checkBudget"]>,
+    exportReport: (format) => ipcRenderer.invoke(IPC.UsageExport, format) as ReturnType<DevwitApi["usage"]["exportReport"]>
   },
   sessions: {
     list: () => ipcRenderer.invoke(IPC.SessionsList) as ReturnType<DevwitApi["sessions"]["list"]>,

@@ -477,6 +477,33 @@ export interface ModelPricing {
 /** 成本单价表：key = "<providerId> <model>"（与 UsageSummary.byProvider 行同口径）。 */
 export type UsagePricing = Record<string, ModelPricing>;
 
+/**
+ * 按日/按会话成本汇总（usage:daily IPC 返回）。
+ * - byDate：按本地日期键（YYYY-MM-DD）聚合，最近 30 天；
+ * - bySession：按 sessionId 聚合，可用于按项目/会话维度查看成本。
+ */
+export interface UsageDailySummary {
+  byDate: Array<{ date: string } & UsageTotals>;
+  bySession: Array<{ sessionId: string } & UsageTotals>;
+}
+
+/**
+ * 成本预警检查结果（usage:budget IPC 返回）。
+ * - threshold：用户设定的阈值（货币单位与 pricing 一致）；
+ * - current：当前周期内已产生的成本；
+ * - exceeded：是否超阈值；
+ * - period：统计周期。
+ */
+export interface UsageBudgetAlert {
+  threshold: number;
+  current: number;
+  exceeded: boolean;
+  period: "day" | "week" | "month" | "total";
+}
+
+/** 导出格式（usage:export IPC 参数）。 */
+export type UsageExportFormat = "csv" | "json";
+
 // ---------------------------------------------------------------------------
 // 匿名遥测（迭代 30 / AC39）
 // ---------------------------------------------------------------------------
@@ -982,6 +1009,9 @@ export const IPC = {
   McpChanged: "mcp:changed",
   UsageSummary: "usage:summary",
   UsageClear: "usage:clear",
+  UsageDaily: "usage:daily",
+  UsageBudget: "usage:budget",
+  UsageExport: "usage:export",
   SessionsList: "sessions:list",
   SessionsRename: "sessions:rename",
   SessionsDelete: "sessions:delete",
@@ -1255,5 +1285,19 @@ export interface DevwitApi {
     summary(): Promise<UsageSummary>;
     /** 清零用量统计（删除 usage.jsonl，不影响会话轨迹）。 */
     clear(): Promise<void>;
+    /**
+     * 按日/按会话成本汇总：byDate 最近 30 天，bySession 按会话维度。
+     * 用于成本趋势分析和项目级成本归因。
+     */
+    dailySummary(): Promise<UsageDailySummary>;
+    /**
+     * 成本预警检查：比较当前周期成本与阈值，返回超限状态。
+     * period 可选 day/week/month/total。
+     */
+    checkBudget(threshold: number, period: "day" | "week" | "month" | "total"): Promise<UsageBudgetAlert>;
+    /**
+     * 导出成本报告为 CSV 或 JSON 字符串，前端可保存为文件。
+     */
+    exportReport(format: UsageExportFormat): Promise<string>;
   };
 }

@@ -10,7 +10,7 @@
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { IPC } from "@devwit/contracts";
-import type { AgentRunInput, AuthorizationDecision, ContextItemType, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, ExternalEditorConfig, GitDiffTexts, GitLogEntry, GitPanelStatus, LspDefinitionTarget, LspDiagnosticItem, LspHoverInfo, LspStatusInfo, ProviderConfig, ProviderProbeRequest, ProviderProbeResult } from "@devwit/contracts";
+import type { AgentRunInput, AuthorizationDecision, ContextItemType, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, ExternalEditorConfig, GitDiffTexts, GitLogEntry, GitPanelStatus, LspDefinitionTarget, LspDiagnosticItem, LspHoverInfo, LspStatusInfo, ProviderConfig, ProviderProbeRequest, ProviderProbeResult, UsageExportFormat } from "@devwit/contracts";
 import { PROVIDER_PRESETS, probeProvider } from "@devwit/llm-providers";
 import { fetchCommunityIndex, fetchCommunityMode, materializeImport, parseExportFile, resolveModesIndexBase, toExportFile } from "@devwit/modes";
 import { fetchCommunityMcpIndex, fetchCommunityMcpServer, materializeMcpImport } from "@devwit/mcp";
@@ -412,6 +412,9 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
     table[IPC.McpCommunityImport] = notWired;
     table[IPC.UsageSummary] = notWired;
     table[IPC.UsageClear] = notWired;
+    table[IPC.UsageDaily] = notWired;
+    table[IPC.UsageBudget] = notWired;
+    table[IPC.UsageExport] = notWired;
     table[IPC.SessionsList] = notWired;
     table[IPC.SessionsRename] = notWired;
     table[IPC.SessionsDelete] = notWired;
@@ -497,6 +500,10 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
   table[IPC.UsageClear] = () => {
     ai.usageClear();
   };
+  table[IPC.UsageDaily] = () => ai.usageDailySummary();
+  table[IPC.UsageBudget] = (_e, threshold, period) =>
+    ai.usageCheckBudget(Number(threshold), period as "day" | "week" | "month" | "total");
+  table[IPC.UsageExport] = (_e, format) => ai.usageExport(format as UsageExportFormat);
   // ---- 对话会话管理（迭代 28 / AC37）：多会话列表 / 重命名 / 删除 ----
   table[IPC.SessionsList] = () => ai.listChatSessions();
   table[IPC.SessionsRename] = (_e, sessionId, title) => {
