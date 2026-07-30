@@ -132,6 +132,7 @@ const api: DevwitApi = {
     didClose: (file) => ipcRenderer.invoke(IPC.LspDidClose, file) as Promise<void>,
     hover: (file, line, character) => ipcRenderer.invoke(IPC.LspHover, file, line, character) as ReturnType<DevwitApi["lsp"]["hover"]>,
     definition: (file, line, character) => ipcRenderer.invoke(IPC.LspDefinition, file, line, character) as ReturnType<DevwitApi["lsp"]["definition"]>,
+    completion: (file, line, character) => ipcRenderer.invoke(IPC.LspCompletion, file, line, character) as ReturnType<DevwitApi["lsp"]["completion"]>,
     diagnostics: () => ipcRenderer.invoke(IPC.LspDiagnostics) as ReturnType<DevwitApi["lsp"]["diagnostics"]>,
     onStatus: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.LspStatus, cb),
     onDiagnostics: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.LspDiagnosticsChanged, cb)

@@ -280,11 +280,12 @@ describe("TsLanguageServer（假 spawn）", () => {
     await server.shutdown(); // 幂等
   });
 
-  it("未 ready 时 hover/definition 返回空，不发出请求", async () => {
+  it("未 ready 时 hover/definition/completion 返回空，不发出请求", async () => {
     const root = path.resolve("E:/ws/demo");
     const { proc, server } = makeFakeServer(root);
     expect(await server.hover("a.ts", 0, 0)).toBeNull();
     expect(await server.definition("a.ts", 0, 0)).toEqual([]);
+    expect(await server.completion("a.ts", 0, 0)).toEqual([]);
     await server.openWorkspace(root);
     // ready 但假服务器不应答 hover（请求超时由客户端层保障，这里只验证形状）
     await server.shutdown();
@@ -357,6 +358,12 @@ describe("TsLanguageServer（真实 typescript-language-server 集成）", () =>
       expect(error).toBeDefined();
       expect(error?.line).toBe(3);
       expect(error?.message.toLowerCase()).toContain("not assignable");
+
+      // completion：add 调用前触发补全，应返回作用域内的 add 候选
+      const completions = await server.completion("main.ts", 2, 22);
+      expect(completions.length).toBeGreaterThan(0);
+      const addCompletion = completions.find((c) => c.label === "add");
+      expect(addCompletion).toBeDefined();
     } finally {
       await server.shutdown();
       expect(server.currentStatus.state).toBe("idle");

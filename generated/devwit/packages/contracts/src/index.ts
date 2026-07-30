@@ -867,6 +867,18 @@ export interface LspDefinitionTarget {
   endCharacter: number;
 }
 
+/**
+ * 自动补全候选项（lsp:completion IPC 返回项）。
+ * kind 为 LSP CompletionItemKind（1=Text 2=Method 3=Function … 25=Class）；
+ * insertText 缺省时 UI 用 label 作为待插入文本。
+ */
+export interface LspCompletionItem {
+  label: string;
+  detail?: string;
+  kind?: number;
+  insertText?: string;
+}
+
 // ============================================================================
 // Git 版本控制（迭代 32 / AC41）：状态面板 / diff 双文本 / 暂存提交
 // ============================================================================
@@ -1023,6 +1035,7 @@ export const IPC = {
   LspDidClose: "lsp:did-close",
   LspHover: "lsp:hover",
   LspDefinition: "lsp:definition",
+  LspCompletion: "lsp:completion",
   LspDiagnostics: "lsp:diagnostics",
   LspDiagnosticsChanged: "lsp:diagnostics-changed",
   GitGetStatus: "git:get-status",
@@ -1120,6 +1133,8 @@ export interface DevwitApi {
     hover(file: string, line: number, character: number): Promise<LspHoverInfo | null>;
     /** 跳转定义候选（空数组 = 无定义）；首个为主目标。 */
     definition(file: string, line: number, character: number): Promise<LspDefinitionTarget[]>;
+    /** 自动补全候选（空数组 = 无建议）；LSP textDocument/completion。 */
+    completion(file: string, line: number, character: number): Promise<LspCompletionItem[]>;
     /** 当前全部诊断快照（跨文件）。 */
     diagnostics(): Promise<LspDiagnosticItem[]>;
     /** 订阅服务状态推送。 */

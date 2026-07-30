@@ -10,7 +10,7 @@
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { IPC } from "@devwit/contracts";
-import type { AgentRunInput, AuthorizationDecision, ContextItemType, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, ExternalEditorConfig, GitDiffTexts, GitLogEntry, GitPanelStatus, LspDefinitionTarget, LspDiagnosticItem, LspHoverInfo, LspStatusInfo, ProviderConfig, ProviderProbeRequest, ProviderProbeResult, UsageExportFormat } from "@devwit/contracts";
+import type { AgentRunInput, AuthorizationDecision, ContextItemType, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, ExternalEditorConfig, GitDiffTexts, GitLogEntry, GitPanelStatus, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspHoverInfo, LspStatusInfo, ProviderConfig, ProviderProbeRequest, ProviderProbeResult, UsageExportFormat } from "@devwit/contracts";
 import { PROVIDER_PRESETS, probeProvider } from "@devwit/llm-providers";
 import { fetchCommunityIndex, fetchCommunityMode, materializeImport, parseExportFile, resolveModesIndexBase, toExportFile } from "@devwit/modes";
 import { fetchCommunityMcpIndex, fetchCommunityMcpServer, materializeMcpImport } from "@devwit/mcp";
@@ -115,6 +115,7 @@ export interface LspIpcService {
   didClose(file: string): void;
   hover(file: string, line: number, character: number): Promise<LspHoverInfo | null>;
   definition(file: string, line: number, character: number): Promise<LspDefinitionTarget[]>;
+  completion(file: string, line: number, character: number): Promise<LspCompletionItem[]>;
   diagnostics(): LspDiagnosticItem[];
 }
 
@@ -277,6 +278,7 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     table[IPC.LspDidClose] = notWired;
     table[IPC.LspHover] = notWired;
     table[IPC.LspDefinition] = notWired;
+    table[IPC.LspCompletion] = notWired;
     table[IPC.LspDiagnostics] = notWired;
   } else {
     table[IPC.LspGetStatus] = () => lsp.status();
@@ -293,6 +295,8 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
       lsp.hover(String(file), Number(line), Number(character));
     table[IPC.LspDefinition] = async (_e, file, line, character) =>
       lsp.definition(String(file), Number(line), Number(character));
+    table[IPC.LspCompletion] = async (_e, file, line, character) =>
+      lsp.completion(String(file), Number(line), Number(character));
     table[IPC.LspDiagnostics] = () => lsp.diagnostics();
   }
 

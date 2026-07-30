@@ -5,7 +5,7 @@
  * 全部界面文案经 @devwit/i18n 词典渲染；启动时从 settings "ui.locale" 恢复语言，
  * 订阅 onDidChangeLocale 全量重写静态文案与动态列表（语言热生效）。
  */
-import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitPanelStatus, LspDiagnosticItem, LspStatusInfo, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
+import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitPanelStatus, LspCompletionItem, LspDiagnosticItem, LspStatusInfo, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, resolveSystemLocale, setLocale, t, ta, type Locale } from "@devwit/i18n";
 import { TextDocument } from "@devwit/editor-core";
 import { EditorView, normalizeSelection } from "@devwit/editor-render";
@@ -335,11 +335,13 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     if (openFile !== null && workspaceRoot !== "") {
       void api.lsp.didClose(relPathOf(openFile.path));
     }
+    hideCompletion(); // 文件切换时关闭补全浮层
     setActiveDoc({ path: filePath, doc });
     syncEditorBreakpoints(); // 断点红点随文件切换重挂（AC42）
     if (workspaceRoot !== "") {
       syncOpenFileToLsp();
       doc.onDidChange(scheduleLspSync);
+      doc.onDidChange(scheduleCompletion); // v0.4.0：输入触发自动补全
       applyEditorDiagnostics(); // 该文件既有诊断立即上波浪线
     }
     sidebar.querySelectorAll(".dw-tree-node").forEach((node) => {
@@ -453,6 +455,143 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       }
     })();
   };
+
+  // ---- LSP 自动补全（v0.4.0）：输入触发 → IPC completion → 浮层 → 键盘/鼠标选择 ----
+  const completionPopup = el("div", "dw-completion");
+  completionPopup.style.display = "none";
+  editorArea.appendChild(completionPopup);
+  let completionItems: LspCompletionItem[] = [];
+  let completionIndex = 0;
+  let completionVisible = false;
+  let completionTimer: number | undefined;
+  let completionToken = 0; // 竞态保护：迟到响应丢弃
+
+  function hideCompletion(): void {
+    window.clearTimeout(completionTimer);
+    completionPopup.style.display = "none";
+    completionVisible = false;
+    completionItems = [];
+    completionIndex = 0;
+  }
+
+  /** 当前光标位置的单词起始列（标识符字符 [a-zA-Z0-9_$] 回扫）。 */
+  function wordStartCharAt(line: number, character: number): number {
+    const text = openFile?.doc.getLine(line) ?? "";
+    let i = character;
+    while (i > 0 && /[a-zA-Z0-9_$]/.test(text[i - 1]!)) i--;
+    return i;
+  }
+
+  function renderCompletionPopup(): void {
+    if (completionItems.length === 0 || openFile === null) {
+      hideCompletion();
+      return;
+    }
+    const items = completionItems.slice(0, 50); // 上限 50 防巨列表
+    completionPopup.innerHTML = "";
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]!;
+      const row = el("div", "dw-completion-item");
+      if (i === completionIndex) row.classList.add("dw-completion-active");
+      const label = el("span", "dw-completion-label");
+      label.textContent = item.label;
+      row.appendChild(label);
+      if (item.detail) {
+        const detail = el("span", "dw-completion-detail");
+        detail.textContent = item.detail;
+        row.appendChild(detail);
+      }
+      row.addEventListener("mousedown", (ev) => {
+        ev.preventDefault();
+        completionIndex = i;
+        applyCompletion();
+      });
+      completionPopup.appendChild(row);
+    }
+    // 定位浮层到光标下方
+    const sel = editor.getSelections().at(-1);
+    if (sel !== undefined) {
+      const pt = editor.clientPointForPosition(sel.active);
+      const areaRect = editorArea.getBoundingClientRect();
+      completionPopup.style.left = `${pt.x - areaRect.left}px`;
+      completionPopup.style.top = `${pt.y - areaRect.top + 18}px`;
+    }
+    completionPopup.style.display = "block";
+    completionVisible = true;
+  }
+
+  async function requestCompletion(): Promise<void> {
+    const current = openFile;
+    if (current === null || workspaceRoot === "" || lspStatus.state !== "ready") return;
+    const sel = editor.getSelections().at(-1);
+    if (sel === undefined) return;
+    const pos = sel.active;
+    const token = ++completionToken;
+    const items = await api.lsp.completion(relPathOf(current.path), pos.line, pos.character);
+    // 迟到响应丢弃（文件已切换或光标已移动）
+    if (completionToken !== token || openFile !== current) return;
+    const after = editor.getSelections().at(-1);
+    if (after === undefined || after.active.line !== pos.line || after.active.character !== pos.character) return;
+    completionItems = items;
+    completionIndex = 0;
+    renderCompletionPopup();
+  }
+
+  function scheduleCompletion(): void {
+    if (openFile === null || workspaceRoot === "" || lspStatus.state !== "ready") return;
+    window.clearTimeout(completionTimer);
+    completionTimer = window.setTimeout(() => void requestCompletion(), 250);
+  }
+
+  /** 应用选中的补全项：替换单词范围为 insertText（缺省 label）。 */
+  function applyCompletion(): void {
+    if (!completionVisible || completionItems.length === 0) return;
+    const item = completionItems[completionIndex];
+    if (item === undefined || openFile === null) return;
+    const sel = editor.getSelections().at(-1);
+    if (sel === undefined) return;
+    const pos = sel.active;
+    const startChar = wordStartCharAt(pos.line, pos.character);
+    const text = item.insertText ?? item.label;
+    const startOffset = openFile.doc.offsetAt({ line: pos.line, character: startChar });
+    const endOffset = openFile.doc.offsetAt({ line: pos.line, character: pos.character });
+    openFile.doc.applyEdit({ offset: startOffset, length: endOffset - startOffset, text });
+    const newPos = openFile.doc.positionAt(startOffset + text.length);
+    editor.revealPosition(newPos);
+    hideCompletion();
+  }
+
+  // 键盘导航：浮层可见时拦截 ArrowUp/Down/Enter/Tab/Esc（capture 阶段先于编辑器）
+  window.addEventListener("keydown", (ev) => {
+    if (!completionVisible) return;
+    const count = Math.min(completionItems.length, 50);
+    switch (ev.key) {
+      case "ArrowDown":
+        ev.preventDefault();
+        ev.stopPropagation();
+        completionIndex = (completionIndex + 1) % count;
+        renderCompletionPopup();
+        break;
+      case "ArrowUp":
+        ev.preventDefault();
+        ev.stopPropagation();
+        completionIndex = (completionIndex - 1 + count) % count;
+        renderCompletionPopup();
+        break;
+      case "Enter":
+      case "Tab":
+        ev.preventDefault();
+        ev.stopPropagation();
+        applyCompletion();
+        break;
+      case "Escape":
+        ev.preventDefault();
+        ev.stopPropagation();
+        hideCompletion();
+        break;
+    }
+  }, true);
+  canvas.addEventListener("mousedown", hideCompletion);
 
   api.lsp.onStatus((status) => {
     const wasReady = lspStatus.state === "ready";

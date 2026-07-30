@@ -11,6 +11,7 @@
  */
 import path from "node:path";
 import type {
+  LspCompletionItem,
   LspDefinitionTarget,
   LspDiagnosticItem,
   LspHoverInfo,
@@ -93,6 +94,18 @@ interface LspRawHover {
 interface LspRawLocation {
   uri: string;
   range: LspRange;
+}
+
+interface LspRawCompletionItem {
+  label: string;
+  detail?: string;
+  kind?: number;
+  insertText?: string;
+}
+
+interface LspRawCompletionList {
+  isIncomplete?: boolean;
+  items?: LspRawCompletionItem[];
 }
 
 const SEVERITY_MAP: Record<number, LspDiagnosticItem["severity"]> = {
@@ -311,6 +324,33 @@ export class TsLanguageServer {
         character: loc.range.start.character,
         endLine: loc.range.end.line,
         endCharacter: loc.range.end.character,
+      }));
+  }
+
+  /**
+   * 自动补全候选（未就绪/无建议 → 空数组；请求失败不抛出）。
+   * LSP 返回 CompletionList（{items}）或 CompletionItem[] 或 null，统一归一。
+   */
+  async completion(relFile: string, line: number, character: number): Promise<LspCompletionItem[]> {
+    if (this.client === null || this.status.state !== "ready") return [];
+    let raw: LspRawCompletionList | LspRawCompletionItem[] | null;
+    try {
+      raw = (await this.client.request("textDocument/completion", {
+        textDocument: { uri: this.uriFor(relFile) },
+        position: { line, character },
+      })) as LspRawCompletionList | LspRawCompletionItem[] | null;
+    } catch {
+      return [];
+    }
+    if (raw === null) return [];
+    const items = Array.isArray(raw) ? raw : raw.items ?? [];
+    return items
+      .filter((item) => item !== null && typeof item.label === "string")
+      .map((item) => ({
+        label: item.label,
+        ...(item.detail !== undefined ? { detail: item.detail } : {}),
+        ...(item.kind !== undefined ? { kind: item.kind } : {}),
+        ...(item.insertText !== undefined ? { insertText: item.insertText } : {}),
       }));
   }
 

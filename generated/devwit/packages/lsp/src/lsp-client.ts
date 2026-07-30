@@ -113,6 +113,7 @@ export class LspClient {
             synchronization: { didSave: false, dynamicRegistration: false },
             hover: { contentFormat: ["markdown", "plaintext"] },
             definition: { linkSupport: false },
+            completion: { triggerCharacters: [".", "/", "\"", "'", "`"], resolveProvider: false },
             publishDiagnostics: { relatedInformation: false, versionSupport: false },
           },
         },

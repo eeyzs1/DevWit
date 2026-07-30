@@ -1261,6 +1261,51 @@ body,
   pointer-events: none; /* 不拦截鼠标——浮层纯展示，移动即关 */
 }
 
+/* ---- LSP 自动补全浮层（v0.4.0）---- */
+.dw-completion {
+  position: absolute;
+  z-index: 25;
+  max-height: 280px;
+  overflow-y: auto;
+  min-width: 200px;
+  max-width: 420px;
+  background: var(--dw-bg-panel);
+  border: 1px solid var(--dw-border);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 2px 0;
+}
+.dw-completion-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.dw-completion-item:hover {
+  background: var(--dw-bg-hover, rgba(128, 128, 128, 0.15));
+}
+.dw-completion-item.dw-completion-active {
+  background: var(--dw-accent, #007acc);
+  color: #fff;
+}
+.dw-completion-label {
+  flex-shrink: 0;
+  font-weight: 500;
+}
+.dw-completion-detail {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.7;
+  font-size: 11px;
+}
+
 /* ---- Git 版本控制（AC41）---- */
 .dw-left-tabs {
   flex-shrink: 0;
