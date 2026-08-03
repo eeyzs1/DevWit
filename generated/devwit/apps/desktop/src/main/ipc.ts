@@ -81,6 +81,7 @@ const DEBUG_NOT_WIRED = "DW_DEBUG_NOT_WIRED";
 /** DAP 调试接线参数（迭代 33 / AC42）：结构子集与 DebugMainService 对齐（保持本文件无包运行时依赖）。 */
 export interface DebugIpcService {
   start(program: string, breakpoints: Record<string, DebugBreakpoint[]>): Promise<void>;
+  attach(port: number, host: string, breakpoints: Record<string, DebugBreakpoint[]>): Promise<void>;
   stop(): Promise<void>;
   getState(): DebugStateInfo;
   continue(): Promise<void>;
@@ -425,6 +426,7 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
       throw new Error(DEBUG_NOT_WIRED);
     };
     table[IPC.DebugStart] = notWired;
+    table[IPC.DebugAttach] = notWired;
     table[IPC.DebugStop] = notWired;
     table[IPC.DebugGetState] = notWired;
     table[IPC.DebugContinue] = notWired;
@@ -439,6 +441,8 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
   } else {
     table[IPC.DebugStart] = async (_e, program, breakpoints) =>
       debug.start(String(program), breakpoints as Record<string, DebugBreakpoint[]>);
+    table[IPC.DebugAttach] = async (_e, port, host, breakpoints) =>
+      debug.attach(Number(port), typeof host === "string" ? host : "127.0.0.1", breakpoints as Record<string, DebugBreakpoint[]>);
     table[IPC.DebugSetBreakpoints] = async (_e, file, breakpoints) =>
       debug.setBreakpoints(String(file), breakpoints as DebugBreakpoint[]);
     table[IPC.DebugStop] = async () => debug.stop();

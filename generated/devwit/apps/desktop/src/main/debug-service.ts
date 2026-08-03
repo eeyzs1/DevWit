@@ -78,6 +78,36 @@ export class DebugMainService {
     }
   }
 
+  /** 附加到已运行进程（v0.4.0）：连接到指定端口的 Node.js inspector。 */
+  async attach(port: number, host: string, breakpoints: Record<string, DebugBreakpoint[]>): Promise<void> {
+    if (this.session !== null && this.session.isActive) {
+      throw new Error("DW_DAP_ALREADY_ACTIVE");
+    }
+    if (this.session !== null) {
+      await this.session.shutdown();
+      this.session = null;
+    }
+    const session = new JsDebugSession({
+      serverPath: this.deps.serverPath ?? resolveJsDebugServer(),
+      nodeCommand: this.deps.nodeCommand ?? process.execPath,
+      ...(this.deps.requestTimeoutMs !== undefined ? { requestTimeoutMs: this.deps.requestTimeoutMs } : {}),
+    });
+    session.onState = (state) => {
+      this.current = state;
+      this.deps.send(IPC.DebugState, state);
+    };
+    session.onOutput = (category, text) => {
+      this.deps.send(IPC.DebugOutput, category, text);
+    };
+    this.session = session;
+    try {
+      await session.attach(port, host, breakpoints);
+    } catch (error) {
+      this.session = null;
+      throw error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
   async stop(): Promise<void> {
     if (this.session !== null) {
       await this.session.shutdown();

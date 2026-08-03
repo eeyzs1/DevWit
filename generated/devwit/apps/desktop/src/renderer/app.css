@@ -2199,6 +2199,13 @@ body,
   font-size: 12px;
 }
 
+/* attach 模式端口输入（v0.4.0）：窄宽，与工具栏按钮同高 */
+.dw-debug-attach-port {
+  width: 70px;
+  font-size: 12px;
+  font-family: Consolas, "Courier New", monospace;
+}
+
 .dw-watch-row {
   display: flex;
   align-items: center;

@@ -2479,6 +2479,27 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     await doDebugOp(() => api.debug.start(program, payload));
   }
 
+  /**
+   * 附加到已运行进程（v0.4.0）：连接到指定端口的 Node.js inspector。
+   * 进程须以 --inspect 或 --inspect-brk 启动。host 固定 127.0.0.1（本地附加）。
+   * 断点全量下发策略同 startDebugging。
+   */
+  async function attachDebugging(portText: string): Promise<void> {
+    const port = Number.parseInt(portText, 10);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      showStatus(t("debug.attach.badPort"));
+      return;
+    }
+    const payload: Record<string, DebugBreakpoint[]> = {};
+    for (const [file, fileBps] of breakpoints) {
+      if (fileBps.size > 0 && isJsFile(file)) {
+        payload[file] = [...fileBps.values()].sort((a, b) => a.line - b.line);
+      }
+    }
+    debugOutputText = "";
+    await doDebugOp(() => api.debug.attach(port, "127.0.0.1", payload));
+  }
+
   /** stopped 态数据装载：调用栈 → 首帧作用域 → 首作用域变量。 */
   async function loadStoppedData(): Promise<void> {
     try {
@@ -2669,6 +2690,25 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       }
     });
     toolbar.appendChild(startBtn);
+    // attach 模式（v0.4.0）：非活动态显示端口输入 + 附加按钮
+    if (!active) {
+      const portInput = el("input", "dw-input dw-debug-attach-port") as HTMLInputElement;
+      portInput.type = "number";
+      portInput.placeholder = t("debug.attach.portPh");
+      portInput.min = "1";
+      portInput.max = "65535";
+      portInput.value = "9229";
+      portInput.title = t("debug.attach.portPh");
+      portInput.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") {
+          void attachDebugging(portInput.value);
+        }
+      });
+      const attachBtn = el("button", "dw-btn dw-btn-small", t("debug.attach"));
+      attachBtn.title = t("debug.attach.tooltip");
+      attachBtn.addEventListener("click", () => void attachDebugging(portInput.value));
+      toolbar.append(portInput, attachBtn);
+    }
     const stepDefs: Array<[string, () => Promise<void>]> = [
       [t("debug.continue"), () => api.debug.continue()],
       [t("debug.next"), () => api.debug.next()],

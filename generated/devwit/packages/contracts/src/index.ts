@@ -1226,6 +1226,7 @@ export const IPC = {
   DebugVariables: "debug:variables",
   DebugSetBreakpoints: "debug:set-breakpoints",
   DebugEvaluate: "debug:evaluate",
+  DebugAttach: "debug:attach",
   DebugState: "debug:state",
   DebugOutput: "debug:output",
 } as const;
@@ -1386,6 +1387,11 @@ export interface DevwitApi {
      * breakpoints 为 绝对路径 → DebugBreakpoint[]（行号 1-based；可携带 condition/hitCount/logMessage）。
      */
     start(program: string, breakpoints: Record<string, DebugBreakpoint[]>): Promise<void>;
+    /**
+     * 附加到已运行进程（v0.4.0）：连接到指定端口的 Node.js inspector。
+     * 进程须以 --inspect 或 --inspect-brk 启动。breakpoints 同 start。
+     */
+    attach(port: number, host: string, breakpoints: Record<string, DebugBreakpoint[]>): Promise<void>;
     /**
      * 动态更新断点（会话进行中可调用；file 为绝对路径，breakpoints 为 1-based 断点数组，
      * 空数组=清除该文件断点）。全量替换语义：未列出行的既有断点会被清除。

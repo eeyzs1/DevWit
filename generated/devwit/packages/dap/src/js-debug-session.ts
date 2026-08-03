@@ -334,6 +334,104 @@ export class JsDebugSession {
     }
   }
 
+  /**
+   * 附加到已运行进程（v0.4.0）：连接到指定端口的 Node.js inspector。
+   * 进程须以 --inspect 或 --inspect-brk 启动。不 spawn 被调试进程——
+   * 生命周期由用户掌控，shutdown 仅 disconnect 不 kill。
+   */
+  async attach(port: number, host: string, breakpoints: Record<string, DebugBreakpoint[]>): Promise<void> {
+    if (this.isActive) throw new Error("DW_DAP_ALREADY_ACTIVE");
+    this.setState({ state: "starting" });
+    const timeout = this.options.requestTimeoutMs ?? 30_000;
+    const attachHost = host === "" ? "127.0.0.1" : host;
+
+    // ---- C1 根连接：spawn js-debug 服务器 ----
+    const root = new DapClient(
+      this.options.nodeCommand,
+      [this.options.serverPath, "0", "127.0.0.1"],
+      { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+      this.options.spawnImpl ?? nodeSpawnFactory,
+      timeout,
+      this.options.transportFactory ?? tcpServerTransportFactory()
+    );
+    this.rootClient = root;
+    root.onExit = () => {
+      if (this.current.state !== "idle" && this.current.state !== "terminated") {
+        this.stopThreadId = null;
+        this.setState({ state: "terminated" });
+      }
+      void this.closeClients();
+    };
+
+    try {
+      await root.start();
+      const address = root.transportAddress;
+      if (address === null) throw new Error("DW_DAP_TRANSPORT_DEAD");
+
+      root.onReverseRequest = async (command, args) => {
+        if (command !== "startDebugging") throw new Error("DW_DAP_REVERSE_UNSUPPORTED");
+        const payload = args as { request?: string; configuration?: Record<string, unknown> } | undefined;
+        if (payload?.configuration === undefined || typeof payload.request !== "string" || payload.request === "") {
+          throw new Error("DW_DAP_REVERSE_BAD_ARGS");
+        }
+        await this.startCompanion(address, payload.request, payload.configuration, timeout);
+        return {};
+      };
+      let rootGate: () => void = () => {};
+      const rootInitialized = new Promise<void>((resolve) => {
+        rootGate = resolve;
+      });
+      root.onEvent = (event, body) => {
+        this.onRawEvent?.("root", event, body);
+        if (event === "initialized") rootGate();
+      };
+
+      const companionReady = new Promise<void>((resolve) => {
+        this.initializedGate = () => resolve();
+      });
+
+      // ---- C1 握手：attach 到用户指定的端口 ----
+      const rootAttach = root.request("attach", {
+        type: "pwa-node",
+        request: "attach",
+        name: "DevWit Attach",
+        address: attachHost,
+        port,
+        stopOnEntry: false,
+        resolveSourceMapLocations: null,
+        sourceMaps: false,
+        timeout: Math.min(timeout, 10_000),
+        ...(this.options.trace === true ? { trace: true } : {}),
+      });
+      rootAttach.catch(() => {});
+      await rootInitialized;
+      await root.request("configurationDone");
+      await rootAttach;
+
+      // ---- C2 伴随连接：设断点 → configurationDone ----
+      await withTimeout(companionReady, timeout, "DW_DAP_COMPANION_TIMEOUT");
+      const companion = this.client;
+      const companionRequest = this.companionRequest;
+      if (companion === null || companionRequest === null) throw new Error("DW_DAP_COMPANION_MISSING");
+      this.initializedGate = null;
+      for (const [file, bps] of Object.entries(breakpoints)) {
+        if (bps.length === 0) continue;
+        await companion.request("setBreakpoints", {
+          source: { path: file },
+          breakpoints: bps.map((bp) => toDapBreakpoint(bp)),
+        });
+      }
+      await companion.request("configurationDone");
+      await companionRequest;
+      if (this.current.state === "starting") {
+        this.setState({ state: "running" });
+      }
+    } catch (error) {
+      await this.shutdown();
+      throw error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
   /** 停止调试（C2/C1 disconnect + 强杀服务器 + 强杀被调试进程；幂等）。 */
   async shutdown(): Promise<void> {
     this.initializedGate = null;
