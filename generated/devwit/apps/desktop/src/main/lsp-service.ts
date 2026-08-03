@@ -84,6 +84,10 @@ export class LspService {
     return this.server.completion(file, line, character);
   }
 
+  references(file: string, line: number, character: number): Promise<LspDefinitionTarget[]> {
+    return this.server.references(file, line, character);
+  }
+
   diagnostics(): LspDiagnosticItem[] {
     return this.server.listDiagnostics();
   }

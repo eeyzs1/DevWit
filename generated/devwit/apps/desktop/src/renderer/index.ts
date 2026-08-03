@@ -5,7 +5,7 @@
  * 全部界面文案经 @devwit/i18n 词典渲染；启动时从 settings "ui.locale" 恢复语言，
  * 订阅 onDidChangeLocale 全量重写静态文案与动态列表（语言热生效）。
  */
-import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitPanelStatus, LspCompletionItem, LspDiagnosticItem, LspStatusInfo, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
+import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitPanelStatus, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspStatusInfo, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, resolveSystemLocale, setLocale, t, ta, type Locale } from "@devwit/i18n";
 import { TextDocument } from "@devwit/editor-core";
 import { EditorView, normalizeSelection } from "@devwit/editor-render";
@@ -592,6 +592,146 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     }
   }, true);
   canvas.addEventListener("mousedown", hideCompletion);
+
+  // ---- LSP 引用查找（v0.4.0）：Shift+F12 触发 → IPC references → 浮层列表 → 跳转 ----
+  const referencesPopup = el("div", "dw-references");
+  referencesPopup.style.display = "none";
+  editorArea.appendChild(referencesPopup);
+  let referencesItems: LspDefinitionTarget[] = [];
+  let referencesIndex = 0;
+  let referencesVisible = false;
+  let referencesToken = 0;
+
+  function hideReferences(): void {
+    referencesPopup.style.display = "none";
+    referencesVisible = false;
+    referencesItems = [];
+    referencesIndex = 0;
+  }
+
+  function positionReferencesPopup(): void {
+    const sel = editor.getSelections().at(-1);
+    if (sel !== undefined) {
+      const pt = editor.clientPointForPosition(sel.active);
+      const areaRect = editorArea.getBoundingClientRect();
+      referencesPopup.style.left = `${pt.x - areaRect.left}px`;
+      referencesPopup.style.top = `${pt.y - areaRect.top + 18}px`;
+    }
+  }
+
+  function renderReferencesPopup(): void {
+    if (referencesItems.length === 0 || openFile === null) {
+      hideReferences();
+      return;
+    }
+    const items = referencesItems.slice(0, 50);
+    referencesPopup.innerHTML = "";
+    const header = el("div", "dw-references-header");
+    header.textContent = t("lsp.references.count", { n: items.length });
+    referencesPopup.appendChild(header);
+    const currentRel = relPathOf(openFile.path);
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]!;
+      const row = el("div", "dw-references-item");
+      if (i === referencesIndex) row.classList.add("dw-references-active");
+      const loc = el("span", "dw-references-loc");
+      loc.textContent = `${item.file}:${item.line + 1}:${item.character + 1}`;
+      row.appendChild(loc);
+      if (item.file === currentRel) {
+        const lineText = openFile.doc.getLine(item.line) ?? "";
+        const preview = el("span", "dw-references-preview");
+        preview.textContent = lineText.trim().slice(0, 60);
+        row.appendChild(preview);
+      }
+      row.addEventListener("mousedown", (ev) => {
+        ev.preventDefault();
+        referencesIndex = i;
+        applyReferences();
+      });
+      referencesPopup.appendChild(row);
+    }
+    positionReferencesPopup();
+    referencesPopup.style.display = "block";
+    referencesVisible = true;
+  }
+
+  async function requestReferences(): Promise<void> {
+    const current = openFile;
+    if (current === null || workspaceRoot === "" || lspStatus.state !== "ready") return;
+    const sel = editor.getSelections().at(-1);
+    if (sel === undefined) return;
+    const pos = sel.active;
+    const token = ++referencesToken;
+    const items = await api.lsp.references(relPathOf(current.path), pos.line, pos.character);
+    if (referencesToken !== token || openFile !== current) return;
+    if (items.length === 0) {
+      referencesPopup.innerHTML = "";
+      const empty = el("div", "dw-references-empty");
+      empty.textContent = t("lsp.references.empty");
+      referencesPopup.appendChild(empty);
+      positionReferencesPopup();
+      referencesPopup.style.display = "block";
+      referencesVisible = true;
+      window.setTimeout(hideReferences, 1500);
+      return;
+    }
+    referencesItems = items;
+    referencesIndex = 0;
+    renderReferencesPopup();
+  }
+
+  function applyReferences(): void {
+    if (!referencesVisible || referencesItems.length === 0) return;
+    const target = referencesItems[referencesIndex];
+    if (target === undefined) return;
+    const current = openFile;
+    const currentRel = current !== null ? relPathOf(current.path) : "";
+    hideReferences();
+    if (target.file === currentRel && current !== null) {
+      editor.revealPosition({ line: target.line, character: target.character });
+    } else {
+      const abs = `${workspaceRoot.replace(/[/\\]+$/, "")}/${target.file}`;
+      void openFileByPath(abs).then(() => {
+        editor.revealPosition({ line: target.line, character: target.character });
+      });
+    }
+  }
+
+  window.addEventListener("keydown", (ev) => {
+    if (ev.shiftKey && ev.key === "F12") {
+      ev.preventDefault();
+      ev.stopPropagation();
+      void requestReferences();
+      return;
+    }
+    if (!referencesVisible) return;
+    const count = Math.min(referencesItems.length, 50);
+    switch (ev.key) {
+      case "ArrowDown":
+        ev.preventDefault();
+        ev.stopPropagation();
+        referencesIndex = (referencesIndex + 1) % count;
+        renderReferencesPopup();
+        break;
+      case "ArrowUp":
+        ev.preventDefault();
+        ev.stopPropagation();
+        referencesIndex = (referencesIndex - 1 + count) % count;
+        renderReferencesPopup();
+        break;
+      case "Enter":
+        ev.preventDefault();
+        ev.stopPropagation();
+        applyReferences();
+        break;
+      case "Escape":
+        ev.preventDefault();
+        ev.stopPropagation();
+        hideReferences();
+        break;
+    }
+  }, true);
+  canvas.addEventListener("mousedown", hideReferences);
 
   api.lsp.onStatus((status) => {
     const wasReady = lspStatus.state === "ready";

@@ -1036,6 +1036,7 @@ export const IPC = {
   LspHover: "lsp:hover",
   LspDefinition: "lsp:definition",
   LspCompletion: "lsp:completion",
+  LspReferences: "lsp:references",
   LspDiagnostics: "lsp:diagnostics",
   LspDiagnosticsChanged: "lsp:diagnostics-changed",
   GitGetStatus: "git:get-status",
@@ -1135,6 +1136,8 @@ export interface DevwitApi {
     definition(file: string, line: number, character: number): Promise<LspDefinitionTarget[]>;
     /** 自动补全候选（空数组 = 无建议）；LSP textDocument/completion。 */
     completion(file: string, line: number, character: number): Promise<LspCompletionItem[]>;
+    /** 引用查找候选（空数组 = 无引用）；LSP textDocument/references，含声明处。 */
+    references(file: string, line: number, character: number): Promise<LspDefinitionTarget[]>;
     /** 当前全部诊断快照（跨文件）。 */
     diagnostics(): Promise<LspDiagnosticItem[]>;
     /** 订阅服务状态推送。 */

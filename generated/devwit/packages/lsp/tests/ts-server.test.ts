@@ -286,6 +286,7 @@ describe("TsLanguageServer（假 spawn）", () => {
     expect(await server.hover("a.ts", 0, 0)).toBeNull();
     expect(await server.definition("a.ts", 0, 0)).toEqual([]);
     expect(await server.completion("a.ts", 0, 0)).toEqual([]);
+    expect(await server.references("a.ts", 0, 0)).toEqual([]);
     await server.openWorkspace(root);
     // ready 但假服务器不应答 hover（请求超时由客户端层保障，这里只验证形状）
     await server.shutdown();
@@ -364,6 +365,14 @@ describe("TsLanguageServer（真实 typescript-language-server 集成）", () =>
       expect(completions.length).toBeGreaterThan(0);
       const addCompletion = completions.find((c) => c.label === "add");
       expect(addCompletion).toBeDefined();
+
+      // references：add 调用处查找引用，应含声明处（math.ts:0）+ 调用处（main.ts:2）
+      const refs = await server.references("main.ts", 2, 25);
+      expect(refs.length).toBeGreaterThanOrEqual(1);
+      const mathDecl = refs.find((r) => r.file === "math.ts" && r.line === 0);
+      expect(mathDecl).toBeDefined();
+      const mainCall = refs.find((r) => r.file === "main.ts" && r.line === 2);
+      expect(mainCall).toBeDefined();
     } finally {
       await server.shutdown();
       expect(server.currentStatus.state).toBe("idle");

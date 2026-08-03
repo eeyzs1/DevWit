@@ -25,6 +25,8 @@ const zhCN = {
   "lsp.status.starting": "LSP 启动中…",
   "lsp.status.error": "LSP 启动失败 ({code})",
   "lsp.diag.count": "✕ {errors}  ⚠ {warnings}",
+  "lsp.references.count": "{n} 个引用",
+  "lsp.references.empty": "无引用",
 
   // ---- Git 版本控制（迭代 32 / AC41）----
   "tab.files": "文件",
@@ -588,6 +590,8 @@ const enUS: Messages = {
   "lsp.status.starting": "LSP starting…",
   "lsp.status.error": "LSP failed to start ({code})",
   "lsp.diag.count": "✕ {errors}  ⚠ {warnings}",
+  "lsp.references.count": "{n} references",
+  "lsp.references.empty": "No references",
 
   // ---- Git version control (iteration 32 / AC41) ----
   "tab.files": "Files",

@@ -116,6 +116,7 @@ export interface LspIpcService {
   hover(file: string, line: number, character: number): Promise<LspHoverInfo | null>;
   definition(file: string, line: number, character: number): Promise<LspDefinitionTarget[]>;
   completion(file: string, line: number, character: number): Promise<LspCompletionItem[]>;
+  references(file: string, line: number, character: number): Promise<LspDefinitionTarget[]>;
   diagnostics(): LspDiagnosticItem[];
 }
 
@@ -279,6 +280,7 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     table[IPC.LspHover] = notWired;
     table[IPC.LspDefinition] = notWired;
     table[IPC.LspCompletion] = notWired;
+    table[IPC.LspReferences] = notWired;
     table[IPC.LspDiagnostics] = notWired;
   } else {
     table[IPC.LspGetStatus] = () => lsp.status();
@@ -297,6 +299,8 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
       lsp.definition(String(file), Number(line), Number(character));
     table[IPC.LspCompletion] = async (_e, file, line, character) =>
       lsp.completion(String(file), Number(line), Number(character));
+    table[IPC.LspReferences] = async (_e, file, line, character) =>
+      lsp.references(String(file), Number(line), Number(character));
     table[IPC.LspDiagnostics] = () => lsp.diagnostics();
   }
 

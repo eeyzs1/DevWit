@@ -354,6 +354,36 @@ export class TsLanguageServer {
       }));
   }
 
+  /**
+   * 引用查找（未就绪/无引用 → 空数组；请求失败不抛出）。
+   * LSP textDocument/references 返回 Location[] 或 null；context.includeDeclaration=true 含声明处。
+   * 归一逻辑同 definition（Location → LspDefinitionTarget）。
+   */
+  async references(relFile: string, line: number, character: number): Promise<LspDefinitionTarget[]> {
+    if (this.client === null || this.status.state !== "ready") return [];
+    let raw: LspRawLocation | LspRawLocation[] | null;
+    try {
+      raw = (await this.client.request("textDocument/references", {
+        textDocument: { uri: this.uriFor(relFile) },
+        position: { line, character },
+        context: { includeDeclaration: true },
+      })) as LspRawLocation | LspRawLocation[] | null;
+    } catch {
+      return [];
+    }
+    if (raw === null) return [];
+    const list = Array.isArray(raw) ? raw : [raw];
+    return list
+      .filter((loc) => typeof loc?.uri === "string" && loc.range !== undefined)
+      .map((loc) => ({
+        file: this.relFor(loc.uri),
+        line: loc.range.start.line,
+        character: loc.range.start.character,
+        endLine: loc.range.end.line,
+        endCharacter: loc.range.end.character,
+      }));
+  }
+
   /** 当前全部诊断快照（跨文件，已映射为相对路径 + severity 字符串）。 */
   listDiagnostics(): LspDiagnosticItem[] {
     const items: LspDiagnosticItem[] = [];

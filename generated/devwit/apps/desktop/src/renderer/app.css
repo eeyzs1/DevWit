@@ -1306,6 +1306,64 @@ body,
   font-size: 11px;
 }
 
+/* ---- LSP 引用查找浮层（v0.4.0）---- */
+.dw-references {
+  position: absolute;
+  z-index: 25;
+  max-height: 320px;
+  overflow-y: auto;
+  min-width: 320px;
+  max-width: 560px;
+  background: var(--dw-bg-panel);
+  border: 1px solid var(--dw-border);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 2px 0;
+}
+.dw-references-header {
+  padding: 4px 10px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--dw-border);
+  color: var(--dw-text-dim, #888);
+  position: sticky;
+  top: 0;
+  background: var(--dw-bg-panel);
+}
+.dw-references-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 10px;
+  cursor: pointer;
+  overflow: hidden;
+}
+.dw-references-item:hover {
+  background: var(--dw-bg-hover, rgba(128, 128, 128, 0.15));
+}
+.dw-references-item.dw-references-active {
+  background: var(--dw-accent, #007acc);
+  color: #fff;
+}
+.dw-references-loc {
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.dw-references-preview {
+  font-size: 11px;
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dw-references-empty {
+  padding: 8px 12px;
+  color: var(--dw-text-dim, #888);
+  font-style: italic;
+}
+
 /* ---- Git 版本控制（AC41）---- */
 .dw-left-tabs {
   flex-shrink: 0;
