@@ -15,6 +15,10 @@ export interface Theme {
   diagnosticWarning: string;
   /** 断点圆点（DAP 调试，行号槽内）。 */
   breakpoint: string;
+  /** 条件断点圆点中心色（v0.4.0：condition/hitCount 断点=空心环 + 中心点）。 */
+  breakpointConditional: string;
+  /** 日志断点形状色（v0.4.0：logMessage 断点=菱形）。 */
+  breakpointLog: string;
   /** 调试停止行背景（整行 + 行号槽箭头）。 */
   debugLineBackground: string;
   /** 高亮 scope → 颜色，如 "keyword"/"string"/"comment"；未配置的 scope 用 foreground */
@@ -34,6 +38,8 @@ export const defaultDarkTheme: Theme = {
   diagnosticError: "#f14c4c",
   diagnosticWarning: "#cca700",
   breakpoint: "#e51400",
+  breakpointConditional: "#cca700",
+  breakpointLog: "#4ec9b0",
   debugLineBackground: "rgba(204, 167, 0, 0.15)",
   scopes: {
     keyword: "#569cd6",

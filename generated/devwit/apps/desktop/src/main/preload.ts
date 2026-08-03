@@ -165,7 +165,7 @@ const api: DevwitApi = {
   },
   debug: {
     start: (program, breakpoints) => ipcRenderer.invoke(IPC.DebugStart, program, breakpoints) as Promise<void>,
-    setBreakpoints: (file, lines) => ipcRenderer.invoke(IPC.DebugSetBreakpoints, file, lines) as Promise<void>,
+    setBreakpoints: (file, breakpoints) => ipcRenderer.invoke(IPC.DebugSetBreakpoints, file, breakpoints) as Promise<void>,
     stop: () => ipcRenderer.invoke(IPC.DebugStop) as Promise<void>,
     getState: () => ipcRenderer.invoke(IPC.DebugGetState) as ReturnType<DevwitApi["debug"]["getState"]>,
     continue: () => ipcRenderer.invoke(IPC.DebugContinue) as Promise<void>,

@@ -10,7 +10,7 @@
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { IPC } from "@devwit/contracts";
-import type { AgentRunInput, AuthorizationDecision, ContextItemType, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, ExternalEditorConfig, GitBlameLine, GitBranch, GitDiffTexts, GitLogEntry, GitPanelStatus, GitStashEntry, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspHoverInfo, LspSignatureHelp, LspStatusInfo, LspTextEdit, ProviderConfig, ProviderProbeRequest, ProviderProbeResult, UsageExportFormat } from "@devwit/contracts";
+import type { AgentRunInput, AuthorizationDecision, ContextItemType, DebugBreakpoint, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, ExternalEditorConfig, GitBlameLine, GitBranch, GitDiffTexts, GitLogEntry, GitPanelStatus, GitStashEntry, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspHoverInfo, LspSignatureHelp, LspStatusInfo, LspTextEdit, ProviderConfig, ProviderProbeRequest, ProviderProbeResult, UsageExportFormat } from "@devwit/contracts";
 import { PROVIDER_PRESETS, probeProvider } from "@devwit/llm-providers";
 import { fetchCommunityIndex, fetchCommunityMode, materializeImport, parseExportFile, resolveModesIndexBase, toExportFile } from "@devwit/modes";
 import { fetchCommunityMcpIndex, fetchCommunityMcpServer, materializeMcpImport } from "@devwit/mcp";
@@ -79,14 +79,14 @@ const DEBUG_NOT_WIRED = "DW_DEBUG_NOT_WIRED";
 
 /** DAP 调试接线参数（迭代 33 / AC42）：结构子集与 DebugMainService 对齐（保持本文件无包运行时依赖）。 */
 export interface DebugIpcService {
-  start(program: string, breakpoints: Record<string, number[]>): Promise<void>;
+  start(program: string, breakpoints: Record<string, DebugBreakpoint[]>): Promise<void>;
   stop(): Promise<void>;
   getState(): DebugStateInfo;
   continue(): Promise<void>;
   next(): Promise<void>;
   stepIn(): Promise<void>;
   stepOut(): Promise<void>;
-  setBreakpoints(file: string, lines: number[]): Promise<void>;
+  setBreakpoints(file: string, breakpoints: DebugBreakpoint[]): Promise<void>;
   stack(): Promise<DebugStackFrameItem[]>;
   scopes(frameId: number): Promise<DebugScopeItem[]>;
   variables(reference: number): Promise<DebugVariableItem[]>;
@@ -416,9 +416,9 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     table[IPC.DebugEvaluate] = notWired;
   } else {
     table[IPC.DebugStart] = async (_e, program, breakpoints) =>
-      debug.start(String(program), breakpoints as Record<string, number[]>);
-    table[IPC.DebugSetBreakpoints] = async (_e, file, lines) =>
-      debug.setBreakpoints(String(file), lines as number[]);
+      debug.start(String(program), breakpoints as Record<string, DebugBreakpoint[]>);
+    table[IPC.DebugSetBreakpoints] = async (_e, file, breakpoints) =>
+      debug.setBreakpoints(String(file), breakpoints as DebugBreakpoint[]);
     table[IPC.DebugStop] = async () => debug.stop();
     table[IPC.DebugGetState] = () => debug.getState();
     table[IPC.DebugContinue] = async () => debug.continue();

@@ -29,6 +29,7 @@ import { EventEmitter } from "node:events";
 import net from "node:net";
 import path from "node:path";
 import { PassThrough } from "node:stream";
+import type { DebugBreakpoint } from "@devwit/contracts";
 import {
   DapClient,
   nodeDebuggeeSpawnFactory,
@@ -40,6 +41,27 @@ import {
   type DebuggeeSpawnFactory,
 } from "./dap-client.js";
 import { tcpConnectTransportFactory, tcpServerTransportFactory } from "./tcp-transport.js";
+
+/**
+ * DebugBreakpoint → DAP setBreakpoints 请求项。
+ * - condition：求值为真才暂停（DAP condition 字段）。
+ * - hitCount：转字符串作为 hitCondition（js-debug 接受 "5" / ">=10" / "%2" 等表达式）。
+ * - logMessage：日志断点（DAP logMessage 字段），打印不暂停——适配器内部转 hitCondition=1 + condition。
+ * 三字段全缺省 = 普通断点（仅 line）。
+ */
+function toDapBreakpoint(bp: DebugBreakpoint): Record<string, unknown> {
+  const payload: Record<string, unknown> = { line: bp.line };
+  if (bp.condition !== undefined && bp.condition !== "") {
+    payload["condition"] = bp.condition;
+  }
+  if (bp.hitCount !== undefined && bp.hitCount > 0) {
+    payload["hitCondition"] = String(bp.hitCount);
+  }
+  if (bp.logMessage !== undefined && bp.logMessage !== "") {
+    payload["logMessage"] = bp.logMessage;
+  }
+  return payload;
+}
 
 /** 调试状态（主→渲染推送 + 状态栏展示）。file/line 仅在 stopped 时存在（1-based 行）。 */
 export type DebugState =
@@ -200,10 +222,11 @@ export class JsDebugSession {
   }
 
   /**
-   * 启动调试：program 为入口文件绝对路径；breakpoints 为 绝对路径 → 1-based 行号集。
+   * 启动调试：program 为入口文件绝对路径；breakpoints 为 绝对路径 → DebugBreakpoint[]
+   * （1-based 行号；可携带 condition/hitCount/logMessage）。
    * 完整握手完成后 resolve（此刻程序可能已在跑或已停在首断点）。
    */
-  async start(program: string, breakpoints: Record<string, number[]>): Promise<void> {
+  async start(program: string, breakpoints: Record<string, DebugBreakpoint[]>): Promise<void> {
     if (this.isActive) throw new Error("DW_DAP_ALREADY_ACTIVE");
     this.setState({ state: "starting" });
     const timeout = this.options.requestTimeoutMs ?? 30_000;
@@ -291,11 +314,11 @@ export class JsDebugSession {
       const companionRequest = this.companionRequest;
       if (companion === null || companionRequest === null) throw new Error("DW_DAP_COMPANION_MISSING");
       this.initializedGate = null;
-      for (const [file, lines] of Object.entries(breakpoints)) {
-        if (lines.length === 0) continue;
+      for (const [file, bps] of Object.entries(breakpoints)) {
+        if (bps.length === 0) continue;
         await companion.request("setBreakpoints", {
           source: { path: file },
-          breakpoints: lines.map((line) => ({ line })),
+          breakpoints: bps.map((bp) => toDapBreakpoint(bp)),
         });
       }
       // entry pause 兜底武装：configurationDone 后 entry pause 才到适配器时会被上报 stopped(pause)
@@ -515,13 +538,16 @@ export class JsDebugSession {
     await client.request("stepOut", { threadId });
   }
 
-  /** 动态更新断点（会话进行中可调用；空 lines=清除该文件全部断点）。 */
-  async setBreakpoints(file: string, lines: number[]): Promise<void> {
+  /**
+   * 动态更新断点（会话进行中可调用；空数组=清除该文件全部断点）。
+   * 全量替换语义：未列出行的既有断点会被清除。
+   */
+  async setBreakpoints(file: string, breakpoints: DebugBreakpoint[]): Promise<void> {
     const client = this.client;
     if (client === null) throw new Error("DW_DAP_NOT_RUNNING");
     await client.request("setBreakpoints", {
       source: { path: file },
-      breakpoints: lines.map((line) => ({ line })),
+      breakpoints: breakpoints.map((bp) => toDapBreakpoint(bp)),
     });
   }
 
@@ -638,6 +664,17 @@ export class JsDebugSession {
     if (event === "exited") {
       const exited = (body ?? {}) as DapExitedBody;
       this.setState({ state: "terminated", ...(exited.exitCode !== undefined ? { exitCode: exited.exitCode } : {}) });
+      return;
+    }
+    if (event === "output") {
+      // v0.4.0：日志断点（logMessage）输出经 DAP output 事件回传（category="console"），
+      // 不经被调试进程 stdout——必须转发否则日志断点输出丢失。
+      // console.log 等用户输出已由 stdout/stderr 管道直挂（零截断零重复），不在此转发，
+      // 仅转发 category="console" 的日志断点输出（避免与 stdout 重复）。
+      const out = (body ?? {}) as { category?: string; output?: string };
+      if (out.category === "console" && typeof out.output === "string" && out.output.length > 0) {
+        this.onOutput?.("console", out.output);
+      }
       return;
     }
   }

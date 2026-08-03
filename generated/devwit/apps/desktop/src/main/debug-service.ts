@@ -13,7 +13,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { IPC } from "@devwit/contracts";
-import type { DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem } from "@devwit/contracts";
+import type { DebugBreakpoint, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem } from "@devwit/contracts";
 import { JsDebugSession } from "@devwit/dap";
 
 export interface DebugMainServiceDeps {
@@ -47,7 +47,7 @@ export class DebugMainService {
 
   constructor(private readonly deps: DebugMainServiceDeps) {}
 
-  async start(program: string, breakpoints: Record<string, number[]>): Promise<void> {
+  async start(program: string, breakpoints: Record<string, DebugBreakpoint[]>): Promise<void> {
     if (this.session !== null && this.session.isActive) {
       throw new Error("DW_DAP_ALREADY_ACTIVE");
     }
@@ -92,9 +92,9 @@ export class DebugMainService {
     return this.requireSession().continue();
   }
 
-  /** 动态更新断点（会话进行中可调用）。 */
-  setBreakpoints(file: string, lines: number[]): Promise<void> {
-    return this.requireSession().setBreakpoints(file, lines);
+  /** 动态更新断点（会话进行中可调用；全量替换语义）。 */
+  setBreakpoints(file: string, breakpoints: DebugBreakpoint[]): Promise<void> {
+    return this.requireSession().setBreakpoints(file, breakpoints);
   }
 
   next(): Promise<void> {

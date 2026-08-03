@@ -1,6 +1,7 @@
 /** @devwit/editor-render — Canvas 自绘渲染器：虚拟化布局、主题、IME 输入、编辑器视图。 */
 export {
   EditorView,
+  type BreakpointKind,
   type DiagnosticRange,
   type EditorViewOptions,
   type HighlightTokenProvider,

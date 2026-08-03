@@ -5,10 +5,10 @@
  * 全部界面文案经 @devwit/i18n 词典渲染；启动时从 settings "ui.locale" 恢复语言，
  * 订阅 onDidChangeLocale 全量重写静态文案与动态列表（语言热生效）。
  */
-import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitBlameLine, GitBranch, GitPanelStatus, GitStashEntry, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspSignatureHelp, LspStatusInfo, LspTextEdit, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
+import type { DevwitApi, DebugBreakpoint, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitBlameLine, GitBranch, GitPanelStatus, GitStashEntry, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspSignatureHelp, LspStatusInfo, LspTextEdit, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, resolveSystemLocale, setLocale, t, ta, type Locale } from "@devwit/i18n";
 import { TextDocument } from "@devwit/editor-core";
-import { EditorView, normalizeSelection } from "@devwit/editor-render";
+import { EditorView, normalizeSelection, type BreakpointKind } from "@devwit/editor-render";
 import {
   ChatController,
   ContextPanelController,
@@ -1749,8 +1749,9 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   });
 
   // ---- DAP 调试（迭代 33 / AC42）：行号槽断点 + 调试工具栏 + 调用栈/变量面板 + 状态栏 ----
-  /** 断点：文件绝对路径 → 1-based 行号集（会话内有效；启动调试时全量下发）。 */
-  const breakpoints = new Map<string, Set<number>>();
+  // v0.4.0：断点扩展为 DebugBreakpoint（可携带 condition/hitCount/logMessage），
+  // 存储=文件绝对路径 → (1-based 行号 → DebugBreakpoint)。
+  const breakpoints = new Map<string, Map<number, DebugBreakpoint>>();
   let debugState: DebugStateInfo = { state: "idle" };
   let debugFrames: DebugStackFrameItem[] = [];
   let debugScopes: DebugScopeItem[] = [];
@@ -1766,34 +1767,209 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     return /\.(js|mjs|cjs)$/i.test(filePath);
   }
 
+  /** 判定断点视觉类型：logMessage 优先于 condition/hitCount。 */
+  function breakpointKind(bp: DebugBreakpoint): BreakpointKind {
+    if (bp.logMessage !== undefined && bp.logMessage !== "") return "log";
+    if (
+      (bp.condition !== undefined && bp.condition !== "") ||
+      (bp.hitCount !== undefined && bp.hitCount > 0)
+    ) {
+      return "conditional";
+    }
+    return "normal";
+  }
+
   /** 当前文件断点同步到编辑器（切文件/切断点后调用；0-based 转换在此）。 */
   function syncEditorBreakpoints(): void {
     if (openFile === null) {
-      editor.setBreakpoints(new Set());
+      editor.setBreakpoints(new Map());
       return;
     }
-    const lines = breakpoints.get(openFile.path);
-    editor.setBreakpoints(new Set([...(lines ?? [])].map((line) => line - 1)));
+    const fileBps = breakpoints.get(openFile.path);
+    const entries = new Map<number, BreakpointKind>();
+    if (fileBps !== undefined) {
+      for (const [line1, bp] of fileBps) {
+        entries.set(line1 - 1, breakpointKind(bp));
+      }
+    }
+    editor.setBreakpoints(entries);
   }
 
   editor.onGutterClick = (line) => {
     if (openFile === null) return;
     const path = openFile.path;
     const line1 = line + 1;
-    let set = breakpoints.get(path);
-    if (set === undefined) {
-      set = new Set();
-      breakpoints.set(path, set);
+    let fileBps = breakpoints.get(path);
+    if (fileBps === undefined) {
+      fileBps = new Map();
+      breakpoints.set(path, fileBps);
     }
-    if (set.has(line1)) {
-      set.delete(line1);
-      if (set.size === 0) breakpoints.delete(path);
+    if (fileBps.has(line1)) {
+      fileBps.delete(line1);
+      if (fileBps.size === 0) breakpoints.delete(path);
     } else {
-      set.add(line1);
+      fileBps.set(line1, { line: line1 });
     }
     syncEditorBreakpoints();
     renderDebugPanel();
+    void pushBreakpointsToSession(path);
   };
+
+  // v0.4.0：行号槽右键 → 编辑断点对话框（condition / hitCount / logMessage）
+  editor.onGutterContextMenu = (line) => {
+    if (openFile === null) return;
+    const path = openFile.path;
+    const line1 = line + 1;
+    let fileBps = breakpoints.get(path);
+    if (fileBps === undefined) {
+      fileBps = new Map();
+      breakpoints.set(path, fileBps);
+    }
+    let bp = fileBps.get(line1);
+    if (bp === undefined) {
+      bp = { line: line1 };
+      fileBps.set(line1, bp);
+      syncEditorBreakpoints();
+      renderDebugPanel();
+    }
+    void openBreakpointEditor(path, line1, bp);
+  };
+
+  /**
+   * 推送某文件断点到运行中的调试会话（动态 setBreakpoints）。
+   * 会话未运行时静默忽略（断点已存本地，下次 start 时全量下发）。
+   */
+  async function pushBreakpointsToSession(path: string): Promise<void> {
+    if (debugState.state === "idle" || debugState.state === "terminated") return;
+    if (!isJsFile(path)) return;
+    const fileBps = breakpoints.get(path);
+    const payload = fileBps === undefined ? [] : [...fileBps.values()];
+    await doDebugOp(() => api.debug.setBreakpoints(path, payload));
+  }
+
+  /**
+   * 打开断点编辑对话框（v0.4.0：condition / hitCount / logMessage）。
+   * 三字段任一非空即视为对应增强类型；全清空保留为普通断点。
+   * 对话框关闭后同步编辑器视觉 + 推送运行中会话。
+   */
+  async function openBreakpointEditor(path: string, line1: number, bp: DebugBreakpoint): Promise<void> {
+    const result = await promptBreakpointEdit(line1, bp);
+    if (result === null) return; // 用户取消
+    if (result.hitCount === -1) {
+      // 删除断点
+      const fileBps = breakpoints.get(path);
+      if (fileBps !== undefined) {
+        fileBps.delete(line1);
+        if (fileBps.size === 0) breakpoints.delete(path);
+      }
+    } else {
+      bp.condition = result.condition;
+      bp.hitCount = result.hitCount;
+      bp.logMessage = result.logMessage;
+    }
+    syncEditorBreakpoints();
+    renderDebugPanel();
+    await pushBreakpointsToSession(path);
+  }
+
+  /**
+   * 断点编辑模态框（v0.4.0）。
+   * 返回 Promise<BreakpointEditResult | null>：null=用户取消；否则为三字段（undefined=清空）。
+   * 三字段全空时仍返回对象（语义=转回普通断点），调用方据此更新视觉。
+   */
+  function promptBreakpointEdit(line1: number, bp: DebugBreakpoint): Promise<{
+    condition: string | undefined;
+    hitCount: number | undefined;
+    logMessage: string | undefined;
+  } | null> {
+    return new Promise((resolve) => {
+      const mask = el("div", "dw-modal-mask dw-bp-edit-mask");
+      const modal = el("div", "dw-modal dw-bp-edit");
+      mask.appendChild(modal);
+      modal.appendChild(el("h2", undefined, t("debug.bp.editTitle", { line: String(line1) })));
+      modal.appendChild(el("p", "dw-modal-hint", t("debug.bp.editHint")));
+
+      const condLabel = el("label", undefined, t("debug.bp.condition"));
+      const condInput = el("input", "dw-input") as HTMLInputElement;
+      condInput.placeholder = t("debug.bp.conditionPh");
+      condInput.value = bp.condition ?? "";
+      modal.appendChild(condLabel);
+      modal.appendChild(condInput);
+
+      const hitLabel = el("label", undefined, t("debug.bp.hitCount"));
+      const hitInput = el("input", "dw-input") as HTMLInputElement;
+      hitInput.type = "number";
+      hitInput.min = "1";
+      hitInput.placeholder = t("debug.bp.hitCountPh");
+      hitInput.value = bp.hitCount !== undefined ? String(bp.hitCount) : "";
+      modal.appendChild(hitLabel);
+      modal.appendChild(hitInput);
+
+      const logLabel = el("label", undefined, t("debug.bp.logMessage"));
+      const logInput = el("input", "dw-input") as HTMLInputElement;
+      logInput.placeholder = t("debug.bp.logMessagePh");
+      logInput.value = bp.logMessage ?? "";
+      modal.appendChild(logLabel);
+      modal.appendChild(logInput);
+
+      const errorBox = el("div", "dw-form-error");
+      modal.appendChild(errorBox);
+
+      const close = (): void => mask.remove();
+
+      const actions = el("div", "dw-modal-actions");
+      const cancelBtn = el("button", "dw-btn", t("common.cancel"));
+      cancelBtn.addEventListener("click", () => {
+        close();
+        resolve(null);
+      });
+      actions.appendChild(cancelBtn);
+      const removeBtn = el("button", "dw-btn", t("debug.bp.removeBp"));
+      removeBtn.addEventListener("click", () => {
+        close();
+        // 返回特殊标记：调用方负责从 storage 删除（这里用 hitCount=-1 表示删除意图）
+        resolve({ condition: undefined, hitCount: -1, logMessage: undefined });
+      });
+      actions.appendChild(removeBtn);
+      const saveBtn = el("button", "dw-btn dw-btn-primary", t("common.save"));
+      saveBtn.addEventListener("click", () => {
+        const cond = condInput.value.trim();
+        const hitRaw = hitInput.value.trim();
+        const log = logInput.value.trim();
+        // logMessage 与 condition/hitCount 互斥（DAP logMessage 隐含不暂停，condition 无意义）
+        if (log !== "" && (cond !== "" || hitRaw !== "")) {
+          errorBox.textContent = t("debug.bp.errLogExclusive");
+          return;
+        }
+        let hit: number | undefined;
+        if (hitRaw !== "") {
+          const n = Number(hitRaw);
+          if (!Number.isInteger(n) || n < 1) {
+            errorBox.textContent = t("debug.bp.errHitCount");
+            return;
+          }
+          hit = n;
+        }
+        close();
+        resolve({
+          condition: cond === "" ? undefined : cond,
+          hitCount: hit,
+          logMessage: log === "" ? undefined : log,
+        });
+      });
+      actions.appendChild(saveBtn);
+      modal.appendChild(actions);
+
+      mask.addEventListener("click", (event) => {
+        if (event.target === mask) {
+          close();
+          resolve(null);
+        }
+      });
+      document.body.appendChild(mask);
+      condInput.focus();
+    });
+  }
 
   function renderDebugStatus(): void {
     if (debugState.state === "idle") {
@@ -1841,10 +2017,12 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       return;
     }
     const program = openFile.path;
-    // 断点全量下发（仅当前工作区内的 .js 文件；空行号集不下发）
-    const payload: Record<string, number[]> = {};
-    for (const [file, lines] of breakpoints) {
-      if (lines.size > 0 && isJsFile(file)) payload[file] = [...lines].sort((a, b) => a - b);
+    // 断点全量下发（仅 .js 文件；空数组不下发；按行号升序保证多断点顺序稳定）
+    const payload: Record<string, DebugBreakpoint[]> = {};
+    for (const [file, fileBps] of breakpoints) {
+      if (fileBps.size > 0 && isJsFile(file)) {
+        payload[file] = [...fileBps.values()].sort((a, b) => a.line - b.line);
+      }
     }
     debugOutputText = "";
     await doDebugOp(() => api.debug.start(program, payload));
@@ -2010,20 +2188,41 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       }
     }
 
-    // ---- 断点列表（点击定位文件行） ----
+    // ---- 断点列表（点击定位文件行；右键编辑 condition/hitCount/logMessage） ----
     body.appendChild(el("div", "dw-debug-section", t("debug.breakpoints")));
     let bpCount = 0;
-    for (const [file, lines] of breakpoints) {
-      for (const line of [...lines].sort((a, b) => a - b)) {
+    for (const [file, fileBps] of breakpoints) {
+      const sortedBps = [...fileBps.entries()].sort((a, b) => a[0] - b[0]);
+      for (const [line1, bp] of sortedBps) {
         bpCount += 1;
+        const kind = breakpointKind(bp);
         const row = el("div", "dw-debug-bp");
-        row.append(
-          el("span", "dw-debug-bp-dot", "●"),
-          el("span", "dw-debug-bp-loc", `${file.replace(/\\/g, "/").split("/").pop()}:${line}`)
-        );
-        row.title = file;
+        const dotClass =
+          kind === "log" ? "dw-debug-bp-dot dw-debug-bp-dot-log" : kind === "conditional" ? "dw-debug-bp-dot dw-debug-bp-dot-cond" : "dw-debug-bp-dot";
+        const dot = el("span", dotClass, kind === "log" ? "◆" : kind === "conditional" ? "◑" : "●");
+        const loc = el("span", "dw-debug-bp-loc", `${file.replace(/\\/g, "/").split("/").pop()}:${line1}`);
+        row.append(dot, loc);
+        // 增强 tooltip：显示条件/命中/日志原文
+        const tipParts: string[] = [file];
+        if (bp.condition !== undefined && bp.condition !== "") tipParts.push(`condition: ${bp.condition}`);
+        if (bp.hitCount !== undefined && bp.hitCount > 0) tipParts.push(`hitCount: ${bp.hitCount}`);
+        if (bp.logMessage !== undefined && bp.logMessage !== "") tipParts.push(`log: ${bp.logMessage}`);
+        row.title = tipParts.join("\n");
+        // 条件/日志徽标
+        if (bp.logMessage !== undefined && bp.logMessage !== "") {
+          row.appendChild(el("span", "dw-debug-bp-badge dw-debug-bp-badge-log", t("debug.bp.logBadge")));
+        } else if (
+          (bp.condition !== undefined && bp.condition !== "") ||
+          (bp.hitCount !== undefined && bp.hitCount > 0)
+        ) {
+          row.appendChild(el("span", "dw-debug-bp-badge dw-debug-bp-badge-cond", t("debug.bp.condBadge")));
+        }
         row.addEventListener("click", () => {
-          void openFileByPath(file).then(() => editor.revealPosition({ line: line - 1, character: 0 }));
+          void openFileByPath(file).then(() => editor.revealPosition({ line: line1 - 1, character: 0 }));
+        });
+        row.addEventListener("contextmenu", (ev) => {
+          ev.preventDefault();
+          void openBreakpointEditor(file, line1, bp);
         });
         body.appendChild(row);
       }

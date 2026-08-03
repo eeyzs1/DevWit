@@ -1041,6 +1041,23 @@ export interface DebugVariableItem {
   variablesReference: number;
 }
 
+/**
+ * 断点（v0.4.0 条件断点 / Log point）。
+ * 三种增强均为可选；同时存在时 js-debug 优先级：logMessage > condition > hitCount。
+ * - condition：表达式为真才暂停（DAP condition）。
+ * - hitCount：命中次数满足条件才暂停（DAP hitCondition，支持 "5" / ">=10" / "%2" 语法）。
+ * - logMessage：日志断点（DAP logMessage），求值表达式并打印到调试输出，**不暂停**。
+ *   语法：纯文本 + {expr} 插值（如 "i={i}, sum={a+b}"）。
+ * 三字段全缺省 = 普通断点（仅行号）。
+ */
+export interface DebugBreakpoint {
+  /** 1-based 行号。 */
+  line: number;
+  condition?: string;
+  hitCount?: number;
+  logMessage?: string;
+}
+
 // ============================================================================
 // 终端（WU006）
 // ============================================================================
@@ -1312,10 +1329,16 @@ export interface DevwitApi {
    * （渲染端 localizeError 本地化）。
    */
   debug: {
-    /** 启动调试会话（完整握手后 resolve：程序在跑或已停首断点）。 */
-    start(program: string, breakpoints: Record<string, number[]>): Promise<void>;
-    /** 动态更新断点（会话进行中可调用；file 为绝对路径，lines 为 1-based 行号集，空数组=清除该文件断点）。 */
-    setBreakpoints(file: string, lines: number[]): Promise<void>;
+    /**
+     * 启动调试会话（完整握手后 resolve：程序在跑或已停首断点）。
+     * breakpoints 为 绝对路径 → DebugBreakpoint[]（行号 1-based；可携带 condition/hitCount/logMessage）。
+     */
+    start(program: string, breakpoints: Record<string, DebugBreakpoint[]>): Promise<void>;
+    /**
+     * 动态更新断点（会话进行中可调用；file 为绝对路径，breakpoints 为 1-based 断点数组，
+     * 空数组=清除该文件断点）。全量替换语义：未列出行的既有断点会被清除。
+     */
+    setBreakpoints(file: string, breakpoints: DebugBreakpoint[]): Promise<void>;
     /** 停止调试（disconnect + 强杀适配器服务器；幂等）。 */
     stop(): Promise<void>;
     /** 当前调试状态（状态栏轮询初态；之后靠 onState 推送）。 */

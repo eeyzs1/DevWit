@@ -13,6 +13,14 @@ import {
 } from "./layout.js";
 import { defaultDarkTheme, type Theme } from "./theme.js";
 
+/**
+ * 断点视觉类型（v0.4.0）。
+ * - normal：普通断点，行号槽红实心圆。
+ * - conditional：条件/命中次数断点，黄空心环 + 中心实心点（提示"有附加条件"）。
+ * - log：日志断点，青菱形（与暂停断点视觉区分——不暂停）。
+ */
+export type BreakpointKind = "normal" | "conditional" | "log";
+
 /** 行级高亮 token 提供者（由 @devwit/syntax 的 HighlightEngine 实现，本包只依赖此结构）。 */
 export interface HighlightTokenProvider {
   tokensForLine(line: number): Array<{ startChar: number; endChar: number; scope: string }>;
@@ -75,14 +83,22 @@ export class EditorView {
   private readonly removeWindowListeners: Array<() => void> = [];
   /** 当前文档的诊断标记（setDiagnostics 注入；渲染为波浪线）。 */
   private diagnostics: DiagnosticRange[] = [];
-  /** 断点行集（0-based；setBreakpoints 注入；行号槽绘制红点）。 */
-  private breakpointLines: ReadonlySet<number> = new Set();
+  /**
+   * 断点条目（0-based 行 → 类型；setBreakpoints 注入；行号槽按类型绘制不同形状）。
+   * 类型：normal=红实心圆；conditional=黄空心环 + 中心点；log=青菱形。
+   */
+  private breakpointEntries: ReadonlyMap<number, BreakpointKind> = new Map();
   /** 调试停止行（0-based；null=无；整行底色 + 行号槽箭头）。 */
   private debugLine: number | null = null;
   /** Ctrl/Cmd+Click 回调（跳转定义；由集成方接 LSP）。null 时该组合键等同普通点击。 */
   onDefinitionRequest: ((pos: Position) => void) | null = null;
   /** 行号槽点击回调（断点切换；由集成方接 DAP）。null 时槽点击等同普通点击。 */
   onGutterClick: ((line: number) => void) | null = null;
+  /**
+   * 行号槽右键回调（v0.4.0：编辑断点 condition/hitCount/logMessage）。
+   * null 时右键不触发编辑（保持仅左键切换的原行为）。
+   */
+  onGutterContextMenu: ((line: number) => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement, doc: TextDocument, options: EditorViewOptions = {}) {
     this.canvas = canvas;
@@ -170,9 +186,12 @@ export class EditorView {
     this.scheduleRender();
   }
 
-  /** 注入断点行集（0-based，全量替换语义）；红点随下次渲染绘制。 */
-  setBreakpoints(lines: ReadonlySet<number>): void {
-    this.breakpointLines = lines;
+  /**
+   * 注入断点条目（0-based 行 → 类型，全量替换语义）；按类型在行号槽绘制不同形状。
+   * 全空 Map = 清除当前文件全部断点。
+   */
+  setBreakpoints(entries: ReadonlyMap<number, BreakpointKind>): void {
+    this.breakpointEntries = entries;
     this.scheduleRender();
   }
 
@@ -257,6 +276,12 @@ export class EditorView {
     this.canvas.addEventListener("mousedown", (ev) => this.onMouseDown(ev));
     this.canvas.addEventListener("wheel", (ev) => this.onWheel(ev), { passive: false });
     this.canvas.addEventListener("dblclick", (ev) => this.onDoubleClick(ev));
+    // 行号槽右键时阻止浏览器默认上下文菜单（v0.4.0：编辑断点入口）
+    this.canvas.addEventListener("contextmenu", (ev) => {
+      if (this.onGutterContextMenu !== null && this.gutterLineFromEvent(ev) !== null) {
+        ev.preventDefault();
+      }
+    });
     const move = (ev: MouseEvent): void => this.onMouseMove(ev);
     const up = (): void => {
       this.dragging = false;
@@ -270,6 +295,15 @@ export class EditorView {
   }
 
   private onMouseDown(ev: MouseEvent): void {
+    // 行号槽右键（v0.4.0：编辑断点 condition/hitCount/logMessage）：命中槽区即消费
+    if (ev.button === 2 && this.onGutterContextMenu !== null) {
+      const gutterHit = this.gutterLineFromEvent(ev);
+      if (gutterHit !== null) {
+        this.onGutterContextMenu(gutterHit);
+        ev.preventDefault();
+        return;
+      }
+    }
     if (ev.button !== 0) {
       return;
     }
@@ -831,15 +865,13 @@ export class EditorView {
     // 行号槽
     ctx.fillStyle = this.theme.gutterBackground;
     ctx.fillRect(0, 0, this.gutterWidth, viewH);
-    // 断点圆点（左缘 14px 区，垂直居中）
-    if (this.breakpointLines.size > 0) {
-      ctx.fillStyle = this.theme.breakpoint;
+    // 断点标记（左缘 14px 区，垂直居中；按类型绘制不同形状）
+    if (this.breakpointEntries.size > 0) {
       for (let line = range.first; line <= range.last; line++) {
-        if (!this.breakpointLines.has(line)) continue;
+        const kind = this.breakpointEntries.get(line);
+        if (kind === undefined) continue;
         const cy = this.padding + line * this.lineHeight - this.scrollTop + this.lineHeight / 2;
-        ctx.beginPath();
-        ctx.arc(7, cy, 4.5, 0, Math.PI * 2);
-        ctx.fill();
+        drawBreakpointMark(ctx, 7, cy, kind, this.theme);
       }
     }
     // 调试停止行箭头（行号槽 ▶，与整行底色配套）
@@ -1014,4 +1046,48 @@ function ctx_fill(
 ): void {
   ctx.fillStyle = color;
   ctx.fillRect(x, y, Math.min(width, Math.max(0, clipWidth - x)), height);
+}
+
+/**
+ * 在行号槽 (cx, cy) 绘制断点标记（v0.4.0）。
+ * - normal：红实心圆（半径 4.5）。
+ * - conditional：黄外环（半径 4.5 描边）+ 红中心实心点（半径 1.8）——视觉提示"附加条件"。
+ * - log：青菱形（边长 9）——与暂停断点的圆做形状区分，提示"不暂停"。
+ */
+function drawBreakpointMark(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  kind: BreakpointKind,
+  theme: Theme
+): void {
+  if (kind === "log") {
+    ctx.fillStyle = theme.breakpointLog;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 5);
+    ctx.lineTo(cx + 5, cy);
+    ctx.lineTo(cx, cy + 5);
+    ctx.lineTo(cx - 5, cy);
+    ctx.closePath();
+    ctx.fill();
+    return;
+  }
+  if (kind === "conditional") {
+    // 外环
+    ctx.strokeStyle = theme.breakpointConditional;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
+    ctx.stroke();
+    // 中心点
+    ctx.fillStyle = theme.breakpoint;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
+  ctx.fillStyle = theme.breakpoint;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
+  ctx.fill();
 }
