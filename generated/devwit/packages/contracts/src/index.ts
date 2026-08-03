@@ -912,6 +912,17 @@ export interface LspTextEdit {
   newText: string;
 }
 
+/** 代码操作项（lsp:codeAction 返回）。 */
+export interface LspCodeAction {
+  title: string;
+  /** LSP CodeActionKind（如 quickfix / refactor / source）；缺省 = 无分类。 */
+  kind?: string;
+  /** 编辑列表（选择后应用）；空数组 = 无编辑（仅 command，暂不支持执行）。 */
+  edits: LspTextEdit[];
+  /** 是否优先推荐（快速修复）。 */
+  isPreferred: boolean;
+}
+
 // ============================================================================
 // Git 版本控制（迭代 32 / AC41）：状态面板 / diff 双文本 / 暂存提交
 // ============================================================================
@@ -1072,6 +1083,7 @@ export const IPC = {
   LspReferences: "lsp:references",
   LspSignatureHelp: "lsp:signature-help",
   LspRename: "lsp:rename",
+  LspCodeAction: "lsp:code-action",
   LspDiagnostics: "lsp:diagnostics",
   LspDiagnosticsChanged: "lsp:diagnostics-changed",
   GitGetStatus: "git:get-status",
@@ -1177,6 +1189,8 @@ export interface DevwitApi {
     signatureHelp(file: string, line: number, character: number): Promise<LspSignatureHelp | null>;
     /** 符号重命名编辑列表（空数组 = 无效位置/未就绪）；LSP textDocument/rename。 */
     rename(file: string, line: number, character: number, newName: string): Promise<LspTextEdit[]>;
+    /** 代码操作候选（空数组 = 无可用操作/未就绪）；LSP textDocument/codeAction。 */
+    codeAction(file: string, startLine: number, startCharacter: number, endLine: number, endCharacter: number): Promise<LspCodeAction[]>;
     /** 当前全部诊断快照（跨文件）。 */
     diagnostics(): Promise<LspDiagnosticItem[]>;
     /** 订阅服务状态推送。 */

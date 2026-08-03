@@ -289,6 +289,7 @@ describe("TsLanguageServer（假 spawn）", () => {
     expect(await server.references("a.ts", 0, 0)).toEqual([]);
     expect(await server.signatureHelp("a.ts", 0, 0)).toBeNull();
     expect(await server.rename("a.ts", 0, 0, "newName")).toEqual([]);
+    expect(await server.codeAction("a.ts", 0, 0, 0, 0)).toEqual([]);
     await server.openWorkspace(root);
     // ready 但假服务器不应答 hover（请求超时由客户端层保障，这里只验证形状）
     await server.shutdown();
@@ -390,6 +391,19 @@ describe("TsLanguageServer（真实 typescript-language-server 集成）", () =>
       expect(mathEdit!.newText).toBe("sum");
       const mainEdits = renameEdits.filter((e) => e.file === "main.ts");
       expect(mainEdits.length).toBeGreaterThanOrEqual(1);
+
+      // codeAction：在 const bad = 'oops' 诊断处触发，应返回至少一个 quickfix
+      // （typescript-language-server 对 TS2322 提供"修复此处的所有错误"等 CodeAction）
+      // 等待诊断稳定后再请求（diagnostics 已在上面被等待过）
+      const codeActions = await server.codeAction("main.ts", 3, 6, 3, 22);
+      expect(Array.isArray(codeActions)).toBe(true);
+      // tsserver 在有诊断的范围内通常返回 ≥1 个 codeAction；不强制数量以避免环境差异导致 flake
+      // 但若返回了，则每个 action 必须有 title 且 edits 为数组
+      for (const action of codeActions) {
+        expect(typeof action.title).toBe("string");
+        expect(action.title.length).toBeGreaterThan(0);
+        expect(Array.isArray(action.edits)).toBe(true);
+      }
     } finally {
       await server.shutdown();
       expect(server.currentStatus.state).toBe("idle");

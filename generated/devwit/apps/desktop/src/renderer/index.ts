@@ -5,7 +5,7 @@
  * 全部界面文案经 @devwit/i18n 词典渲染；启动时从 settings "ui.locale" 恢复语言，
  * 订阅 onDidChangeLocale 全量重写静态文案与动态列表（语言热生效）。
  */
-import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitPanelStatus, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspSignatureHelp, LspStatusInfo, LspTextEdit, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
+import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitPanelStatus, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspSignatureHelp, LspStatusInfo, LspTextEdit, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, resolveSystemLocale, setLocale, t, ta, type Locale } from "@devwit/i18n";
 import { TextDocument } from "@devwit/editor-core";
 import { EditorView, normalizeSelection } from "@devwit/editor-render";
@@ -947,6 +947,170 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     }
   }, true);
   canvas.addEventListener("mousedown", hideRename);
+
+  // ---- LSP 代码操作（v0.4.0）：Ctrl+. 触发 → 菜单浮层 → 选择 → 应用编辑 ----
+  const codeActionPopup = el("div", "dw-code-action");
+  codeActionPopup.style.display = "none";
+  editorArea.appendChild(codeActionPopup);
+  let codeActionItems: LspCodeAction[] = [];
+  let codeActionIndex = 0;
+  let codeActionVisible = false;
+  let codeActionToken = 0;
+
+  function hideCodeAction(): void {
+    codeActionPopup.style.display = "none";
+    codeActionVisible = false;
+    codeActionItems = [];
+    codeActionIndex = 0;
+  }
+
+  function renderCodeActionPopup(): void {
+    if (codeActionItems.length === 0 || openFile === null) {
+      hideCodeAction();
+      return;
+    }
+    codeActionPopup.innerHTML = "";
+    for (let i = 0; i < codeActionItems.length; i++) {
+      const item = codeActionItems[i]!;
+      const row = el("div", "dw-code-action-item");
+      if (i === codeActionIndex) row.classList.add("dw-code-action-active");
+      const title = el("span", "dw-code-action-title");
+      title.textContent = (item.isPreferred ? "★ " : "") + item.title;
+      row.appendChild(title);
+      if (item.kind) {
+        const kind = el("span", "dw-code-action-kind");
+        kind.textContent = item.kind;
+        row.appendChild(kind);
+      }
+      row.addEventListener("mousedown", (ev) => {
+        ev.preventDefault();
+        codeActionIndex = i;
+        void applyCodeAction();
+      });
+      codeActionPopup.appendChild(row);
+    }
+    const sel = editor.getSelections().at(-1);
+    if (sel !== undefined) {
+      const pt = editor.clientPointForPosition(sel.active);
+      const areaRect = editorArea.getBoundingClientRect();
+      codeActionPopup.style.left = `${pt.x - areaRect.left}px`;
+      codeActionPopup.style.top = `${pt.y - areaRect.top + 18}px`;
+    }
+    codeActionPopup.style.display = "block";
+    codeActionVisible = true;
+  }
+
+  async function applyCodeAction(): Promise<void> {
+    if (!codeActionVisible || codeActionItems.length === 0) return;
+    const action = codeActionItems[codeActionIndex];
+    if (action === undefined) return;
+    hideCodeAction();
+    if (action.edits.length === 0) return; // 仅 command，暂不支持执行
+
+    // 复用 rename 的跨文件编辑应用逻辑
+    const current = openFile;
+    if (current === null) return;
+    const byFile = new Map<string, LspTextEdit[]>();
+    for (const edit of action.edits) {
+      const arr = byFile.get(edit.file) ?? [];
+      arr.push(edit);
+      byFile.set(edit.file, arr);
+    }
+    const currentRel = relPathOf(current.path);
+    const root = workspaceRoot.replace(/[/\\]+$/, "");
+    for (const [file, fileEdits] of byFile) {
+      if (file === currentRel) {
+        const doc = current.doc;
+        const sorted = fileEdits.slice().sort((a, b) => {
+          const ao = doc.offsetAt({ line: a.startLine, character: a.startCharacter });
+          const bo = doc.offsetAt({ line: b.startLine, character: b.startCharacter });
+          return bo - ao;
+        });
+        for (const edit of sorted) {
+          const startOffset = doc.offsetAt({ line: edit.startLine, character: edit.startCharacter });
+          const endOffset = doc.offsetAt({ line: edit.endLine, character: edit.endCharacter });
+          doc.applyEdit({ offset: startOffset, length: endOffset - startOffset, text: edit.newText });
+        }
+      } else {
+        const abs = `${root}/${file}`;
+        try {
+          const content = await api.workspace.read(abs);
+          const lineStarts: number[] = [0];
+          for (let i = 0; i < content.length; i++) {
+            if (content[i] === "\n") lineStarts.push(i + 1);
+          }
+          const sorted = fileEdits.slice().sort((a, b) => {
+            const ao = (lineStarts[a.startLine] ?? 0) + a.startCharacter;
+            const bo = (lineStarts[b.startLine] ?? 0) + b.startCharacter;
+            return bo - ao;
+          });
+          let text = content;
+          for (const edit of sorted) {
+            const startOffset = (lineStarts[edit.startLine] ?? 0) + edit.startCharacter;
+            const endOffset = (lineStarts[edit.endLine] ?? 0) + edit.endCharacter;
+            text = text.slice(0, startOffset) + edit.newText + text.slice(endOffset);
+          }
+          await api.workspace.write(abs, text);
+        } catch {
+          // 跨文件编辑容错
+        }
+      }
+    }
+  }
+
+  async function requestCodeAction(): Promise<void> {
+    const current = openFile;
+    if (current === null || workspaceRoot === "" || lspStatus.state !== "ready") return;
+    const sel = editor.getSelections().at(-1);
+    if (sel === undefined) return;
+    const pos = sel.active;
+    const token = ++codeActionToken;
+    const actions = await api.lsp.codeAction(relPathOf(current.path), pos.line, pos.character, pos.line, pos.character);
+    if (codeActionToken !== token || openFile !== current) return;
+    if (actions.length === 0) {
+      hideCodeAction();
+      return;
+    }
+    codeActionItems = actions;
+    codeActionIndex = 0;
+    renderCodeActionPopup();
+  }
+
+  window.addEventListener("keydown", (ev) => {
+    if (ev.key === "." && ev.ctrlKey && !ev.shiftKey && !ev.metaKey && !ev.altKey) {
+      if (openFile === null || lspStatus.state !== "ready") return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      void requestCodeAction();
+      return;
+    }
+    if (!codeActionVisible) return;
+    switch (ev.key) {
+      case "ArrowDown":
+        ev.preventDefault();
+        ev.stopPropagation();
+        codeActionIndex = (codeActionIndex + 1) % codeActionItems.length;
+        renderCodeActionPopup();
+        break;
+      case "ArrowUp":
+        ev.preventDefault();
+        ev.stopPropagation();
+        codeActionIndex = (codeActionIndex - 1 + codeActionItems.length) % codeActionItems.length;
+        renderCodeActionPopup();
+        break;
+      case "Enter":
+        ev.preventDefault();
+        ev.stopPropagation();
+        void applyCodeAction();
+        break;
+      case "Escape":
+        ev.preventDefault();
+        ev.stopPropagation();
+        hideCodeAction();
+        break;
+    }
+  }, true);
+  canvas.addEventListener("mousedown", hideCodeAction);
 
   api.lsp.onStatus((status) => {
     const wasReady = lspStatus.state === "ready";

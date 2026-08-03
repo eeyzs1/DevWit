@@ -10,7 +10,7 @@
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { IPC } from "@devwit/contracts";
-import type { AgentRunInput, AuthorizationDecision, ContextItemType, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, ExternalEditorConfig, GitDiffTexts, GitLogEntry, GitPanelStatus, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspHoverInfo, LspSignatureHelp, LspStatusInfo, LspTextEdit, ProviderConfig, ProviderProbeRequest, ProviderProbeResult, UsageExportFormat } from "@devwit/contracts";
+import type { AgentRunInput, AuthorizationDecision, ContextItemType, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, ExternalEditorConfig, GitDiffTexts, GitLogEntry, GitPanelStatus, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspHoverInfo, LspSignatureHelp, LspStatusInfo, LspTextEdit, ProviderConfig, ProviderProbeRequest, ProviderProbeResult, UsageExportFormat } from "@devwit/contracts";
 import { PROVIDER_PRESETS, probeProvider } from "@devwit/llm-providers";
 import { fetchCommunityIndex, fetchCommunityMode, materializeImport, parseExportFile, resolveModesIndexBase, toExportFile } from "@devwit/modes";
 import { fetchCommunityMcpIndex, fetchCommunityMcpServer, materializeMcpImport } from "@devwit/mcp";
@@ -119,6 +119,7 @@ export interface LspIpcService {
   references(file: string, line: number, character: number): Promise<LspDefinitionTarget[]>;
   signatureHelp(file: string, line: number, character: number): Promise<LspSignatureHelp | null>;
   rename(file: string, line: number, character: number, newName: string): Promise<LspTextEdit[]>;
+  codeAction(file: string, startLine: number, startCharacter: number, endLine: number, endCharacter: number): Promise<LspCodeAction[]>;
   diagnostics(): LspDiagnosticItem[];
 }
 
@@ -285,6 +286,7 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     table[IPC.LspReferences] = notWired;
     table[IPC.LspSignatureHelp] = notWired;
     table[IPC.LspRename] = notWired;
+    table[IPC.LspCodeAction] = notWired;
     table[IPC.LspDiagnostics] = notWired;
   } else {
     table[IPC.LspGetStatus] = () => lsp.status();
@@ -309,6 +311,8 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
       lsp.signatureHelp(String(file), Number(line), Number(character));
     table[IPC.LspRename] = async (_e, file, line, character, newName) =>
       lsp.rename(String(file), Number(line), Number(character), String(newName));
+    table[IPC.LspCodeAction] = async (_e, file, startLine, startCharacter, endLine, endCharacter) =>
+      lsp.codeAction(String(file), Number(startLine), Number(startCharacter), Number(endLine), Number(endCharacter));
     table[IPC.LspDiagnostics] = () => lsp.diagnostics();
   }
 

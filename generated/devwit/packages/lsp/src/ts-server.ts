@@ -11,6 +11,7 @@
  */
 import path from "node:path";
 import type {
+  LspCodeAction,
   LspCompletionItem,
   LspDefinitionTarget,
   LspDiagnosticItem,
@@ -134,6 +135,20 @@ interface LspRawTextEdit {
 
 interface LspRawWorkspaceEdit {
   changes?: Record<string, LspRawTextEdit[]>;
+}
+
+interface LspRawCommand {
+  title: string;
+  command: string;
+  arguments?: unknown[];
+}
+
+interface LspRawCodeAction {
+  title: string;
+  kind?: string;
+  edit?: LspRawWorkspaceEdit;
+  command?: LspRawCommand;
+  isPreferred?: boolean;
 }
 
 const SEVERITY_MAP: Record<number, LspDiagnosticItem["severity"]> = {
@@ -488,6 +503,56 @@ export class TsLanguageServer {
       }
     }
     return edits;
+  }
+
+  /**
+   * 代码操作（未就绪/无操作 → 空数组；请求失败不抛出）。
+   * LSP textDocument/codeAction 返回 (Command | CodeAction)[] 或 null。
+   * 归一化：提取 CodeAction.edit.changes → LspTextEdit[]（Command 仅保留 title，command 执行暂不支持）。
+   */
+  async codeAction(relFile: string, startLine: number, startCharacter: number, endLine: number, endCharacter: number): Promise<LspCodeAction[]> {
+    if (this.client === null || this.status.state !== "ready") return [];
+    let raw: (LspRawCommand | LspRawCodeAction)[] | null;
+    try {
+      raw = (await this.client.request("textDocument/codeAction", {
+        textDocument: { uri: this.uriFor(relFile) },
+        range: { start: { line: startLine, character: startCharacter }, end: { line: endLine, character: endCharacter } },
+        context: { diagnostics: [] },
+      })) as (LspRawCommand | LspRawCodeAction)[] | null;
+    } catch {
+      return [];
+    }
+    if (raw === null) return [];
+    const actions: LspCodeAction[] = [];
+    for (const item of raw) {
+      if (item === null || typeof item.title !== "string") continue;
+      const ca = item as LspRawCodeAction;
+      const edits: LspTextEdit[] = [];
+      if (ca.edit?.changes) {
+        for (const [uri, textEdits] of Object.entries(ca.edit.changes)) {
+          const file = this.relFor(uri);
+          for (const te of textEdits) {
+            if (te?.range?.start && te?.range?.end && typeof te.newText === "string") {
+              edits.push({
+                file,
+                startLine: te.range.start.line,
+                startCharacter: te.range.start.character,
+                endLine: te.range.end.line,
+                endCharacter: te.range.end.character,
+                newText: te.newText,
+              });
+            }
+          }
+        }
+      }
+      actions.push({
+        title: item.title,
+        ...(typeof ca.kind === "string" ? { kind: ca.kind } : {}),
+        edits,
+        isPreferred: ca.isPreferred === true,
+      });
+    }
+    return actions;
   }
 
   /** 当前全部诊断快照（跨文件，已映射为相对路径 + severity 字符串）。 */
