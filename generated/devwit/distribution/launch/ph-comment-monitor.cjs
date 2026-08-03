@@ -13,7 +13,43 @@ function log(msg) {
   const ts = new Date().toISOString();
   const line = `[${ts}] ${msg}`;
   console.log(line);
-  fs.appendFileSync(LOG_FILE, line + "\n");
+  // Best-effort 日志写入：日志失败不得阻断监控业务
+  // Windows 上 EBUSY 常见（OneDrive/Defender/IDE file watcher 锁文件）
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      fs.appendFileSync(LOG_FILE, line + "\n");
+      return;
+    } catch (e) {
+      if (attempt < 2) {
+        // 同步等待 200ms 重试
+        try { require("child_process").execSync('powershell -NoProfile -Command "Start-Sleep -Milliseconds 200"'); } catch (_) {}
+        continue;
+      }
+      // 最后一次仍失败：仅 console 输出（计划任务 stdout 重定向仍能捕获到 .log 文件）
+      // 不抛出，不阻断业务
+    }
+  }
+}
+
+// 健壮的状态文件写入（state 丢失会导致重复回复，比日志更关键）
+function saveState(state) {
+  const data = JSON.stringify(state, null, 2);
+  const tmp = STATE_FILE + ".tmp";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      fs.writeFileSync(tmp, data);
+      fs.renameSync(tmp, STATE_FILE);
+      return true;
+    } catch (e) {
+      log(`saveState attempt ${attempt + 1} failed: ${String(e).slice(0, 120)}`);
+      if (attempt < 2) {
+        try { require("child_process").execSync('powershell -NoProfile -Command "Start-Sleep -Milliseconds 300"'); } catch (_) {}
+        continue;
+      }
+      return false;
+    }
+  }
+  return false;
 }
 
 // 根据评论内容生成回复
@@ -193,29 +229,49 @@ function generateReply(commentText, authorName) {
     log(`Reply: "${reply.slice(0, 80)}..."`);
 
     // 找到该评论的 Reply 按钮并点击
-    // PH 的评论结构：每条评论旁边有 Reply 按钮
-    const replyClicked = await page.evaluate((author) => {
-      // 找包含该作者名的评论块，然后找其 Reply 按钮
-      const allText = document.body.innerText;
-      // 找所有 Reply 按钮
-      const replyBtns = [...document.querySelectorAll('button')].filter(
-        (b) => b.innerText.trim() === "Reply" && b.offsetWidth > 0
-      );
-      // 找到第一个可点击的 Reply 按钮（简化处理）
-      if (replyBtns.length > 0) {
-        // 找到对应作者的评论附近的 Reply 按钮
-        for (const btn of replyBtns) {
-          const parent = btn.closest('[class*="comment"], [class*="Comment"], li, div');
-          if (parent && parent.innerText.includes(author)) {
+    // 鲁棒方案（reply-ferdi.cjs 验证过）：用评论正文特征文本定位，小写匹配 reply 按钮，
+    // 向上 10 层找包含特征文本的容器（避免 closest('div') 匹配到最外层导致误判）
+    const bodyMarker = c.body.slice(0, 30); // 评论正文前 30 字符作为特征（比 author 名更精确）
+
+    // 1. 滚动该评论到可见
+    await page.evaluate((marker) => {
+      const all = [...document.querySelectorAll("*")];
+      for (const el of all) {
+        if (el.children.length === 0 && el.innerText && el.innerText.includes(marker)) {
+          let container = el;
+          for (let d = 0; d < 10; d++) {
+            container = container?.parentElement;
+            if (!container) break;
+            const txt = container.innerText || "";
+            if (txt.includes("Reply") && txt.length > 50 && txt.length < 2000) {
+              container.scrollIntoView({ block: "center" });
+              return;
+            }
+          }
+        }
+      }
+    }, bodyMarker);
+    await page.waitForTimeout(500);
+
+    // 2. 找可见 Reply 按钮，选其容器包含特征文本的
+    const replyClicked = await page.evaluate((marker) => {
+      const btns = [...document.querySelectorAll('button')].filter((b) => {
+        const t = (b.innerText || "").trim().toLowerCase();
+        return t === "reply" && b.offsetWidth > 0 && b.offsetHeight > 0;
+      });
+      for (const btn of btns) {
+        let container = btn;
+        for (let d = 0; d < 10; d++) {
+          container = container?.parentElement;
+          if (!container) break;
+          if (container.innerText && container.innerText.includes(marker)) {
             btn.click();
             return true;
           }
         }
-        // 如果没找到对应作者的，用最后一个 Reply 按钮（最新的评论）
-        // 不自动点，避免回复错对象
       }
       return false;
-    }, c.author);
+    }, bodyMarker);
 
     if (replyClicked) {
       await page.waitForTimeout(2000);
@@ -249,8 +305,8 @@ function generateReply(commentText, authorName) {
     }
   }
 
-  // 8. 保存状态
-  fs.writeFileSync(STATE_FILE, JSON.stringify(knownComments, null, 2));
+  // 8. 保存状态（健壮写入，避免 EBUSY 导致 state 丢失→重复回复）
+  saveState(knownComments);
 
   // 9. 截图当前状态
   await page.screenshot({ path: path.join(EVIDENCE, "ph-monitor-latest.png"), fullPage: false }).catch(() => {});
