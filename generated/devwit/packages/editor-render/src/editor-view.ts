@@ -4,6 +4,8 @@ import {
   clampScrollTop,
   columnForX,
   comparePositions,
+  findMatchingBracket,
+  indentLevelOf,
   isSelectionEmpty,
   normalizeSelection,
   visibleLineRange,
@@ -838,6 +840,9 @@ export class EditorView {
       ctx.fillRect(this.gutterWidth, y, viewW - this.gutterWidth, this.lineHeight);
     }
 
+    // 缩进指南线（文本之下、选区之下，避免遮盖字符）
+    this.renderIndentGuides(range.first, range.last);
+
     // 可视行：选区 → 文本
     this.maxLineWidth = 0;
     for (let line = range.first; line <= range.last; line++) {
@@ -861,6 +866,9 @@ export class EditorView {
     if (this.cursorVisible) {
       this.renderCursors();
     }
+
+    // 括号对匹配高亮（光标之上，框选配对的两个括号）
+    this.renderBracketMatch();
 
     // 行号槽
     ctx.fillStyle = this.theme.gutterBackground;
@@ -959,6 +967,49 @@ export class EditorView {
       ctx.fillStyle = this.theme.foreground;
       ctx.fillText(lineText.slice(cursor), originX + cursor * this.charWidth, midY);
     }
+  }
+
+  private renderIndentGuides(first: number, last: number): void {
+    const ctx = this.ctx;
+    ctx.strokeStyle = this.theme.indentGuide;
+    ctx.lineWidth = 1;
+    for (let line = first; line <= last; line++) {
+      const text = this.lineText(line);
+      const level = indentLevelOf(text, this.tabSize);
+      if (level <= 0) continue;
+      const y = this.padding + line * this.lineHeight - this.scrollTop;
+      for (let lvl = 1; lvl <= level; lvl++) {
+        const x = this.gutterWidth + lvl * this.tabSize * this.charWidth - this.scrollLeft;
+        ctx.beginPath();
+        ctx.moveTo(Math.round(x) + 0.5, y);
+        ctx.lineTo(Math.round(x) + 0.5, y + this.lineHeight);
+        ctx.stroke();
+      }
+    }
+  }
+
+  private renderBracketMatch(): void {
+    const active = this.primarySelection().active;
+    const result = findMatchingBracket(
+      (line) => this.lineText(line),
+      this.doc.lineCount,
+      active,
+    );
+    if (result === null) return;
+    const ctx = this.ctx;
+    ctx.strokeStyle = this.theme.bracketMatchBorder;
+    ctx.lineWidth = 1;
+    const range = visibleLineRange(this.scrollTop, this.viewportHeight(), this.lineHeight, this.doc.lineCount);
+    const drawAt = (line: number, character: number): void => {
+      if (line < range.first || line > range.last) return;
+      const text = this.lineText(line);
+      const x = this.gutterWidth + xForColumn(text, character, this.measurer) - this.scrollLeft;
+      const y = this.padding + line * this.lineHeight - this.scrollTop;
+      const w = Math.max(2, this.charWidth);
+      ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, w, this.lineHeight - 1);
+    };
+    drawAt(result.trigger.line, result.trigger.character);
+    drawAt(result.match.line, result.match.character);
   }
 
   private renderComposition(): void {

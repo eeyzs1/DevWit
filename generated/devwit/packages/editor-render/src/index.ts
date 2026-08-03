@@ -11,6 +11,8 @@ export {
   clampScrollTop,
   columnForX,
   comparePositions,
+  findMatchingBracket,
+  indentLevelOf,
   isSelectionEmpty,
   maxScrollTop,
   normalizeSelection,

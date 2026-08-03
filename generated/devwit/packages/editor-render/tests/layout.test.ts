@@ -3,6 +3,8 @@ import {
   clampScrollTop,
   columnForX,
   comparePositions,
+  findMatchingBracket,
+  indentLevelOf,
   isSelectionEmpty,
   maxScrollTop,
   normalizeSelection,
@@ -130,5 +132,117 @@ describe("选区工具", () => {
       end: { line: 2, character: 3 },
       reversed: true,
     });
+  });
+});
+
+describe("indentLevelOf 缩进级别", () => {
+  it("无缩进 / 空行 → 0", () => {
+    expect(indentLevelOf("const x = 1;", 4)).toBe(0);
+    expect(indentLevelOf("", 4)).toBe(0);
+    expect(indentLevelOf("noIndent", 4)).toBe(0);
+  });
+
+  it("空格缩进：每 tabSize 个空格一级，不足一级向下取整", () => {
+    expect(indentLevelOf("    const x = 1;", 4)).toBe(1);
+    expect(indentLevelOf("        const x = 1;", 4)).toBe(2);
+    expect(indentLevelOf("  const x = 1;", 4)).toBe(0); // 2 空格不足一级
+    expect(indentLevelOf("      const x = 1;", 4)).toBe(1); // 6 空格 = 1 级
+  });
+
+  it("tab 缩进：每个 tab 一级", () => {
+    expect(indentLevelOf("\tconst x = 1;", 4)).toBe(1);
+    expect(indentLevelOf("\t\tconst x = 1;", 4)).toBe(2);
+  });
+
+  it("tab + 空格混合按列对齐折算", () => {
+    // tab 在 cols=0 → 跳到 4；再 4 空格 → cols=8 → 2 级
+    expect(indentLevelOf("\t    const x = 1;", 4)).toBe(2);
+    // 2 空格 + tab：cols=2, tab → 跳到 4（对齐下一档）→ 1 级
+    expect(indentLevelOf("  \tconst x = 1;", 4)).toBe(1);
+  });
+
+  it("tabSize=2 时 2 空格为一级", () => {
+    expect(indentLevelOf("  const x = 1;", 2)).toBe(1);
+    expect(indentLevelOf("    const x = 1;", 2)).toBe(2);
+  });
+});
+
+describe("findMatchingBracket 括号对匹配", () => {
+  /** 从字符串数组构造文档访问器。 */
+  const doc = (lines: string[]) => ({
+    getLine: (i: number) => lines[i] ?? "",
+    lineCount: lines.length,
+  });
+
+  it("光标在开括号右侧 → 向后匹配同行闭括号", () => {
+    // "f(a, b)" — ( 在 1，) 在 6；光标 character=2（( 之后）
+    const d = doc(["f(a, b)"]);
+    const r = findMatchingBracket(d.getLine, d.lineCount, { line: 0, character: 2 });
+    expect(r).toEqual({ trigger: { line: 0, character: 1 }, match: { line: 0, character: 6 } });
+  });
+
+  it("光标在闭括号左侧 → 向前匹配同行开括号", () => {
+    // 光标 character=6（) 之前，b 之后）；左侧 'b' 非括号，右侧 ')' 触发
+    const d = doc(["f(a, b)"]);
+    const r = findMatchingBracket(d.getLine, d.lineCount, { line: 0, character: 6 });
+    expect(r).toEqual({ trigger: { line: 0, character: 6 }, match: { line: 0, character: 1 } });
+  });
+
+  it("跨行匹配：开括号在上一行，闭括号在下一行", () => {
+    // 行0 "function f() {" — { 在 13；行2 "}" — } 在 0
+    const d = doc(["function f() {", "  return 1;", "}"]);
+    const r = findMatchingBracket(d.getLine, d.lineCount, { line: 0, character: 14 });
+    expect(r).toEqual({ trigger: { line: 0, character: 13 }, match: { line: 2, character: 0 } });
+  });
+
+  it("嵌套括号：深度计数正确，匹配最外层", () => {
+    // "x = ((a))" — 外层 ( 在 4，内层 ( 在 5，) 在 7，) 在 8
+    const d = doc(["x = ((a))"]);
+    const r = findMatchingBracket(d.getLine, d.lineCount, { line: 0, character: 5 });
+    expect(r).toEqual({ trigger: { line: 0, character: 4 }, match: { line: 0, character: 8 } });
+  });
+
+  it("三种括号 () [] {} 均能匹配", () => {
+    // "a = [1, {b}]" — [ 在 4，] 在 11，{ 在 8，} 在 10
+    const d = doc(["a = [1, {b}]"]);
+    expect(findMatchingBracket(d.getLine, d.lineCount, { line: 0, character: 5 })).toEqual({
+      trigger: { line: 0, character: 4 },
+      match: { line: 0, character: 11 },
+    });
+    expect(findMatchingBracket(d.getLine, d.lineCount, { line: 0, character: 9 })).toEqual({
+      trigger: { line: 0, character: 8 },
+      match: { line: 0, character: 10 },
+    });
+  });
+
+  it("光标不在括号旁 → null", () => {
+    const d = doc(["const x = 123;"]);
+    expect(findMatchingBracket(d.getLine, d.lineCount, { line: 0, character: 5 })).toBeNull();
+    expect(findMatchingBracket(d.getLine, d.lineCount, { line: 0, character: 0 })).toBeNull();
+  });
+
+  it("未配对的开括号 → null", () => {
+    // "f(a" — ( 在 1，无闭括号
+    const d = doc(["f(a"]);
+    expect(findMatchingBracket(d.getLine, d.lineCount, { line: 0, character: 2 })).toBeNull();
+  });
+
+  it("优先匹配光标左侧字符（左侧闭括号优先于右侧开括号）", () => {
+    // "()()" — 索引: (0 )1 (2 )3；光标 character=2（左侧 )，右侧 (）
+    const d = doc(["()()"]);
+    const r = findMatchingBracket(d.getLine, d.lineCount, { line: 0, character: 2 });
+    expect(r).toEqual({ trigger: { line: 0, character: 1 }, match: { line: 0, character: 0 } });
+  });
+
+  it("行首/行尾边界（无括号旁）→ null", () => {
+    const d = doc(["abc", "def"]);
+    expect(findMatchingBracket(d.getLine, d.lineCount, { line: 0, character: 0 })).toBeNull();
+    expect(findMatchingBracket(d.getLine, d.lineCount, { line: 0, character: 3 })).toBeNull();
+  });
+
+  it("光标位置越界安全收敛（不抛错）", () => {
+    const d = doc(["ab"]);
+    expect(findMatchingBracket(d.getLine, d.lineCount, { line: 5, character: 0 })).toBeNull();
+    expect(findMatchingBracket(d.getLine, d.lineCount, { line: 0, character: 99 })).toBeNull();
   });
 });

@@ -89,3 +89,108 @@ export function columnForX(lineText: string, x: number, measure: Measurer): numb
   }
   return lineText.length;
 }
+
+/**
+ * 行的缩进级别：前导空白按 tabSize 折算成列宽，再整除 tabSize 得级别数。
+ * 空行/无缩进返回 0；tab 按下一档对齐（cols += tabSize - cols%tabSize）。
+ * 用于缩进指南线绘制——纯函数，node 下可直接测试。
+ */
+export function indentLevelOf(line: string, tabSize: number): number {
+  let cols = 0;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === " ") cols += 1;
+    else if (ch === "\t") cols += tabSize - (cols % tabSize);
+    else break;
+  }
+  return Math.floor(cols / tabSize);
+}
+
+const OPEN_BRACKETS = new Set(["(", "[", "{"]);
+const CLOSE_BRACKETS = new Set([")", "]", "}"]);
+const BRACKET_MATCH: Record<string, string> = {
+  "(": ")", "[": "]", "{": "}",
+  ")": "(", "]": "[", "}": "{",
+};
+
+/**
+ * 括号对匹配：给定文档行访问器（避免大文档全量拷贝）与光标位置，
+ * 找光标旁括号的配对端。检查顺序：光标左侧字符 → 右侧字符；
+ * 开括号向后扫描，闭括号向前扫描，深度计数处理嵌套，跨行扫描。
+ * 返回 { trigger（光标旁括号位置）, match（配对端位置）}；无配对返回 null。
+ * 纯函数（注入 getLine/lineCount），node 下可直接测试。
+ */
+export function findMatchingBracket(
+  getLine: (line: number) => string,
+  lineCount: number,
+  pos: { line: number; character: number },
+): { trigger: { line: number; character: number }; match: { line: number; character: number } } | null {
+  const lineText = pos.line >= 0 && pos.line < lineCount ? getLine(pos.line) : "";
+  const tryLeft = pos.character > 0 ? (lineText[pos.character - 1] ?? "") : "";
+  const tryRight = pos.character < lineText.length ? (lineText[pos.character] ?? "") : "";
+
+  const scanFrom = (ch: string, charPos: number): { line: number; character: number } | null => {
+    const partner = BRACKET_MATCH[ch];
+    if (partner === undefined) return null;
+    if (OPEN_BRACKETS.has(ch)) return scanForward(getLine, lineCount, pos.line, charPos, ch, partner);
+    if (CLOSE_BRACKETS.has(ch)) return scanBackward(getLine, pos.line, charPos, ch, partner);
+    return null;
+  };
+
+  const leftMatch = scanFrom(tryLeft, pos.character - 1);
+  if (leftMatch !== null) {
+    return { trigger: { line: pos.line, character: pos.character - 1 }, match: leftMatch };
+  }
+  const rightMatch = scanFrom(tryRight, pos.character);
+  if (rightMatch !== null) {
+    return { trigger: { line: pos.line, character: pos.character }, match: rightMatch };
+  }
+  return null;
+}
+
+function scanForward(
+  getLine: (line: number) => string,
+  lineCount: number,
+  startLine: number,
+  startChar: number,
+  open: string,
+  close: string,
+): { line: number; character: number } | null {
+  let depth = 1;
+  for (let line = startLine; line < lineCount; line++) {
+    const text = getLine(line);
+    const begin = line === startLine ? startChar + 1 : 0;
+    for (let c = begin; c < text.length; c++) {
+      const ch = text[c];
+      if (ch === open) depth += 1;
+      else if (ch === close) {
+        depth -= 1;
+        if (depth === 0) return { line, character: c };
+      }
+    }
+  }
+  return null;
+}
+
+function scanBackward(
+  getLine: (line: number) => string,
+  startLine: number,
+  startChar: number,
+  close: string,
+  open: string,
+): { line: number; character: number } | null {
+  let depth = 1;
+  for (let line = startLine; line >= 0; line--) {
+    const text = getLine(line);
+    const end = line === startLine ? startChar - 1 : text.length - 1;
+    for (let c = end; c >= 0; c--) {
+      const ch = text[c];
+      if (ch === close) depth += 1;
+      else if (ch === open) {
+        depth -= 1;
+        if (depth === 0) return { line, character: c };
+      }
+    }
+  }
+  return null;
+}
