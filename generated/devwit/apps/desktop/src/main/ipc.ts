@@ -115,6 +115,7 @@ export interface GitIpcService {
   stashApply(index: number): Promise<void>;
   stashDrop(index: number): Promise<void>;
   blame(relPath: string): Promise<GitBlameLine[]>;
+  resolveConflict(relPath: string, strategy: "ours" | "theirs" | "manual"): Promise<void>;
 }
 
 /** LSP 接线参数（迭代 31 / AC40）：结构子集与 LspService 对齐（保持本文件无包运行时依赖）。 */
@@ -365,6 +366,7 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     table[IPC.GitStashApply] = notWired;
     table[IPC.GitStashDrop] = notWired;
     table[IPC.GitBlame] = notWired;
+    table[IPC.GitResolveConflict] = notWired;
   } else {
     table[IPC.GitGetStatus] = () => git.status();
     table[IPC.GitDiff] = (_e, file) => git.diffTexts(String(file));
@@ -408,6 +410,13 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
       await git.stashDrop(Number(index));
     };
     table[IPC.GitBlame] = (_e, file) => git.blame(String(file));
+    table[IPC.GitResolveConflict] = async (_e, file, strategy) => {
+      const s = String(strategy);
+      if (s !== "ours" && s !== "theirs" && s !== "manual") {
+        throw new Error("DW_GIT_RESOLVE_FAILED:invalid strategy");
+      }
+      await git.resolveConflict(String(file), s);
+    };
   }
 
   // ---- DAP 调试（迭代 33 / AC42）：未接线时抛明确错误码（白名单通道恒在表内）----

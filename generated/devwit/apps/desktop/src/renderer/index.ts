@@ -1533,7 +1533,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       statusGit.textContent = "";
       return;
     }
-    const count = gitStatus.staged.length + gitStatus.unstaged.length + gitStatus.untracked.length;
+    const count = gitStatus.staged.length + gitStatus.unstaged.length + gitStatus.untracked.length + gitStatus.conflicts.length;
     statusGit.textContent =
       count === 0 ? `⑂ ${gitStatus.branch}` : t("status.git", { branch: gitStatus.branch, count: String(count) });
   }
@@ -1604,9 +1604,49 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     }
     const body = el("div", "dw-git-body");
     gitPane.appendChild(body);
-    const total = gitStatus.staged.length + gitStatus.unstaged.length + gitStatus.untracked.length;
+    const total = gitStatus.staged.length + gitStatus.unstaged.length + gitStatus.untracked.length + gitStatus.conflicts.length;
     if (total === 0) {
       body.appendChild(el("div", "dw-sidebar-empty", t("git.clean")));
+    }
+    // 冲突区域（v0.4.0）：合并冲突文件 + 解决按钮（ours/theirs/manual）
+    if (gitStatus.conflicts.length > 0) {
+      const group = el("div", "dw-git-group dw-git-conflicts");
+      group.appendChild(el("div", "dw-git-group-title dw-git-conflicts-title", `${t("git.conflicts")} (${gitStatus.conflicts.length})`));
+      for (const item of gitStatus.conflicts) {
+        const row = el("div", "dw-git-row dw-git-conflict-row");
+        const badge = el("span", "dw-git-badge dw-git-badge-conflict", "!");
+        const name = el("span", "dw-git-path", item.path);
+        name.title = item.path;
+        const absPath = `${workspaceRoot.replace(/[/\\]+$/, "")}/${item.path}`;
+        name.addEventListener("click", () => void openFileByPath(absPath));
+        const openBtn = el("button", "dw-git-action", "↗");
+        openBtn.title = t("git.conflict.open");
+        openBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          void openFileByPath(absPath);
+        });
+        const oursBtn = el("button", "dw-git-action dw-git-resolve", t("git.conflict.ours"));
+        oursBtn.title = t("git.conflict.ours");
+        oursBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          void doGitOp(() => api.git.resolveConflict(item.path, "ours")).then(() => showStatus(t("git.conflict.resolved")));
+        });
+        const theirsBtn = el("button", "dw-git-action dw-git-resolve", t("git.conflict.theirs"));
+        theirsBtn.title = t("git.conflict.theirs");
+        theirsBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          void doGitOp(() => api.git.resolveConflict(item.path, "theirs")).then(() => showStatus(t("git.conflict.resolved")));
+        });
+        const manualBtn = el("button", "dw-git-action dw-git-resolve", t("git.conflict.manual"));
+        manualBtn.title = t("git.conflict.manual");
+        manualBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          void doGitOp(() => api.git.resolveConflict(item.path, "manual")).then(() => showStatus(t("git.conflict.resolved")));
+        });
+        row.append(badge, name, openBtn, oursBtn, theirsBtn, manualBtn);
+        group.appendChild(row);
+      }
+      body.appendChild(group);
     }
     renderGitGroup(body, t("git.staged"), gitStatus.staged, "unstage");
     renderGitGroup(body, t("git.changes"), gitStatus.unstaged, "stage");
@@ -1969,6 +2009,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       for (const item of gitStatus.staged) map.set(item.path, gitBadgeLetter(item.status));
       for (const item of gitStatus.untracked) map.set(item.path, gitBadgeLetter(item.status));
       for (const item of gitStatus.unstaged) map.set(item.path, gitBadgeLetter(item.status));
+      for (const item of gitStatus.conflicts) map.set(item.path, "!");
     }
     for (const node of filesPane.querySelectorAll<HTMLElement>(".dw-tree-node")) {
       const badge = node.querySelector<HTMLElement>(".dw-tree-badge");

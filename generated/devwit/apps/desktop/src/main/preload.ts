@@ -162,6 +162,7 @@ const api: DevwitApi = {
     stashApply: (index) => ipcRenderer.invoke(IPC.GitStashApply, index) as Promise<void>,
     stashDrop: (index) => ipcRenderer.invoke(IPC.GitStashDrop, index) as Promise<void>,
     blame: (file) => ipcRenderer.invoke(IPC.GitBlame, file) as ReturnType<DevwitApi["git"]["blame"]>,
+    resolveConflict: (file, strategy) => ipcRenderer.invoke(IPC.GitResolveConflict, file, strategy) as ReturnType<DevwitApi["git"]["resolveConflict"]>,
     onChanged: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.GitChanged, cb)
   },
   debug: {

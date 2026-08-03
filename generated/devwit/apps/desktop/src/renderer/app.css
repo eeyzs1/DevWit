@@ -1655,6 +1655,31 @@ body,
   color: var(--dw-danger);
 }
 
+/* ---- Git merge conflict 解决（v0.4.0）---- */
+.dw-git-conflicts-title {
+  color: var(--dw-danger, #f14c4c);
+  font-weight: 600;
+}
+
+.dw-git-badge-conflict {
+  color: #fff;
+  background: var(--dw-danger, #f14c4c);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-weight: 700;
+}
+
+.dw-git-conflict-row {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dw-git-resolve {
+  font-size: 11px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
 .dw-git-foot {
   display: flex;
   gap: 6px;

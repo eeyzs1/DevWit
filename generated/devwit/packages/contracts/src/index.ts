@@ -959,7 +959,12 @@ export interface GitPanelStatus {
   staged: GitFileChange[];
   unstaged: GitFileChange[];
   untracked: GitFileChange[];
+  /** 冲突文件（porcelain XY 含 U，如 UU/AA/DU）；无冲突时为空数组。 */
+  conflicts: GitFileChange[];
 }
+
+/** 冲突解决策略（git:resolve-conflict 请求参数）。 */
+export type ConflictStrategy = "ours" | "theirs" | "manual";
 
 /** diff 双文本（git:diff 返回）：original=HEAD 版（untracked 为 ""），modified=工作区版（deleted 为 ""）。 */
 export interface GitDiffTexts {
@@ -1207,6 +1212,7 @@ export const IPC = {
   GitStashApply: "git:stash-apply",
   GitStashDrop: "git:stash-drop",
   GitBlame: "git:blame",
+  GitResolveConflict: "git:resolve-conflict",
   GitChanged: "git:changed",
   DebugStart: "debug:start",
   DebugStop: "debug:stop",
@@ -1356,6 +1362,14 @@ export interface DevwitApi {
     stashDrop(index: number): Promise<void>;
     /** git blame --line-porcelain <file>：逐行注解（hash/author/date/summary）；非 git 仓库返回空数组。 */
     blame(file: string): Promise<GitBlameLine[]>;
+    /**
+     * 解决合并冲突（v0.4.0）。
+     * - ours：git checkout --ours + git add（保留当前分支版本）
+     * - theirs：git checkout --theirs + git add（保留传入分支版本）
+     * - manual：仅 git add（用户手动编辑后标记已解决）
+     * 失败抛 DW_GIT_RESOLVE_FAILED。
+     */
+    resolveConflict(file: string, strategy: ConflictStrategy): Promise<void>;
     /** 订阅状态变化推送（操作后/工作区文件事件防抖刷新，载荷为全量快照；null=非 git 仓库）。 */
     onChanged(cb: (status: GitPanelStatus | null) => void): () => void;
   };

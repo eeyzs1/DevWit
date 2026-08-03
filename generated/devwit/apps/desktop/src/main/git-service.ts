@@ -105,6 +105,11 @@ export class GitMainService {
     return this.requireService().blame(relPath);
   }
 
+  async resolveConflict(relPath: string, strategy: "ours" | "theirs" | "manual"): Promise<void> {
+    await this.requireService().resolveConflict(relPath, strategy);
+    await this.pushChanged();
+  }
+
   private requireService(): GitService {
     if (this.service === null) {
       throw new Error("DW_GIT_NOT_REPO");

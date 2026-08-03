@@ -51,6 +51,21 @@ describe("parsePorcelainZ（纯解析）", () => {
     const out = parsePorcelainZ("## No commits yet on master\0?? a.txt\0");
     expect(out.branch).toBe("master");
   });
+
+  it("冲突文件（UU/AA/DU）归入 conflicts，不进 staged/unstaged", () => {
+    const out = parsePorcelainZ("## main\0UU conflict.txt\0AA both-added.txt\0M  staged.txt\0");
+    expect(out.conflicts).toEqual([
+      { path: "conflict.txt", status: "UU" },
+      { path: "both-added.txt", status: "AA" },
+    ]);
+    expect(out.staged).toEqual([{ path: "staged.txt", status: "M" }]);
+    expect(out.unstaged).toEqual([]);
+  });
+
+  it("无冲突时 conflicts 为空数组", () => {
+    const out = parsePorcelainZ("## main\0M  a.txt\0");
+    expect(out.conflicts).toEqual([]);
+  });
 });
 
 describe("GitService（真实 temp 仓库）", () => {
@@ -340,6 +355,77 @@ describe("GitService（真实 temp 仓库）", () => {
     initRepo(root);
     fs.writeFileSync(path.join(root, "new.txt"), "new\n", "utf-8");
     expect(await service.blame("new.txt")).toEqual([]);
+  });
+
+  it.skipIf(!hasGit)("resolveConflict ours：保留当前分支版本并标记已解决", async () => {
+    initRepo(root);
+    const defaultBranch = spawnSync("git", ["symbolic-ref", "--short", "HEAD"], { cwd: root, timeout: 5000 }).stdout.toString().trim();
+    // 创建分支 feature 并修改同一行
+    git(root, ["checkout", "-b", "feature"]);
+    fs.writeFileSync(path.join(root, "tracked.txt"), "line1\nfeature-branch\nline3\n", "utf-8");
+    git(root, ["add", "."]);
+    git(root, ["commit", "-m", "feature change"]);
+    // 回到默认分支修改同一行
+    git(root, ["checkout", defaultBranch]);
+    fs.writeFileSync(path.join(root, "tracked.txt"), "line1\nmain-branch\nline3\n", "utf-8");
+    git(root, ["add", "."]);
+    git(root, ["commit", "-m", "main change"]);
+    // merge feature → 冲突（退出码非零，用 spawnSync 忽略）
+    spawnSync("git", ["merge", "feature"], { cwd: root, timeout: 10_000 });
+    // status 应含 conflicts
+    const status = await service.status();
+    expect(status).not.toBeNull();
+    expect(status!.conflicts.length).toBe(1);
+    expect(status!.conflicts[0]!.path).toBe("tracked.txt");
+    // resolveConflict ours → 保留 main 版本
+    await service.resolveConflict("tracked.txt", "ours");
+    const content = fs.readFileSync(path.join(root, "tracked.txt"), "utf-8");
+    expect(content).toContain("main-branch");
+    expect(content).not.toContain("feature-branch");
+    expect(content).not.toContain("<<<<<<<");
+    // 冲突已解决（不再出现在 conflicts）
+    const after = await service.status();
+    expect(after!.conflicts.length).toBe(0);
+  });
+
+  it.skipIf(!hasGit)("resolveConflict theirs：保留传入分支版本", async () => {
+    initRepo(root);
+    const defaultBranch = spawnSync("git", ["symbolic-ref", "--short", "HEAD"], { cwd: root, timeout: 5000 }).stdout.toString().trim();
+    git(root, ["checkout", "-b", "feature"]);
+    fs.writeFileSync(path.join(root, "tracked.txt"), "line1\nfeature-branch\nline3\n", "utf-8");
+    git(root, ["add", "."]);
+    git(root, ["commit", "-m", "feature change"]);
+    git(root, ["checkout", defaultBranch]);
+    fs.writeFileSync(path.join(root, "tracked.txt"), "line1\nmain-branch\nline3\n", "utf-8");
+    git(root, ["add", "."]);
+    git(root, ["commit", "-m", "main change"]);
+    spawnSync("git", ["merge", "feature"], { cwd: root, timeout: 10_000 });
+    await service.resolveConflict("tracked.txt", "theirs");
+    const content = fs.readFileSync(path.join(root, "tracked.txt"), "utf-8");
+    expect(content).toContain("feature-branch");
+    expect(content).not.toContain("main-branch");
+    expect(content).not.toContain("<<<<<<<");
+  });
+
+  it.skipIf(!hasGit)("resolveConflict manual：标记已解决（保留手动编辑内容）", async () => {
+    initRepo(root);
+    const defaultBranch = spawnSync("git", ["symbolic-ref", "--short", "HEAD"], { cwd: root, timeout: 5000 }).stdout.toString().trim();
+    git(root, ["checkout", "-b", "feature"]);
+    fs.writeFileSync(path.join(root, "tracked.txt"), "line1\nfeature-branch\nline3\n", "utf-8");
+    git(root, ["add", "."]);
+    git(root, ["commit", "-m", "feature change"]);
+    git(root, ["checkout", defaultBranch]);
+    fs.writeFileSync(path.join(root, "tracked.txt"), "line1\nmain-branch\nline3\n", "utf-8");
+    git(root, ["add", "."]);
+    git(root, ["commit", "-m", "main change"]);
+    spawnSync("git", ["merge", "feature"], { cwd: root, timeout: 10_000 });
+    // 手动编辑文件（移除冲突标记）
+    fs.writeFileSync(path.join(root, "tracked.txt"), "line1\nresolved-manually\nline3\n", "utf-8");
+    await service.resolveConflict("tracked.txt", "manual");
+    const after = await service.status();
+    expect(after!.conflicts.length).toBe(0);
+    // tracked.txt 应在 staged（已 add）
+    expect(after!.staged.some((s) => s.path === "tracked.txt")).toBe(true);
   });
 });
 

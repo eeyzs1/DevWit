@@ -28,6 +28,8 @@ export interface GitPanelStatus {
   staged: GitFileChange[];
   unstaged: GitFileChange[];
   untracked: GitFileChange[];
+  /** 冲突文件（porcelain XY 含 U）；无冲突时为空数组。 */
+  conflicts: GitFileChange[];
 }
 
 /** diff 双文本：original=HEAD 版（untracked 为 ""），modified=工作区版（deleted 为 ""）。 */
@@ -349,6 +351,26 @@ export class GitService {
     });
   }
 
+  // ---- Merge conflict 解决（v0.4.0）----
+
+  /**
+   * 解决合并冲突。
+   * - ours：git checkout --ours + git add（保留当前分支版本）
+   * - theirs：git checkout --theirs + git add（保留传入分支版本）
+   * - manual：仅 git add（用户手动编辑后标记已解决）
+   * 失败抛 DW_GIT_RESOLVE_FAILED:<stderr摘要>。
+   */
+  async resolveConflict(relPath: string, strategy: "ours" | "theirs" | "manual"): Promise<void> {
+    const normalized = relPath.replace(/\\/g, "/").replace(/^\/+/, "");
+    if (strategy === "ours") {
+      await this.runMutating(["checkout", "--ours", "--", normalized], "DW_GIT_RESOLVE_FAILED");
+    } else if (strategy === "theirs") {
+      await this.runMutating(["checkout", "--theirs", "--", normalized], "DW_GIT_RESOLVE_FAILED");
+    }
+    // manual 不 checkout，直接 add 标记已解决
+    await this.runMutating(["add", "--", normalized], "DW_GIT_RESOLVE_FAILED");
+  }
+
   private runMutating(args: string[], code: string, timeout = GIT_TIMEOUT_MS): Promise<void> {
     return new Promise((resolve, reject) => {
       this.execImpl("git", args, { cwd: this.root, timeout, maxBuffer: MAX_BUFFER }, (error, _stdout, stderr) => {
@@ -369,7 +391,7 @@ export class GitService {
  * rename/copy 条目格式 "XY new\0old\0"（-z 下新路径在前）。
  */
 export function parsePorcelainZ(stdout: string): GitPanelStatus {
-  const result: GitPanelStatus = { branch: "", staged: [], unstaged: [], untracked: [] };
+  const result: GitPanelStatus = { branch: "", staged: [], unstaged: [], untracked: [], conflicts: [] };
   const entries = stdout.split("\0");
   for (let i = 0; i < entries.length; i += 1) {
     const entry = entries[i] ?? "";
@@ -388,6 +410,11 @@ export function parsePorcelainZ(stdout: string): GitPanelStatus {
     }
     if (x === "?" && y === "?") {
       result.untracked.push({ path: file, status: "?" });
+      continue;
+    }
+    // 冲突文件（X 或 Y 含 U）：单独归入 conflicts，不进 staged/unstaged
+    if (x === "U" || y === "U" || (x === "A" && y === "A") || (x === "D" && y === "D")) {
+      result.conflicts.push({ path: file, status: `${x}${y}` });
       continue;
     }
     if (x !== " " && x !== "?") {
