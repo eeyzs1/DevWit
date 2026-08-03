@@ -17,6 +17,7 @@ import { fetchCommunityMcpIndex, fetchCommunityMcpServer, materializeMcpImport }
 import type { SettingsStore } from "@devwit/settings";
 import type { TerminalService } from "@devwit/terminal";
 import type { WorkspaceService } from "@devwit/workspace";
+import { searchInWorkspace } from "@devwit/workspace";
 import type { AiRuntime } from "./ai-runtime.js";
 import { openInExternalEditor } from "./external-editor.js";
 import type { UpdateService } from "./updater.js";
@@ -177,6 +178,18 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
   table[IPC.WorkspaceWrite] = async (_e, filePath, content) => {
     // 编辑器内保存 = 用户直接动作，无需授权门（AC4 授权门针对 agent 工具）
     await workspace.writeFile(String(filePath), String(content));
+  };
+  table[IPC.WorkspaceSearch] = async (_e, root, options) => {
+    // 跨文件搜索（v0.4.0）：主进程遍历文件树读取搜索，避免渲染端大量 IPC 往返
+    const opts = (options ?? {}) as Record<string, unknown>;
+    return searchInWorkspace(String(root), {
+      query: typeof opts["query"] === "string" ? opts["query"] : "",
+      isRegex: opts["isRegex"] === true,
+      caseSensitive: opts["caseSensitive"] === true,
+      wholeWord: opts["wholeWord"] === true,
+      maxResultsPerFile: typeof opts["maxResultsPerFile"] === "number" ? opts["maxResultsPerFile"] : undefined,
+      maxFiles: typeof opts["maxFiles"] === "number" ? opts["maxFiles"] : undefined,
+    });
   };
 
   // ---- terminal ----

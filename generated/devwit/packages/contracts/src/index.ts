@@ -1071,6 +1071,42 @@ export interface TerminalSessionInfo {
 }
 
 // ============================================================================
+// 跨文件搜索（v0.4.0）
+// ============================================================================
+
+/** 搜索选项（workspace:search 请求载荷）。 */
+export interface SearchOptions {
+  query: string;
+  isRegex: boolean;
+  caseSensitive: boolean;
+  wholeWord: boolean;
+  maxResultsPerFile?: number;
+  maxFiles?: number;
+}
+
+/** 单条匹配（一行可多次命中）。 */
+export interface SearchMatch {
+  line: number;
+  column: number;
+  endColumn: number;
+  preview: string;
+}
+
+/** 单文件匹配集合。 */
+export interface SearchResultFile {
+  relativePath: string;
+  absolutePath: string;
+  matches: SearchMatch[];
+}
+
+/** 搜索结果总集。 */
+export interface SearchResults {
+  files: SearchResultFile[];
+  totalMatches: number;
+  truncated: boolean;
+}
+
+// ============================================================================
 // IPC 通道（apps/desktop preload 白名单的唯一合法集合，AR001/AR004）
 // ============================================================================
 
@@ -1079,6 +1115,7 @@ export const IPC = {
   WorkspaceTree: "workspace:tree",
   WorkspaceRead: "workspace:read",
   WorkspaceWrite: "workspace:write",
+  WorkspaceSearch: "workspace:search",
   WorkspaceEvent: "workspace:event",
   TerminalCreate: "terminal:create",
   TerminalInput: "terminal:input",
@@ -1196,6 +1233,7 @@ export interface DevwitApi {
     tree(root: string): Promise<unknown>;
     read(path: string): Promise<string>;
     write(path: string, content: string): Promise<void>;
+    search(root: string, options: SearchOptions): Promise<SearchResults>;
     onEvent(cb: (evt: unknown) => void): () => void;
   };
   terminal: {

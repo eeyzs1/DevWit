@@ -26,6 +26,7 @@ const api: DevwitApi = {
     tree: (root) => ipcRenderer.invoke(IPC.WorkspaceTree, root) as Promise<unknown>,
     read: (filePath) => ipcRenderer.invoke(IPC.WorkspaceRead, filePath) as Promise<string>,
     write: (filePath, content) => ipcRenderer.invoke(IPC.WorkspaceWrite, filePath, content) as Promise<void>,
+    search: (root, options) => ipcRenderer.invoke(IPC.WorkspaceSearch, root, options) as ReturnType<DevwitApi["workspace"]["search"]>,
     onEvent: (cb) => subscribe<[unknown]>(IPC.WorkspaceEvent, cb)
   },
   terminal: {

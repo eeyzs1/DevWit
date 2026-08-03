@@ -5,7 +5,7 @@
  * 全部界面文案经 @devwit/i18n 词典渲染；启动时从 settings "ui.locale" 恢复语言，
  * 订阅 onDidChangeLocale 全量重写静态文案与动态列表（语言热生效）。
  */
-import type { DevwitApi, DebugBreakpoint, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitBlameLine, GitBranch, GitPanelStatus, GitStashEntry, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspSignatureHelp, LspStatusInfo, LspTextEdit, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
+import type { DevwitApi, DebugBreakpoint, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitBlameLine, GitBranch, GitPanelStatus, GitStashEntry, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspSignatureHelp, LspStatusInfo, LspTextEdit, ModeDefinition, ProviderConfig, SearchResults, UpdateStatusInfo } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, resolveSystemLocale, setLocale, t, ta, type Locale } from "@devwit/i18n";
 import { TextDocument } from "@devwit/editor-core";
 import { EditorView, normalizeSelection, type BreakpointKind } from "@devwit/editor-render";
@@ -264,7 +264,258 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       event.preventDefault();
       void saveActiveFile();
     }
+    // Ctrl+Shift+F：切换跨文件搜索面板（v0.4.0）
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "f") {
+      event.preventDefault();
+      toggleSearchPanel();
+    }
   });
+
+  // ---- 跨文件搜索面板（v0.4.0）：编辑器顶部，Ctrl+Shift+F 切换 ----
+  const searchPanel = el("div", "dw-search-panel");
+  searchPanel.style.display = "none";
+  editorArea.insertBefore(searchPanel, canvas);
+  const searchRow = el("div", "dw-search-row");
+  const searchInput = el("input", "dw-search-input") as HTMLInputElement;
+  searchInput.type = "text";
+  searchInput.placeholder = t("search.placeholder");
+  searchInput.spellcheck = false;
+  const searchOptsBtns = el("div", "dw-search-opts");
+  const caseBtn = el("button", "dw-search-opt", "Aa");
+  caseBtn.title = t("search.caseSensitive");
+  const regexBtn = el("button", "dw-search-opt", ".*");
+  regexBtn.title = t("search.regex");
+  const wordBtn = el("button", "dw-search-opt", "W");
+  wordBtn.title = t("search.wholeWord");
+  const toggleReplaceBtn = el("button", "dw-search-opt", "⇄");
+  toggleReplaceBtn.title = t("search.toggleReplace");
+  const searchCount = el("span", "dw-search-count");
+  const searchCloseBtn = el("button", "dw-search-close", "×");
+  searchCloseBtn.title = t("search.close");
+  searchOptsBtns.append(caseBtn, regexBtn, wordBtn, toggleReplaceBtn);
+  searchRow.append(searchInput, searchOptsBtns, searchCount, searchCloseBtn);
+  const replaceRow = el("div", "dw-search-row dw-search-replace-row");
+  replaceRow.style.display = "none";
+  const replaceInput = el("input", "dw-search-input") as HTMLInputElement;
+  replaceInput.type = "text";
+  replaceInput.placeholder = t("search.replacePlaceholder");
+  replaceInput.spellcheck = false;
+  const replaceAllBtn = el("button", "dw-btn dw-btn-small", t("search.replaceAll"));
+  replaceRow.append(replaceInput, el("span", "dw-spacer"), replaceAllBtn);
+  const searchResults = el("div", "dw-search-results");
+  searchPanel.append(searchRow, replaceRow, searchResults);
+
+  let searchPanelVisible = false;
+  let replaceRowVisible = false;
+  let searchCaseSensitive = false;
+  let searchRegex = false;
+  let searchWholeWord = false;
+  let lastSearchResults: SearchResults | null = null;
+
+  function toggleSearchPanel(): void {
+    searchPanelVisible = !searchPanelVisible;
+    searchPanel.style.display = searchPanelVisible ? "" : "none";
+    if (searchPanelVisible) {
+      searchInput.focus();
+    } else {
+      searchResults.textContent = "";
+      searchCount.textContent = "";
+      lastSearchResults = null;
+    }
+  }
+  searchCloseBtn.addEventListener("click", () => toggleSearchPanel());
+  caseBtn.addEventListener("click", () => {
+    searchCaseSensitive = !searchCaseSensitive;
+    caseBtn.classList.toggle("dw-search-opt-active", searchCaseSensitive);
+    void runSearch();
+  });
+  regexBtn.addEventListener("click", () => {
+    searchRegex = !searchRegex;
+    regexBtn.classList.toggle("dw-search-opt-active", searchRegex);
+    void runSearch();
+  });
+  wordBtn.addEventListener("click", () => {
+    searchWholeWord = !searchWholeWord;
+    wordBtn.classList.toggle("dw-search-opt-active", searchWholeWord);
+    void runSearch();
+  });
+  toggleReplaceBtn.addEventListener("click", () => {
+    replaceRowVisible = !replaceRowVisible;
+    replaceRow.style.display = replaceRowVisible ? "" : "none";
+    toggleReplaceBtn.classList.toggle("dw-search-opt-active", replaceRowVisible);
+  });
+
+  let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+  searchInput.addEventListener("input", () => {
+    if (searchDebounce !== null) clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => void runSearch(), 300);
+  });
+  searchInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (searchDebounce !== null) clearTimeout(searchDebounce);
+      void runSearch();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      toggleSearchPanel();
+    }
+  });
+
+  async function runSearch(): Promise<void> {
+    const query = searchInput.value;
+    if (query === "") {
+      searchResults.textContent = "";
+      searchCount.textContent = "";
+      lastSearchResults = null;
+      return;
+    }
+    if (workspaceRoot === "") {
+      searchResults.textContent = "";
+      searchCount.textContent = t("search.noWorkspace");
+      lastSearchResults = null;
+      return;
+    }
+    try {
+      const results = await api.workspace.search(workspaceRoot, {
+        query,
+        isRegex: searchRegex,
+        caseSensitive: searchCaseSensitive,
+        wholeWord: searchWholeWord,
+      });
+      lastSearchResults = results;
+      renderSearchResults(results);
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : String(error);
+      searchCount.textContent = /regex|regular|DW_SEARCH/i.test(raw) ? t("err.searchRegex") : localizeError(raw);
+      searchResults.textContent = "";
+      lastSearchResults = null;
+    }
+  }
+
+  function renderSearchResults(results: SearchResults): void {
+    searchResults.textContent = "";
+    searchCount.textContent =
+      results.files.length === 0
+        ? t("search.empty")
+        : t("search.results", { n: String(results.totalMatches), files: String(results.files.length) });
+    if (results.truncated) {
+      searchResults.appendChild(el("div", "dw-search-truncated", t("search.truncated")));
+    }
+    for (const file of results.files) {
+      const fileGroup = el("div", "dw-search-file");
+      const fileHeader = el("div", "dw-search-file-header");
+      fileHeader.appendChild(el("span", "dw-search-file-name", file.relativePath));
+      fileHeader.appendChild(el("span", "dw-search-file-count", String(file.matches.length)));
+      fileGroup.appendChild(fileHeader);
+      for (const match of file.matches) {
+        const matchEl = el("div", "dw-search-match");
+        matchEl.appendChild(el("span", "dw-search-match-line", String(match.line)));
+        const preview = el("span", "dw-search-match-preview");
+        const before = match.preview.slice(0, match.column - 1);
+        const matched = match.preview.slice(match.column - 1, match.endColumn - 1);
+        const after = match.preview.slice(match.endColumn - 1);
+        preview.textContent = before;
+        preview.appendChild(el("strong", "dw-search-match-hit", matched));
+        preview.appendChild(document.createTextNode(after));
+        matchEl.appendChild(preview);
+        matchEl.addEventListener("click", () => void jumpToMatch(file.absolutePath, match.line, match.column));
+        fileGroup.appendChild(matchEl);
+      }
+      searchResults.appendChild(fileGroup);
+    }
+  }
+
+  async function jumpToMatch(absPath: string, line: number, column: number): Promise<void> {
+    await openFileByPath(absPath);
+    editor.revealPosition({ line: line - 1, character: column - 1 });
+  }
+
+  /** 渲染端正则编译（与 workspace/search.ts 同口径）：字面量转义 + 全词 \b + 大小写 flag。 */
+  function compileRegexLocal(query: string, isRegex: boolean, caseSensitive: boolean, wholeWord: boolean): RegExp {
+    let source: string;
+    if (isRegex) {
+      source = query;
+    } else {
+      source = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+    if (wholeWord) {
+      source = `\\b${source}\\b`;
+    }
+    return new RegExp(source, caseSensitive ? "g" : "gi");
+  }
+
+  replaceAllBtn.addEventListener("click", () => void replaceAll());
+
+  async function replaceAll(): Promise<void> {
+    if (lastSearchResults === null || lastSearchResults.files.length === 0) return;
+    const replacement = replaceInput.value;
+    const query = searchInput.value;
+    if (query === "") return;
+    let regex: RegExp;
+    try {
+      regex = compileRegexLocal(query, searchRegex, searchCaseSensitive, searchWholeWord);
+    } catch {
+      showStatus(t("err.searchRegex"));
+      return;
+    }
+    let totalReplaced = 0;
+    let filesTouched = 0;
+    const currentPath = openFile?.path ?? null;
+    let currentRefreshed = false;
+    for (const file of lastSearchResults.files) {
+      let content: string;
+      try {
+        content = await api.workspace.read(file.absolutePath);
+      } catch {
+        continue;
+      }
+      const lines = content.split(/\r?\n/);
+      const matchLines = new Set(file.matches.map((m) => m.line));
+      let changed = false;
+      for (let i = 0; i < lines.length; i++) {
+        if (!matchLines.has(i + 1)) continue;
+        regex.lastIndex = 0;
+        const original = lines[i] ?? "";
+        const replaced = original.replace(regex, replacement);
+        if (replaced !== original) {
+          lines[i] = replaced;
+          changed = true;
+        }
+      }
+      if (!changed) continue;
+      try {
+        await api.workspace.write(file.absolutePath, lines.join("\n"));
+        filesTouched++;
+        totalReplaced += file.matches.length;
+        if (file.absolutePath === currentPath && openFile !== null && !currentRefreshed) {
+          const refreshed = await api.workspace.read(openFile.path);
+          const newDoc = TextDocument.fromString(refreshed);
+          openFile.doc = newDoc;
+          editor.setDocument(newDoc);
+          currentRefreshed = true;
+        }
+      } catch {
+        // 写入失败跳过该文件
+      }
+    }
+    showStatus(t("search.replaced", { n: String(totalReplaced), files: String(filesTouched) }));
+    void runSearch();
+  }
+
+  function applySearchPanelLocale(): void {
+    searchInput.placeholder = t("search.placeholder");
+    replaceInput.placeholder = t("search.replacePlaceholder");
+    caseBtn.title = t("search.caseSensitive");
+    regexBtn.title = t("search.regex");
+    wordBtn.title = t("search.wholeWord");
+    toggleReplaceBtn.title = t("search.toggleReplace");
+    searchCloseBtn.title = t("search.close");
+    replaceAllBtn.textContent = t("search.replaceAll");
+    if (lastSearchResults !== null) {
+      renderSearchResults(lastSearchResults);
+    }
+  }
 
   // ---- 统一设置页（AC12）：通用 / 模型 / 编辑器 / 模式 ----
   /** 首次运行向导（迭代 18 / AC27）：设置页「重跑向导」与首启自动弹出共用入口。 */
@@ -3032,6 +3283,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     if (openFile === null) {
       editor.setDocument(TextDocument.fromString(t("editor.welcome")));
     }
+    applySearchPanelLocale();
   }
   onDidChangeLocale(applyLocale);
   applyLocale();

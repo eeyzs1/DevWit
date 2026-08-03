@@ -7,3 +7,5 @@ export { getGitStatus } from "./git-status.js";
 export type { GitChangedFile, GitStatusResult } from "./git-status.js";
 export { GitService, parseBlamePorcelain, parsePorcelainZ } from "./git-service.js";
 export type { GitBlameLine, GitBranch, GitDiffTexts, GitExecFile, GitFileChange, GitLogEntry, GitPanelStatus, GitStashEntry } from "./git-service.js";
+export { compileSearchRegex, searchInWorkspace } from "./search.js";
+export type { SearchMatch, SearchOptions, SearchResultFile, SearchResults } from "./search.js";
