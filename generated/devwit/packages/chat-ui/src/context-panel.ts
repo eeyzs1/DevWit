@@ -51,8 +51,11 @@ export function mountContextPanel(container: HTMLElement, controller: ContextPan
   const refreshBtn = document.createElement("button");
   refreshBtn.className = "dw-btn dw-btn-small";
   refreshBtn.addEventListener("click", () => void controller.refresh());
+  const exportBtn = document.createElement("button");
+  exportBtn.className = "dw-btn dw-btn-small";
+  exportBtn.addEventListener("click", () => void controller.exportCurrent());
   root.appendChild(header);
-  header.appendChild(refreshBtn);
+  header.append(refreshBtn, exportBtn);
 
   const toggleList = document.createElement("div");
   toggleList.className = "dw-context-toggles";
@@ -67,11 +70,13 @@ export function mountContextPanel(container: HTMLElement, controller: ContextPan
   function applyLocale(): void {
     header.textContent = t("ctxpanel.title");
     refreshBtn.textContent = t("ctxpanel.refresh");
+    exportBtn.textContent = t("ctxpanel.export");
   }
 
   function render(): void {
     const { policy, manifest } = controller.current;
 
+    exportBtn.disabled = manifest === null;
     toggleList.textContent = "";
     for (const type of TYPE_ORDER) {
       const row = document.createElement("label");

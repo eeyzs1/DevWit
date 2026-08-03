@@ -83,6 +83,7 @@ const api: DevwitApi = {
   context: {
     latestManifest: () => ipcRenderer.invoke(IPC.ContextManifestLatest) as ReturnType<DevwitApi["context"]["latestManifest"]>,
     listManifests: (limit) => ipcRenderer.invoke(IPC.ContextManifestList, limit) as ReturnType<DevwitApi["context"]["listManifests"]>,
+    exportManifest: (manifestId) => ipcRenderer.invoke(IPC.ContextManifestExport, manifestId) as ReturnType<DevwitApi["context"]["exportManifest"]>,
     getPolicy: () => ipcRenderer.invoke(IPC.ContextPolicyGet) as ReturnType<DevwitApi["context"]["getPolicy"]>,
     setItemEnabled: (type, enabled) => ipcRenderer.invoke(IPC.ContextPolicySet, type, enabled) as Promise<void>,
     setItemOverride: (key, enabled) => ipcRenderer.invoke(IPC.ContextItemOverrideSet, key, enabled) as Promise<void>

@@ -634,6 +634,7 @@ const zhCN = {
   // ---- 上下文组成面板（AC2）----
   "ctxpanel.title": "上下文组成",
   "ctxpanel.refresh": "刷新",
+  "ctxpanel.export": "导出 JSON",
   "ctxpanel.empty": "尚无请求：发送一条消息后此处展示当次请求的完整上下文清单。",
   "ctxpanel.total": "总计 {n} tokens",
   "ctxpanel.estimated": "（估算）",
@@ -1253,6 +1254,7 @@ const enUS: Messages = {
 
   "ctxpanel.title": "Context composition",
   "ctxpanel.refresh": "Refresh",
+  "ctxpanel.export": "Export JSON",
   "ctxpanel.empty": "No requests yet: send a message to see the full context manifest here.",
   "ctxpanel.total": "{n} tokens total",
   "ctxpanel.estimated": " (est.)",

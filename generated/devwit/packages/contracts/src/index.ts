@@ -1153,6 +1153,7 @@ export const IPC = {
   ModesChanged: "modes:changed",
   ContextManifestLatest: "context:manifest:latest",
   ContextManifestList: "context:manifest:list",
+  ContextManifestExport: "context:manifest:export",
   ContextPolicyGet: "context:policy:get",
   ContextPolicySet: "context:policy:set",
   ContextItemOverrideSet: "context:item-override:set",
@@ -1459,6 +1460,11 @@ export interface DevwitApi {
   context: {
     latestManifest(): Promise<ContextManifest | null>;
     listManifests(limit?: number): Promise<ContextManifest[]>;
+    /**
+     * 导出指定 manifest 为 JSON 文件（v0.4.0 审计导出）：主进程弹出保存对话框，
+     * 用户选择路径后写入。manifestId 为空时导出最近一份。取消保存返回 null。
+     */
+    exportManifest(manifestId?: string): Promise<string | null>;
     /** 当前会话生效的完整上下文策略视图（引擎默认 ← 模式策略 ← 用户逐项开关）。 */
     getPolicy(): Promise<Record<ContextItemType, boolean>>;
     /** 逐项开关（用户覆盖，实时生效；AC2）。 */

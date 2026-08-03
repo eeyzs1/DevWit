@@ -493,6 +493,7 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
     table[IPC.ModesCommunityImport] = notWired;
     table[IPC.ContextManifestLatest] = notWired;
     table[IPC.ContextManifestList] = notWired;
+    table[IPC.ContextManifestExport] = notWired;
     table[IPC.ContextPolicyGet] = notWired;
     table[IPC.ContextPolicySet] = notWired;
     table[IPC.ContextItemOverrideSet] = notWired;
@@ -562,6 +563,17 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
   };
   table[IPC.ContextManifestLatest] = () => ai.getLatestManifest();
   table[IPC.ContextManifestList] = (_e, limit) => ai.listManifests(typeof limit === "number" ? limit : undefined);
+  // v0.4.0 审计导出：读取 manifest → 保存对话框 → 写入用户选择路径
+  table[IPC.ContextManifestExport] = async (_e, manifestId) => {
+    if (hooks === undefined) throw new Error(AI_NOT_WIRED);
+    const id = typeof manifestId === "string" && manifestId !== "" ? manifestId : undefined;
+    const manifest = await ai.getManifest(id);
+    if (manifest === null) throw new Error("DW_MANIFEST_NOT_FOUND");
+    const target = await hooks.saveJsonFile(`devwit-manifest-${manifest.id}.json`);
+    if (target === null) return null;
+    await writeFile(target, `${JSON.stringify(manifest, null, 2)}\n`, "utf-8");
+    return target;
+  };
   table[IPC.ContextPolicyGet] = () => ai.getContextPolicy();
   table[IPC.ContextPolicySet] = (_e, type, enabled) => {
     ai.setContextItemEnabled(type as ContextItemType, enabled === true);

@@ -880,6 +880,25 @@ export class AiRuntime {
     return manifests.slice(0, limit);
   }
 
+  /**
+   * 读取单个 manifest（v0.4.0 审计导出）：按 id 从落盘目录读取。
+   * id 为空时返回最近一份（内存 latestManifest 优先，回落磁盘最新）。
+   * 找不到返回 null。
+   */
+  async getManifest(id?: string): Promise<ContextManifest | null> {
+    if (id === undefined || id === "") {
+      if (this.latestManifest !== null) return this.latestManifest;
+      const list = await this.listManifests(1);
+      return list[0] ?? null;
+    }
+    try {
+      const raw = await fs.readFile(path.join(this.deps.manifestsDir, `${id}.json`), "utf-8");
+      return JSON.parse(raw) as ContextManifest;
+    } catch {
+      return null;
+    }
+  }
+
   // --------------------------------------------------------------------------
   // 内部
   // --------------------------------------------------------------------------

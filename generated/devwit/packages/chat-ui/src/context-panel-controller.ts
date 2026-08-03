@@ -47,6 +47,15 @@ export class ContextPanelController {
     await this.refresh();
   }
 
+  /**
+   * 导出当前 manifest 为 JSON 文件（v0.4.0 审计导出）。
+   * manifestId 缺省时主进程导出最近一份。返回保存路径，取消返回 null。
+   */
+  async exportCurrent(): Promise<string | null> {
+    const id = this.state.manifest?.id;
+    return this.api.context.exportManifest(id);
+  }
+
   onChange(listener: () => void): () => void {
     this.listeners.add(listener);
     return () => {
