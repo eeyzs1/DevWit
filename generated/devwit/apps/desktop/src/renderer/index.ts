@@ -98,6 +98,16 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   if (app === null) return;
   app.textContent = "";
 
+  /** 按文件扩展名返回行注释前缀（Ctrl+/ 用；未知类型默认 "//"）。 */
+  function lineCommentForPath(path: string): string {
+    const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
+    if (["ts", "tsx", "js", "jsx", "c", "cc", "cpp", "h", "hpp", "java", "cs", "go", "rs", "swift", "kt", "dart", "css", "scss", "php"].includes(ext)) return "//";
+    if (["py", "sh", "bash", "zsh", "rb", "yaml", "yml", "toml", "r", "ps1", "dockerfile", "makefile"].includes(ext)) return "#";
+    if (["sql", "lua"].includes(ext)) return "--";
+    if (["ini", "conf", "cfg", "toml"].includes(ext)) return ";";
+    return "//";
+  }
+
   // ---- 全局状态 ----
   let modes: ModeDefinition[] = [];
   let providers: ProviderConfig[] = [];
@@ -246,6 +256,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     openFile = file;
     if (file !== null) {
       editor.setDocument(file.doc);
+      editor.setLineComment(lineCommentForPath(file.path));
       activeFileLabel.textContent = file.path;
     }
     closeBlame(); // 切换文件时关闭 blame 覆盖层（行号不再对齐）

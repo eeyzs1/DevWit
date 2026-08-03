@@ -102,6 +102,8 @@ export class EditorView {
   private breakpointEntries: ReadonlyMap<number, BreakpointKind> = new Map();
   /** 调试停止行（0-based；null=无；整行底色 + 行号槽箭头）。 */
   private debugLine: number | null = null;
+  /** 行注释前缀（Ctrl+/ 切换；默认 "//"，集成方按文件类型 setLineComment 设置）。 */
+  private lineComment = "//";
   /** Ctrl/Cmd+Click 回调（跳转定义；由集成方接 LSP）。null 时该组合键等同普通点击。 */
   onDefinitionRequest: ((pos: Position) => void) | null = null;
   /** 行号槽点击回调（断点切换；由集成方接 DAP）。null 时槽点击等同普通点击。 */
@@ -247,6 +249,11 @@ export class EditorView {
   setTheme(theme: Theme): void {
     this.theme = theme;
     this.scheduleRender();
+  }
+
+  /** 设置行注释前缀（Ctrl+/ 切换用；按文件类型设 "//" / "#" / ";" 等）。 */
+  setLineComment(prefix: string): void {
+    this.lineComment = prefix;
   }
 
   getSelections(): Selection[] {
@@ -438,6 +445,10 @@ export class EditorView {
           ev.preventDefault();
           return;
         }
+        case "/":
+          this.toggleComment();
+          ev.preventDefault();
+          return;
         default:
           return; // Ctrl+V 等交给隐藏 textarea 原生行为（paste → input 事件）
       }
@@ -765,6 +776,56 @@ export class EditorView {
     this.selections = [{
       anchor: { line: primary.anchor.line + delta, character: primary.anchor.character },
       active: { line: primary.active.line + delta, character: primary.active.character },
+    }];
+    this.wakeCursor();
+    this.ensureCursorVisible();
+    this.scheduleRender();
+  }
+
+  /**
+   * Ctrl+/ 行注释切换：选区覆盖行全部已注释 → 取消注释；否则 → 全部加注释。
+   * 注释前缀由 setLineComment 设置（默认 "//"）；加注释时前缀后加一个空格，
+   * 取消时优先移除 "prefix " 其次 "prefix"。空白行跳过判断但参与加注释。
+   */
+  private toggleComment(): void {
+    const norm = normalizeSelection(this.primarySelection());
+    const firstLine = norm.start.line;
+    const lastLine = norm.end.character === 0 && norm.end.line > norm.start.line
+      ? norm.end.line - 1
+      : norm.end.line;
+    const prefix = this.lineComment;
+
+    let allCommented = true;
+    for (let line = firstLine; line <= lastLine; line++) {
+      const text = this.lineText(line);
+      if (text.trim().length === 0) continue;
+      if (!text.startsWith(prefix)) {
+        allCommented = false;
+        break;
+      }
+    }
+
+    const edits: Array<{ offset: number; length: number; text: string }> = [];
+    for (let line = firstLine; line <= lastLine; line++) {
+      const lineText = this.lineText(line);
+      const lineStart = this.doc.offsetAt({ line, character: 0 });
+      if (allCommented) {
+        if (lineText.startsWith(prefix + " ")) {
+          edits.push({ offset: lineStart, length: prefix.length + 1, text: "" });
+        } else if (lineText.startsWith(prefix)) {
+          edits.push({ offset: lineStart, length: prefix.length, text: "" });
+        }
+      } else {
+        edits.push({ offset: lineStart, length: 0, text: prefix + " " });
+      }
+    }
+    edits.sort((a, b) => b.offset - a.offset);
+    for (const edit of edits) {
+      this.doc.applyEdit(edit);
+    }
+    this.selections = [{
+      anchor: { line: firstLine, character: 0 },
+      active: { line: lastLine, character: this.lineText(lastLine).length },
     }];
     this.wakeCursor();
     this.ensureCursorVisible();
