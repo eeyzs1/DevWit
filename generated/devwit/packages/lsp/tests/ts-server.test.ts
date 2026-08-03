@@ -287,6 +287,7 @@ describe("TsLanguageServer（假 spawn）", () => {
     expect(await server.definition("a.ts", 0, 0)).toEqual([]);
     expect(await server.completion("a.ts", 0, 0)).toEqual([]);
     expect(await server.references("a.ts", 0, 0)).toEqual([]);
+    expect(await server.signatureHelp("a.ts", 0, 0)).toBeNull();
     await server.openWorkspace(root);
     // ready 但假服务器不应答 hover（请求超时由客户端层保障，这里只验证形状）
     await server.shutdown();
@@ -373,6 +374,12 @@ describe("TsLanguageServer（真实 typescript-language-server 集成）", () =>
       expect(mathDecl).toBeDefined();
       const mainCall = refs.find((r) => r.file === "main.ts" && r.line === 2);
       expect(mainCall).toBeDefined();
+
+      // signatureHelp：add( 调用处括号内查签名帮助，应返回 add 函数签名
+      const sigHelp = await server.signatureHelp("main.ts", 2, 28);
+      expect(sigHelp).not.toBeNull();
+      expect(sigHelp!.signatures.length).toBeGreaterThanOrEqual(1);
+      expect(sigHelp!.signatures[0]!.label).toMatch(/add/i);
     } finally {
       await server.shutdown();
       expect(server.currentStatus.state).toBe("idle");

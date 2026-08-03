@@ -5,7 +5,7 @@
  * 全部界面文案经 @devwit/i18n 词典渲染；启动时从 settings "ui.locale" 恢复语言，
  * 订阅 onDidChangeLocale 全量重写静态文案与动态列表（语言热生效）。
  */
-import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitPanelStatus, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspStatusInfo, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
+import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitPanelStatus, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspSignatureHelp, LspStatusInfo, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, resolveSystemLocale, setLocale, t, ta, type Locale } from "@devwit/i18n";
 import { TextDocument } from "@devwit/editor-core";
 import { EditorView, normalizeSelection } from "@devwit/editor-render";
@@ -732,6 +732,87 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     }
   }, true);
   canvas.addEventListener("mousedown", hideReferences);
+
+  // ---- LSP 签名帮助（v0.4.0）：输入 ( 或 , 触发 → IPC signatureHelp → 浮层显示签名 + 当前参数高亮 ----
+  const signaturePopup = el("div", "dw-signature");
+  signaturePopup.style.display = "none";
+  editorArea.appendChild(signaturePopup);
+  let signatureVisible = false;
+  let signatureToken = 0;
+
+  function hideSignature(): void {
+    signaturePopup.style.display = "none";
+    signatureVisible = false;
+  }
+
+  function renderSignaturePopup(data: LspSignatureHelp): void {
+    const sig = data.signatures[data.activeSignature] ?? data.signatures[0];
+    if (sig === undefined) {
+      hideSignature();
+      return;
+    }
+    signaturePopup.innerHTML = "";
+    const label = el("div", "dw-signature-label");
+    const activeParam = sig.parameters[data.activeParameter];
+    if (activeParam !== undefined && activeParam.label.length > 0 && sig.label.includes(activeParam.label)) {
+      const idx = sig.label.indexOf(activeParam.label);
+      label.textContent = sig.label.slice(0, idx);
+      const bold = el("b", "dw-signature-active");
+      bold.textContent = activeParam.label;
+      label.appendChild(bold);
+      label.appendChild(document.createTextNode(sig.label.slice(idx + activeParam.label.length)));
+    } else {
+      label.textContent = sig.label;
+    }
+    signaturePopup.appendChild(label);
+    if (activeParam?.documentation) {
+      const doc = el("div", "dw-signature-doc");
+      doc.textContent = activeParam.documentation;
+      signaturePopup.appendChild(doc);
+    }
+    const sel = editor.getSelections().at(-1);
+    if (sel !== undefined) {
+      const pt = editor.clientPointForPosition(sel.active);
+      const areaRect = editorArea.getBoundingClientRect();
+      signaturePopup.style.left = `${pt.x - areaRect.left}px`;
+      signaturePopup.style.top = `${pt.y - areaRect.top + 18}px`;
+    }
+    signaturePopup.style.display = "block";
+    signatureVisible = true;
+  }
+
+  async function requestSignature(): Promise<void> {
+    const current = openFile;
+    if (current === null || workspaceRoot === "" || lspStatus.state !== "ready") return;
+    const sel = editor.getSelections().at(-1);
+    if (sel === undefined) return;
+    const pos = sel.active;
+    const token = ++signatureToken;
+    const data = await api.lsp.signatureHelp(relPathOf(current.path), pos.line, pos.character);
+    if (signatureToken !== token || openFile !== current) return;
+    if (data === null) {
+      hideSignature();
+      return;
+    }
+    renderSignaturePopup(data);
+  }
+
+  window.addEventListener("keydown", (ev) => {
+    if (ev.key === "(" || ev.key === ",") {
+      if (openFile !== null) window.setTimeout(() => void requestSignature(), 50);
+      return;
+    }
+    if (ev.key === ")") {
+      hideSignature();
+      return;
+    }
+    if (ev.key === "Escape" && signatureVisible) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      hideSignature();
+    }
+  }, true);
+  canvas.addEventListener("mousedown", hideSignature);
 
   api.lsp.onStatus((status) => {
     const wasReady = lspStatus.state === "ready";

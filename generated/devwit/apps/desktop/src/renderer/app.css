@@ -1364,6 +1364,37 @@ body,
   font-style: italic;
 }
 
+/* ---- LSP 签名帮助浮层（v0.4.0）---- */
+.dw-signature {
+  position: absolute;
+  z-index: 26;
+  max-width: 600px;
+  background: var(--dw-bg-panel);
+  border: 1px solid var(--dw-border);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 6px 10px;
+}
+.dw-signature-label {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.dw-signature-active {
+  color: var(--dw-accent, #007acc);
+  font-weight: 700;
+}
+.dw-signature-doc {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--dw-border);
+  font-size: 11px;
+  opacity: 0.8;
+  white-space: pre-wrap;
+}
+
 /* ---- Git 版本控制（AC41）---- */
 .dw-left-tabs {
   flex-shrink: 0;

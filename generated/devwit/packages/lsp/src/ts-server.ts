@@ -15,6 +15,7 @@ import type {
   LspDefinitionTarget,
   LspDiagnosticItem,
   LspHoverInfo,
+  LspSignatureHelp,
   LspStatusInfo,
 } from "@devwit/contracts";
 import { LspClient, nodeSpawnFactory, type LspChildProcess, type LspSpawnFactory } from "./lsp-client.js";
@@ -106,6 +107,23 @@ interface LspRawCompletionItem {
 interface LspRawCompletionList {
   isIncomplete?: boolean;
   items?: LspRawCompletionItem[];
+}
+
+interface LspRawParameterInformation {
+  label: string | [number, number];
+  documentation?: string | { value: string };
+}
+
+interface LspRawSignatureInformation {
+  label: string;
+  documentation?: string | { value: string };
+  parameters?: LspRawParameterInformation[];
+}
+
+interface LspRawSignatureHelp {
+  signatures: LspRawSignatureInformation[];
+  activeSignature?: number;
+  activeParameter?: number;
 }
 
 const SEVERITY_MAP: Record<number, LspDiagnosticItem["severity"]> = {
@@ -382,6 +400,47 @@ export class TsLanguageServer {
         endLine: loc.range.end.line,
         endCharacter: loc.range.end.character,
       }));
+  }
+
+  /**
+   * 签名帮助（未就绪/无签名 → null；请求失败不抛出）。
+   * LSP textDocument/signatureHelp 返回 SignatureHelp 或 null。
+   * 参数 label 可能是 string 或 [start, end] 偏移量，统一归一为 string。
+   * documentation 可能是 string 或 { value }，统一归一为 string。
+   */
+  async signatureHelp(relFile: string, line: number, character: number): Promise<LspSignatureHelp | null> {
+    if (this.client === null || this.status.state !== "ready") return null;
+    let raw: LspRawSignatureHelp | null;
+    try {
+      raw = (await this.client.request("textDocument/signatureHelp", {
+        textDocument: { uri: this.uriFor(relFile) },
+        position: { line, character },
+      })) as LspRawSignatureHelp | null;
+    } catch {
+      return null;
+    }
+    if (raw === null || !raw.signatures || raw.signatures.length === 0) return null;
+    return {
+      signatures: raw.signatures
+        .filter((sig) => typeof sig.label === "string")
+        .map((sig) => ({
+          label: sig.label,
+          ...(sig.documentation !== undefined
+            ? { documentation: typeof sig.documentation === "string" ? sig.documentation : sig.documentation.value }
+            : {}),
+          parameters: (sig.parameters ?? []).map((param) => ({
+            label:
+              typeof param.label === "string"
+                ? param.label
+                : sig.label.substring(param.label[0], param.label[1]),
+            ...(param.documentation !== undefined
+              ? { documentation: typeof param.documentation === "string" ? param.documentation : param.documentation.value }
+              : {}),
+          })),
+        })),
+      activeSignature: typeof raw.activeSignature === "number" ? raw.activeSignature : 0,
+      activeParameter: typeof raw.activeParameter === "number" ? raw.activeParameter : 0,
+    };
   }
 
   /** 当前全部诊断快照（跨文件，已映射为相对路径 + severity 字符串）。 */

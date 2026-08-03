@@ -879,6 +879,28 @@ export interface LspCompletionItem {
   insertText?: string;
 }
 
+/** 签名帮助参数信息（lsp:signatureHelp 返回项的参数）。 */
+export interface LspParameterInformation {
+  label: string;
+  documentation?: string;
+}
+
+/** 签名帮助单个重载信息（函数签名 + 参数列表）。 */
+export interface LspSignatureInformation {
+  label: string;
+  documentation?: string;
+  parameters: LspParameterInformation[];
+}
+
+/** 签名帮助（lsp:signatureHelp 返回；null = 无签名/未就绪）。 */
+export interface LspSignatureHelp {
+  signatures: LspSignatureInformation[];
+  /** 激活重载索引；-1 = 无激活。 */
+  activeSignature: number;
+  /** 激活参数索引；-1 = 无激活。 */
+  activeParameter: number;
+}
+
 // ============================================================================
 // Git 版本控制（迭代 32 / AC41）：状态面板 / diff 双文本 / 暂存提交
 // ============================================================================
@@ -1037,6 +1059,7 @@ export const IPC = {
   LspDefinition: "lsp:definition",
   LspCompletion: "lsp:completion",
   LspReferences: "lsp:references",
+  LspSignatureHelp: "lsp:signature-help",
   LspDiagnostics: "lsp:diagnostics",
   LspDiagnosticsChanged: "lsp:diagnostics-changed",
   GitGetStatus: "git:get-status",
@@ -1138,6 +1161,8 @@ export interface DevwitApi {
     completion(file: string, line: number, character: number): Promise<LspCompletionItem[]>;
     /** 引用查找候选（空数组 = 无引用）；LSP textDocument/references，含声明处。 */
     references(file: string, line: number, character: number): Promise<LspDefinitionTarget[]>;
+    /** 签名帮助（null = 无签名/未就绪）；LSP textDocument/signatureHelp。 */
+    signatureHelp(file: string, line: number, character: number): Promise<LspSignatureHelp | null>;
     /** 当前全部诊断快照（跨文件）。 */
     diagnostics(): Promise<LspDiagnosticItem[]>;
     /** 订阅服务状态推送。 */
