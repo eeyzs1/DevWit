@@ -4,6 +4,7 @@ import {
   clampScrollTop,
   columnForX,
   comparePositions,
+  computeAutoPair,
   findMatchingBracket,
   indentLevelOf,
   isSelectionEmpty,
@@ -22,6 +23,13 @@ import { defaultDarkTheme, type Theme } from "./theme.js";
  * - log：日志断点，青菱形（与暂停断点视觉区分——不暂停）。
  */
 export type BreakpointKind = "normal" | "conditional" | "log";
+
+/** 自动配对的开括号 → 闭括号（单字符非合成输入触发；粘贴/IME 不触发）。 */
+const AUTO_PAIR_CLOSE: Record<string, string> = {
+  "(": ")",
+  "[": "]",
+  "{": "}",
+};
 
 /** 行级高亮 token 提供者（由 @devwit/syntax 的 HighlightEngine 实现，本包只依赖此结构）。 */
 export interface HighlightTokenProvider {
@@ -498,7 +506,51 @@ export class EditorView {
   // --------------------------------------------------------------------------
 
   private commitText(text: string): void {
+    // 自动配对：单字符开括号（IME 合成期间不走此路径，粘贴多字符不触发）
+    if (text.length === 1) {
+      const close = AUTO_PAIR_CLOSE[text];
+      if (close !== undefined) {
+        this.insertPair(text, close);
+        return;
+      }
+    }
     this.replaceSelections(text);
+  }
+
+  /**
+   * 自动配对插入：空选区 → open+close 光标居中；非空选区 → open+内容+close 包围。
+   * 多选区降序应用保证偏移不失效；偏移计算委托 computeAutoPair 纯函数（可单测）。
+   */
+  private insertPair(open: string, close: string): void {
+    const sels = this.selections.map((sel) => {
+      const norm = normalizeSelection(sel);
+      return {
+        startOffset: this.doc.offsetAt(norm.start),
+        endOffset: this.doc.offsetAt(norm.end),
+      };
+    });
+    const results = computeAutoPair(sels, open, close, (s, e) => this.doc.getTextInRange(s, e));
+    // 降序应用（高 startOffset 先），保证未应用选区的偏移不失效
+    const order = sels.map((_, i) => i).sort((a, b) => (sels[b]?.startOffset ?? 0) - (sels[a]?.startOffset ?? 0));
+    const newOffsets = new Array<number>(sels.length);
+    for (const i of order) {
+      const sel = sels[i];
+      const result = results[i];
+      if (sel === undefined || result === undefined) continue;
+      this.doc.applyEdit({
+        offset: sel.startOffset,
+        length: sel.endOffset - sel.startOffset,
+        text: result.text,
+      });
+      newOffsets[i] = result.cursorOffset;
+    }
+    this.selections = this.selections.map((_, index) => {
+      const pos = this.doc.positionAt(newOffsets[index] ?? 0);
+      return { anchor: pos, active: pos };
+    });
+    this.wakeCursor();
+    this.ensureCursorVisible();
+    this.scheduleRender();
   }
 
   /** 用 text 替换每个选区（空选区即插入）。自底向上应用保证偏移不失效。 */

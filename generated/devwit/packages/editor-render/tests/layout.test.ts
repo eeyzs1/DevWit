@@ -3,6 +3,7 @@ import {
   clampScrollTop,
   columnForX,
   comparePositions,
+  computeAutoPair,
   findMatchingBracket,
   indentLevelOf,
   isSelectionEmpty,
@@ -244,5 +245,60 @@ describe("findMatchingBracket 括号对匹配", () => {
     const d = doc(["ab"]);
     expect(findMatchingBracket(d.getLine, d.lineCount, { line: 5, character: 0 })).toBeNull();
     expect(findMatchingBracket(d.getLine, d.lineCount, { line: 0, character: 99 })).toBeNull();
+  });
+});
+
+describe("computeAutoPair 自动配对计算", () => {
+  it("单空选区：插入 open+close，光标在 open 后", () => {
+    const r = computeAutoPair([{ startOffset: 0, endOffset: 0 }], "(", ")", () => "");
+    expect(r).toEqual([{ text: "()", cursorOffset: 1 }]);
+  });
+
+  it("单非空选区：用 open+close 包围，光标在 close 前", () => {
+    // 选区 [5,8) 含 "abc"；cursorOffset = 5 + 1(open) + 3(selected) = 9（close 前）
+    const r = computeAutoPair([{ startOffset: 5, endOffset: 8 }], "(", ")", () => "abc");
+    expect(r).toEqual([{ text: "(abc)", cursorOffset: 9 }]);
+  });
+
+  it("多空选区：各自配对，低选区增量累计到高选区光标", () => {
+    const r = computeAutoPair(
+      [{ startOffset: 0, endOffset: 0 }, { startOffset: 10, endOffset: 10 }],
+      "(", ")",
+      () => "",
+    );
+    expect(r[0]).toEqual({ text: "()", cursorOffset: 1 }); // 0+1+0+0
+    expect(r[1]).toEqual({ text: "()", cursorOffset: 13 }); // 10+1+0+2（低选区增量）
+  });
+
+  it("多非空选区：各自包围，低选区增量累计", () => {
+    // sel0 [0,3) "abc", sel1 [10,13) "xyz"
+    const r = computeAutoPair(
+      [{ startOffset: 0, endOffset: 3 }, { startOffset: 10, endOffset: 13 }],
+      "[", "]",
+      (s) => (s === 0 ? "abc" : "xyz"),
+    );
+    expect(r[0]).toEqual({ text: "[abc]", cursorOffset: 4 }); // 0+1+3+0
+    expect(r[1]).toEqual({ text: "[xyz]", cursorOffset: 16 }); // 10+1+3+2
+  });
+
+  it("三种括号 () [] {} 均配对", () => {
+    expect(computeAutoPair([{ startOffset: 0, endOffset: 0 }], "{", "}", () => "")[0]).toEqual({
+      text: "{}",
+      cursorOffset: 1,
+    });
+    expect(computeAutoPair([{ startOffset: 0, endOffset: 0 }], "[", "]", () => "")[0]).toEqual({
+      text: "[]",
+      cursorOffset: 1,
+    });
+  });
+
+  it("空选区列表 → 空结果", () => {
+    expect(computeAutoPair([], "(", ")", () => "")).toEqual([]);
+  });
+
+  it("多字符 open/close 按长度计算偏移", () => {
+    // open="/*" close="*/"（块注释配对，验证长度泛化）
+    const r = computeAutoPair([{ startOffset: 0, endOffset: 0 }], "/*", "*/", () => "");
+    expect(r).toEqual([{ text: "/**/", cursorOffset: 2 }]); // 0+2+0+0
   });
 });

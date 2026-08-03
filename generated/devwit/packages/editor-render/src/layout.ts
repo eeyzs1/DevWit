@@ -194,3 +194,34 @@ function scanBackward(
   }
   return null;
 }
+
+/**
+ * 自动配对计算：对每个选区构造 open+选区内容+close 文本与最终光标偏移。
+ * 空选区 → 插入 open+close，光标在 open 后；非空选区 → 包围，光标在 close 前。
+ * 多选区按升序累计更低选区增量（open+close 的净增），保证降序应用时偏移不失效。
+ * 纯函数（注入 getTextInRange），node 下可直接测试。
+ */
+export function computeAutoPair(
+  selections: ReadonlyArray<{ startOffset: number; endOffset: number }>,
+  open: string,
+  close: string,
+  getTextInRange: (start: number, end: number) => string,
+): Array<{ text: string; cursorOffset: number }> {
+  const n = selections.length;
+  const indexed = selections.map((sel, index) => ({ ...sel, index }));
+  const asc = [...indexed].sort((a, b) => a.startOffset - b.startOffset);
+  const shiftByIndex = new Array<number>(n).fill(0);
+  let shift = 0;
+  for (const sel of asc) {
+    shiftByIndex[sel.index] = shift;
+    shift += open.length + close.length;
+  }
+  return indexed.map((sel) => {
+    const selectedLen = sel.endOffset - sel.startOffset;
+    const selectedText = selectedLen > 0 ? getTextInRange(sel.startOffset, sel.endOffset) : "";
+    return {
+      text: open + selectedText + close,
+      cursorOffset: sel.startOffset + open.length + selectedLen + (shiftByIndex[sel.index] ?? 0),
+    };
+  });
+}
