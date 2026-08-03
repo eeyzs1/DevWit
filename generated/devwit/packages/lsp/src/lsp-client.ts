@@ -115,6 +115,7 @@ export class LspClient {
             definition: { linkSupport: false },
             completion: { triggerCharacters: [".", "/", "\"", "'", "`"], resolveProvider: false },
             publishDiagnostics: { relatedInformation: false, versionSupport: false },
+            documentSymbol: { hierarchicalDocumentSymbolSupport: true },
           },
         },
         clientInfo: { name: "devwit", version: "0.3.0" },

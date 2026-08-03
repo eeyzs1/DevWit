@@ -923,6 +923,25 @@ export interface LspCodeAction {
   isPreferred: boolean;
 }
 
+/** 文档符号大纲项（lsp:documentSymbol 返回；0-based 行列）。 */
+export interface LspDocumentSymbol {
+  name: string;
+  /** LSP SymbolKind 数值（1-26）；UI 据此选择图标。 */
+  kind: number;
+  /** 详情（如函数签名/类型）；缺省 = 无。 */
+  detail?: string;
+  /** 符号起始位置（选区起点）。 */
+  line: number;
+  character: number;
+  /** 符号结束位置（选区终点）。 */
+  endLine: number;
+  endCharacter: number;
+  /** 嵌套子符号（hierarchicalDocumentSymbolSupport=true 时由 tsserver 返回）。 */
+  children?: LspDocumentSymbol[];
+  /** 是否已废弃（@deprecated 标记）。 */
+  deprecated?: boolean;
+}
+
 // ============================================================================
 // Git 版本控制（迭代 32 / AC41）：状态面板 / diff 双文本 / 暂存提交
 // ============================================================================
@@ -1084,6 +1103,7 @@ export const IPC = {
   LspSignatureHelp: "lsp:signature-help",
   LspRename: "lsp:rename",
   LspCodeAction: "lsp:code-action",
+  LspDocumentSymbol: "lsp:document-symbol",
   LspDiagnostics: "lsp:diagnostics",
   LspDiagnosticsChanged: "lsp:diagnostics-changed",
   GitGetStatus: "git:get-status",
@@ -1191,6 +1211,8 @@ export interface DevwitApi {
     rename(file: string, line: number, character: number, newName: string): Promise<LspTextEdit[]>;
     /** 代码操作候选（空数组 = 无可用操作/未就绪）；LSP textDocument/codeAction。 */
     codeAction(file: string, startLine: number, startCharacter: number, endLine: number, endCharacter: number): Promise<LspCodeAction[]>;
+    /** 文档符号大纲（空数组 = 无符号/未就绪）；LSP textDocument/documentSymbol，层级结构。 */
+    documentSymbols(file: string): Promise<LspDocumentSymbol[]>;
     /** 当前全部诊断快照（跨文件）。 */
     diagnostics(): Promise<LspDiagnosticItem[]>;
     /** 订阅服务状态推送。 */

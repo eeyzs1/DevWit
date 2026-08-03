@@ -5,7 +5,7 @@
  * 全部界面文案经 @devwit/i18n 词典渲染；启动时从 settings "ui.locale" 恢复语言，
  * 订阅 onDidChangeLocale 全量重写静态文案与动态列表（语言热生效）。
  */
-import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitPanelStatus, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspSignatureHelp, LspStatusInfo, LspTextEdit, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
+import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitPanelStatus, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspSignatureHelp, LspStatusInfo, LspTextEdit, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, resolveSystemLocale, setLocale, t, ta, type Locale } from "@devwit/i18n";
 import { TextDocument } from "@devwit/editor-core";
 import { EditorView, normalizeSelection } from "@devwit/editor-render";
@@ -123,25 +123,30 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   ide.append(sidebar, editorArea, side);
   main.appendChild(ide);
 
-  // 左栏三页签（AC41 文件/Git + AC42 调试）：各自 DOM 保持（切页签不重建树）
+  // 左栏四页签（AC41 文件/Git + AC42 调试 + v0.4.0 大纲）：各自 DOM 保持（切页签不重建树）
   const leftTabs = el("div", "dw-tabs dw-left-tabs");
   const filesTab = el("div", "dw-tab dw-tab-active", t("tab.files"));
   const gitTab = el("div", "dw-tab", t("tab.git"));
   const debugTab = el("div", "dw-tab", t("tab.debug"));
-  leftTabs.append(filesTab, gitTab, debugTab);
+  const outlineTab = el("div", "dw-tab", t("tab.outline"));
+  leftTabs.append(filesTab, gitTab, debugTab, outlineTab);
   const filesPane = el("div", "dw-left-pane");
   const gitPane = el("div", "dw-left-pane dw-git");
   gitPane.style.display = "none";
   const debugPane = el("div", "dw-left-pane dw-debug");
   debugPane.style.display = "none";
-  sidebar.append(leftTabs, filesPane, gitPane, debugPane);
-  function activateLeftTab(active: "files" | "git" | "debug"): void {
+  const outlinePane = el("div", "dw-left-pane dw-outline");
+  outlinePane.style.display = "none";
+  sidebar.append(leftTabs, filesPane, gitPane, debugPane, outlinePane);
+  function activateLeftTab(active: "files" | "git" | "debug" | "outline"): void {
     filesTab.classList.toggle("dw-tab-active", active === "files");
     gitTab.classList.toggle("dw-tab-active", active === "git");
     debugTab.classList.toggle("dw-tab-active", active === "debug");
+    outlineTab.classList.toggle("dw-tab-active", active === "outline");
     filesPane.style.display = active === "files" ? "" : "none";
     gitPane.style.display = active === "git" ? "flex" : "none";
     debugPane.style.display = active === "debug" ? "flex" : "none";
+    outlinePane.style.display = active === "outline" ? "flex" : "none";
   }
   filesTab.addEventListener("click", () => activateLeftTab("files"));
   gitTab.addEventListener("click", () => {
@@ -149,6 +154,10 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     void refreshGit(); // 切到面板即取最新（外部 git 操作可能绕过 watcher）
   });
   debugTab.addEventListener("click", () => activateLeftTab("debug"));
+  outlineTab.addEventListener("click", () => {
+    activateLeftTab("outline");
+    void refreshOutline(); // 切到大纲即取最新（文件可能已变更）
+  });
 
   // 指挥台形态（AC9：任务列表 | Agent 活动流 | 工作区视图）
   const consoleRoot = el("div", "dw-console");
@@ -245,6 +254,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     await api.workspace.write(openFile.path, openFile.doc.getText());
     openFile.doc.markSaved();
     refreshDirty();
+    void refreshOutline(); // 保存后刷新大纲（落盘后 tsserver 重新分析）
   }
   saveBtn.addEventListener("click", () => void saveActiveFile());
   window.addEventListener("keydown", (event) => {
@@ -342,7 +352,9 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       syncOpenFileToLsp();
       doc.onDidChange(scheduleLspSync);
       doc.onDidChange(scheduleCompletion); // v0.4.0：输入触发自动补全
+      doc.onDidChange(scheduleOutlineRefresh); // v0.4.0：编辑触发大纲刷新
       applyEditorDiagnostics(); // 该文件既有诊断立即上波浪线
+      void refreshOutline(); // 文件打开即取大纲（LSP 未就绪则空，ready 推送时补偿）
     }
     sidebar.querySelectorAll(".dw-tree-node").forEach((node) => {
       node.classList.toggle("dw-tree-active", (node as HTMLElement).dataset["path"] === filePath);
@@ -1112,12 +1124,130 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   }, true);
   canvas.addEventListener("mousedown", hideCodeAction);
 
+  // ---- LSP 文档大纲（v0.4.0）：textDocument/documentSymbol → 左栏树 → 点击跳转 ----
+  let outlineSymbols: LspDocumentSymbol[] = [];
+  let outlineToken = 0;
+  /** 展开状态以「line:character:kind」签名记录（同文件内符号位置稳定即可） */
+  const outlineCollapsed = new Set<string>();
+
+  function outlineKey(s: LspDocumentSymbol): string {
+    return `${s.line}:${s.character}:${s.kind}`;
+  }
+
+  /** 符号 kind → 图标字符（LSP SymbolKind 子集；缺省=•）。 */
+  function outlineIcon(kind: number): string {
+    switch (kind) {
+      case 2: return "⊙"; // Module
+      case 3: return "▣"; // Namespace
+      case 4: return "_pkg"; // Package
+      case 5: return "◯"; // Class
+      case 6: return "ƒ"; // Method
+      case 7: return "◇"; // Property
+      case 8: return "▪"; // Field
+      case 9: return "ctr"; // Constructor
+      case 10: return "Enum"; // Enum
+      case 11: return "I"; // Interface
+      case 12: return "λ"; // Function
+      case 13: return "var"; // Variable
+      case 14: return "K"; // Constant
+      case 15: return "S"; // String
+      case 16: return "#"; // Number
+      case 17: return "_BOOL"; // Boolean
+      case 18: return "[]"; // Array
+      case 19: return "{}"; // Object
+      case 23: return "struct"; // Struct
+      case 24: return "evt"; // Event
+      case 25: return "op"; // Operator
+      case 26: return "T"; // TypeParameter
+      default: return "•";
+    }
+  }
+
+  function renderOutlineTree(): void {
+    outlinePane.innerHTML = "";
+    if (outlineSymbols.length === 0) {
+      outlinePane.appendChild(el("div", "dw-sidebar-empty", t("outline.empty")));
+      return;
+    }
+    const root = el("div", "dw-outline-list");
+    const renderNode = (sym: LspDocumentSymbol, depth: number): void => {
+      const hasChildren = sym.children !== undefined && sym.children.length > 0;
+      const key = outlineKey(sym);
+      const collapsed = outlineCollapsed.has(key);
+      const row = el("div", "dw-outline-item");
+      row.style.paddingLeft = `${8 + depth * 14}px`;
+      if (hasChildren) {
+        const toggle = el("span", "dw-outline-toggle");
+        toggle.textContent = collapsed ? "▸" : "▾";
+        toggle.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          if (outlineCollapsed.has(key)) outlineCollapsed.delete(key);
+          else outlineCollapsed.add(key);
+          renderOutlineTree();
+        });
+        row.appendChild(toggle);
+      } else {
+        row.appendChild(el("span", "dw-outline-toggle dw-outline-toggle-leaf"));
+      }
+      const icon = el("span", "dw-outline-icon");
+      icon.textContent = outlineIcon(sym.kind);
+      row.appendChild(icon);
+      const name = el("span", "dw-outline-name");
+      if (sym.deprecated === true) name.classList.add("dw-outline-deprecated");
+      name.textContent = sym.name;
+      row.appendChild(name);
+      if (sym.detail !== undefined && sym.detail !== "") {
+        const detail = el("span", "dw-outline-detail");
+        detail.textContent = sym.detail;
+        row.appendChild(detail);
+      }
+      row.addEventListener("click", () => {
+        const current = openFile;
+        if (current === null) return;
+        editor.revealPosition({ line: sym.line, character: sym.character });
+        editor.focus();
+      });
+      root.appendChild(row);
+      if (hasChildren && !collapsed) {
+        for (const child of sym.children!) renderNode(child, depth + 1);
+      }
+    };
+    for (const sym of outlineSymbols) renderNode(sym, 0);
+    outlinePane.appendChild(root);
+  }
+
+  async function refreshOutline(): Promise<void> {
+    const current = openFile;
+    if (current === null || workspaceRoot === "" || lspStatus.state !== "ready") {
+      outlineSymbols = [];
+      renderOutlineTree();
+      return;
+    }
+    const token = ++outlineToken;
+    const symbols = await api.lsp.documentSymbols(relPathOf(current.path));
+    if (outlineToken !== token || openFile !== current) return;
+    outlineSymbols = symbols;
+    renderOutlineTree();
+  }
+
+  // 编辑防抖触发大纲刷新（与 didChange 同步节奏，避免输入时树闪烁）
+  let outlineRefreshTimer: number | undefined;
+  function scheduleOutlineRefresh(): void {
+    window.clearTimeout(outlineRefreshTimer);
+    outlineRefreshTimer = window.setTimeout(() => void refreshOutline(), 600);
+  }
+
+  renderOutlineTree(); // 启动即渲染空态占位（文件打开/LSP 就绪后填充）
+
   api.lsp.onStatus((status) => {
     const wasReady = lspStatus.state === "ready";
     lspStatus = status;
     renderLspStatus();
     // 服务器后于文件打开才就绪：补偿重放 didOpen（未就绪期间的 didOpen 被主进程丢弃）
-    if (!wasReady && status.state === "ready") syncOpenFileToLsp();
+    if (!wasReady && status.state === "ready") {
+      syncOpenFileToLsp();
+      void refreshOutline(); // 服务器就绪后立即取大纲
+    }
   });
   api.lsp.onDiagnostics((items) => {
     lspDiags = items;
@@ -2241,6 +2371,8 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     filesTab.textContent = t("tab.files");
     gitTab.textContent = t("tab.git");
     debugTab.textContent = t("tab.debug");
+    outlineTab.textContent = t("tab.outline");
+    renderOutlineTree(); // 大纲空态文案随语言热生效
     renderDebugStatus(); // 调试状态项随语言热生效
     renderDebugPanel();
     renderGitStatus();

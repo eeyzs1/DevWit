@@ -137,6 +137,7 @@ const api: DevwitApi = {
     signatureHelp: (file, line, character) => ipcRenderer.invoke(IPC.LspSignatureHelp, file, line, character) as ReturnType<DevwitApi["lsp"]["signatureHelp"]>,
     rename: (file, line, character, newName) => ipcRenderer.invoke(IPC.LspRename, file, line, character, newName) as ReturnType<DevwitApi["lsp"]["rename"]>,
     codeAction: (file, startLine, startCharacter, endLine, endCharacter) => ipcRenderer.invoke(IPC.LspCodeAction, file, startLine, startCharacter, endLine, endCharacter) as ReturnType<DevwitApi["lsp"]["codeAction"]>,
+    documentSymbols: (file) => ipcRenderer.invoke(IPC.LspDocumentSymbol, file) as ReturnType<DevwitApi["lsp"]["documentSymbols"]>,
     diagnostics: () => ipcRenderer.invoke(IPC.LspDiagnostics) as ReturnType<DevwitApi["lsp"]["diagnostics"]>,
     onStatus: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.LspStatus, cb),
     onDiagnostics: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.LspDiagnosticsChanged, cb)

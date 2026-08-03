@@ -27,6 +27,8 @@ const zhCN = {
   "lsp.diag.count": "✕ {errors}  ⚠ {warnings}",
   "lsp.references.count": "{n} 个引用",
   "lsp.references.empty": "无引用",
+  "tab.outline": "大纲",
+  "outline.empty": "打开 TS/JS 文件后显示符号大纲",
 
   // ---- Git 版本控制（迭代 32 / AC41）----
   "tab.files": "文件",
@@ -592,6 +594,8 @@ const enUS: Messages = {
   "lsp.diag.count": "✕ {errors}  ⚠ {warnings}",
   "lsp.references.count": "{n} references",
   "lsp.references.empty": "No references",
+  "tab.outline": "Outline",
+  "outline.empty": "Open a TS/JS file to see its symbol outline",
 
   // ---- Git version control (iteration 32 / AC41) ----
   "tab.files": "Files",

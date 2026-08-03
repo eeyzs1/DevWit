@@ -15,6 +15,7 @@ import type {
   LspCompletionItem,
   LspDefinitionTarget,
   LspDiagnosticItem,
+  LspDocumentSymbol,
   LspHoverInfo,
   LspSignatureHelp,
   LspStatusInfo,
@@ -149,6 +150,24 @@ interface LspRawCodeAction {
   edit?: LspRawWorkspaceEdit;
   command?: LspRawCommand;
   isPreferred?: boolean;
+}
+
+interface LspRawDocumentSymbol {
+  name: string;
+  detail?: string;
+  kind: number;
+  range: LspRange;
+  selectionRange: LspRange;
+  children?: LspRawDocumentSymbol[];
+  deprecated?: boolean;
+}
+
+interface LspRawSymbolInformation {
+  name: string;
+  kind: number;
+  location: { uri: string; range: LspRange };
+  containerName?: string;
+  deprecated?: boolean;
 }
 
 const SEVERITY_MAP: Record<number, LspDiagnosticItem["severity"]> = {
@@ -553,6 +572,66 @@ export class TsLanguageServer {
       });
     }
     return actions;
+  }
+
+  /**
+   * 文档符号大纲（未就绪/无符号 → 空数组；请求失败不抛出）。
+   * LSP textDocument/documentSymbol 在 hierarchicalDocumentSymbolSupport=true 时
+   * 返回 DocumentSymbol[]（层级），否则返回 SymbolInformation[]（扁平）。
+   * 两种形态统一归一化为 LspDocumentSymbol[]；selectionRange 为点击跳转坐标。
+   */
+  async documentSymbols(relFile: string): Promise<LspDocumentSymbol[]> {
+    if (this.client === null || this.status.state !== "ready") return [];
+    let raw: unknown;
+    try {
+      raw = await this.client.request("textDocument/documentSymbol", {
+        textDocument: { uri: this.uriFor(relFile) },
+      });
+    } catch {
+      return [];
+    }
+    if (raw === null || !Array.isArray(raw)) return [];
+    // 形态判别：DocumentSymbol 有 range/selectionRange；SymbolInformation 有 location
+    return (raw as (LspRawDocumentSymbol | LspRawSymbolInformation)[])
+      .map((item) => this.normalizeSymbol(item))
+      .filter((s): s is LspDocumentSymbol => s !== null);
+  }
+
+  /** 单个符号归一化：DocumentSymbol 走 selectionRange + children 递归；SymbolInformation 走 location.range + 无 children。 */
+  private normalizeSymbol(item: LspRawDocumentSymbol | LspRawSymbolInformation): LspDocumentSymbol | null {
+    if (item === null || typeof item.name !== "string" || typeof item.kind !== "number") return null;
+    // DocumentSymbol（层级形态）
+    if ("selectionRange" in item && item.selectionRange !== undefined) {
+      const ds = item as LspRawDocumentSymbol;
+      const children = Array.isArray(ds.children)
+        ? ds.children.map((c) => this.normalizeSymbol(c)).filter((c): c is LspDocumentSymbol => c !== null)
+        : undefined;
+      return {
+        name: ds.name,
+        kind: ds.kind,
+        ...(typeof ds.detail === "string" && ds.detail !== "" ? { detail: ds.detail } : {}),
+        line: ds.selectionRange.start.line,
+        character: ds.selectionRange.start.character,
+        endLine: ds.selectionRange.end.line,
+        endCharacter: ds.selectionRange.end.character,
+        ...(children !== undefined && children.length > 0 ? { children } : {}),
+        ...(ds.deprecated === true ? { deprecated: true } : {}),
+      };
+    }
+    // SymbolInformation（扁平形态）
+    if ("location" in item && item.location?.range !== undefined) {
+      const si = item as LspRawSymbolInformation;
+      return {
+        name: si.name,
+        kind: si.kind,
+        line: si.location.range.start.line,
+        character: si.location.range.start.character,
+        endLine: si.location.range.end.line,
+        endCharacter: si.location.range.end.character,
+        ...(si.deprecated === true ? { deprecated: true } : {}),
+      };
+    }
+    return null;
   }
 
   /** 当前全部诊断快照（跨文件，已映射为相对路径 + severity 字符串）。 */

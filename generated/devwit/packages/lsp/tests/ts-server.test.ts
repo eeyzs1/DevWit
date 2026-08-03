@@ -290,6 +290,7 @@ describe("TsLanguageServer（假 spawn）", () => {
     expect(await server.signatureHelp("a.ts", 0, 0)).toBeNull();
     expect(await server.rename("a.ts", 0, 0, "newName")).toEqual([]);
     expect(await server.codeAction("a.ts", 0, 0, 0, 0)).toEqual([]);
+    expect(await server.documentSymbols("a.ts")).toEqual([]);
     await server.openWorkspace(root);
     // ready 但假服务器不应答 hover（请求超时由客户端层保障，这里只验证形状）
     await server.shutdown();
@@ -404,6 +405,18 @@ describe("TsLanguageServer（真实 typescript-language-server 集成）", () =>
         expect(action.title.length).toBeGreaterThan(0);
         expect(Array.isArray(action.edits)).toBe(true);
       }
+
+      // documentSymbols：math.ts 含 add 函数（Function/12），层级形态
+      const symbols = await server.documentSymbols("math.ts");
+      expect(Array.isArray(symbols)).toBe(true);
+      expect(symbols.length).toBeGreaterThan(0);
+      const addSymbol = symbols.find((s) => s.name === "add");
+      expect(addSymbol).toBeDefined();
+      expect(addSymbol!.kind).toBe(12); // Function
+      expect(addSymbol!.line).toBe(0); // 第 0 行定义
+      // selectionRange 起点即跳转坐标；endLine/Character 必填
+      expect(typeof addSymbol!.endLine).toBe("number");
+      expect(typeof addSymbol!.endCharacter).toBe("number");
     } finally {
       await server.shutdown();
       expect(server.currentStatus.state).toBe("idle");

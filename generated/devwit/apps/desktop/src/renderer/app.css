@@ -1467,6 +1467,66 @@ body,
   letter-spacing: 0.3px;
 }
 
+/* ---- LSP 文档大纲面板（v0.4.0）---- */
+.dw-outline {
+  flex-direction: column;
+  overflow: auto;
+}
+.dw-outline-list {
+  flex: 1;
+  padding: 4px 0;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+}
+.dw-outline-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  color: var(--dw-text, #d4d4d4);
+  white-space: nowrap;
+  user-select: none;
+}
+.dw-outline-item:hover {
+  background: var(--dw-bg-hover, rgba(255, 255, 255, 0.06));
+}
+.dw-outline-toggle {
+  flex-shrink: 0;
+  width: 12px;
+  text-align: center;
+  color: var(--dw-fg-dim, #888);
+  font-size: 10px;
+}
+.dw-outline-toggle-leaf {
+  cursor: default;
+}
+.dw-outline-icon {
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+  color: var(--dw-accent, #007acc);
+  font-size: 11px;
+  opacity: 0.85;
+}
+.dw-outline-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dw-outline-name.dw-outline-deprecated {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.dw-outline-detail {
+  flex-shrink: 0;
+  color: var(--dw-fg-dim, #888);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
 /* ---- Git 版本控制（AC41）---- */
 .dw-left-tabs {
   flex-shrink: 0;

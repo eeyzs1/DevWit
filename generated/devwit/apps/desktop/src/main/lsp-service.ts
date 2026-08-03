@@ -11,7 +11,7 @@
  */
 import { createRequire } from "node:module";
 import { IPC } from "@devwit/contracts";
-import type { LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspHoverInfo, LspSignatureHelp, LspStatusInfo, LspTextEdit } from "@devwit/contracts";
+import type { LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspHoverInfo, LspSignatureHelp, LspStatusInfo, LspTextEdit } from "@devwit/contracts";
 import { TsLanguageServer } from "@devwit/lsp";
 
 export interface LspServiceDeps {
@@ -98,6 +98,10 @@ export class LspService {
 
   codeAction(file: string, startLine: number, startCharacter: number, endLine: number, endCharacter: number): Promise<LspCodeAction[]> {
     return this.server.codeAction(file, startLine, startCharacter, endLine, endCharacter);
+  }
+
+  documentSymbols(file: string): Promise<LspDocumentSymbol[]> {
+    return this.server.documentSymbols(file);
   }
 
   diagnostics(): LspDiagnosticItem[] {
