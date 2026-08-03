@@ -479,11 +479,19 @@ export class EditorView {
         ev.preventDefault();
         break;
       case "ArrowUp":
-        this.moveCursorsVertical(-1, ev.shiftKey);
+        if (ev.altKey) {
+          this.moveLine(-1);
+        } else {
+          this.moveCursorsVertical(-1, ev.shiftKey);
+        }
         ev.preventDefault();
         break;
       case "ArrowDown":
-        this.moveCursorsVertical(1, ev.shiftKey);
+        if (ev.altKey) {
+          this.moveLine(1);
+        } else {
+          this.moveCursorsVertical(1, ev.shiftKey);
+        }
         ev.preventDefault();
         break;
       case "Home":
@@ -715,6 +723,48 @@ export class EditorView {
     this.selections = [{
       anchor: { line: firstLine, character: 0 },
       active: { line: lastLine, character: this.lineText(lastLine).length },
+    }];
+    this.wakeCursor();
+    this.ensureCursorVisible();
+    this.scheduleRender();
+  }
+
+  /**
+   * Alt+Up/Down 行移动：将选区覆盖的行块与相邻行交换。
+   * direction=-1 上移（与上行交换），+1 下移（与下行交换）。边界（首/末行）不动。
+   * 选区末尾恰在行首时不纳入该行；选区整体平移 ±1 行保持方向与列。
+   */
+  private moveLine(direction: -1 | 1): void {
+    const primary = this.primarySelection();
+    const norm = normalizeSelection(primary);
+    const firstLine = norm.start.line;
+    const lastLine = norm.end.character === 0 && norm.end.line > norm.start.line
+      ? norm.end.line - 1
+      : norm.end.line;
+    if (direction === -1 && firstLine === 0) return;
+    if (direction === 1 && lastLine >= this.doc.lineCount - 1) return;
+
+    if (direction === -1) {
+      const startOffset = this.doc.offsetAt({ line: firstLine - 1, character: 0 });
+      const endOffset = this.doc.offsetAt({ line: lastLine, character: this.lineText(lastLine).length });
+      const text = this.doc.getTextInRange(startOffset, endOffset);
+      const lines = text.split("\n");
+      const above = lines.shift();
+      if (above !== undefined) lines.push(above);
+      this.doc.applyEdit({ offset: startOffset, length: endOffset - startOffset, text: lines.join("\n") });
+    } else {
+      const startOffset = this.doc.offsetAt({ line: firstLine, character: 0 });
+      const endOffset = this.doc.offsetAt({ line: lastLine + 1, character: this.lineText(lastLine + 1).length });
+      const text = this.doc.getTextInRange(startOffset, endOffset);
+      const lines = text.split("\n");
+      const below = lines.pop();
+      if (below !== undefined) lines.unshift(below);
+      this.doc.applyEdit({ offset: startOffset, length: endOffset - startOffset, text: lines.join("\n") });
+    }
+    const delta = direction;
+    this.selections = [{
+      anchor: { line: primary.anchor.line + delta, character: primary.anchor.character },
+      active: { line: primary.active.line + delta, character: primary.active.character },
     }];
     this.wakeCursor();
     this.ensureCursorVisible();
