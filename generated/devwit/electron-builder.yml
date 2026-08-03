@@ -8,16 +8,19 @@ files:
   # node-pty 为可选原生依赖，缺失时自动回退 pipe 后端。
   # typescript-language-server + typescript（tsserver）为 LSP 代码智能运行时依赖（AC40），
   # 经 require.resolve 定位，必须随行；asarUnpack 保证 spawn 的子进程可读。
+  # pyright（pyright-langserver.js）为 Python LSP 运行时依赖（v0.5.0 多语言），同口径。
   # vendor/js-debug（dapDebugServer.js）为 DAP 调试运行时依赖（AC42），同口径。
   - apps/desktop/dist/**
   - package.json
   - node_modules/typescript-language-server/lib/**
   - node_modules/typescript/lib/**
+  - node_modules/pyright/dist/**
   - vendor/js-debug/**
 asar: true
 asarUnpack:
   - node_modules/typescript-language-server/**
   - node_modules/typescript/**
+  - node_modules/pyright/**
   - vendor/js-debug/**
 # 本机已装 Electron dist（与 devDependency 同版本），打包零下载，规避 GitHub 直连不可达。
 electronDist: node_modules/electron/dist

@@ -205,6 +205,8 @@ export interface TsLanguageServerOptions {
   /** spawn 工厂（测试注入假进程）。 */
   spawnImpl?: LspSpawnFactory;
   requestTimeoutMs?: number;
+  /** 语言识别函数（缺省 = TS/JS languageIdFor）。用于多语言支持（如 Python）。 */
+  languageIdFor?: (filePath: string) => string | null;
 }
 
 interface OpenDocument {
@@ -310,7 +312,8 @@ export class TsLanguageServer {
 
   /** 打开文档（重复打开同路径=重新同步全文，版本自增）。非 TS/JS 文件忽略。 */
   didOpen(relFile: string, text: string): void {
-    const languageId = languageIdFor(relFile);
+    const fn = this.options.languageIdFor ?? languageIdFor;
+    const languageId = fn(relFile);
     if (languageId === null || this.client === null || this.status.state !== "ready") return;
     const uri = this.uriFor(relFile);
     const existing = this.documents.get(uri);

@@ -1,4 +1,4 @@
-/** @devwit/lsp — LSP stdio 客户端（Content-Length 分帧）+ TS 语言服务器管理。 */
+/** @devwit/lsp — LSP stdio 客户端（Content-Length 分帧）+ TS/Python 语言服务器管理。 */
 export { LspClient, nodeSpawnFactory, type LspChildProcess, type LspSpawnFactory } from "./lsp-client.js";
 export {
   TsLanguageServer,
@@ -8,3 +8,4 @@ export {
   normalizeHoverText,
   type TsLanguageServerOptions,
 } from "./ts-server.js";
+export { pythonLanguageIdFor } from "./pyright-server.js";
