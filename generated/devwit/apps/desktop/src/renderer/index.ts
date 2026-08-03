@@ -1762,6 +1762,19 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   let selectedFrameId: number | null = null;
   /** 调试输出滚动区文本（output 事件累积，上限 200KB 防无限增长）。 */
   let debugOutputText = "";
+  /**
+   * Watch 表达式列表（v0.4.0）：用户自定义表达式，每次暂停时在当前栈顶帧求值。
+   * value=undefined 表示尚未求值（运行中/idle）；error=true 表示求值失败（表达式非法/上下文不可用）。
+   * 表达式持久化到 settings "debug.watches"，跨会话/重启保留。
+   */
+  interface WatchEntry {
+    id: string;
+    expression: string;
+    value?: string;
+    error?: boolean;
+  }
+  let watchExpressions: WatchEntry[] = [];
+  let watchCounter = 0;
 
   function isJsFile(filePath: string): boolean {
     return /\.(js|mjs|cjs)$/i.test(filePath);
@@ -2056,6 +2069,84 @@ async function bootstrap(api: DevwitApi): Promise<void> {
         }
       }
     }
+    // Watch 表达式在当前栈顶帧求值（暂停上下文；与变量面板同步刷新）
+    await refreshWatches();
+  }
+
+  /** Watch 表达式持久化到 settings（跨会话/重启保留）。 */
+  async function persistWatches(): Promise<void> {
+    try {
+      await api.settings.set("debug.watches", watchExpressions.map((w) => w.expression));
+    } catch {
+      // 设置写入失败不阻塞调试
+    }
+  }
+
+  /** 启动时从 settings 恢复 watch 表达式列表（仅表达式，value 待暂停时求值）。 */
+  async function loadWatches(): Promise<void> {
+    try {
+      const raw = await api.settings.get("debug.watches");
+      if (Array.isArray(raw)) {
+        watchExpressions = raw
+          .filter((expr): expr is string => typeof expr === "string" && expr.length > 0)
+          .map((expr) => ({ id: `w${++watchCounter}`, expression: expr }));
+      }
+    } catch {
+      // 设置读取失败按空列表处理
+    }
+  }
+
+  /** 添加 watch 表达式（去重；立即在当前帧求值）。 */
+  async function addWatch(expression: string): Promise<void> {
+    const trimmed = expression.trim();
+    if (trimmed === "") return;
+    if (watchExpressions.some((w) => w.expression === trimmed)) return;
+    watchExpressions.push({ id: `w${++watchCounter}`, expression: trimmed });
+    renderDebugPanel();
+    await persistWatches();
+    await refreshWatches();
+  }
+
+  /** 移除 watch 表达式。 */
+  async function removeWatch(id: string): Promise<void> {
+    watchExpressions = watchExpressions.filter((w) => w.id !== id);
+    renderDebugPanel();
+    await persistWatches();
+  }
+
+  /**
+   * 在当前选中帧求值全部 watch 表达式。
+   * 非 stopped 态时清空 value（显示"暂停时求值"占位）；求值失败标记 error。
+   */
+  async function refreshWatches(): Promise<void> {
+    if (watchExpressions.length === 0) return;
+    if (debugState.state !== "stopped" || selectedFrameId === null) {
+      // 非暂停态：清空历史值（避免显示过期数据）
+      for (const w of watchExpressions) {
+        w.value = undefined;
+        w.error = undefined;
+      }
+      renderDebugPanel();
+      return;
+    }
+    const frameId = selectedFrameId;
+    // 并行求值所有表达式（互不阻塞）；逐条 try-catch 防单条失败影响整体
+    await Promise.all(
+      watchExpressions.map(async (w) => {
+        try {
+          const result = await api.debug.evaluate(w.expression, frameId);
+          w.value = result.value;
+          w.error = false;
+        } catch {
+          w.value = undefined;
+          w.error = true;
+        }
+      })
+    );
+    // 求值期间帧可能已切换/会话已终止：仅在仍为同一帧时刷新
+    if (selectedFrameId === frameId && debugState.state === "stopped") {
+      renderDebugPanel();
+    }
   }
 
   /** 选帧切换：重载作用域与变量。 */
@@ -2075,6 +2166,8 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     } catch {
       // 会话可能已继续/终止：忽略迟到响应
     }
+    // Watch 表达式在新帧上下文重新求值
+    await refreshWatches();
     renderDebugPanel();
   }
 
@@ -2188,6 +2281,54 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       }
     }
 
+    // ---- Watch 表达式（v0.4.0：用户自定义表达式，暂停时在当前帧求值） ----
+    body.appendChild(el("div", "dw-debug-section", t("debug.watch.title")));
+    const watchAdd = el("div", "dw-watch-add");
+    const watchInput = el("input", "dw-input dw-watch-input") as HTMLInputElement;
+    watchInput.placeholder = t("debug.watch.placeholder");
+    watchInput.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") {
+        const value = watchInput.value;
+        watchInput.value = "";
+        void addWatch(value);
+      }
+    });
+    const watchAddBtn = el("button", "dw-btn dw-btn-small", t("debug.watch.add"));
+    watchAddBtn.addEventListener("click", () => {
+      const value = watchInput.value;
+      watchInput.value = "";
+      void addWatch(value);
+    });
+    watchAdd.append(watchInput, watchAddBtn);
+    body.appendChild(watchAdd);
+    if (watchExpressions.length === 0) {
+      body.appendChild(el("div", "dw-sidebar-empty", t("debug.watch.empty")));
+    } else {
+      const isStopped = debugState.state === "stopped";
+      for (const w of watchExpressions) {
+        const row = el("div", "dw-watch-row");
+        const expr = el("span", "dw-watch-expr", w.expression);
+        expr.title = w.expression;
+        let valueText: string;
+        if (w.error === true) {
+          valueText = t("debug.watch.error");
+        } else if (!isStopped) {
+          valueText = t("debug.watch.notStopped");
+        } else if (w.value !== undefined) {
+          valueText = w.value;
+        } else {
+          valueText = "…";
+        }
+        const val = el("span", `dw-watch-value${w.error === true ? " dw-watch-value-error" : ""}`, valueText);
+        val.title = valueText;
+        const removeBtn = el("button", "dw-watch-remove", "×");
+        removeBtn.title = t("debug.watch.remove");
+        removeBtn.addEventListener("click", () => void removeWatch(w.id));
+        row.append(expr, val, removeBtn);
+        body.appendChild(row);
+      }
+    }
+
     // ---- 断点列表（点击定位文件行；右键编辑 condition/hitCount/logMessage） ----
     body.appendChild(el("div", "dw-debug-section", t("debug.breakpoints")));
     let bpCount = 0;
@@ -2270,6 +2411,11 @@ async function bootstrap(api: DevwitApi): Promise<void> {
         debugVarCache.clear();
         debugVarExpanded.clear();
         selectedFrameId = null;
+        // 非 stopped 态清空 watch 历史值（避免显示过期数据）
+        for (const w of watchExpressions) {
+          w.value = undefined;
+          w.error = undefined;
+        }
       }
     }
     renderDebugPanel();
@@ -2288,6 +2434,8 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     renderDebugStatus();
     renderDebugPanel();
   });
+  // Watch 表达式列表从 settings 恢复（跨会话/重启保留表达式，值待暂停时求值）
+  void loadWatches().then(() => renderDebugPanel());
   renderDebugPanel();
 
   // ---- 首次使用引导（AC11）：未打开工作区时主区显示三步引导 ----

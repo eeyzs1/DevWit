@@ -2095,6 +2095,74 @@ body,
   font-size: 12px;
 }
 
+/* ---- Watch 表达式面板（v0.4.0） ---- */
+.dw-watch-add {
+  display: flex;
+  gap: 4px;
+  padding: 4px 10px;
+}
+
+.dw-watch-input {
+  flex: 1;
+  min-width: 0;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+}
+
+.dw-watch-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  cursor: default;
+}
+
+.dw-watch-row:hover {
+  background: var(--dw-bg-elevated);
+}
+
+.dw-watch-expr {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  color: var(--dw-fg);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dw-watch-value {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  color: var(--dw-fg-dim);
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dw-watch-value-error {
+  color: #f14c4c;
+  font-style: italic;
+}
+
+.dw-watch-remove {
+  background: none;
+  border: none;
+  color: var(--dw-fg-dim);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.dw-watch-remove:hover {
+  color: #f14c4c;
+  background: rgba(241, 76, 76, 0.12);
+}
+
 .dw-debug-output {
   margin: 4px 10px 10px;
   padding: 6px 8px;
