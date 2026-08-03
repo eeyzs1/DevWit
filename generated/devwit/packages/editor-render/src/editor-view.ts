@@ -10,6 +10,7 @@ import {
   indentLevelOf,
   isSelectionEmpty,
   normalizeSelection,
+  outdentLine,
   visibleLineRange,
   xForColumn,
   type Measurer,
@@ -456,7 +457,11 @@ export class EditorView {
         ev.preventDefault();
         break;
       case "Tab":
-        this.replaceSelections(" ".repeat(this.tabSize));
+        if (ev.shiftKey) {
+          this.handleShiftTab();
+        } else {
+          this.handleTab();
+        }
         ev.preventDefault();
         break;
       case "Escape":
@@ -634,6 +639,83 @@ export class EditorView {
       const pos = this.doc.positionAt(newOffsets[index] ?? 0);
       return { anchor: pos, active: pos };
     });
+    this.wakeCursor();
+    this.ensureCursorVisible();
+    this.scheduleRender();
+  }
+
+  /**
+   * Tab 键：单行选区 → 插入 tabSize 空格（走 replaceSelections，兼容多光标）；
+   * 多行选区 → 整块行首加一级缩进。选区末尾恰在行首时不纳入该行（VS Code 惯例）。
+   */
+  private handleTab(): void {
+    const norm = normalizeSelection(this.primarySelection());
+    if (norm.start.line === norm.end.line) {
+      this.replaceSelections(" ".repeat(this.tabSize));
+      return;
+    }
+    const lastLine = norm.end.character === 0 && norm.end.line > norm.start.line
+      ? norm.end.line - 1
+      : norm.end.line;
+    this.indentLines(norm.start.line, lastLine, false);
+  }
+
+  /**
+   * Shift+Tab 反缩进：多行选区 → 整块行首删一级；单行空选区 → 当前行删一级并保持光标。
+   */
+  private handleShiftTab(): void {
+    const primary = this.primarySelection();
+    const norm = normalizeSelection(primary);
+    if (norm.start.line === norm.end.line && isSelectionEmpty(primary)) {
+      const lineText = this.lineText(norm.start.line);
+      const { removed } = outdentLine(lineText, this.tabSize);
+      if (removed > 0) {
+        const lineStart = this.doc.offsetAt({ line: norm.start.line, character: 0 });
+        this.doc.applyEdit({ offset: lineStart, length: removed, text: "" });
+        const newChar = Math.max(0, norm.start.character - removed);
+        this.selections = [{
+          anchor: { line: norm.start.line, character: newChar },
+          active: { line: norm.start.line, character: newChar },
+        }];
+        this.wakeCursor();
+        this.ensureCursorVisible();
+        this.scheduleRender();
+      }
+      return;
+    }
+    const lastLine = norm.end.character === 0 && norm.end.line > norm.start.line
+      ? norm.end.line - 1
+      : norm.end.line;
+    this.indentLines(norm.start.line, lastLine, true);
+  }
+
+  /**
+   * 批量行首缩进/反缩进：indent=true 加 tabSize 空格，false 删一级（调 outdentLine）。
+   * 降序应用保证偏移不失效；完成后选区覆盖整块（与 VS Code 多行缩进后选区一致）。
+   */
+  private indentLines(firstLine: number, lastLine: number, outdent: boolean): void {
+    const indent = " ".repeat(this.tabSize);
+    const edits: Array<{ offset: number; length: number; text: string }> = [];
+    for (let line = firstLine; line <= lastLine; line++) {
+      const lineStart = this.doc.offsetAt({ line, character: 0 });
+      if (outdent) {
+        const lineText = this.lineText(line);
+        const { removed } = outdentLine(lineText, this.tabSize);
+        if (removed > 0) {
+          edits.push({ offset: lineStart, length: removed, text: "" });
+        }
+      } else {
+        edits.push({ offset: lineStart, length: 0, text: indent });
+      }
+    }
+    edits.sort((a, b) => b.offset - a.offset);
+    for (const edit of edits) {
+      this.doc.applyEdit(edit);
+    }
+    this.selections = [{
+      anchor: { line: firstLine, character: 0 },
+      active: { line: lastLine, character: this.lineText(lastLine).length },
+    }];
     this.wakeCursor();
     this.ensureCursorVisible();
     this.scheduleRender();

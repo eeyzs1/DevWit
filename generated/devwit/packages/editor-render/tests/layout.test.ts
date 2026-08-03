@@ -10,6 +10,7 @@ import {
   isSelectionEmpty,
   maxScrollTop,
   normalizeSelection,
+  outdentLine,
   visibleLineRange,
   xForColumn,
   type Measurer,
@@ -377,5 +378,37 @@ describe("computeAutoIndent 自动缩进", () => {
   it("光标在前导空白中间 → 继承光标前的前导空白", () => {
     // "    code" — 光标在 character=2（前导空白中间）→ before="  " → leading="  "
     expect(computeAutoIndent("    code", 2, 4)).toBe("  ");
+  });
+});
+
+describe("outdentLine 反缩进一行", () => {
+  it("空格缩进：移除最多 tabSize 个前导空格", () => {
+    expect(outdentLine("    code", 4)).toEqual({ text: "code", removed: 4 });
+    expect(outdentLine("        code", 4)).toEqual({ text: "    code", removed: 4 });
+    expect(outdentLine("  code", 4)).toEqual({ text: "code", removed: 2 }); // 不足 tabSize 全删
+  });
+
+  it("tab 缩进：移除一个 tab", () => {
+    expect(outdentLine("\tcode", 4)).toEqual({ text: "code", removed: 1 });
+    expect(outdentLine("\t\tcode", 4)).toEqual({ text: "\tcode", removed: 1 });
+  });
+
+  it("无前导空白 → removed=0，文本不变", () => {
+    expect(outdentLine("code", 4)).toEqual({ text: "code", removed: 0 });
+    expect(outdentLine("noIndent", 2)).toEqual({ text: "noIndent", removed: 0 });
+  });
+
+  it("空行 → removed=0", () => {
+    expect(outdentLine("", 4)).toEqual({ text: "", removed: 0 });
+  });
+
+  it("tabSize=2 时移除最多 2 空格", () => {
+    expect(outdentLine("  code", 2)).toEqual({ text: "code", removed: 2 });
+    expect(outdentLine("    code", 2)).toEqual({ text: "  code", removed: 2 });
+    expect(outdentLine(" code", 2)).toEqual({ text: "code", removed: 1 });
+  });
+
+  it("tab 优先于空格（首字符为 tab 时移除 tab）", () => {
+    expect(outdentLine("\t  code", 4)).toEqual({ text: "  code", removed: 1 });
   });
 });

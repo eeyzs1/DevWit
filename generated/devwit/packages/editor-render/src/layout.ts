@@ -241,3 +241,18 @@ export function computeAutoIndent(lineText: string, cursorCharacter: number, tab
   const extra = trimmedEnd.endsWith("{") ? " ".repeat(tabSize) : "";
   return leading + extra;
 }
+
+/**
+ * 反缩进一行：移除一个缩进级别（一个 tab 或最多 tabSize 个前导空格）。
+ * 返回移除后的文本与实际移除的字符数。空行或无前导空白 → removed=0。
+ * 纯函数，node 下可直接测试。
+ */
+export function outdentLine(line: string, tabSize: number): { text: string; removed: number } {
+  if (line.length === 0) return { text: "", removed: 0 };
+  if (line[0] === "\t") return { text: line.slice(1), removed: 1 };
+  let removed = 0;
+  while (removed < tabSize && removed < line.length && line[removed] === " ") {
+    removed += 1;
+  }
+  return { text: line.slice(removed), removed };
+}

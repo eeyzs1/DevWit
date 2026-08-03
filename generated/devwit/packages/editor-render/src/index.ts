@@ -18,6 +18,7 @@ export {
   isSelectionEmpty,
   maxScrollTop,
   normalizeSelection,
+  outdentLine,
   visibleLineRange,
   xForColumn,
   type Measurer,
