@@ -1395,6 +1395,31 @@ body,
   white-space: pre-wrap;
 }
 
+/* ---- LSP 重命名输入框（v0.4.0）---- */
+.dw-rename {
+  position: absolute;
+  z-index: 27;
+  background: var(--dw-bg-panel);
+  border: 1px solid var(--dw-accent, #007acc);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  padding: 4px;
+}
+.dw-rename-input {
+  width: 240px;
+  padding: 4px 8px;
+  border: 1px solid var(--dw-border);
+  border-radius: 3px;
+  background: var(--dw-bg-input, #1e1e1e);
+  color: var(--dw-text, #d4d4d4);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 13px;
+  outline: none;
+}
+.dw-rename-input:focus {
+  border-color: var(--dw-accent, #007acc);
+}
+
 /* ---- Git 版本控制（AC41）---- */
 .dw-left-tabs {
   flex-shrink: 0;

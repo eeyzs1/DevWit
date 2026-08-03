@@ -17,6 +17,7 @@ import type {
   LspHoverInfo,
   LspSignatureHelp,
   LspStatusInfo,
+  LspTextEdit,
 } from "@devwit/contracts";
 import { LspClient, nodeSpawnFactory, type LspChildProcess, type LspSpawnFactory } from "./lsp-client.js";
 
@@ -124,6 +125,15 @@ interface LspRawSignatureHelp {
   signatures: LspRawSignatureInformation[];
   activeSignature?: number;
   activeParameter?: number;
+}
+
+interface LspRawTextEdit {
+  range: { start: { line: number; character: number }; end: { line: number; character: number } };
+  newText: string;
+}
+
+interface LspRawWorkspaceEdit {
+  changes?: Record<string, LspRawTextEdit[]>;
 }
 
 const SEVERITY_MAP: Record<number, LspDiagnosticItem["severity"]> = {
@@ -441,6 +451,43 @@ export class TsLanguageServer {
       activeSignature: typeof raw.activeSignature === "number" ? raw.activeSignature : 0,
       activeParameter: typeof raw.activeParameter === "number" ? raw.activeParameter : 0,
     };
+  }
+
+  /**
+   * 符号重命名（未就绪/无效位置 → 空数组；请求失败不抛出）。
+   * LSP textDocument/rename 返回 WorkspaceEdit（changes 形式）；归一化为 LspTextEdit[]。
+   * 仅处理 changes（documentChanges 结构复杂，暂不支持）。
+   */
+  async rename(relFile: string, line: number, character: number, newName: string): Promise<LspTextEdit[]> {
+    if (this.client === null || this.status.state !== "ready") return [];
+    let raw: LspRawWorkspaceEdit | null;
+    try {
+      raw = (await this.client.request("textDocument/rename", {
+        textDocument: { uri: this.uriFor(relFile) },
+        position: { line, character },
+        newName,
+      })) as LspRawWorkspaceEdit | null;
+    } catch {
+      return [];
+    }
+    if (raw === null || !raw.changes) return [];
+    const edits: LspTextEdit[] = [];
+    for (const [uri, textEdits] of Object.entries(raw.changes)) {
+      const file = this.relFor(uri);
+      for (const te of textEdits) {
+        if (te?.range?.start && te?.range?.end && typeof te.newText === "string") {
+          edits.push({
+            file,
+            startLine: te.range.start.line,
+            startCharacter: te.range.start.character,
+            endLine: te.range.end.line,
+            endCharacter: te.range.end.character,
+            newText: te.newText,
+          });
+        }
+      }
+    }
+    return edits;
   }
 
   /** 当前全部诊断快照（跨文件，已映射为相对路径 + severity 字符串）。 */

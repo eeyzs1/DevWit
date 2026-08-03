@@ -901,6 +901,17 @@ export interface LspSignatureHelp {
   activeParameter: number;
 }
 
+/** 文本编辑项（lsp:rename 返回；0-based 行列）。 */
+export interface LspTextEdit {
+  /** 工作区相对路径（正斜杠）。 */
+  file: string;
+  startLine: number;
+  startCharacter: number;
+  endLine: number;
+  endCharacter: number;
+  newText: string;
+}
+
 // ============================================================================
 // Git 版本控制（迭代 32 / AC41）：状态面板 / diff 双文本 / 暂存提交
 // ============================================================================
@@ -1060,6 +1071,7 @@ export const IPC = {
   LspCompletion: "lsp:completion",
   LspReferences: "lsp:references",
   LspSignatureHelp: "lsp:signature-help",
+  LspRename: "lsp:rename",
   LspDiagnostics: "lsp:diagnostics",
   LspDiagnosticsChanged: "lsp:diagnostics-changed",
   GitGetStatus: "git:get-status",
@@ -1163,6 +1175,8 @@ export interface DevwitApi {
     references(file: string, line: number, character: number): Promise<LspDefinitionTarget[]>;
     /** 签名帮助（null = 无签名/未就绪）；LSP textDocument/signatureHelp。 */
     signatureHelp(file: string, line: number, character: number): Promise<LspSignatureHelp | null>;
+    /** 符号重命名编辑列表（空数组 = 无效位置/未就绪）；LSP textDocument/rename。 */
+    rename(file: string, line: number, character: number, newName: string): Promise<LspTextEdit[]>;
     /** 当前全部诊断快照（跨文件）。 */
     diagnostics(): Promise<LspDiagnosticItem[]>;
     /** 订阅服务状态推送。 */

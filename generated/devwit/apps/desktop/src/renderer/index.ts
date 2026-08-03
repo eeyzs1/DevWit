@@ -5,7 +5,7 @@
  * 全部界面文案经 @devwit/i18n 词典渲染；启动时从 settings "ui.locale" 恢复语言，
  * 订阅 onDidChangeLocale 全量重写静态文案与动态列表（语言热生效）。
  */
-import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitPanelStatus, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspSignatureHelp, LspStatusInfo, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
+import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitPanelStatus, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspSignatureHelp, LspStatusInfo, LspTextEdit, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, resolveSystemLocale, setLocale, t, ta, type Locale } from "@devwit/i18n";
 import { TextDocument } from "@devwit/editor-core";
 import { EditorView, normalizeSelection } from "@devwit/editor-render";
@@ -813,6 +813,140 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     }
   }, true);
   canvas.addEventListener("mousedown", hideSignature);
+
+  // ---- LSP 符号重命名（v0.4.0）：F2 触发 → 输入框 → 调用 rename → 跨文件应用编辑 ----
+  const renameBox = el("div", "dw-rename");
+  renameBox.style.display = "none";
+  editorArea.appendChild(renameBox);
+  const renameInput = document.createElement("input");
+  renameInput.type = "text";
+  renameInput.className = "dw-rename-input";
+  renameInput.placeholder = "New name";
+  renameBox.appendChild(renameInput);
+  let renameVisible = false;
+  let renameToken = 0;
+
+  function hideRename(): void {
+    renameBox.style.display = "none";
+    renameVisible = false;
+    renameInput.value = "";
+  }
+
+  function showRenameBox(currentName: string): void {
+    renameInput.value = currentName;
+    const sel = editor.getSelections().at(-1);
+    if (sel !== undefined) {
+      const pt = editor.clientPointForPosition(sel.active);
+      const areaRect = editorArea.getBoundingClientRect();
+      renameBox.style.left = `${pt.x - areaRect.left}px`;
+      renameBox.style.top = `${pt.y - areaRect.top + 18}px`;
+    }
+    renameBox.style.display = "block";
+    renameVisible = true;
+    renameInput.focus();
+    renameInput.select();
+  }
+
+  async function applyRename(newName: string): Promise<void> {
+    const current = openFile;
+    if (current === null || workspaceRoot === "" || lspStatus.state !== "ready") return;
+    const sel = editor.getSelections().at(-1);
+    if (sel === undefined) return;
+    const pos = sel.active;
+    const token = ++renameToken;
+    const edits = await api.lsp.rename(relPathOf(current.path), pos.line, pos.character, newName);
+    if (renameToken !== token || openFile !== current) return;
+    hideRename();
+    if (edits.length === 0) return;
+
+    // 按 file 分组
+    const byFile = new Map<string, LspTextEdit[]>();
+    for (const edit of edits) {
+      const arr = byFile.get(edit.file) ?? [];
+      arr.push(edit);
+      byFile.set(edit.file, arr);
+    }
+
+    const currentRel = relPathOf(current.path);
+    const root = workspaceRoot.replace(/[/\\]+$/, "");
+
+    for (const [file, fileEdits] of byFile) {
+      if (file === currentRel) {
+        // 当前文件：用 applyEdit（按 offset 倒序，避免位置偏移）
+        const doc = current.doc;
+        const sorted = fileEdits.slice().sort((a, b) => {
+          const ao = doc.offsetAt({ line: a.startLine, character: a.startCharacter });
+          const bo = doc.offsetAt({ line: b.startLine, character: b.startCharacter });
+          return bo - ao;
+        });
+        for (const edit of sorted) {
+          const startOffset = doc.offsetAt({ line: edit.startLine, character: edit.startCharacter });
+          const endOffset = doc.offsetAt({ line: edit.endLine, character: edit.endCharacter });
+          doc.applyEdit({ offset: startOffset, length: endOffset - startOffset, text: edit.newText });
+        }
+      } else {
+        // 其他文件：read → 字符串编辑 → write（跨文件重构）
+        const abs = `${root}/${file}`;
+        try {
+          const content = await api.workspace.read(abs);
+          const lineStarts: number[] = [0];
+          for (let i = 0; i < content.length; i++) {
+            if (content[i] === "\n") lineStarts.push(i + 1);
+          }
+          const sorted = fileEdits.slice().sort((a, b) => {
+            const ao = (lineStarts[a.startLine] ?? 0) + a.startCharacter;
+            const bo = (lineStarts[b.startLine] ?? 0) + b.startCharacter;
+            return bo - ao;
+          });
+          let text = content;
+          for (const edit of sorted) {
+            const startOffset = (lineStarts[edit.startLine] ?? 0) + edit.startCharacter;
+            const endOffset = (lineStarts[edit.endLine] ?? 0) + edit.endCharacter;
+            text = text.slice(0, startOffset) + edit.newText + text.slice(endOffset);
+          }
+          await api.workspace.write(abs, text);
+        } catch {
+          // 读取/写入失败：跳过该文件（跨文件编辑容错）
+        }
+      }
+    }
+  }
+
+  window.addEventListener("keydown", (ev) => {
+    if (ev.key === "F2" && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      if (openFile === null || lspStatus.state !== "ready") return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      const sel = editor.getSelections().at(-1);
+      if (sel === undefined) return;
+      const pos = sel.active;
+      const lineText = openFile.doc.getLine(pos.line) ?? "";
+      let start = pos.character;
+      let end = pos.character;
+      while (start > 0 && /[\w$]/.test(lineText[start - 1] ?? "")) start--;
+      while (end < lineText.length && /[\w$]/.test(lineText[end] ?? "")) end++;
+      const currentName = lineText.slice(start, end);
+      if (currentName.length === 0) return;
+      showRenameBox(currentName);
+      return;
+    }
+    if (!renameVisible) return;
+    if (ev.key === "Enter") {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const newName = renameInput.value.trim();
+      if (newName.length === 0) {
+        hideRename();
+        return;
+      }
+      void applyRename(newName);
+    } else if (ev.key === "Escape") {
+      ev.preventDefault();
+      ev.stopPropagation();
+      hideRename();
+    }
+  }, true);
+  canvas.addEventListener("mousedown", hideRename);
 
   api.lsp.onStatus((status) => {
     const wasReady = lspStatus.state === "ready";

@@ -288,6 +288,7 @@ describe("TsLanguageServer（假 spawn）", () => {
     expect(await server.completion("a.ts", 0, 0)).toEqual([]);
     expect(await server.references("a.ts", 0, 0)).toEqual([]);
     expect(await server.signatureHelp("a.ts", 0, 0)).toBeNull();
+    expect(await server.rename("a.ts", 0, 0, "newName")).toEqual([]);
     await server.openWorkspace(root);
     // ready 但假服务器不应答 hover（请求超时由客户端层保障，这里只验证形状）
     await server.shutdown();
@@ -380,6 +381,15 @@ describe("TsLanguageServer（真实 typescript-language-server 集成）", () =>
       expect(sigHelp).not.toBeNull();
       expect(sigHelp!.signatures.length).toBeGreaterThanOrEqual(1);
       expect(sigHelp!.signatures[0]!.label).toMatch(/add/i);
+
+      // rename：add 函数定义处重命名 add → sum，应返回跨文件编辑（math.ts 定义 + main.ts 调用）
+      const renameEdits = await server.rename("math.ts", 0, 17, "sum");
+      expect(renameEdits.length).toBeGreaterThanOrEqual(2);
+      const mathEdit = renameEdits.find((e) => e.file === "math.ts");
+      expect(mathEdit).toBeDefined();
+      expect(mathEdit!.newText).toBe("sum");
+      const mainEdits = renameEdits.filter((e) => e.file === "main.ts");
+      expect(mainEdits.length).toBeGreaterThanOrEqual(1);
     } finally {
       await server.shutdown();
       expect(server.currentStatus.state).toBe("idle");
