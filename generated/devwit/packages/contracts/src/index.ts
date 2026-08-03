@@ -975,6 +975,13 @@ export interface GitLogEntry {
   date: string;
 }
 
+/** git 分支项（git:list-branches 返回项）。 */
+export interface GitBranch {
+  name: string;
+  /** 是否为当前检出分支。 */
+  current: boolean;
+}
+
 // ============================================================================
 // DAP 调试（迭代 33 / AC42）：js-debug 适配器 JS 断点调试
 // ============================================================================
@@ -1114,6 +1121,10 @@ export const IPC = {
   GitPull: "git:pull",
   GitPush: "git:push",
   GitLog: "git:log",
+  GitListBranches: "git:list-branches",
+  GitCheckout: "git:checkout",
+  GitCreateBranch: "git:create-branch",
+  GitDeleteBranch: "git:delete-branch",
   GitChanged: "git:changed",
   DebugStart: "debug:start",
   DebugStop: "debug:stop",
@@ -1242,6 +1253,14 @@ export interface DevwitApi {
     push(): Promise<void>;
     /** git log：提交历史（默认 50 条）。 */
     log(limit?: number): Promise<GitLogEntry[]>;
+    /** git branch：本地分支列表（current 标记当前检出）。 */
+    listBranches(): Promise<GitBranch[]>;
+    /** git checkout <name>：切换分支；失败抛 DW_GIT_CHECKOUT_FAILED。 */
+    checkout(name: string): Promise<void>;
+    /** git branch <name> + 可选 checkout：新建分支；失败抛 DW_GIT_CREATE_BRANCH_FAILED。 */
+    createBranch(name: string, checkout: boolean): Promise<void>;
+    /** git branch -d <name>：删除已合并分支；失败抛 DW_GIT_DELETE_BRANCH_FAILED。 */
+    deleteBranch(name: string): Promise<void>;
     /** 订阅状态变化推送（操作后/工作区文件事件防抖刷新，载荷为全量快照；null=非 git 仓库）。 */
     onChanged(cb: (status: GitPanelStatus | null) => void): () => void;
   };

@@ -5,7 +5,7 @@
  * 全部界面文案经 @devwit/i18n 词典渲染；启动时从 settings "ui.locale" 恢复语言，
  * 订阅 onDidChangeLocale 全量重写静态文案与动态列表（语言热生效）。
  */
-import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitPanelStatus, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspSignatureHelp, LspStatusInfo, LspTextEdit, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
+import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitBranch, GitPanelStatus, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspSignatureHelp, LspStatusInfo, LspTextEdit, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, resolveSystemLocale, setLocale, t, ta, type Locale } from "@devwit/i18n";
 import { TextDocument } from "@devwit/editor-core";
 import { EditorView, normalizeSelection } from "@devwit/editor-render";
@@ -1270,6 +1270,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   let gitDiffOverlay: HTMLElement | null = null;
   let gitDiffTitleSpan: HTMLElement | null = null;
   let gitDiffFile: string | null = null;
+  let branchDropdown: HTMLElement | null = null;
 
   /** 状态栏 git 项：branch 常驻（git 工作区），变更计数 >0 时追加。 */
   function renderGitStatus(): void {
@@ -1326,9 +1327,17 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   function renderGitPanel(): void {
     gitPane.textContent = "";
     const head = el("div", "dw-git-head");
-    head.append(
-      el("span", "dw-git-branch", gitStatus !== null && workspaceRoot !== "" ? `⑂ ${gitStatus.branch}` : ""),
+    const branchSpan = el(
+      "span",
+      "dw-git-branch",
+      gitStatus !== null && workspaceRoot !== "" ? `⑂ ${gitStatus.branch}` : ""
     );
+    if (gitStatus !== null && workspaceRoot !== "") {
+      branchSpan.classList.add("dw-git-branch-clickable");
+      branchSpan.title = t("git.branch.title");
+      branchSpan.addEventListener("click", () => void toggleBranchDropdown(branchSpan));
+    }
+    head.append(branchSpan);
     const refreshBtn = el("button", "dw-btn dw-btn-small", t("git.refresh"));
     refreshBtn.addEventListener("click", () => void refreshGit());
     head.appendChild(refreshBtn);
@@ -1422,11 +1431,147 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     gitDiffFile = null;
   }
 
+  /** 关闭分支下拉弹层（v0.4.0 Git 分支管理）。 */
+  function closeBranchDropdown(): void {
+    branchDropdown?.remove();
+    branchDropdown = null;
+  }
+
+  /**
+   * 切换分支下拉弹层：点击分支名展开，再次点击或外部点击关闭。
+   * 弹层包含分支列表（当前分支高亮）、新建分支输入、删除按钮。
+   * 定位锚定到分支名 span 的屏幕坐标，使用 fixed 定位脱离侧栏滚动。
+   */
+  async function toggleBranchDropdown(anchor: HTMLElement): Promise<void> {
+    if (branchDropdown !== null) {
+      closeBranchDropdown();
+      return;
+    }
+    let branches: GitBranch[];
+    try {
+      branches = await api.git.listBranches();
+    } catch (error) {
+      showStatus(toLocalError(error instanceof Error ? error.message : String(error)));
+      return;
+    }
+    if (branchDropdown !== null) {
+      closeBranchDropdown();
+      return;
+    }
+    const popup = el("div", "dw-branch-dropdown");
+    const rect = anchor.getBoundingClientRect();
+    popup.style.left = `${rect.left}px`;
+    popup.style.top = `${rect.bottom + 2}px`;
+
+    const list = el("div", "dw-branch-list");
+    if (branches.length === 0) {
+      list.appendChild(el("div", "dw-branch-empty", t("git.branch.empty")));
+    }
+    for (const br of branches) {
+      const row = el("div", "dw-branch-row");
+      if (br.current) row.classList.add("dw-branch-row-current");
+      const mark = el("span", "dw-branch-mark", br.current ? "●" : "");
+      const name = el("span", "dw-branch-name", br.name);
+      row.append(mark, name);
+      if (!br.current) {
+        const delBtn = el("button", "dw-branch-del", "✕");
+        delBtn.title = t("git.branch.delete");
+        delBtn.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          void deleteBranch(br.name);
+        });
+        row.appendChild(delBtn);
+        row.addEventListener("click", () => void checkoutBranch(br.name));
+      } else {
+        const cur = el("span", "dw-branch-current-tag", t("git.branch.current"));
+        row.appendChild(cur);
+      }
+      list.appendChild(row);
+    }
+    popup.appendChild(list);
+
+    // 新建分支输入区
+    const createBox = el("div", "dw-branch-create");
+    const input = el("input", "dw-branch-create-input");
+    input.placeholder = t("git.branch.createPlaceholder");
+    const createBtn = el("button", "dw-btn dw-btn-small dw-btn-primary", t("git.branch.create"));
+    const doCreate = (): void => {
+      const name = input.value.trim();
+      if (name === "") return;
+      void createBranch(name, true);
+    };
+    createBtn.addEventListener("click", doCreate);
+    input.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") doCreate();
+      if (ev.key === "Escape") closeBranchDropdown();
+    });
+    createBox.append(input, createBtn);
+    popup.appendChild(createBox);
+
+    document.body.appendChild(popup);
+    branchDropdown = popup;
+    input.focus();
+
+    // 外部点击关闭（下一帧生效，避免吞掉当前点击事件）
+    window.setTimeout(() => {
+      const onDown = (ev: MouseEvent): void => {
+        if (branchDropdown === null) return;
+        if (branchDropdown.contains(ev.target as Node)) return;
+        if (anchor.contains(ev.target as Node)) return;
+        closeBranchDropdown();
+        document.removeEventListener("mousedown", onDown, true);
+      };
+      document.addEventListener("mousedown", onDown, true);
+    }, 0);
+  }
+
+  async function checkoutBranch(name: string): Promise<void> {
+    closeBranchDropdown();
+    try {
+      await api.git.checkout(name);
+    } catch (error) {
+      showStatus(toLocalError(error instanceof Error ? error.message : String(error)));
+    }
+  }
+
+  async function createBranch(name: string, doCheckout: boolean): Promise<void> {
+    try {
+      await api.git.createBranch(name, doCheckout);
+      closeBranchDropdown();
+    } catch (error) {
+      showStatus(toLocalError(error instanceof Error ? error.message : String(error)));
+    }
+  }
+
+  async function deleteBranch(name: string): Promise<void> {
+    if (!window.confirm(t("git.branch.deleteConfirm", { name }))) return;
+    try {
+      await api.git.deleteBranch(name);
+      // 刷新下拉弹层内的分支列表（不关闭，便于连续删除）
+      if (branchDropdown !== null) {
+        closeBranchDropdown();
+        await reopenBranchDropdown();
+      }
+    } catch (error) {
+      showStatus(toLocalError(error instanceof Error ? error.message : String(error)));
+    }
+  }
+
+  /** 删除分支后重建弹层：复用 git 头部的分支 span 作为锚点。 */
+  async function reopenBranchDropdown(): Promise<void> {
+    const anchor = gitPane.querySelector<HTMLElement>(".dw-git-branch");
+    if (anchor !== null) {
+      await toggleBranchDropdown(anchor);
+    }
+  }
+
   function applyGitStatus(status: GitPanelStatus | null): void {
     gitStatus = status;
     renderGitStatus();
     renderGitPanel();
     updateTreeBadges();
+    // 状态变化时分支 span 被重建，关闭可能残留的下拉弹层防错位
+    closeBranchDropdown();
   }
 
   /** 文件树徽章（AC41）：工作区相对路径 → 状态字母；工作区文件覆盖暂存同名项。 */
@@ -2376,6 +2521,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     renderDebugStatus(); // 调试状态项随语言热生效
     renderDebugPanel();
     renderGitStatus();
+    closeBranchDropdown(); // 语言切换重建面板，关闭可能残留的下拉弹层防错位
     renderGitPanel();
     // 打开中的 git diff 标题随语言热生效
     if (gitDiffFile !== null && gitDiffTitleSpan !== null) {

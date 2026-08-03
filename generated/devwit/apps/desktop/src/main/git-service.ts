@@ -6,7 +6,7 @@
  * 非 git 仓库 status 返回 null（渲染端显引导态），不抛错。
  */
 import { IPC } from "@devwit/contracts";
-import type { GitDiffTexts, GitLogEntry, GitPanelStatus } from "@devwit/contracts";
+import type { GitBranch, GitDiffTexts, GitLogEntry, GitPanelStatus } from "@devwit/contracts";
 import { GitService } from "@devwit/workspace";
 
 export interface GitMainServiceDeps {
@@ -58,6 +58,24 @@ export class GitMainService {
 
   log(limit?: number): Promise<GitLogEntry[]> {
     return this.requireService().log(limit);
+  }
+
+  listBranches(): Promise<GitBranch[]> {
+    return this.requireService().listBranches();
+  }
+
+  async checkout(name: string): Promise<void> {
+    await this.requireService().checkout(name);
+    await this.pushChanged(); // 分支切换 → 文件树/状态全变
+  }
+
+  async createBranch(name: string, doCheckout: boolean): Promise<void> {
+    await this.requireService().createBranch(name, doCheckout);
+    if (doCheckout) await this.pushChanged();
+  }
+
+  async deleteBranch(name: string): Promise<void> {
+    await this.requireService().deleteBranch(name);
   }
 
   private requireService(): GitService {

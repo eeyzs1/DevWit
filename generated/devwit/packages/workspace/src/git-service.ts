@@ -44,6 +44,12 @@ export interface GitLogEntry {
   date: string;
 }
 
+/** git 分支项。 */
+export interface GitBranch {
+  name: string;
+  current: boolean;
+}
+
 const GIT_TIMEOUT_MS = 5000;
 const GIT_COMMIT_TIMEOUT_MS = 30_000;
 const MAX_BUFFER = 16 * 1024 * 1024;
@@ -190,6 +196,62 @@ export class GitService {
         }
       );
     });
+  }
+
+  /**
+   * git branch --format：本地分支列表。
+   * format=%(HEAD)%(refname:short)：HEAD 列为 "*" 标记当前分支，空格为其他。
+   * 非 git 仓库返回空数组（与 status() null 语义解耦：列表为空 = 无分支或非仓库）。
+   */
+  listBranches(): Promise<GitBranch[]> {
+    return new Promise((resolve) => {
+      this.execImpl(
+        "git",
+        ["branch", "--format=%(HEAD)%(refname:short)"],
+        { cwd: this.root, timeout: GIT_TIMEOUT_MS, maxBuffer: MAX_BUFFER },
+        (error, stdout) => {
+          if (error) {
+            resolve([]);
+            return;
+          }
+          const branches: GitBranch[] = [];
+          for (const line of stdout.split("\n")) {
+            if (line.length === 0) continue;
+            const current = line.startsWith("*");
+            const name = (current ? line.slice(1) : line).trim();
+            if (name.length > 0) branches.push({ name, current });
+          }
+          resolve(branches);
+        }
+      );
+    });
+  }
+
+  /** git checkout <name>；失败抛 DW_GIT_CHECKOUT_FAILED:*（无 --：避免被当作 pathspec） */
+  async checkout(name: string): Promise<void> {
+    await this.runMutating(["checkout", name], "DW_GIT_CHECKOUT_FAILED");
+  }
+
+  /**
+   * git branch <name> [startPoint]；checkout=true 时再 git checkout <name>。
+   * 分支名合法性由 git 校验（非法字符/已存在 → DW_GIT_CREATE_BRANCH_FAILED）。
+   */
+  async createBranch(name: string, doCheckout: boolean): Promise<void> {
+    await this.runMutating(["branch", name], "DW_GIT_CREATE_BRANCH_FAILED");
+    if (doCheckout) {
+      try {
+        await this.runMutating(["checkout", name], "DW_GIT_CREATE_BRANCH_FAILED");
+      } catch (error) {
+        // checkout 失败时分支已创建，回滚删除避免遗留空分支
+        await this.runMutating(["branch", "-D", name], "DW_GIT_CREATE_BRANCH_FAILED").catch(() => undefined);
+        throw error;
+      }
+    }
+  }
+
+  /** git branch -d <name>（安全删除：仅删已合并；-D 强删留给显式调用）；失败抛 DW_GIT_DELETE_BRANCH_FAILED:* */
+  async deleteBranch(name: string): Promise<void> {
+    await this.runMutating(["branch", "-d", name], "DW_GIT_DELETE_BRANCH_FAILED");
   }
 
   private runMutating(args: string[], code: string, timeout = GIT_TIMEOUT_MS): Promise<void> {

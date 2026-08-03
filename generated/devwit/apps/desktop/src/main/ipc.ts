@@ -10,7 +10,7 @@
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { IPC } from "@devwit/contracts";
-import type { AgentRunInput, AuthorizationDecision, ContextItemType, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, ExternalEditorConfig, GitDiffTexts, GitLogEntry, GitPanelStatus, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspHoverInfo, LspSignatureHelp, LspStatusInfo, LspTextEdit, ProviderConfig, ProviderProbeRequest, ProviderProbeResult, UsageExportFormat } from "@devwit/contracts";
+import type { AgentRunInput, AuthorizationDecision, ContextItemType, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, ExternalEditorConfig, GitBranch, GitDiffTexts, GitLogEntry, GitPanelStatus, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspHoverInfo, LspSignatureHelp, LspStatusInfo, LspTextEdit, ProviderConfig, ProviderProbeRequest, ProviderProbeResult, UsageExportFormat } from "@devwit/contracts";
 import { PROVIDER_PRESETS, probeProvider } from "@devwit/llm-providers";
 import { fetchCommunityIndex, fetchCommunityMode, materializeImport, parseExportFile, resolveModesIndexBase, toExportFile } from "@devwit/modes";
 import { fetchCommunityMcpIndex, fetchCommunityMcpServer, materializeMcpImport } from "@devwit/mcp";
@@ -104,6 +104,10 @@ export interface GitIpcService {
   pull(): Promise<void>;
   push(): Promise<void>;
   log(limit?: number): Promise<GitLogEntry[]>;
+  listBranches(): Promise<GitBranch[]>;
+  checkout(name: string): Promise<void>;
+  createBranch(name: string, checkout: boolean): Promise<void>;
+  deleteBranch(name: string): Promise<void>;
 }
 
 /** LSP 接线参数（迭代 31 / AC40）：结构子集与 LspService 对齐（保持本文件无包运行时依赖）。 */
@@ -332,6 +336,10 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     table[IPC.GitPull] = notWired;
     table[IPC.GitPush] = notWired;
     table[IPC.GitLog] = notWired;
+    table[IPC.GitListBranches] = notWired;
+    table[IPC.GitCheckout] = notWired;
+    table[IPC.GitCreateBranch] = notWired;
+    table[IPC.GitDeleteBranch] = notWired;
   } else {
     table[IPC.GitGetStatus] = () => git.status();
     table[IPC.GitDiff] = (_e, file) => git.diffTexts(String(file));
@@ -351,6 +359,16 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
       await git.push();
     };
     table[IPC.GitLog] = (_e, limit) => git.log(typeof limit === "number" ? limit : undefined);
+    table[IPC.GitListBranches] = () => git.listBranches();
+    table[IPC.GitCheckout] = async (_e, name) => {
+      await git.checkout(String(name));
+    };
+    table[IPC.GitCreateBranch] = async (_e, name, doCheckout) => {
+      await git.createBranch(String(name), Boolean(doCheckout));
+    };
+    table[IPC.GitDeleteBranch] = async (_e, name) => {
+      await git.deleteBranch(String(name));
+    };
   }
 
   // ---- DAP 调试（迭代 33 / AC42）：未接线时抛明确错误码（白名单通道恒在表内）----

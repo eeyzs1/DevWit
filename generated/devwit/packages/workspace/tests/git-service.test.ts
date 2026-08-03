@@ -180,4 +180,77 @@ describe("GitService（真实 temp 仓库）", () => {
     await expect(service.pull()).rejects.toThrow("DW_GIT_PULL_FAILED");
     await expect(service.push()).rejects.toThrow("DW_GIT_PUSH_FAILED");
   });
+
+  // ---- 分支管理（v0.4.0）----
+  it.skipIf(!hasGit)("listBranches 非 git 仓库返回空数组", async () => {
+    expect(await service.listBranches()).toEqual([]);
+  });
+
+  it.skipIf(!hasGit)("listBranches 返回当前分支并标记 current", async () => {
+    initRepo(root); // 默认在 main/master
+    const branches = await service.listBranches();
+    expect(branches.length).toBe(1);
+    expect(branches[0]!.current).toBe(true);
+    expect(branches[0]!.name.length).toBeGreaterThan(0);
+  });
+
+  it.skipIf(!hasGit)("createBranch 不切换：新分支出现在列表但 current 不变", async () => {
+    initRepo(root);
+    const before = await service.listBranches();
+    const original = before.find((b) => b.current)!.name;
+    await service.createBranch("feature-a", false);
+    const after = await service.listBranches();
+    expect(after.map((b) => b.name)).toContain("feature-a");
+    const cur = after.find((b) => b.current);
+    expect(cur?.name).toBe(original);
+  });
+
+  it.skipIf(!hasGit)("createBranch 切换：新分支成为 current", async () => {
+    initRepo(root);
+    await service.createBranch("feature-b", true);
+    const branches = await service.listBranches();
+    const cur = branches.find((b) => b.current);
+    expect(cur?.name).toBe("feature-b");
+  });
+
+  it.skipIf(!hasGit)("createBranch 重名抛 DW_GIT_CREATE_BRANCH_FAILED", async () => {
+    initRepo(root);
+    const original = (await service.listBranches()).find((b) => b.current)!.name;
+    await expect(service.createBranch(original, false)).rejects.toThrow("DW_GIT_CREATE_BRANCH_FAILED");
+  });
+
+  it.skipIf(!hasGit)("checkout 切换到已有分支", async () => {
+    initRepo(root);
+    await service.createBranch("feature-c", false);
+    // 当前仍是原始分支
+    const beforeCur = (await service.listBranches()).find((b) => b.current);
+    expect(beforeCur?.name).not.toBe("feature-c");
+    await service.checkout("feature-c");
+    const afterCur = (await service.listBranches()).find((b) => b.current);
+    expect(afterCur?.name).toBe("feature-c");
+  });
+
+  it.skipIf(!hasGit)("checkout 不存在的分支抛 DW_GIT_CHECKOUT_FAILED", async () => {
+    initRepo(root);
+    await expect(service.checkout("nonexistent-branch")).rejects.toThrow("DW_GIT_CHECKOUT_FAILED");
+  });
+
+  it.skipIf(!hasGit)("deleteBranch 删除已合并分支", async () => {
+    initRepo(root);
+    await service.createBranch("to-delete", false);
+    expect((await service.listBranches()).map((b) => b.name)).toContain("to-delete");
+    await service.deleteBranch("to-delete");
+    expect((await service.listBranches()).map((b) => b.name)).not.toContain("to-delete");
+  });
+
+  it.skipIf(!hasGit)("deleteBranch 删除当前分支抛 DW_GIT_DELETE_BRANCH_FAILED", async () => {
+    initRepo(root);
+    const current = (await service.listBranches()).find((b) => b.current)!.name;
+    await expect(service.deleteBranch(current)).rejects.toThrow("DW_GIT_DELETE_BRANCH_FAILED");
+  });
+
+  it.skipIf(!hasGit)("deleteBranch 删除不存在的分支抛 DW_GIT_DELETE_BRANCH_FAILED", async () => {
+    initRepo(root);
+    await expect(service.deleteBranch("no-such-branch")).rejects.toThrow("DW_GIT_DELETE_BRANCH_FAILED");
+  });
 });

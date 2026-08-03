@@ -151,6 +151,10 @@ const api: DevwitApi = {
     pull: () => ipcRenderer.invoke(IPC.GitPull) as Promise<void>,
     push: () => ipcRenderer.invoke(IPC.GitPush) as Promise<void>,
     log: (limit) => ipcRenderer.invoke(IPC.GitLog, limit) as ReturnType<DevwitApi["git"]["log"]>,
+    listBranches: () => ipcRenderer.invoke(IPC.GitListBranches) as ReturnType<DevwitApi["git"]["listBranches"]>,
+    checkout: (name) => ipcRenderer.invoke(IPC.GitCheckout, name) as Promise<void>,
+    createBranch: (name, doCheckout) => ipcRenderer.invoke(IPC.GitCreateBranch, name, doCheckout) as Promise<void>,
+    deleteBranch: (name) => ipcRenderer.invoke(IPC.GitDeleteBranch, name) as Promise<void>,
     onChanged: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.GitChanged, cb)
   },
   debug: {

@@ -6,4 +6,4 @@ export type { WorkspaceChangeListener, WorkspaceEvent } from "./workspace-servic
 export { getGitStatus } from "./git-status.js";
 export type { GitChangedFile, GitStatusResult } from "./git-status.js";
 export { GitService, parsePorcelainZ } from "./git-service.js";
-export type { GitDiffTexts, GitExecFile, GitFileChange, GitLogEntry, GitPanelStatus } from "./git-service.js";
+export type { GitBranch, GitDiffTexts, GitExecFile, GitFileChange, GitLogEntry, GitPanelStatus } from "./git-service.js";
