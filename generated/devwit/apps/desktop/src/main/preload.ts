@@ -155,6 +155,12 @@ const api: DevwitApi = {
     checkout: (name) => ipcRenderer.invoke(IPC.GitCheckout, name) as Promise<void>,
     createBranch: (name, doCheckout) => ipcRenderer.invoke(IPC.GitCreateBranch, name, doCheckout) as Promise<void>,
     deleteBranch: (name) => ipcRenderer.invoke(IPC.GitDeleteBranch, name) as Promise<void>,
+    listStash: () => ipcRenderer.invoke(IPC.GitStashList) as ReturnType<DevwitApi["git"]["listStash"]>,
+    stashPush: (message) => ipcRenderer.invoke(IPC.GitStashPush, message) as Promise<void>,
+    stashPop: (index) => ipcRenderer.invoke(IPC.GitStashPop, index) as Promise<void>,
+    stashApply: (index) => ipcRenderer.invoke(IPC.GitStashApply, index) as Promise<void>,
+    stashDrop: (index) => ipcRenderer.invoke(IPC.GitStashDrop, index) as Promise<void>,
+    blame: (file) => ipcRenderer.invoke(IPC.GitBlame, file) as ReturnType<DevwitApi["git"]["blame"]>,
     onChanged: (cb) => subscribe<[Parameters<typeof cb>[0]]>(IPC.GitChanged, cb)
   },
   debug: {

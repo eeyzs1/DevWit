@@ -982,6 +982,28 @@ export interface GitBranch {
   current: boolean;
 }
 
+/** git stash 列表项（git:stash-list 返回项）。 */
+export interface GitStashEntry {
+  /** stash@{n} 索引。 */
+  index: number;
+  /** stash 描述消息。 */
+  message: string;
+}
+
+/** git blame 单行注解（git:blame 返回项，按行号 1-based 排列）。 */
+export interface GitBlameLine {
+  /** 文件内 1-based 行号。 */
+  line: number;
+  /** 提交短哈希（7 位）。 */
+  hash: string;
+  /** 作者名。 */
+  author: string;
+  /** 日期（ISO 格式）。 */
+  date: string;
+  /** 提交摘要（首行）。 */
+  summary: string;
+}
+
 // ============================================================================
 // DAP 调试（迭代 33 / AC42）：js-debug 适配器 JS 断点调试
 // ============================================================================
@@ -1125,6 +1147,12 @@ export const IPC = {
   GitCheckout: "git:checkout",
   GitCreateBranch: "git:create-branch",
   GitDeleteBranch: "git:delete-branch",
+  GitStashList: "git:stash-list",
+  GitStashPush: "git:stash-push",
+  GitStashPop: "git:stash-pop",
+  GitStashApply: "git:stash-apply",
+  GitStashDrop: "git:stash-drop",
+  GitBlame: "git:blame",
   GitChanged: "git:changed",
   DebugStart: "debug:start",
   DebugStop: "debug:stop",
@@ -1261,6 +1289,18 @@ export interface DevwitApi {
     createBranch(name: string, checkout: boolean): Promise<void>;
     /** git branch -d <name>：删除已合并分支；失败抛 DW_GIT_DELETE_BRANCH_FAILED。 */
     deleteBranch(name: string): Promise<void>;
+    /** git stash list：暂存列表（索引 + 消息）。 */
+    listStash(): Promise<GitStashEntry[]>;
+    /** git stash push -m <message>：暂存当前变更；失败抛 DW_GIT_STASH_FAILED。 */
+    stashPush(message?: string): Promise<void>;
+    /** git stash pop stash@{index}：恢复并删除暂存；失败抛 DW_GIT_STASH_FAILED。 */
+    stashPop(index: number): Promise<void>;
+    /** git stash apply stash@{index}：恢复但不删除暂存；失败抛 DW_GIT_STASH_FAILED。 */
+    stashApply(index: number): Promise<void>;
+    /** git stash drop stash@{index}：删除指定暂存；失败抛 DW_GIT_STASH_FAILED。 */
+    stashDrop(index: number): Promise<void>;
+    /** git blame --line-porcelain <file>：逐行注解（hash/author/date/summary）；非 git 仓库返回空数组。 */
+    blame(file: string): Promise<GitBlameLine[]>;
     /** 订阅状态变化推送（操作后/工作区文件事件防抖刷新，载荷为全量快照；null=非 git 仓库）。 */
     onChanged(cb: (status: GitPanelStatus | null) => void): () => void;
   };

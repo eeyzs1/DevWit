@@ -10,7 +10,7 @@
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { IPC } from "@devwit/contracts";
-import type { AgentRunInput, AuthorizationDecision, ContextItemType, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, ExternalEditorConfig, GitBranch, GitDiffTexts, GitLogEntry, GitPanelStatus, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspHoverInfo, LspSignatureHelp, LspStatusInfo, LspTextEdit, ProviderConfig, ProviderProbeRequest, ProviderProbeResult, UsageExportFormat } from "@devwit/contracts";
+import type { AgentRunInput, AuthorizationDecision, ContextItemType, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, ExternalEditorConfig, GitBlameLine, GitBranch, GitDiffTexts, GitLogEntry, GitPanelStatus, GitStashEntry, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspHoverInfo, LspSignatureHelp, LspStatusInfo, LspTextEdit, ProviderConfig, ProviderProbeRequest, ProviderProbeResult, UsageExportFormat } from "@devwit/contracts";
 import { PROVIDER_PRESETS, probeProvider } from "@devwit/llm-providers";
 import { fetchCommunityIndex, fetchCommunityMode, materializeImport, parseExportFile, resolveModesIndexBase, toExportFile } from "@devwit/modes";
 import { fetchCommunityMcpIndex, fetchCommunityMcpServer, materializeMcpImport } from "@devwit/mcp";
@@ -108,6 +108,12 @@ export interface GitIpcService {
   checkout(name: string): Promise<void>;
   createBranch(name: string, checkout: boolean): Promise<void>;
   deleteBranch(name: string): Promise<void>;
+  listStash(): Promise<GitStashEntry[]>;
+  stashPush(message?: string): Promise<void>;
+  stashPop(index: number): Promise<void>;
+  stashApply(index: number): Promise<void>;
+  stashDrop(index: number): Promise<void>;
+  blame(relPath: string): Promise<GitBlameLine[]>;
 }
 
 /** LSP 接线参数（迭代 31 / AC40）：结构子集与 LspService 对齐（保持本文件无包运行时依赖）。 */
@@ -340,6 +346,12 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     table[IPC.GitCheckout] = notWired;
     table[IPC.GitCreateBranch] = notWired;
     table[IPC.GitDeleteBranch] = notWired;
+    table[IPC.GitStashList] = notWired;
+    table[IPC.GitStashPush] = notWired;
+    table[IPC.GitStashPop] = notWired;
+    table[IPC.GitStashApply] = notWired;
+    table[IPC.GitStashDrop] = notWired;
+    table[IPC.GitBlame] = notWired;
   } else {
     table[IPC.GitGetStatus] = () => git.status();
     table[IPC.GitDiff] = (_e, file) => git.diffTexts(String(file));
@@ -369,6 +381,20 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     table[IPC.GitDeleteBranch] = async (_e, name) => {
       await git.deleteBranch(String(name));
     };
+    table[IPC.GitStashList] = () => git.listStash();
+    table[IPC.GitStashPush] = async (_e, message) => {
+      await git.stashPush(typeof message === "string" ? message : undefined);
+    };
+    table[IPC.GitStashPop] = async (_e, index) => {
+      await git.stashPop(Number(index));
+    };
+    table[IPC.GitStashApply] = async (_e, index) => {
+      await git.stashApply(Number(index));
+    };
+    table[IPC.GitStashDrop] = async (_e, index) => {
+      await git.stashDrop(Number(index));
+    };
+    table[IPC.GitBlame] = (_e, file) => git.blame(String(file));
   }
 
   // ---- DAP 调试（迭代 33 / AC42）：未接线时抛明确错误码（白名单通道恒在表内）----

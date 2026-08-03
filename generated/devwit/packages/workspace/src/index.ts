@@ -5,5 +5,5 @@ export { WorkspaceService } from "./workspace-service.js";
 export type { WorkspaceChangeListener, WorkspaceEvent } from "./workspace-service.js";
 export { getGitStatus } from "./git-status.js";
 export type { GitChangedFile, GitStatusResult } from "./git-status.js";
-export { GitService, parsePorcelainZ } from "./git-service.js";
-export type { GitBranch, GitDiffTexts, GitExecFile, GitFileChange, GitLogEntry, GitPanelStatus } from "./git-service.js";
+export { GitService, parseBlamePorcelain, parsePorcelainZ } from "./git-service.js";
+export type { GitBlameLine, GitBranch, GitDiffTexts, GitExecFile, GitFileChange, GitLogEntry, GitPanelStatus, GitStashEntry } from "./git-service.js";

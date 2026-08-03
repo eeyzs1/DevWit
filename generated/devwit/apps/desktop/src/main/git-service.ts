@@ -6,7 +6,7 @@
  * 非 git 仓库 status 返回 null（渲染端显引导态），不抛错。
  */
 import { IPC } from "@devwit/contracts";
-import type { GitBranch, GitDiffTexts, GitLogEntry, GitPanelStatus } from "@devwit/contracts";
+import type { GitBlameLine, GitBranch, GitDiffTexts, GitLogEntry, GitPanelStatus, GitStashEntry } from "@devwit/contracts";
 import { GitService } from "@devwit/workspace";
 
 export interface GitMainServiceDeps {
@@ -76,6 +76,33 @@ export class GitMainService {
 
   async deleteBranch(name: string): Promise<void> {
     await this.requireService().deleteBranch(name);
+  }
+
+  listStash(): Promise<GitStashEntry[]> {
+    return this.requireService().listStash();
+  }
+
+  async stashPush(message?: string): Promise<void> {
+    await this.requireService().stashPush(message);
+    await this.pushChanged();
+  }
+
+  async stashPop(index: number): Promise<void> {
+    await this.requireService().stashPop(index);
+    await this.pushChanged();
+  }
+
+  async stashApply(index: number): Promise<void> {
+    await this.requireService().stashApply(index);
+    await this.pushChanged();
+  }
+
+  async stashDrop(index: number): Promise<void> {
+    await this.requireService().stashDrop(index);
+  }
+
+  blame(relPath: string): Promise<GitBlameLine[]> {
+    return this.requireService().blame(relPath);
   }
 
   private requireService(): GitService {

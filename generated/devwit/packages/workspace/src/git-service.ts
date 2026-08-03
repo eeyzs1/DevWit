@@ -50,6 +50,21 @@ export interface GitBranch {
   current: boolean;
 }
 
+/** git stash 列表项。 */
+export interface GitStashEntry {
+  index: number;
+  message: string;
+}
+
+/** git blame 单行注解。 */
+export interface GitBlameLine {
+  line: number;
+  hash: string;
+  author: string;
+  date: string;
+  summary: string;
+}
+
 const GIT_TIMEOUT_MS = 5000;
 const GIT_COMMIT_TIMEOUT_MS = 30_000;
 const MAX_BUFFER = 16 * 1024 * 1024;
@@ -254,6 +269,86 @@ export class GitService {
     await this.runMutating(["branch", "-d", name], "DW_GIT_DELETE_BRANCH_FAILED");
   }
 
+  // ---- Stash（v0.4.0）----
+
+  /**
+   * git stash list：暂存列表。
+   * format=%gd%x00%s：ref 标识 NUL 分隔摘要。非 git 仓库/无暂存返回空数组。
+   */
+  listStash(): Promise<GitStashEntry[]> {
+    return new Promise((resolve) => {
+      this.execImpl(
+        "git",
+        ["stash", "list", "--format=%gd%x00%s"],
+        { cwd: this.root, timeout: GIT_TIMEOUT_MS, maxBuffer: MAX_BUFFER },
+        (error, stdout) => {
+          if (error) {
+            resolve([]);
+            return;
+          }
+          const entries: GitStashEntry[] = [];
+          for (const line of stdout.split("\n")) {
+            if (line.length === 0) continue;
+            const [ref, message] = line.split("\0");
+            const match = ref?.match(/stash@\{(\d+)\}/);
+            if (match && message) {
+              entries.push({ index: Number(match[1]), message });
+            }
+          }
+          resolve(entries);
+        }
+      );
+    });
+  }
+
+  /** git stash push [-m <message>]；失败抛 DW_GIT_STASH_FAILED:* */
+  async stashPush(message?: string): Promise<void> {
+    const args = message !== undefined && message.trim() !== ""
+      ? ["stash", "push", "-m", message.trim()]
+      : ["stash", "push"];
+    await this.runMutating(args, "DW_GIT_STASH_FAILED");
+  }
+
+  /** git stash pop stash@{index}；失败抛 DW_GIT_STASH_FAILED:* */
+  async stashPop(index: number): Promise<void> {
+    await this.runMutating(["stash", "pop", `stash@{${index}}`], "DW_GIT_STASH_FAILED");
+  }
+
+  /** git stash apply stash@{index}；失败抛 DW_GIT_STASH_FAILED:* */
+  async stashApply(index: number): Promise<void> {
+    await this.runMutating(["stash", "apply", `stash@{${index}}`], "DW_GIT_STASH_FAILED");
+  }
+
+  /** git stash drop stash@{index}；失败抛 DW_GIT_STASH_FAILED:* */
+  async stashDrop(index: number): Promise<void> {
+    await this.runMutating(["stash", "drop", `stash@{${index}}`], "DW_GIT_STASH_FAILED");
+  }
+
+  // ---- Blame（v0.4.0）----
+
+  /**
+   * git blame --line-porcelain <file>：逐行注解。
+   * --line-porcelain 输出每行一组元数据（hash/author/author-mail/author-time/summary）。
+   * 非 git 仓库/文件不在版本控制返回空数组。
+   */
+  blame(relPath: string): Promise<GitBlameLine[]> {
+    const normalized = relPath.replace(/\\/g, "/").replace(/^\/+/, "");
+    return new Promise((resolve) => {
+      this.execImpl(
+        "git",
+        ["blame", "--line-porcelain", "--", normalized],
+        { cwd: this.root, timeout: GIT_TIMEOUT_MS, maxBuffer: MAX_BUFFER },
+        (error, stdout) => {
+          if (error) {
+            resolve([]);
+            return;
+          }
+          resolve(parseBlamePorcelain(stdout));
+        }
+      );
+    });
+  }
+
   private runMutating(args: string[], code: string, timeout = GIT_TIMEOUT_MS): Promise<void> {
     return new Promise((resolve, reject) => {
       this.execImpl("git", args, { cwd: this.root, timeout, maxBuffer: MAX_BUFFER }, (error, _stdout, stderr) => {
@@ -312,4 +407,60 @@ function parseBranchHeader(header: string): string {
   }
   const dotIdx = header.indexOf("...");
   return (dotIdx >= 0 ? header.slice(0, dotIdx) : header).trim();
+}
+
+/**
+ * git blame --line-porcelain 解析。
+ * 输出格式：每行一组——首行 `<40-char-hash> <orig-line> <final-line>`，
+ * 随后若干 `key value` 头部行（author/author-mail/author-time/summary 等），
+ * 最后以制表符开头的行为文件内容（跳过）。
+ * 每个 entry 以空行或新 hash 行分隔。
+ */
+export function parseBlamePorcelain(stdout: string): GitBlameLine[] {
+  const lines = stdout.split("\n");
+  const result: GitBlameLine[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i] ?? "";
+    // hash 行格式：40位hash 原行号 最终行号（可能后跟分组内容）
+    const match = line.match(/^([0-9a-f]{40})\s+(\d+)\s+(\d+)/);
+    if (!match) {
+      i += 1;
+      continue;
+    }
+    const hash = match[1]!.slice(0, 7);
+    const finalLine = Number(match[3]);
+    let author = "";
+    let authorTime = "";
+    let summary = "";
+    i += 1;
+    // 读取头部 key-value 行直到遇到制表符开头的文件内容行或下一个 hash 行
+    while (i < lines.length) {
+      const hdr = lines[i] ?? "";
+      if (hdr.startsWith("\t")) {
+        i += 1;
+        break; // 文件内容行，跳过
+      }
+      if (/^[0-9a-f]{40}\s+\d+/.test(hdr)) {
+        break; // 下一个 entry 的 hash 行
+      }
+      const spaceIdx = hdr.indexOf(" ");
+      if (spaceIdx > 0) {
+        const key = hdr.slice(0, spaceIdx);
+        const value = hdr.slice(spaceIdx + 1);
+        if (key === "author") author = value;
+        else if (key === "author-time") authorTime = value;
+        else if (key === "summary") summary = value;
+      }
+      i += 1;
+    }
+    result.push({
+      line: finalLine,
+      hash,
+      author,
+      date: authorTime !== "" ? new Date(Number(authorTime) * 1000).toISOString().slice(0, 10) : "",
+      summary,
+    });
+  }
+  return result;
 }

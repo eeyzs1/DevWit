@@ -162,6 +162,7 @@ export function localizeError(raw: string, opts?: LocalizeErrorOptions): string 
   if (raw.includes("DW_GIT_CHECKOUT_FAILED")) return t("err.gitCheckoutFailed");
   if (raw.includes("DW_GIT_CREATE_BRANCH_FAILED")) return t("err.gitCreateBranchFailed");
   if (raw.includes("DW_GIT_DELETE_BRANCH_FAILED")) return t("err.gitDeleteBranchFailed");
+  if (raw.includes("DW_GIT_STASH_FAILED")) return t("err.gitStashFailed");
   if (raw.includes("DW_GIT_NOT_WIRED")) return t("err.gitNotWired");
   // 迭代 33 / AC42 DAP 调试错误码（detail 为适配器 stderr 摘要，随码剥离不展示）
   if (raw.includes("DW_DAP_ALREADY_ACTIVE")) return t("err.debugAlreadyActive");

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { GitService, parsePorcelainZ } from "../src/git-service.js";
+import { GitService, parseBlamePorcelain, parsePorcelainZ } from "../src/git-service.js";
 
 const hasGit = spawnSync("git", ["--version"], { timeout: 5000 }).status === 0;
 
@@ -252,5 +252,132 @@ describe("GitService（真实 temp 仓库）", () => {
   it.skipIf(!hasGit)("deleteBranch 删除不存在的分支抛 DW_GIT_DELETE_BRANCH_FAILED", async () => {
     initRepo(root);
     await expect(service.deleteBranch("no-such-branch")).rejects.toThrow("DW_GIT_DELETE_BRANCH_FAILED");
+  });
+
+  // ---- Stash（v0.4.0）----
+  it.skipIf(!hasGit)("listStash 非 git 仓库返回空数组", async () => {
+    expect(await service.listStash()).toEqual([]);
+  });
+
+  it.skipIf(!hasGit)("listStash 无暂存返回空数组", async () => {
+    initRepo(root);
+    expect(await service.listStash()).toEqual([]);
+  });
+
+  it.skipIf(!hasGit)("stashPush + listStash 返回暂存项", async () => {
+    initRepo(root);
+    fs.writeFileSync(path.join(root, "tracked.txt"), "changed\n", "utf-8");
+    await service.stashPush("my stash");
+    const entries = await service.listStash();
+    expect(entries.length).toBe(1);
+    expect(entries[0]!.index).toBe(0);
+    expect(entries[0]!.message).toContain("my stash");
+  });
+
+  it.skipIf(!hasGit)("stashPop 恢复变更并清空暂存", async () => {
+    initRepo(root);
+    fs.writeFileSync(path.join(root, "tracked.txt"), "changed\n", "utf-8");
+    await service.stashPush("test pop");
+    // 暂存后工作区应干净
+    let status = await service.status();
+    expect(status?.unstaged).toEqual([]);
+    // pop 恢复变更
+    await service.stashPop(0);
+    status = await service.status();
+    expect(status?.unstaged.length).toBe(1);
+    // 暂存列表应空
+    expect(await service.listStash()).toEqual([]);
+  });
+
+  it.skipIf(!hasGit)("stashApply 恢复变更但保留暂存", async () => {
+    initRepo(root);
+    fs.writeFileSync(path.join(root, "tracked.txt"), "changed\n", "utf-8");
+    await service.stashPush("test apply");
+    await service.stashApply(0);
+    // apply 后暂存仍存在
+    expect((await service.listStash()).length).toBe(1);
+    // 工作区恢复变更
+    const status = await service.status();
+    expect(status?.unstaged.length).toBe(1);
+  });
+
+  it.skipIf(!hasGit)("stashDrop 删除指定暂存", async () => {
+    initRepo(root);
+    // 用已跟踪文件的修改触发 stash（untracked 默认不入 stash）
+    fs.writeFileSync(path.join(root, "tracked.txt"), "change1\n", "utf-8");
+    await service.stashPush("first");
+    fs.writeFileSync(path.join(root, "tracked.txt"), "change2\n", "utf-8");
+    await service.stashPush("second");
+    expect((await service.listStash()).length).toBe(2);
+    await service.stashDrop(0);
+    expect((await service.listStash()).length).toBe(1);
+  });
+
+  it.skipIf(!hasGit)("stashPop 不存在的索引抛 DW_GIT_STASH_FAILED", async () => {
+    initRepo(root);
+    await expect(service.stashPop(99)).rejects.toThrow("DW_GIT_STASH_FAILED");
+  });
+
+  // ---- Blame（v0.4.0）----
+  it.skipIf(!hasGit)("blame 非 git 仓库返回空数组", async () => {
+    fs.writeFileSync(path.join(root, "a.txt"), "x\n", "utf-8");
+    expect(await service.blame("a.txt")).toEqual([]);
+  });
+
+  it.skipIf(!hasGit)("blame 返回逐行注解", async () => {
+    initRepo(root);
+    const entries = await service.blame("tracked.txt");
+    expect(entries.length).toBe(2); // tracked.txt = line1\nline2\n
+    expect(entries[0]!.line).toBe(1);
+    expect(entries[1]!.line).toBe(2);
+    expect(entries[0]!.hash).toHaveLength(7);
+    expect(entries[0]!.author).toBe("DevWit Test");
+    expect(entries[0]!.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(entries[0]!.summary).toBe("init");
+  });
+
+  it.skipIf(!hasGit)("blame 未跟踪文件返回空数组", async () => {
+    initRepo(root);
+    fs.writeFileSync(path.join(root, "new.txt"), "new\n", "utf-8");
+    expect(await service.blame("new.txt")).toEqual([]);
+  });
+});
+
+describe("parseBlamePorcelain（纯解析）", () => {
+  it("解析单行 blame 输出", () => {
+    const out = [
+      "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2 1 1 1",
+      "author Alice",
+      "author-mail <alice@example.com>",
+      "author-time 1700000000",
+      "summary init commit",
+      "\tline1 content",
+    ].join("\n");
+    const result = parseBlamePorcelain(out);
+    expect(result.length).toBe(1);
+    expect(result[0]!.line).toBe(1);
+    expect(result[0]!.hash).toBe("a1b2c3d");
+    expect(result[0]!.author).toBe("Alice");
+    expect(result[0]!.summary).toBe("init commit");
+  });
+
+  it("解析多行 blame 输出", () => {
+    const out = [
+      "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2 1 1 1",
+      "author Alice",
+      "author-time 1700000000",
+      "summary init",
+      "\tline1",
+      "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3 2 2 1",
+      "author Bob",
+      "author-time 1700000100",
+      "summary fix",
+      "\tline2",
+    ].join("\n");
+    const result = parseBlamePorcelain(out);
+    expect(result.length).toBe(2);
+    expect(result[0]!.author).toBe("Alice");
+    expect(result[1]!.author).toBe("Bob");
+    expect(result[1]!.line).toBe(2);
   });
 });

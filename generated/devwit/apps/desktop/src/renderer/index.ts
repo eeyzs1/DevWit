@@ -5,7 +5,7 @@
  * 全部界面文案经 @devwit/i18n 词典渲染；启动时从 settings "ui.locale" 恢复语言，
  * 订阅 onDidChangeLocale 全量重写静态文案与动态列表（语言热生效）。
  */
-import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitBranch, GitPanelStatus, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspSignatureHelp, LspStatusInfo, LspTextEdit, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
+import type { DevwitApi, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitBlameLine, GitBranch, GitPanelStatus, GitStashEntry, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspSignatureHelp, LspStatusInfo, LspTextEdit, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, resolveSystemLocale, setLocale, t, ta, type Locale } from "@devwit/i18n";
 import { TextDocument } from "@devwit/editor-core";
 import { EditorView, normalizeSelection } from "@devwit/editor-render";
@@ -174,10 +174,11 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   const openBtn = el("button", "dw-btn", t("chrome.openFolder"));
   const saveBtn = el("button", "dw-btn", t("chrome.save"));
   const externalBtn = el("button", "dw-btn", t("chrome.external"));
+  const blameBtn = el("button", "dw-btn", t("git.blame"));
   const activeFileLabel = el("span", "dw-active-file", t("chrome.noFile"));
   const spacer = el("span", "dw-spacer");
   const settingsBtn = el("button", "dw-btn", t("chrome.settings"));
-  header.append(formBtn, openBtn, saveBtn, externalBtn, activeFileLabel, spacer, settingsBtn);
+  header.append(formBtn, openBtn, saveBtn, externalBtn, blameBtn, activeFileLabel, spacer, settingsBtn);
 
   // ---- 状态栏 ----
   const statusWorkspace = el("span", undefined, t("status.noWorkspace"));
@@ -242,6 +243,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       editor.setDocument(file.doc);
       activeFileLabel.textContent = file.path;
     }
+    closeBlame(); // 切换文件时关闭 blame 覆盖层（行号不再对齐）
     refreshDirty();
   };
   const refreshDirty = (): void => {
@@ -1271,6 +1273,8 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   let gitDiffTitleSpan: HTMLElement | null = null;
   let gitDiffFile: string | null = null;
   let branchDropdown: HTMLElement | null = null;
+  let blameOverlay: HTMLElement | null = null;
+  let blameActive = false;
 
   /** 状态栏 git 项：branch 常驻（git 工作区），变更计数 >0 时追加。 */
   function renderGitStatus(): void {
@@ -1381,6 +1385,72 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     });
     foot.append(commitInput, commitBtn);
     gitPane.appendChild(foot);
+
+    // Stash 区（v0.4.0）：暂存按钮 + 暂存列表
+    const stashBox = el("div", "dw-git-stash");
+    const stashHead = el("div", "dw-git-stash-head");
+    stashHead.appendChild(el("span", "dw-git-stash-title", t("git.stash.title")));
+    const stashPushBtn = el("button", "dw-btn dw-btn-small", t("git.stash.push"));
+    stashPushBtn.disabled = total === 0;
+    stashPushBtn.addEventListener("click", () => void doStashPush());
+    stashHead.appendChild(stashPushBtn);
+    stashBox.appendChild(stashHead);
+    const stashList = el("div", "dw-git-stash-list");
+    stashBox.appendChild(stashList);
+    gitPane.appendChild(stashBox);
+    void refreshStashList(stashList);
+  }
+
+  /** 暂存当前变更（v0.4.0）。 */
+  async function doStashPush(): Promise<void> {
+    try {
+      await api.git.stashPush();
+      showStatus(t("git.stash.push"));
+    } catch (error) {
+      showStatus(toLocalError(error instanceof Error ? error.message : String(error)));
+    }
+  }
+
+  /** 刷新暂存列表（v0.4.0）：操作后渲染端自查 git:changed 推送会重建面板，此函数填充列表内容。 */
+  async function refreshStashList(container: HTMLElement): Promise<void> {
+    let entries: GitStashEntry[];
+    try {
+      entries = await api.git.listStash();
+    } catch {
+      return;
+    }
+    container.textContent = "";
+    if (entries.length === 0) {
+      container.appendChild(el("div", "dw-sidebar-empty", t("git.stash.empty")));
+      return;
+    }
+    for (const entry of entries) {
+      const row = el("div", "dw-git-stash-row");
+      const msg = el("span", "dw-git-stash-msg", entry.message);
+      msg.title = entry.message;
+      const popBtn = el("button", "dw-git-action", "↧");
+      popBtn.title = t("git.stash.pop");
+      popBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        void doGitOp(() => api.git.stashPop(entry.index));
+      });
+      const applyBtn = el("button", "dw-git-action", "↦");
+      applyBtn.title = t("git.stash.apply");
+      applyBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        void doGitOp(() => api.git.stashApply(entry.index));
+      });
+      const dropBtn = el("button", "dw-git-action", "✕");
+      dropBtn.title = t("git.stash.drop");
+      dropBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        if (window.confirm(t("git.stash.dropConfirm", { index: String(entry.index) }))) {
+          void doGitOp(() => api.git.stashDrop(entry.index));
+        }
+      });
+      row.append(msg, popBtn, applyBtn, dropBtn);
+      container.appendChild(row);
+    }
   }
 
   /** 只读 git diff 视图（HEAD ↔ 工作区）：复用 dw-diff 样式与 computeDiff 纯逻辑，无接受/拒绝语义。 */
@@ -1430,6 +1500,73 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     gitDiffTitleSpan = null;
     gitDiffFile = null;
   }
+
+  /** 关闭 blame 覆盖层（v0.4.0）。 */
+  function closeBlame(): void {
+    blameOverlay?.remove();
+    blameOverlay = null;
+    blameActive = false;
+    blameBtn.classList.remove("dw-btn-active");
+  }
+
+  /**
+   * 切换 blame 覆盖层（v0.4.0）：点击 Blame 按钮 → 加载逐行注解 → 覆盖层展示。
+   * 需打开文件且工作区为 git 仓库；再点关闭。
+   */
+  async function toggleBlame(): Promise<void> {
+    if (blameActive) {
+      closeBlame();
+      return;
+    }
+    if (openFile === null || workspaceRoot === "") {
+      showStatus(t("status.openFileFirst"));
+      return;
+    }
+    const rel = relPathOf(openFile.path);
+    blameBtn.classList.add("dw-btn-active");
+    blameActive = true;
+    // 加载中占位
+    const loading = el("div", "dw-blame-overlay");
+    loading.appendChild(el("div", "dw-blame-loading", t("git.blame.loading")));
+    editorArea.appendChild(loading);
+    blameOverlay = loading;
+    let lines: GitBlameLine[];
+    try {
+      lines = await api.git.blame(rel);
+    } catch {
+      closeBlame();
+      return;
+    }
+    if (!blameActive) return; // 加载期间被关闭
+    loading.textContent = "";
+    if (lines.length === 0) {
+      loading.appendChild(el("div", "dw-blame-loading", t("git.blame.empty")));
+      return;
+    }
+    // 按行号排序构建注解列
+    const byLine = new Map<number, GitBlameLine>();
+    for (const bl of lines) byLine.set(bl.line, bl);
+    const doc = editor.document;
+    const totalLines = doc.lineCount;
+    const col = el("div", "dw-blame-col");
+    for (let i = 1; i <= totalLines; i += 1) {
+      const bl = byLine.get(i);
+      const row = el("div", "dw-blame-row");
+      if (bl === undefined) {
+        row.appendChild(el("span", "dw-blame-hash", "·······"));
+        row.appendChild(el("span", "dw-blame-author", "—"));
+        row.appendChild(el("span", "dw-blame-date", ""));
+      } else {
+        row.appendChild(el("span", "dw-blame-hash", bl.hash));
+        row.appendChild(el("span", "dw-blame-author", bl.author));
+        row.appendChild(el("span", "dw-blame-date", bl.date));
+        row.title = `${bl.hash} ${bl.author} ${bl.date}\n${bl.summary}`;
+      }
+      col.appendChild(row);
+    }
+    loading.appendChild(col);
+  }
+  blameBtn.addEventListener("click", () => void toggleBlame());
 
   /** 关闭分支下拉弹层（v0.4.0 Git 分支管理）。 */
   function closeBranchDropdown(): void {
@@ -2496,6 +2633,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     saveBtn.textContent = t("chrome.save");
     externalBtn.textContent = t("chrome.external");
     externalBtn.title = t("chrome.external.tooltip");
+    blameBtn.textContent = t("git.blame");
     activeFileLabel.textContent = openFile?.path ?? t("chrome.noFile");
     settingsBtn.textContent = t("chrome.settings");
     if (workspaceRoot === "") statusWorkspace.textContent = t("status.noWorkspace");

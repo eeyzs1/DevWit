@@ -665,6 +665,12 @@ body,
   border-color: var(--dw-accent);
 }
 
+.dw-btn-active {
+  background: var(--dw-accent);
+  border-color: var(--dw-accent);
+  color: #fff;
+}
+
 .dw-btn-primary {
   background: var(--dw-accent);
   border-color: var(--dw-accent);
@@ -1804,6 +1810,118 @@ body,
 .dw-branch-create-input:focus {
   outline: none;
   border-color: var(--dw-accent);
+}
+
+/* ---- Git stash 区（v0.4.0）---- */
+.dw-git-stash {
+  flex-shrink: 0;
+  border-top: 1px solid var(--dw-border);
+  max-height: 160px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dw-git-stash-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  flex-shrink: 0;
+}
+
+.dw-git-stash-title {
+  flex: 1;
+  font-size: 11px;
+  color: var(--dw-fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dw-git-stash-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.dw-git-stash-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  color: var(--dw-fg-dim);
+}
+
+.dw-git-stash-row:hover {
+  background: var(--dw-bg-elevated);
+  color: var(--dw-fg);
+}
+
+.dw-git-stash-msg {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+/* ---- Git blame 覆盖层（v0.4.0）---- */
+.dw-blame-overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 240px;
+  background: var(--dw-bg-elevated);
+  border-right: 1px solid var(--dw-border);
+  overflow: auto;
+  z-index: 50;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+}
+
+.dw-blame-loading {
+  padding: 12px;
+  color: var(--dw-fg-dim);
+  font-size: 12px;
+}
+
+.dw-blame-col {
+  padding: 0;
+}
+
+.dw-blame-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  height: 20px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.dw-blame-row:hover {
+  background: var(--dw-bg);
+}
+
+.dw-blame-hash {
+  flex-shrink: 0;
+  width: 56px;
+  font-family: Consolas, "Courier New", monospace;
+  color: var(--dw-accent);
+  overflow: hidden;
+}
+
+.dw-blame-author {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--dw-fg-dim);
+}
+
+.dw-blame-date {
+  flex-shrink: 0;
+  color: var(--dw-fg-dim);
+  font-size: 10px;
 }
 
 /* ---- DAP 调试（迭代 33 / AC42）---- */
