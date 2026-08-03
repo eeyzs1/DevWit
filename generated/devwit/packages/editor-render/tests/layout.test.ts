@@ -3,6 +3,7 @@ import {
   clampScrollTop,
   columnForX,
   comparePositions,
+  computeAutoIndent,
   computeAutoPair,
   findMatchingBracket,
   indentLevelOf,
@@ -300,5 +301,81 @@ describe("computeAutoPair 自动配对计算", () => {
     // open="/*" close="*/"（块注释配对，验证长度泛化）
     const r = computeAutoPair([{ startOffset: 0, endOffset: 0 }], "/*", "*/", () => "");
     expect(r).toEqual([{ text: "/**/", cursorOffset: 2 }]); // 0+2+0+0
+  });
+});
+
+describe("computeAutoIndent 自动缩进", () => {
+  it("无缩进行 → 空串", () => {
+    expect(computeAutoIndent("const x = 1;", 13, 4)).toBe("");
+    expect(computeAutoIndent("noIndent", 8, 4)).toBe("");
+  });
+
+  it("空行 → 空串", () => {
+    expect(computeAutoIndent("", 0, 4)).toBe("");
+  });
+
+  it("空格缩进 → 继承前导空格", () => {
+    expect(computeAutoIndent("    const x = 1;", 17, 4)).toBe("    ");
+    expect(computeAutoIndent("        const x = 1;", 21, 4)).toBe("        ");
+  });
+
+  it("tab 缩进 → 继承前导 tab（原样保留）", () => {
+    expect(computeAutoIndent("\tconst x = 1;", 13, 4)).toBe("\t");
+    expect(computeAutoIndent("\t\tconst x = 1;", 14, 4)).toBe("\t\t");
+  });
+
+  it("空格+tab 混合缩进 → 原样继承", () => {
+    expect(computeAutoIndent("  \tconst x = 1;", 13, 4)).toBe("  \t");
+  });
+
+  it("行尾 { → 继承缩进 + 加一级（tabSize 个空格）", () => {
+    // "    function f() {" 长度 18，光标在末尾
+    expect(computeAutoIndent("    function f() {", 18, 4)).toBe("        ");
+    expect(computeAutoIndent("function f() {", 14, 4)).toBe("    ");
+  });
+
+  it("tab 缩进行尾 { → tab + tabSize 空格（混合，符合实现在加级时用空格）", () => {
+    expect(computeAutoIndent("\tfunction f() {", 15, 4)).toBe("\t    ");
+  });
+
+  it("光标在行中 { 之后 → 加一级；{ 之前 → 仅继承", () => {
+    // "  if (x) { y }" — { 在 index 9
+    // 光标 character=10（{ 之后）→ before="  if (x) {" 去尾空白仍以 { 结尾 → 加级
+    // 光标 character=9（{ 之前）→ before="  if (x) " 去尾空白为 "  if (x)" → 仅继承
+    expect(computeAutoIndent("  if (x) { y }", 10, 4)).toBe("      ");
+    expect(computeAutoIndent("  if (x) { y }", 9, 4)).toBe("  ");
+  });
+
+  it("光标前文本不以 { 结尾 → 仅继承（不因行中有 { 而加级）", () => {
+    // "  a { b" — 光标在末尾（character=7），before="  a { b" 不以 { 结尾
+    expect(computeAutoIndent("  a { b", 7, 4)).toBe("  ");
+  });
+
+  it("行尾 { 后有尾随空白 → 去尾空白后仍检测到 { → 加级", () => {
+    // "  f() {   " — 光标在末尾（character=9），before 去尾空白为 "  f() {" 结尾 {
+    expect(computeAutoIndent("  f() {   ", 9, 4)).toBe("      ");
+  });
+
+  it("非 { 的括号结尾 → 不加级（仅 { 触发）", () => {
+    expect(computeAutoIndent("  f(", 4, 4)).toBe("  ");
+    expect(computeAutoIndent("  f[", 4, 4)).toBe("  ");
+    expect(computeAutoIndent("  f(", 4, 2)).toBe("  ");
+  });
+
+  it("tabSize=2 时加一级为 2 空格", () => {
+    expect(computeAutoIndent("  f() {", 7, 2)).toBe("    ");
+    expect(computeAutoIndent("f() {", 5, 2)).toBe("  ");
+  });
+
+  it("cursorCharacter 收敛到 [0, lineText.length]", () => {
+    // 负值 → 0，before="" → 空串
+    expect(computeAutoIndent("    code", -5, 4)).toBe("");
+    // 超出长度 → 取整行
+    expect(computeAutoIndent("    code", 999, 4)).toBe("    ");
+  });
+
+  it("光标在前导空白中间 → 继承光标前的前导空白", () => {
+    // "    code" — 光标在 character=2（前导空白中间）→ before="  " → leading="  "
+    expect(computeAutoIndent("    code", 2, 4)).toBe("  ");
   });
 });

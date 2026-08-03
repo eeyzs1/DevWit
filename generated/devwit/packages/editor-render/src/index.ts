@@ -11,6 +11,7 @@ export {
   clampScrollTop,
   columnForX,
   comparePositions,
+  computeAutoIndent,
   computeAutoPair,
   findMatchingBracket,
   indentLevelOf,

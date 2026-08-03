@@ -4,6 +4,7 @@ import {
   clampScrollTop,
   columnForX,
   comparePositions,
+  computeAutoIndent,
   computeAutoPair,
   findMatchingBracket,
   indentLevelOf,
@@ -451,7 +452,7 @@ export class EditorView {
         ev.preventDefault();
         break;
       case "Enter":
-        this.replaceSelections("\n");
+        this.handleEnter();
         ev.preventDefault();
         break;
       case "Tab":
@@ -582,6 +583,52 @@ export class EditorView {
     for (const sel of desc) {
       this.doc.applyEdit({ offset: sel.startOffset, length: sel.endOffset - sel.startOffset, text });
       newOffsets[sel.index] = sel.startOffset + text.length + (shiftByIndex[sel.index] ?? 0);
+    }
+    this.selections = this.selections.map((_, index) => {
+      const pos = this.doc.positionAt(newOffsets[index] ?? 0);
+      return { anchor: pos, active: pos };
+    });
+    this.wakeCursor();
+    this.ensureCursorVisible();
+    this.scheduleRender();
+  }
+
+  /**
+   * Enter 键自动缩进：空选区继承当前行前导空白，行尾 { 触发加一级缩进；
+   * 非空选区直接替换为 \n（内容被删除，不继承缩进）。多光标各自独立计算，
+   * 降序应用 + 升序累计低位增量保证偏移不失效（与 replaceSelections 同策略）。
+   */
+  private handleEnter(): void {
+    interface Sel {
+      startOffset: number;
+      endOffset: number;
+      index: number;
+      text: string;
+    }
+    const sels: Sel[] = this.selections.map((sel, index) => {
+      const norm = normalizeSelection(sel);
+      const startOffset = this.doc.offsetAt(norm.start);
+      const endOffset = this.doc.offsetAt(norm.end);
+      let text = "\n";
+      if (startOffset === endOffset) {
+        const lineText = this.lineText(norm.start.line);
+        const indent = computeAutoIndent(lineText, norm.start.character, this.tabSize);
+        text = "\n" + indent;
+      }
+      return { startOffset, endOffset, index, text };
+    });
+    const asc = [...sels].sort((a, b) => a.startOffset - b.startOffset);
+    const shiftByIndex: number[] = new Array<number>(sels.length).fill(0);
+    let shift = 0;
+    for (const sel of asc) {
+      shiftByIndex[sel.index] = shift;
+      shift += sel.text.length - (sel.endOffset - sel.startOffset);
+    }
+    const desc = [...sels].sort((a, b) => b.startOffset - a.startOffset);
+    const newOffsets: number[] = new Array<number>(sels.length);
+    for (const sel of desc) {
+      this.doc.applyEdit({ offset: sel.startOffset, length: sel.endOffset - sel.startOffset, text: sel.text });
+      newOffsets[sel.index] = sel.startOffset + sel.text.length + (shiftByIndex[sel.index] ?? 0);
     }
     this.selections = this.selections.map((_, index) => {
       const pos = this.doc.positionAt(newOffsets[index] ?? 0);

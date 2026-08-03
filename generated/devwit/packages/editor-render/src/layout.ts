@@ -225,3 +225,19 @@ export function computeAutoPair(
     };
   });
 }
+
+/**
+ * 自动缩进：给定当前行文本与光标列位置，计算换行后应继承的缩进串。
+ * - 继承当前行的前导空白（空格/tab 原样保留）
+ * - 若光标前文本（去尾空白）以 `{` 结尾，追加一级缩进（tabSize 个空格）
+ * cursorCharacter 收敛到 [0, lineText.length]；纯函数，node 下可直接测试。
+ */
+export function computeAutoIndent(lineText: string, cursorCharacter: number, tabSize: number): string {
+  const col = Math.max(0, Math.min(Math.floor(cursorCharacter), lineText.length));
+  const before = lineText.slice(0, col);
+  const leadingMatch = /^[ \t]*/.exec(before);
+  const leading = leadingMatch ? leadingMatch[0] : "";
+  const trimmedEnd = before.replace(/[ \t]+$/, "");
+  const extra = trimmedEnd.endsWith("{") ? " ".repeat(tabSize) : "";
+  return leading + extra;
+}
