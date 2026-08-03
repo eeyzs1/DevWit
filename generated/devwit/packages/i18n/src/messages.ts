@@ -153,6 +153,7 @@ const zhCN = {
   "err.searchRegex": "正则表达式无效",
   "editor.welcome":
     "// 欢迎使用 DevWit\n// 打开文件夹后点击左侧文件开始编辑；右侧对话面板可请求 AI 修改代码。\n",
+  "editor.tab.close": "关闭标签页（中键关闭）",
   "sidebar.empty": "点击「打开文件夹」选择项目目录",
   "tree.external": "在外部编辑器打开",
 
@@ -785,6 +786,7 @@ const enUS: Messages = {
   "err.searchRegex": "Invalid regular expression",
   "editor.welcome":
     "// Welcome to DevWit\n// Open a folder and click a file on the left to edit; ask AI to modify code in the chat panel.\n",
+  "editor.tab.close": "Close tab (middle-click to close)",
   "sidebar.empty": 'Click "Open Folder" to choose a project directory',
   "tree.external": "Open in external editor",
 

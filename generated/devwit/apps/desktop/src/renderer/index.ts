@@ -102,6 +102,8 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   let modes: ModeDefinition[] = [];
   let providers: ProviderConfig[] = [];
   let openFile: OpenFile | null = null;
+  /** 多标签页（v0.4.0）：所有已打开文件，顺序可拖拽调整。 */
+  let openFiles: OpenFile[] = [];
   let diffOverlay: HTMLElement | null = null;
   let workspaceRoot = "";
   /** 主界面形态（AC8）：chat = 对话形态；console = 指挥台形态。两形态 DOM 各自保持。 */
@@ -223,6 +225,9 @@ async function bootstrap(api: DevwitApi): Promise<void> {
 
   // ---- 编辑器 ----
   const canvas = el("canvas", "dw-editor-canvas");
+  // 多标签页栏（v0.4.0）：水平排列，可拖拽排序
+  const tabBar = el("div", "dw-editor-tabs");
+  editorArea.appendChild(tabBar);
   editorArea.appendChild(canvas);
   const welcomeDoc = TextDocument.fromString(t("editor.welcome"));
   const editor = new EditorView(canvas, welcomeDoc);
@@ -245,7 +250,140 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     }
     closeBlame(); // 切换文件时关闭 blame 覆盖层（行号不再对齐）
     refreshDirty();
+    renderTabBar();
   };
+  /** 渲染标签栏（v0.4.0）：每个打开文件一个 tab，支持点击切换/中键关闭/拖拽排序。 */
+  function renderTabBar(): void {
+    tabBar.innerHTML = "";
+    if (openFiles.length === 0) {
+      tabBar.style.display = "none";
+      return;
+    }
+    tabBar.style.display = "";
+    for (let i = 0; i < openFiles.length; i++) {
+      const file = openFiles[i]!;
+      const tab = el("div", "dw-editor-tab");
+      if (openFile !== null && openFile.path === file.path) {
+        tab.classList.add("dw-editor-tab-active");
+      }
+      tab.draggable = true;
+      tab.dataset["index"] = String(i);
+      tab.dataset["path"] = file.path;
+      const baseName = file.path.replace(/\\/g, "/").split("/").pop() ?? file.path;
+      const label = el("span", "dw-editor-tab-label", baseName);
+      label.title = file.path;
+      const closeBtn = el("span", "dw-editor-tab-close", "×");
+      closeBtn.title = t("editor.tab.close");
+      tab.append(label, closeBtn);
+      // 点击切换
+      tab.addEventListener("click", (event) => {
+        if (event.target === closeBtn) return;
+        void switchToTab(file.path);
+      });
+      // 中键关闭
+      tab.addEventListener("mousedown", (event) => {
+        if (event.button === 1) {
+          event.preventDefault();
+          void closeFile(file.path);
+        }
+      });
+      // 关闭按钮
+      closeBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        void closeFile(file.path);
+      });
+      // ---- 拖拽排序 ----
+      tab.addEventListener("dragstart", (event) => {
+        if (event.dataTransfer === null) return;
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", String(i));
+        tab.classList.add("dw-editor-tab-dragging");
+      });
+      tab.addEventListener("dragend", () => {
+        tab.classList.remove("dw-editor-tab-dragging");
+        tabBar.querySelectorAll(".dw-editor-tab-drop-target").forEach((n) => n.classList.remove("dw-editor-tab-drop-target"));
+      });
+      tab.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        if (event.dataTransfer !== null) event.dataTransfer.dropEffect = "move";
+        const dragging = tabBar.querySelector(".dw-editor-tab-dragging");
+        if (dragging !== null && dragging !== tab) {
+          tab.classList.add("dw-editor-tab-drop-target");
+        }
+      });
+      tab.addEventListener("dragleave", () => {
+        tab.classList.remove("dw-editor-tab-drop-target");
+      });
+      tab.addEventListener("drop", (event) => {
+        event.preventDefault();
+        tab.classList.remove("dw-editor-tab-drop-target");
+        const fromIndex = parseInt(event.dataTransfer?.getData("text/plain") ?? "", 10);
+        if (Number.isNaN(fromIndex) || fromIndex === i) return;
+        const moved = openFiles[fromIndex];
+        if (moved === undefined) return;
+        openFiles.splice(fromIndex, 1);
+        openFiles.splice(i, 0, moved);
+        renderTabBar();
+      });
+      tabBar.appendChild(tab);
+    }
+  }
+  /** 切换到已打开的标签页。 */
+  async function switchToTab(filePath: string): Promise<void> {
+    const target = openFiles.find((f) => f.path === filePath);
+    if (target === undefined) return;
+    // LSP：关旧开新
+    if (openFile !== null && workspaceRoot !== "" && openFile.path !== filePath) {
+      void api.lsp.didClose(relPathOf(openFile.path));
+    }
+    hideCompletion();
+    setActiveDoc(target);
+    syncEditorBreakpoints();
+    if (workspaceRoot !== "") {
+      syncOpenFileToLsp();
+      applyEditorDiagnostics();
+      void refreshOutline();
+    }
+    sidebar.querySelectorAll(".dw-tree-node").forEach((node) => {
+      node.classList.toggle("dw-tree-active", (node as HTMLElement).dataset["path"] === filePath);
+    });
+    editor.focus();
+  }
+  /** 关闭标签页。如果是活动文件，切换到相邻标签。 */
+  async function closeFile(filePath: string): Promise<void> {
+    const idx = openFiles.findIndex((f) => f.path === filePath);
+    if (idx === -1) return;
+    const wasActive = openFile !== null && openFile.path === filePath;
+    // LSP 关闭
+    if (workspaceRoot !== "") {
+      void api.lsp.didClose(relPathOf(filePath));
+    }
+    openFiles.splice(idx, 1);
+    if (wasActive) {
+      const next = openFiles[idx] ?? openFiles[idx - 1] ?? null;
+      if (next !== null) {
+        hideCompletion();
+        setActiveDoc(next);
+        syncEditorBreakpoints();
+        if (workspaceRoot !== "") {
+          syncOpenFileToLsp();
+          applyEditorDiagnostics();
+          void refreshOutline();
+        }
+      } else {
+        // 无标签页剩余：显示欢迎文档
+        setActiveDoc(null);
+        editor.setDocument(welcomeDoc);
+        activeFileLabel.textContent = t("chrome.noFile");
+      }
+    } else {
+      renderTabBar();
+    }
+    sidebar.querySelectorAll(".dw-tree-node").forEach((node) => {
+      const p = (node as HTMLElement).dataset["path"];
+      node.classList.toggle("dw-tree-active", p === (openFile?.path ?? ""));
+    });
+  }
   const refreshDirty = (): void => {
     statusDirty.textContent = openFile !== null && openFile.doc.isDirty ? t("status.unsaved") : "";
   };
@@ -591,6 +729,12 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   });
 
   async function openFileByPath(filePath: string): Promise<void> {
+    // 多标签页（v0.4.0）：已打开则直接切换，不重复加载
+    const existing = openFiles.find((f) => f.path === filePath);
+    if (existing !== undefined) {
+      await switchToTab(filePath);
+      return;
+    }
     const content = await api.workspace.read(filePath);
     const doc = TextDocument.fromString(content);
     doc.onDidChange(refreshDirty);
@@ -599,7 +743,9 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       void api.lsp.didClose(relPathOf(openFile.path));
     }
     hideCompletion(); // 文件切换时关闭补全浮层
-    setActiveDoc({ path: filePath, doc });
+    const file: OpenFile = { path: filePath, doc };
+    openFiles.push(file);
+    setActiveDoc(file);
     syncEditorBreakpoints(); // 断点红点随文件切换重挂（AC42）
     if (workspaceRoot !== "") {
       syncOpenFileToLsp();
@@ -2817,6 +2963,11 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     taskCenter.setWorkspaceRoot(root);
     refreshOnboarding();
     statusWorkspace.textContent = root;
+    // 切换工作区时关闭所有标签页（v0.4.0）
+    openFiles = [];
+    setActiveDoc(null);
+    editor.setDocument(welcomeDoc);
+    activeFileLabel.textContent = t("chrome.noFile");
     filesPane.textContent = "";
     const tree = (await api.workspace.tree(root)) as TreeNode;
     workspaceFiles = [];
