@@ -561,6 +561,14 @@ export class EditorView {
           this.toggleComment();
           ev.preventDefault();
           return;
+        case "Backspace":
+          this.deleteWordBackward();
+          ev.preventDefault();
+          return;
+        case "Delete":
+          this.deleteWordForward();
+          ev.preventDefault();
+          return;
         default:
           return; // Ctrl+V 等交给隐藏 textarea 原生行为（paste → input 事件）
       }
@@ -603,7 +611,11 @@ export class EditorView {
         break;
       case "ArrowUp":
         if (ev.altKey) {
-          this.moveLine(-1);
+          if (ev.shiftKey) {
+            this.duplicateLine(-1);
+          } else {
+            this.moveLine(-1);
+          }
         } else {
           this.moveCursorsVertical(-1, ev.shiftKey);
         }
@@ -611,7 +623,11 @@ export class EditorView {
         break;
       case "ArrowDown":
         if (ev.altKey) {
-          this.moveLine(1);
+          if (ev.shiftKey) {
+            this.duplicateLine(1);
+          } else {
+            this.moveLine(1);
+          }
         } else {
           this.moveCursorsVertical(1, ev.shiftKey);
         }
@@ -895,6 +911,48 @@ export class EditorView {
   }
 
   /**
+   * Shift+Alt+Up/Down 行复制：将选区覆盖的行块复制到上/下方。
+   * direction=-1 复制到上方（光标不移动），+1 复制到下方（光标移到复制块）。
+   */
+  private duplicateLine(direction: -1 | 1): void {
+    const norm = normalizeSelection(this.primarySelection());
+    const firstLine = norm.start.line;
+    const lastLine = norm.end.character === 0 && norm.end.line > norm.start.line
+      ? norm.end.line - 1
+      : norm.end.line;
+    // 获取选区覆盖行的文本
+    const lines: string[] = [];
+    for (let line = firstLine; line <= lastLine; line++) {
+      lines.push(this.lineText(line));
+    }
+    const insertText = lines.join("\n") + "\n";
+    if (direction === -1) {
+      // 复制到上方：在 firstLine 行首插入
+      const insertOffset = this.doc.offsetAt({ line: firstLine, character: 0 });
+      this.doc.applyEdit({ offset: insertOffset, length: 0, text: insertText });
+      // 光标不移动（仍在原行，但原行已下移 lastLine-firstLine+1 行）
+      const shift = lastLine - firstLine + 1;
+      this.selections = this.selections.map((sel) => ({
+        anchor: { line: sel.anchor.line + shift, character: sel.anchor.character },
+        active: { line: sel.active.line + shift, character: sel.active.character },
+      }));
+    } else {
+      // 复制到下方：在 lastLine 行尾插入 \n + 行文本
+      const insertOffset = this.doc.offsetAt({ line: lastLine, character: this.lineText(lastLine).length });
+      this.doc.applyEdit({ offset: insertOffset, length: 0, text: "\n" + lines.join("\n") });
+      // 光标移到复制块
+      const shift = lastLine - firstLine + 1;
+      this.selections = this.selections.map((sel) => ({
+        anchor: { line: sel.anchor.line + shift, character: sel.anchor.character },
+        active: { line: sel.active.line + shift, character: sel.active.character },
+      }));
+    }
+    this.wakeCursor();
+    this.ensureCursorVisible();
+    this.scheduleRender();
+  }
+
+  /**
    * Ctrl+/ 行注释切换：选区覆盖行全部已注释 → 取消注释；否则 → 全部加注释。
    * 注释前缀由 setLineComment 设置（默认 "//"）；加注释时前缀后加一个空格，
    * 取消时优先移除 "prefix " 其次 "prefix"。空白行跳过判断但参与加注释。
@@ -939,6 +997,98 @@ export class EditorView {
       anchor: { line: firstLine, character: 0 },
       active: { line: lastLine, character: this.lineText(lastLine).length },
     }];
+    this.wakeCursor();
+    this.ensureCursorVisible();
+    this.scheduleRender();
+  }
+
+  /**
+   * Ctrl+Backspace 向前删词：非空选区先删选区；空选区删光标前一个词。
+   * 词边界=连续字母数字/下划线 vs 连续非字母数字 vs 连续空白，三类互不交叉。
+   */
+  private deleteWordBackward(): void {
+    if (this.selections.some((sel) => !isSelectionEmpty(sel))) {
+      this.replaceSelections("");
+      return;
+    }
+    const offsets = this.selections.map((sel) => this.doc.offsetAt(sel.active));
+    const desc = offsets.map((offset, index) => ({ offset, index })).sort((a, b) => b.offset - a.offset);
+    const newOffsets: number[] = new Array<number>(offsets.length);
+    for (const { offset, index } of desc) {
+      if (offset === 0) {
+        newOffsets[index] = 0;
+        continue;
+      }
+      const fullText = this.doc.getText();
+      let end = offset;
+      let start = offset;
+      // 跳过前导空白
+      while (start > 0 && /\s/.test(fullText[start - 1] ?? "")) start--;
+      // 删除同类字符块
+      if (start > 0) {
+        const ch = fullText[start - 1] ?? "";
+        const isWord = /[\w]/.test(ch);
+        while (start > 0) {
+          const prev = fullText[start - 1] ?? "";
+          if (/[\w]/.test(prev) !== isWord) break;
+          if (/\s/.test(prev)) break;
+          start--;
+        }
+      }
+      this.doc.applyEdit({ offset: start, length: end - start, text: "" });
+      const below = offsets.filter((o) => o > 0 && o < offset).length;
+      newOffsets[index] = start - below;
+    }
+    this.selections = this.selections.map((_, index) => {
+      const pos = this.doc.positionAt(newOffsets[index] ?? 0);
+      return { anchor: pos, active: pos };
+    });
+    this.wakeCursor();
+    this.ensureCursorVisible();
+    this.scheduleRender();
+  }
+
+  /**
+   * Ctrl+Delete 向后删词：非空选区先删选区；空选区删光标后一个词。
+   */
+  private deleteWordForward(): void {
+    if (this.selections.some((sel) => !isSelectionEmpty(sel))) {
+      this.replaceSelections("");
+      return;
+    }
+    const total = this.doc.length;
+    const offsets = this.selections.map((sel) => this.doc.offsetAt(sel.active));
+    const desc = offsets.map((offset, index) => ({ offset, index })).sort((a, b) => b.offset - a.offset);
+    const newOffsets: number[] = new Array<number>(offsets.length);
+    for (const { offset, index } of desc) {
+      if (offset >= total) {
+        newOffsets[index] = offset;
+        continue;
+      }
+      const fullText = this.doc.getText();
+      let start = offset;
+      let end = offset;
+      // 跳过前导空白
+      while (end < total && /\s/.test(fullText[end] ?? "")) end++;
+      // 删除同类字符块
+      if (end < total) {
+        const ch = fullText[end] ?? "";
+        const isWord = /[\w]/.test(ch);
+        while (end < total) {
+          const next = fullText[end] ?? "";
+          if (/[\w]/.test(next) !== isWord) break;
+          if (/\s/.test(next)) break;
+          end++;
+        }
+      }
+      this.doc.applyEdit({ offset: start, length: end - start, text: "" });
+      const below = offsets.filter((o) => o > 0 && o < offset).length;
+      newOffsets[index] = start - below;
+    }
+    this.selections = this.selections.map((_, index) => {
+      const pos = this.doc.positionAt(newOffsets[index] ?? 0);
+      return { anchor: pos, active: pos };
+    });
     this.wakeCursor();
     this.ensureCursorVisible();
     this.scheduleRender();
