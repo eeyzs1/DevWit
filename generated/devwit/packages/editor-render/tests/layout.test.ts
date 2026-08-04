@@ -15,7 +15,6 @@ import {
   outdentLine,
   visibleLineRange,
   xForColumn,
-  type FoldRegion,
   type Measurer,
 } from "../src/index.js";
 

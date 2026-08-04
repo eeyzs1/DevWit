@@ -27,5 +27,13 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/consistent-type-imports": "error"
     }
+  },
+  {
+    // .cjs 脚本：require() 是 CommonJS 标准导入方式；catch 变量常未使用
+    files: ["**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/no-unused-vars": ["error", { caughtErrors: "none" }]
+    }
   }
 );

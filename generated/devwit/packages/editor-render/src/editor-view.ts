@@ -1059,7 +1059,7 @@ export class EditorView {
         continue;
       }
       const fullText = this.doc.getText();
-      let end = offset;
+      const end = offset;
       let start = offset;
       // 跳过前导空白
       while (start > 0 && /\s/.test(fullText[start - 1] ?? "")) start--;
@@ -1105,7 +1105,7 @@ export class EditorView {
         continue;
       }
       const fullText = this.doc.getText();
-      let start = offset;
+      const start = offset;
       let end = offset;
       // 跳过前导空白
       while (end < total && /\s/.test(fullText[end] ?? "")) end++;
@@ -1448,7 +1448,6 @@ export class EditorView {
     ctx.fillStyle = this.theme.background;
     ctx.fillRect(0, 0, viewW, viewH);
 
-    const range = visibleLineRange(this.scrollTop, viewH, this.lineHeight, this.doc.lineCount);
     const primaryLine = this.primarySelection().active.line;
 
     // 构建可视行映射（跳过折叠隐藏行）：visibleLines[i] = docLine
