@@ -59,8 +59,8 @@ const BUFFER_FLUSH_AT = 20;
  * project token 是公开只写密钥：PostHog 设计即嵌入客户端分发（posthog-js 代码片段
  * 同样明文暴露于每个网页），仅允许写入事件，无任何数据读取权限。
  */
-const DEFAULT_POSTHOG_BATCH_URL = "https://us.i.posthog.com/batch/";
-const POSTHOG_PROJECT_TOKEN = "phc_tXGp8bn4evvPDXLjCFQwvu9uR962PRX8brwkhEid5xwQ";
+const DEFAULT_POSTHOG_BATCH_URL = "https://us.i.posthog.com/batch/"; // qg-allow: PostHog 官方 batch API 端点，endpoint 已通过 settings 热配置可覆盖
+const POSTHOG_PROJECT_TOKEN = "phc_tXGp8bn4evvPDXLjCFQwvu9uR962PRX8brwkhEid5xwQ"; // qg-allow: PostHog project token 公开只写密钥（PostHog 设计即嵌入客户端分发），无读取权限
 
 function readConfig(settings: TelemetrySettingsLike): TelemetryConfig {
   const raw = settings.get(CONFIG_KEY);

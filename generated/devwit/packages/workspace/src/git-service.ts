@@ -70,6 +70,8 @@ export interface GitBlameLine {
 const GIT_TIMEOUT_MS = 5000;
 const GIT_COMMIT_TIMEOUT_MS = 30_000;
 const MAX_BUFFER = 16 * 1024 * 1024;
+/** git log 默认返回条数（面板历史列表长度）。 */
+const DEFAULT_LOG_ENTRIES = 50;
 
 function nodeExecFile(
   file: string,
@@ -189,8 +191,8 @@ export class GitService {
     await this.runMutating(["push"], "DW_GIT_PUSH_FAILED", GIT_COMMIT_TIMEOUT_MS);
   }
 
-  /** git log --format=%H%x00%s%x00%an%x00%ai；返回最近 limit 条（默认 50）。 */
-  log(limit = 50): Promise<GitLogEntry[]> {
+  /** git log --format=%H%x00%s%x00%an%x00%ai；返回最近 limit 条（默认 DEFAULT_LOG_ENTRIES）。 */
+  log(limit = DEFAULT_LOG_ENTRIES): Promise<GitLogEntry[]> {
     return new Promise((resolve) => {
       this.execImpl(
         "git",
