@@ -25,6 +25,12 @@ export interface Theme {
   bracketMatchBorder: string;
   /** 缩进指南线色（按缩进级别画的垂直线，辅助嵌套层级视觉）。 */
   indentGuide: string;
+  /** Minimap 背景色（v0.5.0：右侧缩略图区域底色）。 */
+  minimapBackground: string;
+  /** Minimap 内容前景色（v0.5.0：缩略行非空白字符的着色，建议带 alpha 降饱和）。 */
+  minimapForeground: string;
+  /** Minimap 视口指示框色（v0.5.0：标识当前可视区域的矩形边框/底色）。 */
+  minimapViewport: string;
   /** 高亮 scope → 颜色，如 "keyword"/"string"/"comment"；未配置的 scope 用 foreground */
   scopes: Partial<Record<string, string>>;
 }
@@ -47,6 +53,9 @@ export const defaultDarkTheme: Theme = {
   debugLineBackground: "rgba(204, 167, 0, 0.15)",
   bracketMatchBorder: "#888888",
   indentGuide: "rgba(255, 255, 255, 0.08)",
+  minimapBackground: "#1a1a1a",
+  minimapForeground: "rgba(212, 212, 212, 0.55)",
+  minimapViewport: "rgba(255, 255, 255, 0.12)",
   scopes: {
     keyword: "#569cd6",
     string: "#ce9178",

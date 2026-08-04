@@ -10,6 +10,7 @@ import {
   findMatchingBracket,
   indentLevelOf,
   isSelectionEmpty,
+  minimapLayout,
   normalizeSelection,
   outdentLine,
   visibleLineRange,
@@ -56,6 +57,8 @@ export interface EditorViewOptions {
   lineHeight?: number;
   tabSize?: number;
   padding?: number;
+  minimapEnabled?: boolean;
+  minimapWidth?: number;
 }
 
 /**
@@ -112,6 +115,16 @@ export class EditorView {
   private foldRegions: FoldRegion[] = [];
   /** 已折叠的起始行集合（0-based startLine → true；render 时跳过 startLine+1..endLine）。 */
   private foldedStarts: Set<number> = new Set();
+  /** Minimap 缩略图开关（v0.5.0：右侧缩略渲染 + 视口指示框 + 点击/拖拽滚动）。 */
+  private minimapEnabled: boolean;
+  /** Minimap 宽度（像素；默认 80）。 */
+  private minimapWidth: number;
+  /** Minimap 每行高度（像素；默认 max(2, floor(lineHeight/4))）。 */
+  private readonly minimapLineHeight: number;
+  /** Minimap 拖拽中标记（onMouseDown 命中 minimap 时置 true，mouseup 清除）。 */
+  private minimapDragging = false;
+  /** 渲染期间填充的可视行有序数组（screenIdx → docLine；折叠隐藏行已跳过）。 */
+  private renderVisibleLines: number[] = [];
   /** Ctrl/Cmd+Click 回调（跳转定义；由集成方接 LSP）。null 时该组合键等同普通点击。 */
   onDefinitionRequest: ((pos: Position) => void) | null = null;
   /** 行号槽点击回调（断点切换；由集成方接 DAP）。null 时槽点击等同普通点击。 */
@@ -136,6 +149,9 @@ export class EditorView {
     this.lineHeight = options.lineHeight ?? Math.round(this.fontSize * 1.45);
     this.tabSize = options.tabSize ?? 4;
     this.padding = options.padding ?? 4;
+    this.minimapEnabled = options.minimapEnabled ?? false;
+    this.minimapWidth = options.minimapWidth ?? 80;
+    this.minimapLineHeight = Math.max(2, Math.floor(this.lineHeight / 4));
 
     this.applyFont();
     this.charWidth = this.measureCharWidth();
@@ -304,6 +320,13 @@ export class EditorView {
     this.lineComment = prefix;
   }
 
+  /** 开关 minimap 缩略图（v0.5.0）。 */
+  setMinimapEnabled(enabled: boolean): void {
+    this.minimapEnabled = enabled;
+    this.clampScroll();
+    this.scheduleRender();
+  }
+
   /**
    * 注入可折叠区域（全量替换语义）。传空数组=清除所有折叠标记。
    * 若不调用此方法，setDocument 后会自动按缩进计算。
@@ -402,6 +425,7 @@ export class EditorView {
     const move = (ev: MouseEvent): void => this.onMouseMove(ev);
     const up = (): void => {
       this.dragging = false;
+      this.minimapDragging = false;
     };
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
@@ -422,6 +446,15 @@ export class EditorView {
       }
     }
     if (ev.button !== 0) {
+      return;
+    }
+    // Minimap 点击/拖拽（v0.5.0）：命中 minimap 区域 → 滚动到点击位置并开始拖拽
+    if (this.isMinimapHit(ev)) {
+      this.minimapDragging = true;
+      this.scrollTop = this.minimapYToScroll(ev.clientY);
+      this.clampScroll();
+      this.scheduleRender();
+      ev.preventDefault();
       return;
     }
     // 行号槽点击：先检查是否命中折叠标记（行号槽右侧区域）
@@ -472,6 +505,12 @@ export class EditorView {
   }
 
   private onMouseMove(ev: MouseEvent): void {
+    if (this.minimapDragging) {
+      this.scrollTop = this.minimapYToScroll(ev.clientY);
+      this.clampScroll();
+      this.scheduleRender();
+      return;
+    }
     if (!this.dragging) {
       return;
     }
@@ -1314,6 +1353,11 @@ export class EditorView {
     return this.canvas.width / this.dpr;
   }
 
+  /** 内容区右边界 x（= 总宽 - minimap 宽；minimap 关闭时 = 总宽）。 */
+  private contentRight(): number {
+    return this.viewportWidth() - (this.minimapEnabled ? this.minimapWidth : 0);
+  }
+
   private clampScroll(): void {
     // 可见行数（折叠后实际渲染行数）
     let visibleCount = 0;
@@ -1321,7 +1365,7 @@ export class EditorView {
       if (!this.isLineHidden(line)) visibleCount++;
     }
     this.scrollTop = clampScrollTop(this.scrollTop, visibleCount, this.lineHeight, this.viewportHeight());
-    const maxLeft = Math.max(0, this.gutterWidth + this.maxLineWidth + 40 - this.viewportWidth());
+    const maxLeft = Math.max(0, this.gutterWidth + this.maxLineWidth + 40 - this.contentRight());
     this.scrollLeft = Math.max(0, Math.min(this.scrollLeft, maxLeft));
   }
 
@@ -1340,7 +1384,7 @@ export class EditorView {
       this.scrollTop = y + this.lineHeight - viewH;
     }
     const x = xForColumn(this.lineText(active.line), active.character, this.measurer);
-    const viewW = this.viewportWidth() - this.gutterWidth;
+    const viewW = this.contentRight() - this.gutterWidth;
     if (x < this.scrollLeft) {
       this.scrollLeft = x;
     } else if (x > this.scrollLeft + viewW) {
@@ -1417,6 +1461,7 @@ export class EditorView {
       this.visibleLineMap.set(line, visibleLines.length);
       visibleLines.push(line);
     }
+    this.renderVisibleLines = visibleLines;
     const totalScreenLines = visibleLines.length;
     const screenRange = visibleLineRange(this.scrollTop, viewH, this.lineHeight, totalScreenLines);
 
@@ -1431,7 +1476,7 @@ export class EditorView {
     const primaryY = yForDocLine(primaryLine);
     if (primaryY !== null) {
       ctx.fillStyle = this.theme.currentLineBackground;
-      ctx.fillRect(this.gutterWidth, primaryY, viewW - this.gutterWidth, this.lineHeight);
+      ctx.fillRect(this.gutterWidth, primaryY, this.contentRight() - this.gutterWidth, this.lineHeight);
     }
 
     // 调试停止行高亮（整行底色；箭头在行号槽段绘制）
@@ -1439,7 +1484,7 @@ export class EditorView {
       const debugY = yForDocLine(this.debugLine);
       if (debugY !== null) {
         ctx.fillStyle = this.theme.debugLineBackground;
-        ctx.fillRect(this.gutterWidth, debugY, viewW - this.gutterWidth, this.lineHeight);
+        ctx.fillRect(this.gutterWidth, debugY, this.contentRight() - this.gutterWidth, this.lineHeight);
       }
     }
 
@@ -1453,11 +1498,12 @@ export class EditorView {
 
     // 可视行：选区 → 文本
     this.maxLineWidth = 0;
+    const contentClipRight = this.contentRight();
     for (let si = screenRange.first; si <= screenRange.last; si++) {
       const docLine = visibleLines[si] ?? -1;
       if (docLine < 0) continue;
       const y = this.padding + si * this.lineHeight - this.scrollTop;
-      this.renderSelectionOnLine(docLine, y, viewW);
+      this.renderSelectionOnLine(docLine, y, contentClipRight);
     }
     for (let si = screenRange.first; si <= screenRange.last; si++) {
       const docLine = visibleLines[si] ?? -1;
@@ -1530,6 +1576,9 @@ export class EditorView {
       ctx.fillText(String(docLine + 1), this.gutterWidth - 8, y + this.lineHeight / 2);
     }
     ctx.textAlign = "left";
+
+    // Minimap 缩略图（v0.5.0：右侧渲染 + 视口指示框）
+    this.renderMinimap(visibleLines, totalScreenLines);
 
     ctx.restore();
 
@@ -1757,6 +1806,99 @@ export class EditorView {
       ctx.font = `${this.fontSize}px ${this.fontFamily}`;
       ctx.textAlign = "left";
     }
+  }
+
+  /**
+   * Minimap 缩略图渲染（v0.5.0）：右侧渲染文档缩略行 + 视口指示框。
+   * 布局计算委托 minimapLayout 纯函数；行内容按非空白字符 run 渲染小矩形，
+   * 虚拟化（只画 minimap 可视行），折叠隐藏行同步跳过。
+   */
+  private renderMinimap(visibleLines: number[], visibleCount: number): void {
+    if (!this.minimapEnabled || visibleCount <= 0) return;
+    const ctx = this.ctx;
+    const viewH = this.viewportHeight();
+    const minimapX = this.contentRight();
+    const minimapW = this.minimapWidth;
+
+    // 背景
+    ctx.fillStyle = this.theme.minimapBackground;
+    ctx.fillRect(minimapX, 0, minimapW, viewH);
+
+    const layout = minimapLayout(
+      this.scrollTop,
+      viewH,
+      this.lineHeight,
+      visibleCount,
+      this.minimapLineHeight,
+      viewH,
+    );
+    if (layout.lastLine < layout.firstLine) return;
+
+    // 渲染缩略行内容：非空白字符 run → 小矩形
+    ctx.fillStyle = this.theme.minimapForeground;
+    const minimapCharWidth = 1.2;
+    const maxChars = Math.floor((minimapW - 4) / minimapCharWidth);
+    for (let i = layout.firstLine; i <= layout.lastLine; i++) {
+      const docLine = visibleLines[i] ?? -1;
+      if (docLine < 0) continue;
+      const text = this.lineText(docLine);
+      if (text.trim().length === 0) continue;
+      const y = layout.offsetY + i * this.minimapLineHeight - layout.minimapScrollTop;
+      if (y + this.minimapLineHeight < 0 || y > viewH) continue;
+      // 按非空白 run 渲染（减少 fillRect 调用数）
+      let runStart = -1;
+      const limit = Math.min(text.length, maxChars);
+      for (let c = 0; c < limit; c++) {
+        const ch = text[c];
+        if (ch !== " " && ch !== "\t") {
+          if (runStart < 0) runStart = c;
+        } else if (runStart >= 0) {
+          ctx.fillRect(minimapX + 2 + runStart * minimapCharWidth, y, (c - runStart) * minimapCharWidth, this.minimapLineHeight - 0.5);
+          runStart = -1;
+        }
+      }
+      if (runStart >= 0) {
+        ctx.fillRect(minimapX + 2 + runStart * minimapCharWidth, y, (limit - runStart) * minimapCharWidth, this.minimapLineHeight - 0.5);
+      }
+    }
+
+    // 视口指示框
+    ctx.fillStyle = this.theme.minimapViewport;
+    const vpTop = Math.max(0, layout.viewportTop);
+    const vpHeight = Math.min(viewH - vpTop, layout.viewportHeight);
+    if (vpHeight > 0) {
+      ctx.fillRect(minimapX, vpTop, minimapW, vpHeight);
+    }
+  }
+
+  /** 判断鼠标事件是否命中 minimap 区域。 */
+  private isMinimapHit(ev: MouseEvent): boolean {
+    if (!this.minimapEnabled) return false;
+    const rect = this.canvas.getBoundingClientRect();
+    const x = ev.clientX - rect.left;
+    return x >= this.contentRight();
+  }
+
+  /**
+   * minimap 点击 Y → 编辑器 scrollTop（使点击位置对应的行居中）。
+   * 使用 renderVisibleLines（渲染期间填充）做 screenIdx → docLine 映射。
+   */
+  private minimapYToScroll(clientY: number): number {
+    const rect = this.canvas.getBoundingClientRect();
+    const y = clientY - rect.top;
+    const visibleCount = this.renderVisibleLines.length;
+    if (visibleCount === 0) return 0;
+    const layout = minimapLayout(
+      this.scrollTop,
+      this.viewportHeight(),
+      this.lineHeight,
+      visibleCount,
+      this.minimapLineHeight,
+      this.viewportHeight(),
+    );
+    const minimapContentY = y - layout.offsetY + layout.minimapScrollTop;
+    const screenLineIdx = Math.max(0, Math.min(visibleCount - 1, Math.floor(minimapContentY / this.minimapLineHeight)));
+    return Math.max(0, screenLineIdx * this.lineHeight - this.viewportHeight() / 2);
   }
 }
 

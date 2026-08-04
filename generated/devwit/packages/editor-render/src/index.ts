@@ -18,12 +18,14 @@ export {
   indentLevelOf,
   isSelectionEmpty,
   maxScrollTop,
+  minimapLayout,
   normalizeSelection,
   outdentLine,
   visibleLineRange,
   xForColumn,
   type FoldRegion,
   type Measurer,
+  type MinimapLayout,
   type Selection,
 } from "./layout.js";
 export { defaultDarkTheme, type Theme } from "./theme.js";

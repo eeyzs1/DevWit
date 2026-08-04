@@ -298,3 +298,63 @@ export function computeFoldRegions(
   }
   return regions;
 }
+
+/**
+ * Minimap 布局计算结果（v0.5.0）。
+ * - firstLine/lastLine：minimap 可视区起止行（含两端）。
+ * - offsetY：内容垂直偏移（小文档居中时 >0；大文档为 0）。
+ * - viewportTop/viewportHeight：视口指示框的 top 与 height（相对 minimap 顶部）。
+ * - minimapScrollTop：minimap 内容滚动偏移（内容放得下时为 0）。
+ */
+export interface MinimapLayout {
+  firstLine: number;
+  lastLine: number;
+  offsetY: number;
+  viewportTop: number;
+  viewportHeight: number;
+  minimapScrollTop: number;
+}
+
+/**
+ * Minimap 布局纯函数：根据编辑器滚动状态与尺寸，计算 minimap 可视行范围、
+ * 视口指示框位置与 minimap 自身滚动偏移。
+ *
+ * - 小文档（内容高度 ≤ minimap 可用高度）：全部行可见，offsetY 居中，
+ *   视口框 top = offsetY + (scrollTop / lineHeight) * minimapLineHeight。
+ * - 大文档：minimap 随主视图按比例滚动，视口框 top = (scrollTop / lineHeight) * minimapLineHeight - minimapScrollTop。
+ *
+ * 纯函数，node 下可直接测试。
+ */
+export function minimapLayout(
+  scrollTop: number,
+  editorViewportHeight: number,
+  lineHeight: number,
+  lineCount: number,
+  minimapLineHeight: number,
+  minimapViewHeight: number,
+): MinimapLayout {
+  if (lineCount <= 0 || minimapLineHeight <= 0 || minimapViewHeight <= 0 || lineHeight <= 0) {
+    return { firstLine: 0, lastLine: -1, offsetY: 0, viewportTop: 0, viewportHeight: 0, minimapScrollTop: 0 };
+  }
+  const minimapContentHeight = lineCount * minimapLineHeight;
+  const maxEditorScroll = Math.max(0, lineCount * lineHeight - editorViewportHeight);
+  const viewportLines = editorViewportHeight / lineHeight;
+
+  // 小文档：内容放得下 → 居中
+  if (minimapContentHeight <= minimapViewHeight) {
+    const offsetY = Math.floor((minimapViewHeight - minimapContentHeight) / 2);
+    const viewportTop = offsetY + (scrollTop / lineHeight) * minimapLineHeight;
+    const viewportHeight = Math.min(minimapViewHeight, viewportLines * minimapLineHeight);
+    return { firstLine: 0, lastLine: lineCount - 1, offsetY, viewportTop, viewportHeight, minimapScrollTop: 0 };
+  }
+
+  // 大文档：minimap 按比例滚动
+  const maxMinimapScroll = minimapContentHeight - minimapViewHeight;
+  const scrollRatio = maxEditorScroll > 0 ? Math.max(0, Math.min(1, scrollTop / maxEditorScroll)) : 0;
+  const minimapScrollTop = Math.round(scrollRatio * maxMinimapScroll);
+  const firstLine = Math.max(0, Math.floor(minimapScrollTop / minimapLineHeight));
+  const lastLine = Math.min(lineCount - 1, Math.ceil((minimapScrollTop + minimapViewHeight) / minimapLineHeight) - 1);
+  const viewportTop = (scrollTop / lineHeight) * minimapLineHeight - minimapScrollTop;
+  const viewportHeight = Math.min(minimapViewHeight, viewportLines * minimapLineHeight);
+  return { firstLine, lastLine, offsetY: 0, viewportTop, viewportHeight, minimapScrollTop };
+}

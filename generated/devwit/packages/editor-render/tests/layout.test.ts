@@ -10,6 +10,7 @@ import {
   indentLevelOf,
   isSelectionEmpty,
   maxScrollTop,
+  minimapLayout,
   normalizeSelection,
   outdentLine,
   visibleLineRange,
@@ -511,5 +512,105 @@ describe("computeFoldRegions 基于缩进的折叠区域", () => {
     // level 1 区域：1→3（method 块内）和 4（other，单独无子行→不折叠）
     expect(regions).toContainEqual({ startLine: 0, endLine: 4 });
     expect(regions).toContainEqual({ startLine: 1, endLine: 2 });
+  });
+});
+
+describe("minimapLayout 缩略图布局", () => {
+  it("零行/零高 → 空范围（安全收敛）", () => {
+    expect(minimapLayout(0, 200, 20, 0, 3, 200)).toEqual({
+      firstLine: 0, lastLine: -1, offsetY: 0, viewportTop: 0, viewportHeight: 0, minimapScrollTop: 0,
+    });
+    expect(minimapLayout(0, 200, 20, 100, 0, 200)).toEqual({
+      firstLine: 0, lastLine: -1, offsetY: 0, viewportTop: 0, viewportHeight: 0, minimapScrollTop: 0,
+    });
+    expect(minimapLayout(0, 200, 20, 100, 3, 0)).toEqual({
+      firstLine: 0, lastLine: -1, offsetY: 0, viewportTop: 0, viewportHeight: 0, minimapScrollTop: 0,
+    });
+  });
+
+  it("小文档（内容放得下）→ 全部行可见，offsetY 居中", () => {
+    // 10 行 × 3px = 30px ≤ 200px → 居中 offsetY = (200-30)/2 = 85
+    const r = minimapLayout(0, 400, 20, 10, 3, 200);
+    expect(r.firstLine).toBe(0);
+    expect(r.lastLine).toBe(9);
+    expect(r.offsetY).toBe(85);
+    expect(r.minimapScrollTop).toBe(0);
+    // 视口框：scrollTop=0 → top = 85 + 0 = 85；height = (400/20)*3 = 60
+    expect(r.viewportTop).toBe(85);
+    expect(r.viewportHeight).toBe(60);
+  });
+
+  it("小文档滚动 → 视口框随 scrollTop 移动", () => {
+    // 10 行 × 3px = 30px ≤ 200px；scrollTop=100（行 5）
+    const r = minimapLayout(100, 400, 20, 10, 3, 200);
+    expect(r.firstLine).toBe(0);
+    expect(r.lastLine).toBe(9);
+    expect(r.offsetY).toBe(85);
+    // viewportTop = 85 + (100/20)*3 = 85 + 15 = 100
+    expect(r.viewportTop).toBe(100);
+    expect(r.viewportHeight).toBe(60);
+  });
+
+  it("大文档（内容放不下）→ minimap 按比例滚动，虚拟化", () => {
+    // 200 行 × 3px = 600px > 200px；lineHeight=20, viewportH=400
+    // maxEditorScroll = 200*20 - 400 = 3600
+    // scrollTop=1800 (中间) → scrollRatio=0.5 → minimapScrollTop = (600-200)*0.5 = 200
+    const r = minimapLayout(1800, 400, 20, 200, 3, 200);
+    expect(r.offsetY).toBe(0);
+    expect(r.minimapScrollTop).toBe(200);
+    // firstLine = floor(200/3) = 66
+    expect(r.firstLine).toBe(66);
+    // lastLine = ceil((200+200)/3) - 1 = ceil(133.33) - 1 = 134 - 1 = 133
+    expect(r.lastLine).toBe(133);
+    // viewportTop = (1800/20)*3 - 200 = 270 - 200 = 70
+    expect(r.viewportTop).toBe(70);
+    // viewportHeight = min(200, (400/20)*3) = min(200, 60) = 60
+    expect(r.viewportHeight).toBe(60);
+  });
+
+  it("大文档 scrollTop=0 → minimapScrollTop=0，从首行开始", () => {
+    const r = minimapLayout(0, 400, 20, 200, 3, 200);
+    expect(r.minimapScrollTop).toBe(0);
+    expect(r.firstLine).toBe(0);
+    // viewportTop = 0 - 0 = 0
+    expect(r.viewportTop).toBe(0);
+    expect(r.viewportHeight).toBe(60);
+  });
+
+  it("大文档滚到底 → minimapScrollTop 到上限", () => {
+    // maxEditorScroll = 200*20 - 400 = 3600
+    // scrollRatio = 1 → minimapScrollTop = 600 - 200 = 400
+    const r = minimapLayout(3600, 400, 20, 200, 3, 200);
+    expect(r.minimapScrollTop).toBe(400);
+    // firstLine = floor(400/3) = 133
+    expect(r.firstLine).toBe(133);
+    // lastLine = min(199, ceil((400+200)/3)-1) = min(199, 199) = 199
+    expect(r.lastLine).toBe(199);
+    // viewportTop = (3600/20)*3 - 400 = 540 - 400 = 140
+    expect(r.viewportTop).toBe(140);
+    expect(r.viewportHeight).toBe(60);
+  });
+
+  it("viewportHeight 不超过 minimapViewHeight", () => {
+    // 极小编辑器视口：editorViewportHeight=20（1 行），minimapViewHeight=30
+    // 100 行 × 3px = 300 > 30 → 大文档模式
+    const r = minimapLayout(0, 20, 20, 100, 3, 30);
+    // viewportHeight = min(30, (20/20)*3) = min(30, 3) = 3
+    expect(r.viewportHeight).toBe(3);
+  });
+
+  it("小文档视口高度超过 minimap 高度 → viewportHeight 收敛到 minimapViewHeight", () => {
+    // 2 行 × 3px = 6px ≤ 30px → 小文档模式
+    // editorViewportHeight=500 → viewportLines = 500/20 = 25
+    // viewportHeight = min(30, 25*3) = min(30, 75) = 30
+    const r = minimapLayout(0, 500, 20, 2, 3, 30);
+    expect(r.viewportHeight).toBe(30);
+  });
+
+  it("scrollTop 超出上限 → scrollRatio 收敛到 1", () => {
+    // maxEditorScroll = 100*20 - 400 = 1600
+    // scrollTop=99999 → scrollRatio = 1
+    const r = minimapLayout(99999, 400, 20, 100, 3, 200);
+    expect(r.minimapScrollTop).toBe(100); // 100*3 - 200 = 100
   });
 });
