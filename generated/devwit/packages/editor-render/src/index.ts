@@ -13,6 +13,7 @@ export {
   comparePositions,
   computeAutoIndent,
   computeAutoPair,
+  computeFoldRegions,
   findMatchingBracket,
   indentLevelOf,
   isSelectionEmpty,
@@ -21,6 +22,7 @@ export {
   outdentLine,
   visibleLineRange,
   xForColumn,
+  type FoldRegion,
   type Measurer,
   type Selection,
 } from "./layout.js";

@@ -256,3 +256,45 @@ export function outdentLine(line: string, tabSize: number): { text: string; remo
   }
   return { text: line.slice(removed), removed };
 }
+
+/**
+ * 折叠区域（基于缩进）：startLine 是缩进较深区域的起始行，endLine 是最后一条同缩进或更浅行。
+ * 纯函数（注入 getLine/lineCount），node 下可直接测试。
+ */
+export interface FoldRegion {
+  startLine: number;
+  endLine: number;
+}
+
+/**
+ * 基于缩进计算可折叠区域：遍历行，当某行的缩进级别比后续非空行小时，
+ * 从该行到下一条同级/更浅非空行前一行构成一个可折叠区域。
+ * 空行跳过（不参与缩进比较）。minLines 控制区域最少行数（默认 2，即至少含 1 行内容可折叠）。
+ */
+export function computeFoldRegions(
+  getLine: (line: number) => string,
+  lineCount: number,
+  tabSize: number,
+  minLines = 2,
+): FoldRegion[] {
+  if (lineCount <= 1) return [];
+  const regions: FoldRegion[] = [];
+  for (let i = 0; i < lineCount - 1; i++) {
+    const currentText = getLine(i);
+    if (currentText.trim().length === 0) continue;
+    const currentLevel = indentLevelOf(currentText, tabSize);
+    // 向后找第一个非空行，若其缩进 > currentLevel 则可折叠
+    let endLine = i;
+    for (let j = i + 1; j < lineCount; j++) {
+      const text = getLine(j);
+      if (text.trim().length === 0) continue;
+      const level = indentLevelOf(text, tabSize);
+      if (level <= currentLevel) break;
+      endLine = j;
+    }
+    if (endLine > i && endLine - i + 1 >= minLines) {
+      regions.push({ startLine: i, endLine });
+    }
+  }
+  return regions;
+}

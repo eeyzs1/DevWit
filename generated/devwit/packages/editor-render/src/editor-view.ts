@@ -6,6 +6,7 @@ import {
   comparePositions,
   computeAutoIndent,
   computeAutoPair,
+  computeFoldRegions,
   findMatchingBracket,
   indentLevelOf,
   isSelectionEmpty,
@@ -13,6 +14,7 @@ import {
   outdentLine,
   visibleLineRange,
   xForColumn,
+  type FoldRegion,
   type Measurer,
   type Selection,
 } from "./layout.js";
@@ -93,6 +95,8 @@ export class EditorView {
   private renderScheduled = false;
   private disposed = false;
   private readonly removeWindowListeners: Array<() => void> = [];
+  /** 渲染期间生效的可视行映射（docLine → screenIndex）；render 外为空。 */
+  private visibleLineMap: Map<number, number> = new Map();
   /** 当前文档的诊断标记（setDiagnostics 注入；渲染为波浪线）。 */
   private diagnostics: DiagnosticRange[] = [];
   /**
@@ -104,6 +108,10 @@ export class EditorView {
   private debugLine: number | null = null;
   /** 行注释前缀（Ctrl+/ 切换；默认 "//"，集成方按文件类型 setLineComment 设置）。 */
   private lineComment = "//";
+  /** 可折叠区域列表（由集成方注入或自动按缩进计算；render 时在行号槽绘制折叠标记）。 */
+  private foldRegions: FoldRegion[] = [];
+  /** 已折叠的起始行集合（0-based startLine → true；render 时跳过 startLine+1..endLine）。 */
+  private foldedStarts: Set<number> = new Set();
   /** Ctrl/Cmd+Click 回调（跳转定义；由集成方接 LSP）。null 时该组合键等同普通点击。 */
   onDefinitionRequest: ((pos: Position) => void) | null = null;
   /** 行号槽点击回调（断点切换；由集成方接 DAP）。null 时槽点击等同普通点击。 */
@@ -186,6 +194,8 @@ export class EditorView {
     this.selections = [{ anchor: { line: 0, character: 0 }, active: { line: 0, character: 0 } }];
     this.scrollTop = 0;
     this.scrollLeft = 0;
+    this.foldedStarts.clear();
+    this.recomputeFoldRegions();
     this.scheduleRender();
   }
 
@@ -220,9 +230,38 @@ export class EditorView {
     const rect = this.canvas.getBoundingClientRect();
     const x = clientX - rect.left + this.scrollLeft - this.gutterWidth;
     const y = clientY - rect.top + this.scrollTop - this.padding;
-    const line = Math.max(0, Math.min(this.doc.lineCount - 1, Math.floor(y / this.lineHeight)));
+    const line = this.docLineFromScreenY(y);
     const character = columnForX(this.lineText(line), x, this.measurer);
     return { line, character };
+  }
+
+  /** screenY → docLine（跳过折叠隐藏行；越界收敛到末行）。 */
+  private docLineFromScreenY(screenY: number): number {
+    const screenIdx = Math.max(0, Math.floor(screenY / this.lineHeight));
+    // 构建 visibleLines（如果 render 未填充则现场构建）
+    let docLine = -1;
+    if (this.visibleLineMap.size > 0) {
+      // 渲染期间已有映射，但 Map 是 docLine→screenIdx，需反向查找
+      for (const [dl, si] of this.visibleLineMap) {
+        if (si === screenIdx) { docLine = dl; break; }
+      }
+    }
+    if (docLine < 0) {
+      // 现场构建（非渲染期间：positionFromClientPoint 等外部调用）
+      let idx = 0;
+      for (let line = 0; line < this.doc.lineCount; line++) {
+        if (this.isLineHidden(line)) continue;
+        if (idx === screenIdx) { docLine = line; break; }
+        idx++;
+      }
+      if (docLine < 0) {
+        // 超过末行 → 最后一可见行
+        for (let line = this.doc.lineCount - 1; line >= 0; line--) {
+          if (!this.isLineHidden(line)) { docLine = line; break; }
+        }
+      }
+    }
+    return Math.max(0, docLine);
   }
 
   /**
@@ -233,7 +272,16 @@ export class EditorView {
     const rect = this.canvas.getBoundingClientRect();
     const clamped = this.clampPosition(pos);
     const x = rect.left + this.gutterWidth + xForColumn(this.lineText(clamped.line), clamped.character, this.measurer) - this.scrollLeft;
-    const y = rect.top + this.padding + clamped.line * this.lineHeight - this.scrollTop + this.lineHeight / 2;
+    // screenY: 用 visibleLineMap 查找，否则退化为直接映射
+    let screenIdx = this.visibleLineMap.get(clamped.line);
+    if (screenIdx === undefined) {
+      // 非渲染期间现场计算
+      screenIdx = 0;
+      for (let line = 0; line < clamped.line; line++) {
+        if (!this.isLineHidden(line)) screenIdx++;
+      }
+    }
+    const y = rect.top + this.padding + screenIdx * this.lineHeight - this.scrollTop + this.lineHeight / 2;
     return { x, y };
   }
 
@@ -254,6 +302,56 @@ export class EditorView {
   /** 设置行注释前缀（Ctrl+/ 切换用；按文件类型设 "//" / "#" / ";" 等）。 */
   setLineComment(prefix: string): void {
     this.lineComment = prefix;
+  }
+
+  /**
+   * 注入可折叠区域（全量替换语义）。传空数组=清除所有折叠标记。
+   * 若不调用此方法，setDocument 后会自动按缩进计算。
+   */
+  setFoldRegions(regions: FoldRegion[]): void {
+    this.foldRegions = regions;
+    // 清除已失效的折叠状态
+    const valid = new Set(regions.map((r) => r.startLine));
+    for (const start of this.foldedStarts) {
+      if (!valid.has(start)) this.foldedStarts.delete(start);
+    }
+    this.scheduleRender();
+  }
+
+  /**
+   * 自动按缩进计算折叠区域（集成方在打开文件 / 大幅编辑后调用）。
+   */
+  recomputeFoldRegions(): void {
+    this.foldRegions = computeFoldRegions(
+      (line) => this.doc.getLine(line),
+      this.doc.lineCount,
+      this.tabSize,
+    );
+    this.scheduleRender();
+  }
+
+  /** 切换指定行的折叠状态（行号槽折叠标记点击入口）。 */
+  toggleFold(startLine: number): void {
+    const region = this.foldRegions.find((r) => r.startLine === startLine);
+    if (region === undefined) return;
+    if (this.foldedStarts.has(startLine)) {
+      this.foldedStarts.delete(startLine);
+    } else {
+      this.foldedStarts.add(startLine);
+    }
+    this.clampSelections();
+    this.clampScroll();
+    this.scheduleRender();
+  }
+
+  /** 判断某行是否在折叠区域内（被隐藏）。 */
+  isLineHidden(line: number): boolean {
+    for (const start of this.foldedStarts) {
+      const region = this.foldRegions.find((r) => r.startLine === start);
+      if (region === undefined) continue;
+      if (line > region.startLine && line <= region.endLine) return true;
+    }
+    return false;
   }
 
   getSelections(): Selection[] {
@@ -326,12 +424,26 @@ export class EditorView {
     if (ev.button !== 0) {
       return;
     }
-    // 行号槽点击（断点切换）：命中槽区即消费事件，不动光标不拖选
+    // 行号槽点击：先检查是否命中折叠标记（行号槽右侧区域）
     const gutterHit = this.gutterLineFromEvent(ev);
-    if (gutterHit !== null && this.onGutterClick !== null) {
-      this.onGutterClick(gutterHit);
-      ev.preventDefault();
-      return;
+    if (gutterHit !== null) {
+      // 折叠标记区域：行号槽右侧 12px
+      const rect = this.canvas.getBoundingClientRect();
+      const gutterX = ev.clientX - rect.left;
+      if (gutterX >= this.gutterWidth - 14) {
+        const region = this.foldRegions.find((r) => r.startLine === gutterHit);
+        if (region !== undefined) {
+          this.toggleFold(gutterHit);
+          ev.preventDefault();
+          return;
+        }
+      }
+      // 行号槽点击（断点切换）
+      if (this.onGutterClick !== null) {
+        this.onGutterClick(gutterHit);
+        ev.preventDefault();
+        return;
+      }
     }
     this.ime.focus();
     const pos = this.positionFromEvent(ev);
@@ -917,7 +1029,12 @@ export class EditorView {
 
   private moveCursorsVertical(lineDelta: number, extend: boolean): void {
     this.selections = this.selections.map((sel) => {
-      const targetLine = Math.max(0, Math.min(this.doc.lineCount - 1, sel.active.line + lineDelta));
+      let targetLine = sel.active.line + lineDelta;
+      // 跳过折叠隐藏行
+      while (targetLine >= 0 && targetLine < this.doc.lineCount && this.isLineHidden(targetLine)) {
+        targetLine += lineDelta > 0 ? 1 : -1;
+      }
+      targetLine = Math.max(0, Math.min(this.doc.lineCount - 1, targetLine));
       const targetChar = Math.min(sel.active.character, this.lineText(targetLine).length);
       const next: Position = { line: targetLine, character: targetChar };
       return extend ? { anchor: sel.anchor, active: next } : { anchor: next, active: next };
@@ -984,6 +1101,18 @@ export class EditorView {
       anchor: this.clampPosition(sel.anchor),
       active: this.clampPosition(sel.active),
     }));
+    // 光标落入折叠隐藏行 → 自动展开该折叠区域
+    for (const sel of this.selections) {
+      for (const pos of [sel.anchor, sel.active]) {
+        for (const start of this.foldedStarts) {
+          const region = this.foldRegions.find((r) => r.startLine === start);
+          if (region === undefined) continue;
+          if (pos.line > region.startLine && pos.line <= region.endLine) {
+            this.foldedStarts.delete(start);
+          }
+        }
+      }
+    }
   }
 
   private clampPosition(pos: Position): Position {
@@ -1007,7 +1136,7 @@ export class EditorView {
     const rect = this.canvas.getBoundingClientRect();
     const x = ev.clientX - rect.left + this.scrollLeft - this.gutterWidth;
     const y = ev.clientY - rect.top + this.scrollTop - this.padding;
-    const line = Math.max(0, Math.min(this.doc.lineCount - 1, Math.floor(y / this.lineHeight)));
+    const line = this.docLineFromScreenY(y);
     const character = columnForX(this.lineText(line), x, this.measurer);
     return { line, character };
   }
@@ -1018,7 +1147,7 @@ export class EditorView {
     const x = ev.clientX - rect.left;
     if (x < 0 || x >= this.gutterWidth) return null;
     const y = ev.clientY - rect.top + this.scrollTop - this.padding;
-    const line = Math.floor(y / this.lineHeight);
+    const line = this.docLineFromScreenY(y);
     if (line < 0 || line >= this.doc.lineCount) return null;
     return line;
   }
@@ -1036,14 +1165,24 @@ export class EditorView {
   }
 
   private clampScroll(): void {
-    this.scrollTop = clampScrollTop(this.scrollTop, this.doc.lineCount, this.lineHeight, this.viewportHeight());
+    // 可见行数（折叠后实际渲染行数）
+    let visibleCount = 0;
+    for (let line = 0; line < this.doc.lineCount; line++) {
+      if (!this.isLineHidden(line)) visibleCount++;
+    }
+    this.scrollTop = clampScrollTop(this.scrollTop, visibleCount, this.lineHeight, this.viewportHeight());
     const maxLeft = Math.max(0, this.gutterWidth + this.maxLineWidth + 40 - this.viewportWidth());
     this.scrollLeft = Math.max(0, Math.min(this.scrollLeft, maxLeft));
   }
 
   private ensureCursorVisible(): void {
     const active = this.primarySelection().active;
-    const y = this.padding + active.line * this.lineHeight;
+    // 计算光标行的 screenIdx（跳过折叠行）
+    let screenIdx = 0;
+    for (let line = 0; line < active.line; line++) {
+      if (!this.isLineHidden(line)) screenIdx++;
+    }
+    const y = this.padding + screenIdx * this.lineHeight;
     const viewH = this.viewportHeight();
     if (y < this.scrollTop) {
       this.scrollTop = y;
@@ -1118,36 +1257,76 @@ export class EditorView {
     const range = visibleLineRange(this.scrollTop, viewH, this.lineHeight, this.doc.lineCount);
     const primaryLine = this.primarySelection().active.line;
 
+    // 构建可视行映射（跳过折叠隐藏行）：visibleLines[i] = docLine
+    const visibleLines: number[] = [];
+    this.visibleLineMap.clear();
+    for (let line = 0; line < this.doc.lineCount; line++) {
+      if (this.isLineHidden(line)) {
+        continue;
+      }
+      this.visibleLineMap.set(line, visibleLines.length);
+      visibleLines.push(line);
+    }
+    const totalScreenLines = visibleLines.length;
+    const screenRange = visibleLineRange(this.scrollTop, viewH, this.lineHeight, totalScreenLines);
+
+    // docLine → screenY 的辅助映射
+    const yForDocLine = (docLine: number): number | null => {
+      const screenIdx = this.visibleLineMap.get(docLine);
+      if (screenIdx === undefined) return null;
+      return this.padding + screenIdx * this.lineHeight - this.scrollTop;
+    };
+
     // 当前行高亮
-    if (primaryLine >= range.first && primaryLine <= range.last) {
-      const y = this.padding + primaryLine * this.lineHeight - this.scrollTop;
+    const primaryY = yForDocLine(primaryLine);
+    if (primaryY !== null) {
       ctx.fillStyle = this.theme.currentLineBackground;
-      ctx.fillRect(this.gutterWidth, y, viewW - this.gutterWidth, this.lineHeight);
+      ctx.fillRect(this.gutterWidth, primaryY, viewW - this.gutterWidth, this.lineHeight);
     }
 
     // 调试停止行高亮（整行底色；箭头在行号槽段绘制）
-    if (this.debugLine !== null && this.debugLine >= range.first && this.debugLine <= range.last) {
-      const y = this.padding + this.debugLine * this.lineHeight - this.scrollTop;
-      ctx.fillStyle = this.theme.debugLineBackground;
-      ctx.fillRect(this.gutterWidth, y, viewW - this.gutterWidth, this.lineHeight);
+    if (this.debugLine !== null) {
+      const debugY = yForDocLine(this.debugLine);
+      if (debugY !== null) {
+        ctx.fillStyle = this.theme.debugLineBackground;
+        ctx.fillRect(this.gutterWidth, debugY, viewW - this.gutterWidth, this.lineHeight);
+      }
     }
 
-    // 缩进指南线（文本之下、选区之下，避免遮盖字符）
-    this.renderIndentGuides(range.first, range.last);
+    // 缩进指南线（文本之下、选区之下，避免遮盖字符）— 只画可见行
+    for (let si = screenRange.first; si <= screenRange.last; si++) {
+      const docLine = visibleLines[si] ?? -1;
+      if (docLine < 0) continue;
+      const y = this.padding + si * this.lineHeight - this.scrollTop;
+      this.renderIndentGuidesForLine(docLine, y);
+    }
 
     // 可视行：选区 → 文本
     this.maxLineWidth = 0;
-    for (let line = range.first; line <= range.last; line++) {
-      const y = this.padding + line * this.lineHeight - this.scrollTop;
-      this.renderSelectionOnLine(line, y, viewW);
+    for (let si = screenRange.first; si <= screenRange.last; si++) {
+      const docLine = visibleLines[si] ?? -1;
+      if (docLine < 0) continue;
+      const y = this.padding + si * this.lineHeight - this.scrollTop;
+      this.renderSelectionOnLine(docLine, y, viewW);
     }
-    for (let line = range.first; line <= range.last; line++) {
-      const y = this.padding + line * this.lineHeight - this.scrollTop;
-      this.renderLineText(line, y);
+    for (let si = screenRange.first; si <= screenRange.last; si++) {
+      const docLine = visibleLines[si] ?? -1;
+      if (docLine < 0) continue;
+      const y = this.padding + si * this.lineHeight - this.scrollTop;
+      this.renderLineText(docLine, y);
+      // 折叠指示线（如果该行是折叠区域的起始行）
+      if (this.foldedStarts.has(docLine)) {
+        this.renderFoldIndicator(docLine, y);
+      }
     }
 
     // 诊断波浪线（文本之上、光标之下；只画可视行相交段）
-    this.renderDiagnostics(range.first, range.last);
+    for (let si = screenRange.first; si <= screenRange.last; si++) {
+      const docLine = visibleLines[si] ?? -1;
+      if (docLine < 0) continue;
+      const y = this.padding + si * this.lineHeight - this.scrollTop;
+      this.renderDiagnosticsForLine(docLine, y);
+    }
 
     // IME 合成串（画在主光标处，带下划线）
     if (this.compositionText.length > 0) {
@@ -1167,29 +1346,38 @@ export class EditorView {
     ctx.fillRect(0, 0, this.gutterWidth, viewH);
     // 断点标记（左缘 14px 区，垂直居中；按类型绘制不同形状）
     if (this.breakpointEntries.size > 0) {
-      for (let line = range.first; line <= range.last; line++) {
-        const kind = this.breakpointEntries.get(line);
+      for (let si = screenRange.first; si <= screenRange.last; si++) {
+        const docLine = visibleLines[si] ?? -1;
+        if (docLine < 0) continue;
+        const kind = this.breakpointEntries.get(docLine);
         if (kind === undefined) continue;
-        const cy = this.padding + line * this.lineHeight - this.scrollTop + this.lineHeight / 2;
+        const cy = this.padding + si * this.lineHeight - this.scrollTop + this.lineHeight / 2;
         drawBreakpointMark(ctx, 7, cy, kind, this.theme);
       }
     }
     // 调试停止行箭头（行号槽 ▶，与整行底色配套）
-    if (this.debugLine !== null && this.debugLine >= range.first && this.debugLine <= range.last) {
-      const cy = this.padding + this.debugLine * this.lineHeight - this.scrollTop + this.lineHeight / 2;
-      ctx.fillStyle = this.theme.diagnosticWarning;
-      ctx.beginPath();
-      ctx.moveTo(3, cy - 5);
-      ctx.lineTo(11, cy);
-      ctx.lineTo(3, cy + 5);
-      ctx.closePath();
-      ctx.fill();
+    if (this.debugLine !== null) {
+      const debugY = yForDocLine(this.debugLine);
+      if (debugY !== null) {
+        const cy = debugY + this.lineHeight / 2;
+        ctx.fillStyle = this.theme.diagnosticWarning;
+        ctx.beginPath();
+        ctx.moveTo(3, cy - 5);
+        ctx.lineTo(11, cy);
+        ctx.lineTo(3, cy + 5);
+        ctx.closePath();
+        ctx.fill();
+      }
     }
+    // 折叠标记（行号槽右侧 ▾/▸）
+    this.renderFoldGutterMarks(visibleLines, screenRange);
     ctx.fillStyle = this.theme.lineNumberForeground;
     ctx.textAlign = "right";
-    for (let line = range.first; line <= range.last; line++) {
-      const y = this.padding + line * this.lineHeight - this.scrollTop;
-      ctx.fillText(String(line + 1), this.gutterWidth - 8, y + this.lineHeight / 2);
+    for (let si = screenRange.first; si <= screenRange.last; si++) {
+      const docLine = visibleLines[si] ?? -1;
+      if (docLine < 0) continue;
+      const y = this.padding + si * this.lineHeight - this.scrollTop;
+      ctx.fillText(String(docLine + 1), this.gutterWidth - 8, y + this.lineHeight / 2);
     }
     ctx.textAlign = "left";
 
@@ -1198,7 +1386,8 @@ export class EditorView {
     // IME 候选窗定位到主光标
     const active = this.primarySelection().active;
     const cursorX = this.gutterWidth + xForColumn(this.lineText(active.line), active.character, this.measurer) - this.scrollLeft;
-    const cursorY = this.padding + active.line * this.lineHeight - this.scrollTop;
+    const activeY = yForDocLine(active.line);
+    const cursorY = activeY !== null ? activeY : this.padding;
     const rect = this.canvas.getBoundingClientRect();
     this.ime.setPosition(rect.left + cursorX, rect.top + cursorY);
   }
@@ -1261,22 +1450,26 @@ export class EditorView {
     }
   }
 
-  private renderIndentGuides(first: number, last: number): void {
+  /** docLine → screenY（渲染期间有效；折叠隐藏行返回 null）。 */
+  private screenYForDocLine(docLine: number): number | null {
+    const screenIdx = this.visibleLineMap.get(docLine);
+    if (screenIdx === undefined) return null;
+    return this.padding + screenIdx * this.lineHeight - this.scrollTop;
+  }
+
+  private renderIndentGuidesForLine(docLine: number, y: number): void {
     const ctx = this.ctx;
+    const text = this.lineText(docLine);
+    const level = indentLevelOf(text, this.tabSize);
+    if (level <= 0) return;
     ctx.strokeStyle = this.theme.indentGuide;
     ctx.lineWidth = 1;
-    for (let line = first; line <= last; line++) {
-      const text = this.lineText(line);
-      const level = indentLevelOf(text, this.tabSize);
-      if (level <= 0) continue;
-      const y = this.padding + line * this.lineHeight - this.scrollTop;
-      for (let lvl = 1; lvl <= level; lvl++) {
-        const x = this.gutterWidth + lvl * this.tabSize * this.charWidth - this.scrollLeft;
-        ctx.beginPath();
-        ctx.moveTo(Math.round(x) + 0.5, y);
-        ctx.lineTo(Math.round(x) + 0.5, y + this.lineHeight);
-        ctx.stroke();
-      }
+    for (let lvl = 1; lvl <= level; lvl++) {
+      const x = this.gutterWidth + lvl * this.tabSize * this.charWidth - this.scrollLeft;
+      ctx.beginPath();
+      ctx.moveTo(Math.round(x) + 0.5, y);
+      ctx.lineTo(Math.round(x) + 0.5, y + this.lineHeight);
+      ctx.stroke();
     }
   }
 
@@ -1291,12 +1484,11 @@ export class EditorView {
     const ctx = this.ctx;
     ctx.strokeStyle = this.theme.bracketMatchBorder;
     ctx.lineWidth = 1;
-    const range = visibleLineRange(this.scrollTop, this.viewportHeight(), this.lineHeight, this.doc.lineCount);
     const drawAt = (line: number, character: number): void => {
-      if (line < range.first || line > range.last) return;
+      const y = this.screenYForDocLine(line);
+      if (y === null) return;
       const text = this.lineText(line);
       const x = this.gutterWidth + xForColumn(text, character, this.measurer) - this.scrollLeft;
-      const y = this.padding + line * this.lineHeight - this.scrollTop;
       const w = Math.max(2, this.charWidth);
       ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, w, this.lineHeight - 1);
     };
@@ -1309,7 +1501,8 @@ export class EditorView {
     const active = this.primarySelection().active;
     const lineText = this.lineText(active.line);
     const x = this.gutterWidth + xForColumn(lineText, active.character, this.measurer) - this.scrollLeft;
-    const y = this.padding + active.line * this.lineHeight - this.scrollTop;
+    const y = this.screenYForDocLine(active.line);
+    if (y === null) return;
     const width = this.compositionText.length * this.charWidth;
     ctx.fillStyle = this.theme.compositionForeground;
     ctx.fillText(this.compositionText, x, y + this.lineHeight / 2);
@@ -1317,31 +1510,24 @@ export class EditorView {
     ctx.fillRect(x, y + this.lineHeight - 2, width, 1);
   }
 
-  /** 诊断波浪线：逐可视行求交段，正弦波 path 绘制（error 红 / warning 黄 / info·hint 灰）。 */
-  private renderDiagnostics(firstLine: number, lastLine: number): void {
-    if (this.diagnostics.length === 0) {
-      return;
-    }
+  /** 诊断波浪线：单行求交段（error 红 / warning 黄 / info·hint 灰）。 */
+  private renderDiagnosticsForLine(docLine: number, y: number): void {
+    if (this.diagnostics.length === 0) return;
     for (const diag of this.diagnostics) {
-      if (diag.endLine < firstLine || diag.line > lastLine) {
-        continue;
-      }
+      if (docLine < diag.line || docLine > diag.endLine) continue;
       const color =
         diag.severity === "error"
           ? this.theme.diagnosticError
           : diag.severity === "warning"
             ? this.theme.diagnosticWarning
             : this.theme.lineNumberForeground;
-      for (let line = Math.max(diag.line, firstLine); line <= Math.min(diag.endLine, lastLine); line++) {
-        const lineText = this.lineText(line);
-        const startChar = line === diag.line ? Math.min(diag.character, lineText.length) : 0;
-        // 跨行诊断的中间行/末行：末行取 endCharacter，中间行取整行；空段退化为单字符宽
-        const endChar = line === diag.endLine ? Math.min(diag.endCharacter, lineText.length) : lineText.length;
-        const x1 = this.gutterWidth + xForColumn(lineText, startChar, this.measurer) - this.scrollLeft;
-        const width = Math.max(xForColumn(lineText, endChar, this.measurer) - xForColumn(lineText, startChar, this.measurer), this.charWidth);
-        const baseY = this.padding + line * this.lineHeight - this.scrollTop + this.lineHeight - 3;
-        this.strokeSquiggle(x1, baseY, width, color);
-      }
+      const lineText = this.lineText(docLine);
+      const startChar = docLine === diag.line ? Math.min(diag.character, lineText.length) : 0;
+      const endChar = docLine === diag.endLine ? Math.min(diag.endCharacter, lineText.length) : lineText.length;
+      const x1 = this.gutterWidth + xForColumn(lineText, startChar, this.measurer) - this.scrollLeft;
+      const width = Math.max(xForColumn(lineText, endChar, this.measurer) - xForColumn(lineText, startChar, this.measurer), this.charWidth);
+      const baseY = y + this.lineHeight - 3;
+      this.strokeSquiggle(x1, baseY, width, color);
     }
   }
 
@@ -1369,11 +1555,57 @@ export class EditorView {
     for (const sel of this.selections) {
       const active = sel.active;
       const x = this.gutterWidth + xForColumn(this.lineText(active.line), active.character, this.measurer) - this.scrollLeft;
-      const y = this.padding + active.line * this.lineHeight - this.scrollTop;
+      const y = this.screenYForDocLine(active.line);
+      if (y === null) continue;
       if (y + this.lineHeight < 0 || y > this.viewportHeight()) {
         continue;
       }
       ctx.fillRect(Math.round(x), y, 2, this.lineHeight);
+    }
+  }
+
+  /** 折叠指示线：在折叠区域起始行末尾画一条水平线 + 折叠计数文本。 */
+  private renderFoldIndicator(docLine: number, y: number): void {
+    const region = this.foldRegions.find((r) => r.startLine === docLine);
+    if (region === undefined) return;
+    const ctx = this.ctx;
+    const hidden = region.endLine - region.startLine;
+    const lineText = this.lineText(docLine);
+    const textWidth = lineText.length * this.charWidth;
+    const x1 = this.gutterWidth - this.scrollLeft + textWidth + 4;
+    const x2 = x1 + Math.max(20, this.charWidth * 4);
+    const midY = y + this.lineHeight / 2;
+    // 折叠线
+    ctx.strokeStyle = this.theme.lineNumberForeground;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x1, midY);
+    ctx.lineTo(x2, midY);
+    ctx.stroke();
+    // 折叠计数
+    ctx.fillStyle = this.theme.lineNumberForeground;
+    ctx.font = `${Math.round(this.fontSize * 0.85)}px ${this.fontFamily}`;
+    ctx.fillText(`⋯${hidden}`, x2 + 2, midY);
+    ctx.font = `${this.fontSize}px ${this.fontFamily}`;
+  }
+
+  /** 行号槽折叠标记：▼（已折叠）/ ▸（可折叠）。 */
+  private renderFoldGutterMarks(visibleLines: number[], screenRange: { first: number; last: number }): void {
+    const ctx = this.ctx;
+    const foldMarkX = this.gutterWidth - 2;
+    for (let si = screenRange.first; si <= screenRange.last; si++) {
+      const docLine = visibleLines[si] ?? -1;
+      if (docLine < 0) continue;
+      const region = this.foldRegions.find((r) => r.startLine === docLine);
+      if (region === undefined) continue;
+      const y = this.padding + si * this.lineHeight - this.scrollTop + this.lineHeight / 2;
+      ctx.fillStyle = this.theme.lineNumberForeground;
+      ctx.font = `${Math.round(this.fontSize * 0.75)}px ${this.fontFamily}`;
+      ctx.textAlign = "right";
+      const mark = this.foldedStarts.has(docLine) ? "▸" : "▾";
+      ctx.fillText(mark, foldMarkX, y);
+      ctx.font = `${this.fontSize}px ${this.fontFamily}`;
+      ctx.textAlign = "left";
     }
   }
 }

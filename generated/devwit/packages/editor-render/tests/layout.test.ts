@@ -5,6 +5,7 @@ import {
   comparePositions,
   computeAutoIndent,
   computeAutoPair,
+  computeFoldRegions,
   findMatchingBracket,
   indentLevelOf,
   isSelectionEmpty,
@@ -13,6 +14,7 @@ import {
   outdentLine,
   visibleLineRange,
   xForColumn,
+  type FoldRegion,
   type Measurer,
 } from "../src/index.js";
 
@@ -410,5 +412,104 @@ describe("outdentLine 反缩进一行", () => {
 
   it("tab 优先于空格（首字符为 tab 时移除 tab）", () => {
     expect(outdentLine("\t  code", 4)).toEqual({ text: "  code", removed: 1 });
+  });
+});
+
+describe("computeFoldRegions 基于缩进的折叠区域", () => {
+  const doc = (lines: string[]) => ({
+    getLine: (i: number) => lines[i] ?? "",
+    lineCount: lines.length,
+  });
+
+  it("空文档 / 单行 → 无折叠区域", () => {
+    expect(computeFoldRegions(doc([]).getLine, 0, 4)).toEqual([]);
+    expect(computeFoldRegions(doc(["code"]).getLine, 1, 4)).toEqual([]);
+  });
+
+  it("无缩进差异 → 无折叠区域", () => {
+    const d = doc(["a = 1", "b = 2", "c = 3"]);
+    expect(computeFoldRegions(d.getLine, d.lineCount, 4)).toEqual([]);
+  });
+
+  it("基本缩进块：父行 + 缩进子行 → 一个折叠区域", () => {
+    const d = doc(["function f() {", "    return 1;", "}"]);
+    const regions = computeFoldRegions(d.getLine, d.lineCount, 4);
+    expect(regions).toEqual([{ startLine: 0, endLine: 1 }]);
+  });
+
+  it("嵌套缩进：外层和内层各生成一个折叠区域", () => {
+    const d = doc([
+      "function f() {",      // 0 level 0
+      "    if (x) {",        // 1 level 1
+      "        return 1;",   // 2 level 2
+      "    }",               // 3 level 1
+      "}",                   // 4 level 0
+    ]);
+    const regions = computeFoldRegions(d.getLine, d.lineCount, 4);
+    expect(regions).toContainEqual({ startLine: 0, endLine: 3 });
+    expect(regions).toContainEqual({ startLine: 1, endLine: 2 });
+  });
+
+  it("空行跳过（不中断折叠区域）", () => {
+    const d = doc([
+      "function f() {",      // 0 level 0
+      "",                     // 1 空行
+      "    return 1;",       // 2 level 1
+      "",                     // 3 空行
+      "}",                   // 4 level 0
+    ]);
+    const regions = computeFoldRegions(d.getLine, d.lineCount, 4);
+    // 空行跳过：endLine 是最后一条更深缩进的非空行（line 2）
+    expect(regions).toEqual([{ startLine: 0, endLine: 2 }]);
+  });
+
+  it("同级连续块不互相折叠", () => {
+    const d = doc([
+      "function f() {",      // 0 level 0
+      "    a();",            // 1 level 1
+      "function g() {",      // 2 level 0
+      "    b();",            // 3 level 1
+      "}",                   // 4 level 0
+    ]);
+    const regions = computeFoldRegions(d.getLine, d.lineCount, 4);
+    expect(regions).toContainEqual({ startLine: 0, endLine: 1 });
+    expect(regions).toContainEqual({ startLine: 2, endLine: 3 });
+  });
+
+  it("minLines 参数过滤过短区域", () => {
+    const d = doc([
+      "function f() {",      // 0 level 0
+      "    return 1;",       // 1 level 1
+      "}",                   // 2 level 0
+    ]);
+    // minLines=3 需要 ≥3 行，此区域只有 2 行 → 过滤
+    expect(computeFoldRegions(d.getLine, d.lineCount, 4, 3)).toEqual([]);
+    // minLines=2 保留
+    expect(computeFoldRegions(d.getLine, d.lineCount, 4, 2)).toEqual([{ startLine: 0, endLine: 1 }]);
+  });
+
+  it("tab 缩进同样生效", () => {
+    const d = doc([
+      "function f() {",      // 0 level 0
+      "\treturn 1;",         // 1 level 1 (tab)
+      "}",                   // 2 level 0
+    ]);
+    expect(computeFoldRegions(d.getLine, d.lineCount, 4)).toEqual([{ startLine: 0, endLine: 1 }]);
+  });
+
+  it("缩进回到更浅级别时折叠结束", () => {
+    const d = doc([
+      "class A {",            // 0 level 0
+      "    method() {",       // 1 level 1
+      "        stmt;",        // 2 level 2
+      "    }",                // 3 level 1
+      "    other;",           // 4 level 1 — 同级，不纳入上层折叠
+      "}",                    // 5 level 0
+    ]);
+    const regions = computeFoldRegions(d.getLine, d.lineCount, 4);
+    // level 0 区域：0→4（到 } 前）
+    // level 1 区域：1→3（method 块内）和 4（other，单独无子行→不折叠）
+    expect(regions).toContainEqual({ startLine: 0, endLine: 4 });
+    expect(regions).toContainEqual({ startLine: 1, endLine: 2 });
   });
 });
