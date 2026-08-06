@@ -1,0 +1,389 @@
+=== PH Comments Extracted 2026-08-06T08:06:41.721Z ===
+
+--- Comment 1 ---
+Orbit AwardsAwards powered by what reviewers actually sayAI Workflow Automation →AI Dictation Apps →Trending CategoriesEngineering & DevelopmentLLMsProductivityMarketing & SalesDesign & CreativeSocial & CommunityFinanceAI AgentsOther CategoriesTrending CategoriesVibe Coding ToolsAI Dictation AppsAI notetakersCode Review ToolsNo-code PlatformsFigma PluginsStatic site generatorsEngineering & DevelopmentVibe Coding ToolsAI Coding AgentsAI Code EditorsLLMsAI ChatbotsAI Infrastructure ToolsPrompt Engineering ToolsProductivityAI notetakersNote and writing appsTeam collaboration softwareSearchAI Workflow AutomationMarketing & SalesLead generation softwareMarketing automation platformsDesign & CreativeVideo editingDesign resourcesGraphic design toolsAI Generative MediaSocial & CommunitySocial NetworkingProfessional networking platformsCommunity managementFinanceAccounting softwareFundraising resourcesInvestingAI AgentsAI Voice Agents
+
+--- Comment 2 ---
+Orbit AwardsAwards powered by what reviewers actually sayAI Workflow Automation →AI Dictation Apps →
+
+--- Comment 3 ---
+AI Workflow Automation →AI Dictation Apps →
+
+--- Comment 4 ---
+AI Workflow Automation →
+
+--- Comment 5 ---
+Trending CategoriesEngineering & DevelopmentLLMsProductivityMarketing & SalesDesign & CreativeSocial & CommunityFinanceAI AgentsOther CategoriesTrending CategoriesVibe Coding ToolsAI Dictation AppsAI notetakersCode Review ToolsNo-code PlatformsFigma PluginsStatic site generatorsEngineering & DevelopmentVibe Coding ToolsAI Coding AgentsAI Code EditorsLLMsAI ChatbotsAI Infrastructure ToolsPrompt Engineering ToolsProductivityAI notetakersNote and writing appsTeam collaboration softwareSearchAI Workflow AutomationMarketing & SalesLead generation softwareMarketing automation platformsDesign & CreativeVideo editingDesign resourcesGraphic design toolsAI Generative MediaSocial & CommunitySocial NetworkingProfessional networking platformsCommunity managementFinanceAccounting softwareFundraising resourcesInvestingAI AgentsAI Voice Agents
+
+--- Comment 6 ---
+Trending CategoriesVibe Coding ToolsAI Dictation AppsAI notetakersCode Review ToolsNo-code PlatformsFigma PluginsStatic site generatorsEngineering & DevelopmentVibe Coding ToolsAI Coding AgentsAI Code EditorsLLMsAI ChatbotsAI Infrastructure ToolsPrompt Engineering ToolsProductivityAI notetakersNote and writing appsTeam collaboration softwareSearchAI Workflow AutomationMarketing & SalesLead generation softwareMarketing automation platformsDesign & CreativeVideo editingDesign resourcesGraphic design toolsAI Generative MediaSocial & CommunitySocial NetworkingProfessional networking platformsCommunity managementFinanceAccounting softwareFundraising resourcesInvestingAI AgentsAI Voice Agents
+
+--- Comment 7 ---
+Trending CategoriesVibe Coding ToolsAI Dictation AppsAI notetakersCode Review ToolsNo-code PlatformsFigma PluginsStatic site generators
+
+--- Comment 8 ---
+Vibe Coding ToolsAI Dictation AppsAI notetakersCode Review ToolsNo-code PlatformsFigma PluginsStatic site generators
+
+--- Comment 9 ---
+Engineering & DevelopmentVibe Coding ToolsAI Coding AgentsAI Code Editors
+
+--- Comment 10 ---
+Vibe Coding ToolsAI Coding AgentsAI Code Editors
+
+--- Comment 11 ---
+AI ChatbotsAI Infrastructure ToolsPrompt Engineering Tools
+
+--- Comment 12 ---
+AI notetakersNote and writing appsTeam collaboration softwareSearchAI Workflow Automation
+
+--- Comment 13 ---
+AI AgentsAI Voice Agents
+
+--- Comment 14 ---
+DevWit
+The AI IDE that shows you exactly what it sends
+
+13 followers
+
+Visit website
+DevWit is a free, open-source AI IDE built on one principle: you should see exactly what the AI sees and does. Every LLM request shows its full context — system prompt, tools, injected code — with per-item token costs you can toggle. Every file write and shell command needs your explicit approval.
+Overview
+Reviews
+Team
+More
+
+--- Comment 15 ---
+DevWit
+The AI IDE that shows you exactly what it sends
+
+13 followers
+
+Visit website
+
+--- Comment 16 ---
+DevWit
+The AI IDE that shows you exactly what it sends
+
+13 followers
+
+--- Comment 17 ---
+The AI IDE that shows you exactly what it sends
+
+13 followers
+
+--- Comment 18 ---
+The AI IDE that shows you exactly what it sends13 followers
+
+--- Comment 19 ---
+DevWit is a free, open-source AI IDE built on one principle: you should see exactly what the AI sees and does. Every LLM request shows its full context — system prompt, tools, injected code — with per-item token costs you can toggle. Every file write and shell command needs your explicit approval.
+
+--- Comment 20 ---
+Launch tags:
+Open Source
+•
+Developer Tools
+•
+Artificial Intelligence
+
+--- Comment 21 ---
+Bruno API Client
+Works with Git, your IDE, and your agents.
+Try Bruno API Client
+Promoted
+
+--- Comment 22 ---
+Bruno API Client
+Works with Git, your IDE, and your agents.
+Try Bruno API Client
+
+--- Comment 23 ---
+Bruno API Client
+Works with Git, your IDE, and your agents.
+
+--- Comment 24 ---
+Works with Git, your IDE, and your agents.
+
+--- Comment 25 ---
+Hi Product Hunt! I'm the maker of DevWit.
+
+--- Comment 26 ---
+I built it because I kept hitting the same wall with AI coding tools: I couldn't tell what was being sent to the model, or what the agent was about to do to my files. DevWit makes both fully visible:
+
+--- Comment 27 ---
+1. Context Panel — every LLM request lists its system prompt, tools, and each injected item (file, RAG chunk, terminal output) with token counts. Toggle any item off and the request shrinks accordingly.
+
+--- Comment 28 ---
+3. Lean context — a task router sends simple requests to local models (Ollama) and complex ones to cloud models, with a per-session cost ledger.
+
+--- Comment 29 ---
+It's a real IDE, not a wrapper: TypeScript LSP (diagnostics/hover/definition), integrated Git, breakpoint debugging (DAP/js-debug), MCP tool servers, multi-agent orchestration, custom modes — all free, all open source.
+
+--- Comment 30 ---
+I'd love your feedback — especially from teams with compliance/audit needs.
+
+--- Comment 31 ---
+ZONGYUAN SUI
+Maker
+
+Thanks @Furkan! Really glad the per-item token cost toggle resonated — it came from my own frustration of not knowing what each request actually cost. Every item in the context panel (system prompt, tools, RAG chunks, terminal output) shows its token count, and you can toggle any of them off to shrink the request in real time. If you try it, would love to hear what else would make the cost transparency more useful for your workflow.
+
+Upvote
+Reply
+Report
+Share
+39m ago
+
+--- Comment 32 ---
+Thanks @Furkan! Really glad the per-item token cost toggle resonated — it came from my own frustration of not knowing what each request actually cost. Every item in the context panel (system prompt, tools, RAG chunks, terminal output) shows its token count, and you can toggle any of them off to shrink the request in real time. If you try it, would love to hear what else would make the cost transparency more useful for your workflow.
+
+--- Comment 33 ---
+Furkan
+
+The token cost breakdown per request is honestly really useful, kind of eye opening when you see where the budget actually goes. Love that the approval step is baked in by default.
+
+Upvote
+Award
+Reply
+Report
+Share
+7d ago
+
+--- Comment 34 ---
+The token cost breakdown per request is honestly really useful, kind of eye opening when you see where the budget actually goes. Love that the approval step is baked in by default.
+
+--- Comment 35 ---
+ZONGYUAN SUI
+Maker
+
+Thanks @Furkan! Really glad the token cost breakdown resonated — it was one of those features that seemed obvious once built but nobody else was doing it. The approval gate came from real pain: an agent once overwrote a file I didn't expect, and I thought 'never again.' Appreciate you checking it out!
+
+Upvote
+Reply
+Report
+Share
+7d ago
+
+--- Comment 36 ---
+Thanks @Furkan! Really glad the token cost breakdown resonated — it was one of those features that seemed obvious once built but nobody else was doing it. The approval gate came from real pain: an agent once overwrote a file I didn't expect, and I thought 'never again.' Appreciate you checking it out!
+
+--- Comment 37 ---
+Ferdi
+
+The per-item token cost toggle is a clever touch, makes it way easier to understand where your context window is actually going.
+
+Upvote
+Award
+Reply
+Report
+Share
+7d ago
+
+--- Comment 38 ---
+The per-item token cost toggle is a clever touch, makes it way easier to understand where your context window is actually going.
+
+--- Comment 39 ---
+ZONGYUAN SUI
+Maker
+
+Thanks @Report! Appreciate you checking out DevWit. If you have any questions or feedback, I'm happy to help.
+
+Upvote
+Reply
+Report
+Share
+7d ago
+
+--- Comment 40 ---
+Thanks @Report! Appreciate you checking out DevWit. If you have any questions or feedback, I'm happy to help.
+
+--- Comment 41 ---
+Reviews
+No reviews yet
+Be the first to leave a review for DevWit
+Leave a review
+
+--- Comment 42 ---
+No reviews yet
+Be the first to leave a review for DevWit
+Leave a review
+
+--- Comment 43 ---
+Be the first to leave a review for DevWit
+
+--- Comment 44 ---
+Unfollow DevWit
+Add to collection
+Share
+
+--- Comment 45 ---
+Company Info
+github.com/eeyzs1/DevWit
+GitHub
+
+--- Comment 46 ---
+github.com/eeyzs1/DevWit
+
+--- Comment 47 ---
+DevWit Info
+Launched in 2026
+
+--- Comment 48 ---
+Top Product Categories
+Engineering & Development
+Vibe Coding Tools
+AI Coding Agents
+AI Code Editors
+LLMs
+AI Chatbots
+AI Infrastructure Tools
+Prompt Engineering Tools
+Productivity
+AI notetakers
+Note and writing apps
+Team collaboration software
+Search
+AI Workflow Automation
+Marketing & Sales
+Lead generation software
+Marketing automation platforms
+Design & Creative
+Video editing
+Design resources
+Graphic design tools
+AI Generative Media
+Social & Community
+Social Networking
+Professional networking platforms
+Community management
+Finance
+Accounting software
+Fundraising resources
+Investing
+AI Agents
+AI Voice Agents
+See All Categories >>
+
+--- Comment 49 ---
+Engineering & Development
+Vibe Coding Tools
+AI Coding Agents
+AI Code Editors
+LLMs
+AI Chatbots
+AI Infrastructure Tools
+Prompt Engineering Tools
+Productivity
+AI notetakers
+Note and writing apps
+Team collaboration software
+Search
+AI Workflow Automation
+Marketing & Sales
+Lead generation software
+Marketing automation platforms
+Design & Creative
+Video editing
+Design resources
+Graphic design tools
+AI Generative Media
+Social & Community
+Social Networking
+Professional networking platforms
+Community management
+Finance
+Accounting software
+Fundraising resources
+Investing
+AI Agents
+AI Voice Agents
+See All Categories >>
+
+--- Comment 50 ---
+Engineering & Development
+Vibe Coding Tools
+AI Coding Agents
+AI Code Editors
+
+--- Comment 51 ---
+LLMs
+AI Chatbots
+AI Infrastructure Tools
+Prompt Engineering Tools
+
+--- Comment 52 ---
+Productivity
+AI notetakers
+Note and writing apps
+Team collaboration software
+Search
+AI Workflow Automation
+
+--- Comment 53 ---
+Design & Creative
+Video editing
+Design resources
+Graphic design tools
+AI Generative Media
+
+--- Comment 54 ---
+AI Agents
+AI Voice Agents
+See All Categories >>
+
+--- Comment 55 ---
+Trending categories
+Vibe Coding Tools
+AI Dictation Apps
+AI notetakers
+Code Review Tools
+No-code Platforms
+Figma Plugins
+Static site generators
+Top reviewed
+Lovable
+n8n
+Attio
+PostHog
+Vapi
+Granola
+Raycast
+Supabase
+Trending products
+Lovable
+Screen Studio
+bolt.new
+Wispr Flow
+Framer
+Replit
+Vapi
+Granola
+Top forum threads
+Cursor or Claude Code?
+POLL: Domain or product first?
+YC deadline in <2 weeks; Who's applying?
+We Got into YC, Got Kicked Out, and Fought Our Way Back
+How Wispr Flow found PMF through pivot
+Best Vibe Coding tool so far?
+Landing page roast - 48 hours only
+Fix your tagline with the PH CEO
+
+--- Comment 56 ---
+Trending categories
+Vibe Coding Tools
+AI Dictation Apps
+AI notetakers
+Code Review Tools
+No-code Platforms
+Figma Plugins
+Static site generators
+
+--- Comment 57 ---
+Top forum threads
+Cursor or Claude Code?
+POLL: Domain or product first?
+YC deadline in <2 weeks; Who's applying?
+We Got into YC, Got Kicked Out, and Fought Our Way Back
+How Wispr Flow found PMF through pivot
+Best Vibe Coding tool so far?
+Landing page roast - 48 hours only
+Fix your tagline with the PH CEO
