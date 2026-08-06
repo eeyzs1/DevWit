@@ -9,13 +9,25 @@
 
 DevWit is a self-built AI-native desktop IDE. It combines VSCode-grade editing, Cursor-style conversational coding, Claude Code-style agent execution, and a pi-agent-inspired minimal context design that avoids long-context bloat — delivering an efficient, transparent, and auditable AI development experience.
 
+## Why DevWit
+
+| Concern | Cursor / Copilot | DevWit |
+|---------|------------------|--------|
+| Context transparency | Black box | **Per-item visible**: system prompt, tools, injected items and per-item token cost all shown, each toggleable |
+| Action authorization | Agent runs directly | **Authorization gate**: file writes / shell commands require one-click approval, decisions logged |
+| Context cost | Stuffed, tokens uncontrolled | **Minimal context**: per-item tokens visible and toggleable, request size actively controlled |
+| Positioning | Plugin or closed SaaS | **Standalone IDE**, MIT open source, zero accounts, zero cloud, data stays local |
+| Compliance / audit | None | Context manifest exportable + authorization trace fully reproducible |
+
+Built for: teams with compliance/audit needs, developers who want to know exactly what the AI sends, and anyone with context-hygiene standards.
+
 ## Download & Install
 
-**Latest v0.3.0 · Free software · MIT license** (all build artifacts on the [Releases](https://github.com/eeyzs1/DevWit/releases) page)
+**Latest v0.4.0 · Free software · MIT license** (all build artifacts on the [Releases](https://github.com/eeyzs1/DevWit/releases) page)
 
 ### Windows (x64)
 
-Direct download: [DevWit.Setup.0.3.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.3.0/DevWit.Setup.0.3.0.exe) (NSIS installer, custom install directory, supports `/S` silent install).
+Direct download: [DevWit.Setup.0.4.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit.Setup.0.4.0.exe) (NSIS installer, custom install directory, supports `/S` silent install).
 
 winget (submitted as microsoft/winget-pkgs#407506; available once community review completes):
 
@@ -32,12 +44,12 @@ brew install --cask eeyzs1/tap/devwit
 xattr -dr com.apple.quarantine /Applications/DevWit.app   # unsigned distribution; de-quarantine once
 ```
 
-Or download directly: [DevWit-0.3.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.3.0/DevWit-0.3.0-arm64.dmg) (no Intel Mac build yet).
+Or download directly: [DevWit-0.4.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit-0.4.0-arm64.dmg) (no Intel Mac build yet).
 
 ### Linux (x64)
 
-- AppImage (in-app auto-update): [DevWit-0.3.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.3.0/DevWit-0.3.0.AppImage) — `chmod +x` and run
-- Debian/Ubuntu: [devwit_0.3.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.3.0/devwit_0.3.0_amd64.deb) — install with `sudo dpkg -i`
+- AppImage (in-app auto-update): [DevWit-0.4.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit-0.4.0.AppImage) — `chmod +x` and run
+- Debian/Ubuntu: [devwit_0.4.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/devwit_0.4.0_amd64.deb) — install with `sudo dpkg -i`
 
 ### Auto-Update
 
@@ -125,7 +137,7 @@ npm run dev              # Build and launch
 ## Testing & Verification
 
 ```powershell
-npm test                 # 362 unit tests across 44 test files
+npm test                 # 747 unit tests across 69 test files
 npm run lint             # ESLint, zero violations
 npm run test:e2e         # E2E smoke: launch → edit/save → context toggles → diff review → agent authorization → model switch → mode hot-reload
 ```
@@ -154,3 +166,7 @@ Pushing a `v*` tag triggers CD (GitHub Actions builds and publishes a Release).
 - Credentials are encrypted via safeStorage before persisting — never stored in plaintext
 - Renderer CSP is locked down; IPC surface is a minimal whitelist
 - All destructive agent operations pass through the authorization gate; decisions are recorded in the trace
+
+## Support
+
+DevWit is free open-source software — no monetization, no fees, no tracking. If it helps you, a ⭐ Star on GitHub is the most meaningful support: it's the public-signal metric used to qualify for free code signing (SignPath), which removes SmartScreen warnings for Windows users. Bug reports and feature requests welcome via [Issues](https://github.com/eeyzs1/DevWit/issues).

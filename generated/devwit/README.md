@@ -9,13 +9,25 @@
 
 DevWit 是一款自研的 AI 原生桌面 IDE：融合 VSCode 的编辑器能力、Cursor 的对话式编程、Claude Code 的 Agent 任务执行与 pi agent 的简洁上下文设计，避免长上下文膨胀，提供高效、透明、可审计的 AI 开发体验。
 
+## 为什么选 DevWit
+
+| 关切 | Cursor / Copilot | DevWit |
+|------|------------------|--------|
+| 上下文透明度 | 黑盒，看不到发什么 | **逐项可见**：系统提示、工具、注入项及每项 token 占用全展示，可逐项开关 |
+| 操作授权 | Agent 直接执行 | **授权门**：文件写入 / 终端命令需一键批准，裁决留痕可审计 |
+| 上下文成本 | 塞满即用，token 失控 | **简洁上下文**：每项 token 可见可关，请求体积主动控制 |
+| 定位 | 插件或闭源 SaaS | **独立 IDE**，MIT 开源，零账号零云端，数据不出本机 |
+| 合规/审计 | 无 | 上下文 manifest 落盘 + 授权轨迹完整可追溯 |
+
+适合：有合规/审计需求的团队、上下文洁癖的高级开发者、想看清 AI 到底发了什么的你。
+
 ## 下载安装
 
-**最新版本 v0.3.0 · 免费软件 · MIT 协议**（全部构建产物见 [Releases](https://github.com/eeyzs1/DevWit/releases)）
+**最新版本 v0.4.0 · 免费软件 · MIT 协议**（全部构建产物见 [Releases](https://github.com/eeyzs1/DevWit/releases)）
 
 ### Windows（x64）
 
-直接下载：[DevWit.Setup.0.3.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.3.0/DevWit.Setup.0.3.0.exe)（NSIS 安装包，可选安装目录，支持 `/S` 静默安装）。
+直接下载：[DevWit.Setup.0.4.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit.Setup.0.4.0.exe)（NSIS 安装包，可选安装目录，支持 `/S` 静默安装）。
 
 winget（已提交 microsoft/winget-pkgs#407506，待社区审批通过后可用）：
 
@@ -32,12 +44,12 @@ brew install --cask eeyzs1/tap/devwit
 xattr -dr com.apple.quarantine /Applications/DevWit.app   # 未签名分发，首次运行前去一次隔离
 ```
 
-或直接下载：[DevWit-0.3.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.3.0/DevWit-0.3.0-arm64.dmg)（Intel Mac 暂无构建）。
+或直接下载：[DevWit-0.4.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit-0.4.0-arm64.dmg)（Intel Mac 暂无构建）。
 
 ### Linux（x64）
 
-- AppImage（支持应用内自动更新）：[DevWit-0.3.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.3.0/DevWit-0.3.0.AppImage)，下载后 `chmod +x` 直接运行
-- Debian/Ubuntu：[devwit_0.3.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.3.0/devwit_0.3.0_amd64.deb)，`sudo dpkg -i` 安装
+- AppImage（支持应用内自动更新）：[DevWit-0.4.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit-0.4.0.AppImage)，下载后 `chmod +x` 直接运行
+- Debian/Ubuntu：[devwit_0.4.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/devwit_0.4.0_amd64.deb)，`sudo dpkg -i` 安装
 
 ### 自动更新
 
@@ -128,7 +140,7 @@ npm run dev              # 构建并启动
 ## 测试与验证
 
 ```powershell
-npm test                 # 618 项单元测试（67 个测试文件）
+npm test                 # 747 项单元测试（69 个测试文件）
 npm run lint             # ESLint，0 违规
 npm run test:e2e         # E2E 冒烟：启动→编辑保存→上下文开关→diff 审查→Agent 授权→切模型→模式热更新
 ```
@@ -157,3 +169,7 @@ npm run dist   # NSIS 安装包 → release/DevWit Setup x.y.z.exe
 - 凭证经 safeStorage 加密落盘，绝不明文存储
 - 渲染进程 CSP 锁定，IPC 白名单最小暴露
 - Agent 危险操作一律经授权门，授权裁决留痕于轨迹
+
+## 支持
+
+DevWit 是免费开源软件，不商业化、不收费、不追踪。如果它对你有帮助，欢迎 ⭐ Star 支持一下——这是项目继续迭代和通过代码签名（SignPath）审核的唯一公信号依据。问题与建议请提 [Issue](https://github.com/eeyzs1/DevWit/issues)。
