@@ -1,5 +1,6 @@
 import { localizeError, onDidChangeLocale, t } from "@devwit/i18n";
 import type { ChatController, ChatItem } from "./chat-controller.js";
+import { formatUsageLine } from "./chat-controller.js";
 
 /**
  * Agent 活动流视图（迭代 2 / AC9）：指挥台中栏。
@@ -184,8 +185,8 @@ export function mountActivityStream(
         break;
       }
       case "usage": {
-        // AC35：真实计费量行（与 manifest 估算计数互补，先于完成行）
-        body.textContent = t("act.usage.line", { input: item.inputTokens, output: item.outputTokens });
+        // AC35 + G2：真实计费量行（与对话面板同一文案）
+        body.textContent = formatUsageLine(item);
         break;
       }
       case "authorization": {

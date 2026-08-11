@@ -15,7 +15,7 @@
 | ID | 项 | 理由 | 状态 |
 |----|----|------|------|
 | G1 | 首次会话强制亮一次「上下文面板」导览 | PH 夸的是用过才懂的能力；新用户可能看不到 | **已做**（`context-tour.ts`，`onboarding.state.contextTourSeen`） |
-| G2 | 用量行 / 成本估算在对话完成时更醒目 | Ferdi/Furkan 关心 budget；AC35/36 已有基建，需首屏可见 | 待评估 |
+| G2 | 用量行 / 成本估算在对话完成时更醒目 | Ferdi/Furkan 关心 budget；AC35/36 已有基建，需首屏可见 | **已做**（对话/活动流用量行样式 + 成本；状态栏回显） |
 | G3 | Windows 未签名下载页诚实提示 + 绕过步骤 | v0.4.0 近 0 下载，SmartScreen 是转化杀手 | **已做**（根 README + `generated/devwit/README{,_EN}.md`） |
 | G4 | README / 推广统一话术：透明上下文 + 授权门 | 避免功能清单淹没差异化 | 本轮根 README 已对齐 |
 

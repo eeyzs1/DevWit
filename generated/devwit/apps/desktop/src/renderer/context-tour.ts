@@ -12,6 +12,8 @@ export interface ContextTourDeps {
   api: DevwitApi;
   /** 强制切到上下文页签（渲染侧 activateSideTab("context")）。 */
   showContextTab: () => void;
+  /** 关闭导览后切回对话页签（CTA「去发第一条消息」）。 */
+  showChatTab?: () => void;
   /** 高亮上下文页签按钮（可选 pulse）。 */
   highlightTab?: (on: boolean) => void;
 }
@@ -68,6 +70,7 @@ export async function maybeOpenContextTour(deps: ContextTourDeps): Promise<void>
     deps.highlightTab?.(false);
     mask.remove();
     void mergeState(deps.api, { contextTourSeen: true });
+    deps.showChatTab?.();
   };
   gotIt.addEventListener("click", dismiss);
   mask.addEventListener("click", (ev) => {

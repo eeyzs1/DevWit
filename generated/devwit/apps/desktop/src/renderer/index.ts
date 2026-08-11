@@ -3168,6 +3168,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     await maybeOpenContextTour({
       api,
       showContextTab: () => activateSideTab("context"),
+      showChatTab: () => activateSideTab("chat"),
       highlightTab: (on) => {
         contextTab.classList.toggle("dw-tab-tour-pulse", on);
       },
@@ -3396,9 +3397,20 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   chatController.onChange(schedulePersist);
   persistSession();
 
-  // agent 事件流驱动一次后刷新上下文 manifest 展示
+  // agent 事件流：结束后刷新上下文 manifest；用量行同步状态栏（G2 首屏可见）
   api.agent.onEvent((event) => {
     if (event.type === "done" || event.type === "error") void contextController.refresh();
+    if (event.type === "usage") {
+      const detail = event.detail as {
+        inputTokens?: number;
+        outputTokens?: number;
+        providerId?: string;
+        model?: string;
+      } | undefined;
+      const input = typeof detail?.inputTokens === "number" ? detail.inputTokens : 0;
+      const output = typeof detail?.outputTokens === "number" ? detail.outputTokens : 0;
+      showStatus(t("act.usage.line", { input, output }));
+    }
   });
 
   // ---- WU013：diff 审查（对话提案 → diff → 逐块接受/拒绝）----

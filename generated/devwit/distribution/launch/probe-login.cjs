@@ -42,8 +42,6 @@ async function probe(page, name, url, check) {
   out.reddit = await probe(page, "Reddit", "https://www.reddit.com/r/programming/submit", async (p) => {
     const url = p.url();
     const body = await p.locator("body").innerText().catch(() => "");
-    const loggedIn = !/login|sign up/i.test(await p.locator("header").innerText().catch(() => body).then(t => t.slice(0, 500))) ||
-      (await p.locator('[href*="/user/"], button:has-text("Create Post")').count()) > 0;
     // Better: look for create post composer
     const composer = (await p.locator('textarea, div[contenteditable="true"], [data-testid="post-composer"]').count()) > 0;
     const loginWall = /log in|sign up to|login to reddit/i.test(body.slice(0, 2000));

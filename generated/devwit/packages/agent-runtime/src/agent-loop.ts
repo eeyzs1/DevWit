@@ -130,7 +130,12 @@ export class AgentLoop {
     // 用量轨迹事件先于终态（done/error）落盘：活动流顺序为 …→ 用量 → 完成
     const recordUsage = (): void => {
       if (!sawUsage) return;
-      trace.record("usage", `usage: in ${inputTokens} / out ${outputTokens}`, { inputTokens, outputTokens });
+      trace.record("usage", `usage: in ${inputTokens} / out ${outputTokens}`, {
+        inputTokens,
+        outputTokens,
+        providerId: this.deps.provider.config.id,
+        model: this.deps.provider.config.model,
+      });
     };
 
     for (;;) {

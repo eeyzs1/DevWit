@@ -599,6 +599,8 @@ const zhCN = {
   // ---- Token 用量可观测（AC35）----
   "act.usage": "用量",
   "act.usage.line": "本次真实用量：输入 {input} / 输出 {output} tokens",
+  "act.usage.withCost": " · 成本约 {cost}",
+  "act.usage.unpriced": " · 未定价（设置 → 用量可填单价）",
   "settings.usage.title": "用量统计",
   "settings.usage.today": "今日：输入 {input} / 输出 {output} tokens · {runs} 次计量",
   "settings.usage.total": "累计：输入 {input} / 输出 {output} tokens · {runs} 次计量",
@@ -1231,6 +1233,8 @@ const enUS: Messages = {
   // ---- Token usage observability (AC35) ----
   "act.usage": "Usage",
   "act.usage.line": "Real usage this run: {input} in / {output} out tokens",
+  "act.usage.withCost": " · ~{cost} cost",
+  "act.usage.unpriced": " · unpriced (set rates in Settings → Usage)",
   "settings.usage.title": "Usage statistics",
   "settings.usage.today": "Today: {input} in / {output} out tokens · {runs} metered run(s)",
   "settings.usage.total": "Total: {input} in / {output} out tokens · {runs} metered run(s)",

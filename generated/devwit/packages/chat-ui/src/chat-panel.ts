@@ -1,6 +1,7 @@
 import type { CodeSymbol, ModeDefinition, ProviderConfig, SymbolsQueryResult, SymbolKind } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, t, ta } from "@devwit/i18n";
 import type { ChatContextSnapshot, ChatController, ChatItem } from "./chat-controller.js";
+import { formatUsageLine } from "./chat-controller.js";
 import { detectAtTrigger, detectSlashTrigger, filterModesByQuery, filterWorkspaceFiles } from "./input-triggers.js";
 
 /** 授权裁决 → 词典键（模板串键无法通过 MessageKey 类型检查，用显式映射）。 */
@@ -528,8 +529,8 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
         break;
       }
       case "usage": {
-        // AC35：真实 token 用量行（与活动流同一组文案键）
-        row.textContent = `[${t("act.usage")}] ${t("act.usage.line", { input: item.inputTokens, output: item.outputTokens })}`;
+        // AC35 + G2：真实 token 用量行（醒目样式 + 可选成本）
+        row.textContent = `[${t("act.usage")}] ${formatUsageLine(item)}`;
         break;
       }
       case "authorization": {

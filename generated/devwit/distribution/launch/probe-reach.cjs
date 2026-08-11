@@ -1,6 +1,5 @@
 // Probe sites reachable from Chrome CDP profile (may use browser extensions/proxy).
 const { chromium } = require("playwright");
-const fs = require("fs");
 const path = require("path");
 
 const CDP = "http://localhost:9222";

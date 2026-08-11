@@ -189,7 +189,12 @@ export class AgentOrchestrator {
       sawUsage ? { usage: { inputTokens, outputTokens } } : {};
     const recordUsage = (): void => {
       if (!sawUsage) return;
-      trace.record("usage", `usage: in ${inputTokens} / out ${outputTokens}（含 Planner/子 Agent/综合）`, { inputTokens, outputTokens });
+      trace.record("usage", `usage: in ${inputTokens} / out ${outputTokens}（含 Planner/子 Agent/综合）`, {
+        inputTokens,
+        outputTokens,
+        providerId: this.deps.provider.config.id,
+        model: this.deps.provider.config.model,
+      });
     };
 
     // ---- 阶段 1：Planner 分解 ------------------------------------------------

@@ -541,6 +541,15 @@ body,
   text-align: center;
 }
 
+.dw-act-usage {
+  border-color: color-mix(in srgb, var(--dw-accent, #3fb950) 55%, var(--dw-border));
+  background: color-mix(in srgb, var(--dw-accent, #3fb950) 10%, transparent);
+}
+
+.dw-act-usage .dw-act-body {
+  font-weight: 500;
+}
+
 /* ---- 首次使用引导（AC11） ---- */
 .dw-onboarding {
   position: absolute;
@@ -966,6 +975,19 @@ body,
   color: var(--dw-fg-dim);
   text-align: center;
   font-size: 11px;
+}
+
+/* G2：对话结束用量行 — 首屏可见的成本锚点 */
+.dw-msg-usage {
+  margin: 6px 0 2px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--dw-accent, #3fb950) 45%, var(--dw-border));
+  background: color-mix(in srgb, var(--dw-accent, #3fb950) 12%, var(--dw-bg-panel));
+  color: var(--dw-fg);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .dw-chat-input {

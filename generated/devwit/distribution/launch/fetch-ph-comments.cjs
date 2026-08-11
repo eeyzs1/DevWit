@@ -95,8 +95,8 @@ async function waitForCDP(timeoutMs = 30000) {
       // 用通用策略：找所有包含用户名 + 评论文本的容器
       const results = [];
 
-      // 策略：找所有包含 "comment" 相关属性的元素
-      const commentEls = document.querySelectorAll(
+      // 策略：找所有包含 "comment" 相关属性的元素（扫描入口，段落遍历才是实际抽取）
+      void document.querySelectorAll(
         '[data-test*="comment" i], [class*="comment" i], [class*="Comment" i], article'
       );
 

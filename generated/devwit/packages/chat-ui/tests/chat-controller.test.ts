@@ -17,6 +17,7 @@ class FakeDevwitApi {
   manifest: ContextManifest | null = null;
   readonly policyWrites: Array<{ type: string; enabled: boolean }> = [];
   runError: Error | null = null;
+  settingsStore: Record<string, unknown> = {};
 
   readonly api: DevwitApi;
 
@@ -49,6 +50,13 @@ class FakeDevwitApi {
           this.policyWrites.push({ type, enabled });
           this.policy[type] = enabled;
         },
+      },
+      settings: {
+        get: async (key: string) => this.settingsStore[key] ?? null,
+        set: async (key: string, value: unknown) => {
+          this.settingsStore[key] = value;
+        },
+        onChanged: () => () => undefined,
       },
     } as unknown as DevwitApi;
   }
@@ -303,6 +311,45 @@ describe("ChatController 多 Agent 编排（AC20）", () => {
     expect(controller.isRunning).toBe(true);
     fake.emit(event("s1", "done", "任务完成（2 个子任务）"));
     expect(controller.isRunning).toBe(false);
+    controller.dispose();
+  });
+
+  it("G2：usage 事件附带 provider/model 时按单价表补全 cost", async () => {
+    const fake = new FakeDevwitApi();
+    fake.settingsStore["usage.pricing"] = {
+      "ollama llama3": { inputPerMillion: 0, outputPerMillion: 0 },
+      "openai gpt-4o": { inputPerMillion: 5, outputPerMillion: 15 },
+    };
+    const controller = new ChatController({ api: fake.api, sessionId: "s1", workspaceRoot: "", modeId: "chat" });
+    fake.emit(
+      event("s1", "usage", "usage: in 1000 / out 2000", {
+        inputTokens: 1000,
+        outputTokens: 2000,
+        providerId: "openai",
+        model: "gpt-4o",
+      })
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const usage = controller.listItems().find((item) => item.kind === "usage");
+    expect(usage).toMatchObject({
+      kind: "usage",
+      inputTokens: 1000,
+      outputTokens: 2000,
+      providerId: "openai",
+      model: "gpt-4o",
+      cost: (1000 * 5 + 2000 * 15) / 1_000_000,
+    });
+    fake.emit(
+      event("s1", "usage", "usage: in 10 / out 10", {
+        inputTokens: 10,
+        outputTokens: 10,
+        providerId: "unknown",
+        model: "x",
+      })
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const unpriced = controller.listItems().filter((item) => item.kind === "usage").at(-1);
+    expect(unpriced).toMatchObject({ cost: null });
     controller.dispose();
   });
 });

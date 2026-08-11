@@ -30,7 +30,15 @@ export type ChatItem =
   | { kind: "modeRecommend"; modeId: string; currentModeId: string; intent: string; successRate: number; currentSuccessRate: number | null; runs: number }
   | { kind: "plan"; subtasks: { id: string; title: string }[]; fallback: boolean }
   | { kind: "subagent"; subagentId: string; title: string; phase: "start" | "done"; finishReason?: string }
-  | { kind: "usage"; inputTokens: number; outputTokens: number }
+  | {
+      kind: "usage";
+      inputTokens: number;
+      outputTokens: number;
+      providerId?: string;
+      model?: string;
+      /** 已定价成本；null=未定价；undefined=尚未解析 */
+      cost?: number | null;
+    }
   | { kind: "error"; text: string }
   | { kind: "done"; text: string };
 
@@ -98,6 +106,41 @@ function subagentDetail(detail: unknown): { subagentId: string; title: string; f
     title: record["title"],
     ...(typeof record["finishReason"] === "string" ? { finishReason: record["finishReason"] } : {}),
   };
+}
+
+/** AC36 单价表 → 单次 run 成本（与 UsageStore.computeCost 同口径）。 */
+export function estimateUsageCost(
+  inputTokens: number,
+  outputTokens: number,
+  providerId: string,
+  model: string,
+  pricing: unknown
+): number | null {
+  if (typeof pricing !== "object" || pricing === null) return null;
+  const price = (pricing as Record<string, { inputPerMillion?: unknown; outputPerMillion?: unknown }>)[
+    `${providerId} ${model}`
+  ];
+  if (
+    price === undefined ||
+    typeof price.inputPerMillion !== "number" ||
+    !Number.isFinite(price.inputPerMillion) ||
+    price.inputPerMillion < 0 ||
+    typeof price.outputPerMillion !== "number" ||
+    !Number.isFinite(price.outputPerMillion) ||
+    price.outputPerMillion < 0
+  ) {
+    return null;
+  }
+  return (inputTokens * price.inputPerMillion + outputTokens * price.outputPerMillion) / 1_000_000;
+}
+
+/** G2：用量行文案（tokens + 可选成本）。 */
+export function formatUsageLine(item: Extract<ChatItem, { kind: "usage" }>): string {
+  const base = t("act.usage.line", { input: item.inputTokens, output: item.outputTokens });
+  if (item.cost === undefined) return base;
+  if (item.cost === null) return `${base}${t("act.usage.unpriced")}`;
+  const cost = String(Number(item.cost.toFixed(6)));
+  return `${base}${t("act.usage.withCost", { cost })}`;
 }
 
 export class ChatController {
@@ -402,14 +445,22 @@ export class ChatController {
         break;
       }
       case "usage": {
-        // AC35：一次 run 的真实 token 用量（provider usage 帧跨迭代求和；
-        // 编排含 Planner/子 Agent/综合）。先于 done 落行，活动流顺序 …→ 用量 → 完成
-        const detail = event.detail as { inputTokens?: unknown; outputTokens?: unknown } | undefined;
-        this.items.push({
+        // AC35 + G2：真实 token 用量行（先于 done）；附带 provider/model 供成本估算
+        const detail = event.detail as {
+          inputTokens?: unknown;
+          outputTokens?: unknown;
+          providerId?: unknown;
+          model?: unknown;
+        } | undefined;
+        const usageItem: Extract<ChatItem, { kind: "usage" }> = {
           kind: "usage",
           inputTokens: typeof detail?.inputTokens === "number" ? detail.inputTokens : 0,
           outputTokens: typeof detail?.outputTokens === "number" ? detail.outputTokens : 0,
-        });
+          ...(typeof detail?.providerId === "string" ? { providerId: detail.providerId } : {}),
+          ...(typeof detail?.model === "string" ? { model: detail.model } : {}),
+        };
+        this.items.push(usageItem);
+        void this.enrichUsageCost(usageItem);
         break;
       }
       case "error":
@@ -449,6 +500,22 @@ export class ChatController {
       }
       case "user_message":
         break; // 本地已追加，轨迹回放时跳过
+    }
+    this.emit();
+  }
+
+  /** G2：按 settings 单价表异步补全本轮成本，刷新视图。 */
+  private async enrichUsageCost(item: Extract<ChatItem, { kind: "usage" }>): Promise<void> {
+    if (item.providerId === undefined || item.model === undefined) {
+      item.cost = null;
+      this.emit();
+      return;
+    }
+    try {
+      const pricing = await this.deps.api.settings.get("usage.pricing");
+      item.cost = estimateUsageCost(item.inputTokens, item.outputTokens, item.providerId, item.model, pricing);
+    } catch {
+      item.cost = null;
     }
     this.emit();
   }
