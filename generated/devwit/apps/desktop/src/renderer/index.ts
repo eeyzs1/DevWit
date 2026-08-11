@@ -27,6 +27,7 @@ import {
 import { openSettingsDialog, type SettingsDialogDeps } from "./settings-dialog.js";
 import { openEditorSetupDialog } from "./editor-setup-dialog.js";
 import { openOnboardingWizard } from "./onboarding-wizard.js";
+import { maybeOpenContextTour } from "./context-tour.js";
 import "./app.css";
 
 declare global {
@@ -668,11 +669,12 @@ async function bootstrap(api: DevwitApi): Promise<void> {
 
   // ---- 统一设置页（AC12）：通用 / 模型 / 编辑器 / 模式 ----
   /** 首次运行向导（迭代 18 / AC27）：设置页「重跑向导」与首启自动弹出共用入口。 */
-  function launchWizard(): void {
+  function launchWizard(onClosed?: () => void): void {
     openOnboardingWizard({
       api,
       onProvidersChanged: () => void reloadProviders(),
       onOpenFolder: () => openWorkspace(),
+      onClosed,
     });
   }
   const settingsDeps: SettingsDialogDeps = {
@@ -3161,6 +3163,17 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   contextTab.addEventListener("click", () => activateSideTab("context"));
   traceTab.addEventListener("click", () => activateSideTab("trace"));
 
+  /** 增长 G1：首次强制亮一次上下文面板导览（与向导独立，仅一次）。 */
+  async function scheduleContextTour(): Promise<void> {
+    await maybeOpenContextTour({
+      api,
+      showContextTab: () => activateSideTab("context"),
+      highlightTab: (on) => {
+        contextTab.classList.toggle("dw-tab-tour-pulse", on);
+      },
+    });
+  }
+
   // ==========================================================================
   // 指挥台（AC9）：任务列表 | Agent 活动流 | 工作区视图（代码 / Diff 页签）
   // ==========================================================================
@@ -3532,16 +3545,26 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   applyLocale();
 
   // ---- 首启触发向导（迭代 18 / AC27）：无模型配置且向导未完成时弹出 ----
+  // 向导关闭后再跑上下文导览（增长 G1），避免两层遮罩叠压。
   void (async () => {
-    const state = (await api.settings.get("onboarding.state")) as { completed?: boolean } | null;
-    if (state?.completed === true) return;
-    const configured = await api.providers.list();
-    if (configured.length > 0) {
-      // 老用户升级：已有模型配置，静默标记完成，不打扰现有工作流
-      void api.settings.set("onboarding.state", { completed: true });
+    const state = (await api.settings.get("onboarding.state")) as {
+      completed?: boolean;
+      contextTourSeen?: boolean;
+    } | null;
+    if (state?.completed === true) {
+      await scheduleContextTour();
       return;
     }
-    launchWizard();
+    const configured = await api.providers.list();
+    if (configured.length > 0) {
+      // 老用户升级：已有模型配置，静默标记完成，不打扰现有工作流（保留已有 tour 标记）
+      void api.settings.set("onboarding.state", { ...(state ?? {}), completed: true });
+      await scheduleContextTour();
+      return;
+    }
+    launchWizard(() => {
+      void scheduleContextTour();
+    });
   })();
 }
 

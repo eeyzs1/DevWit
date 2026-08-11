@@ -193,6 +193,15 @@ const zhCN = {
   "wizard.done.openFolder": "打开文件夹",
   "wizard.done.start": "先逛逛",
 
+  // ---- 上下文面板首次导览（增长 G1）----
+  "tour.context.title": "先看这里：上下文面板",
+  "tour.context.body":
+    "这是 DevWit 和其他 AI 工具最大的不同——每次发给模型的内容都摊开给你看，并可逐项关掉。",
+  "tour.context.bullet1": "系统提示、工具列表、注入代码 / RAG / 终端输出，每一项单独列出",
+  "tour.context.bullet2": "每项显示 token 占用；关掉没用的项，请求立刻变小",
+  "tour.context.bullet3": "Agent 写文件或跑命令前会弹出授权门——默认开启，可审计",
+  "tour.context.gotIt": "知道了，去发第一条消息",
+
   // ---- 页签 ----
   "tab.chat": "对话",
   "tab.context": "上下文",
@@ -828,6 +837,14 @@ const enUS: Messages = {
   "wizard.done.body": "Your model is ready. Open your project folder and start your first AI coding session.",
   "wizard.done.openFolder": "Open folder",
   "wizard.done.start": "Look around first",
+
+  "tour.context.title": "Start here: the Context panel",
+  "tour.context.body":
+    "This is DevWit’s biggest difference from other AI tools — every LLM request is laid out for you, and you can toggle items off.",
+  "tour.context.bullet1": "System prompt, tools, injected code / RAG / terminal output — each listed separately",
+  "tour.context.bullet2": "Per-item token costs; turn off noise and the request shrinks immediately",
+  "tour.context.bullet3": "File writes and shell commands need an authorization gate — on by default, auditable",
+  "tour.context.gotIt": "Got it — send my first message",
 
   "tab.chat": "Chat",
   "tab.context": "Context",

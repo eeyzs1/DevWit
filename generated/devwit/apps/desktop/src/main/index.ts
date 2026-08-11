@@ -76,7 +76,8 @@ app.whenReady().then(() => {
   // 生产启动两个变量都不设置，向导按 onboarding.state 正常判定。
   if (e2eUserData !== undefined && e2eUserData !== "" && process.env.DEVWIT_E2E_WIZARD !== "1") {
     if (settings.get("onboarding.state") === undefined) {
-      settings.set("onboarding.state", { completed: true });
+      // completed + contextTourSeen：抑制向导与上下文导览，避免挡住既有 E2E 首击
+      settings.set("onboarding.state", { completed: true, contextTourSeen: true });
     }
   }
 
@@ -191,6 +192,7 @@ app.whenReady().then(() => {
     lsp: lspService,
     git: gitService,
     debug: debugService,
+    telemetry: telemetry ?? undefined,
   });
 
   createWindow();

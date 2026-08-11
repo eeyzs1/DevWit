@@ -29,6 +29,13 @@ Built for: teams with compliance/audit needs, developers who want to know exactl
 
 Direct download: [DevWit.Setup.0.5.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit.Setup.0.5.0.exe) (NSIS installer, custom install directory, supports `/S` silent install).
 
+> **SmartScreen / “Windows protected your PC”**: Windows builds are not code-signed yet (open-source / free; SignPath needs some stars before we can re-apply). If SmartScreen blocks the installer:
+> 1. Click **More info**
+> 2. Click **Run anyway**
+> 3. If Defender quarantines it: Virus & threat protection → Protection history → Allow the file, then reopen the installer
+>
+> This is not malware — builds come from public [GitHub Actions](https://github.com/eeyzs1/DevWit/actions). A GitHub Star helps us get free signing and remove this friction.
+
 winget (submitted as microsoft/winget-pkgs#407506; available once community review completes):
 
 ```powershell

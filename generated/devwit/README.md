@@ -29,6 +29,13 @@ DevWit 是一款自研的 AI 原生桌面 IDE：融合 VSCode 的编辑器能力
 
 直接下载：[DevWit.Setup.0.5.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit.Setup.0.5.0.exe)（NSIS 安装包，可选安装目录，支持 `/S` 静默安装）。
 
+> **SmartScreen /「Windows 已保护你的电脑」**：当前 Windows 构建尚未代码签名（免费开源，SignPath 需仓库有一定 Star 后才能申请）。若弹出蓝屏拦截：
+> 1. 点 **更多信息**
+> 2. 再点 **仍要运行**
+> 3. 若被 Defender 隔离：打开「病毒和威胁防护」→「保护历史记录」→ 允许该文件后重新打开安装包
+>
+> 这不是病毒——安装包由公开 [GitHub Actions](https://github.com/eeyzs1/DevWit/actions) 构建，源码与产物均可核对。给仓库一个 Star 有助于我们申请免费签名，去掉这层摩擦。
+
 winget（已提交 microsoft/winget-pkgs#407506，待社区审批通过后可用）：
 
 ```powershell

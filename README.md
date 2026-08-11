@@ -30,6 +30,8 @@ DevWit 是一款自研的 AI 原生桌面 IDE，建立在一条原则上：**AI 
 
 直接下载：[DevWit.Setup.0.5.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit.Setup.0.5.0.exe)（NSIS 安装包，支持应用内自动更新）。
 
+> **SmartScreen**：当前未代码签名。若提示「Windows 已保护你的电脑」→ **更多信息** → **仍要运行**。构建来自公开 GitHub Actions；Star 有助于申请免费签名。
+
 winget（已提交 microsoft/winget-pkgs#407506，待社区审批通过后可用）：
 
 ```powershell

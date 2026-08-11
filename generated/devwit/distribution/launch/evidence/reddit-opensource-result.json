@@ -1,0 +1,6 @@
+{
+  "url": "https://www.reddit.com/r/opensource/submit/?type=TEXT",
+  "ok": false,
+  "removed": false,
+  "head": "Skip to main content Submit to r/opensource Advertise on Reddit Open chat Create Create post Open inbox Expand user menu I built a free MIT desktop IDE because most AI coding tools are black boxes. Two things I cared about: 1) Context transparency — every LLM request shows the system prompt, tools, RAG hits, and terminal output with per-item token costs. You can toggle any item off and the request shrinks. 2) Authorization gate — file writes and shell commands need one-click approval before they"
+}

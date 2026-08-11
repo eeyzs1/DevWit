@@ -50,6 +50,8 @@ export interface TelemetryServiceDeps {
 
 const CONFIG_KEY = "telemetry";
 const INSTALL_ID_KEY = "telemetry.installId";
+/** 一次性生命周期标记：install / activate 各发一次（跨重启）。 */
+const LIFECYCLE_KEY = "telemetry.lifecycle";
 const DEFAULT_FLUSH_MS = 30_000;
 const DEFAULT_TIMEOUT_MS = 5_000;
 /** 缓冲上限：达到即提前 flush（防长会话无限累积）。 */
@@ -95,17 +97,19 @@ export class TelemetryService {
     this.config = readConfig(this.settings);
   }
 
-  /** 启动：已开启（含端点）时记录 app_start 并启动周期 flush；默认关闭则完全静默。 */
+  /** 启动：已开启时记录 install（一次性）+ session_start + app_start，并启动周期 flush。 */
   start(): void {
     if (!this.isActive()) return;
     this.arm();
+    if (this.markLifecycle("install")) this.track("install");
+    this.track("session_start");
     this.track("app_start");
     void this.flush();
   }
 
   /**
    * 热重配置（settings.onChanged("telemetry") 驱动）。
-   * 关→开：记录 telemetry_opt_in 并立即 flush；开→关：先记录 telemetry_opt_out
+   * 关→开：记录 install（一次性）+ telemetry_opt_in 并立即 flush；开→关：先记录 telemetry_opt_out
    * 并 flush（最后一条，透明告知），随后停表丢弃后续。
    */
   configure(): void {
@@ -116,6 +120,7 @@ export class TelemetryService {
     const nowActive = this.isActive();
     if (!wasActive && nowActive) {
       this.arm();
+      if (this.markLifecycle("install")) this.track("install");
       this.track("telemetry_opt_in");
       void this.flush();
     } else if (wasActive && !nowActive) {
@@ -127,6 +132,17 @@ export class TelemetryService {
       // 端点变更：积压事件发往何处属旧配置的语义，先清空再续（宁缺毋滥）
       this.buffer = [];
     }
+  }
+
+  /**
+   * 产品激活（R4）：首次配置模型（providers 0→1）时调用。
+   * 仍受 opt-in 门控；同一 install 生命周期只发一次。
+   */
+  trackActivate(): void {
+    if (!this.isActive()) return;
+    if (!this.markLifecycle("activate")) return;
+    this.track("activate");
+    void this.flush();
   }
 
   /** 记录事件（事件名固定字面量；未激活直接丢弃，不缓冲）。 */
@@ -175,6 +191,17 @@ export class TelemetryService {
     this.settings.set(INSTALL_ID_KEY, generated);
     this.installId = generated;
     return generated;
+  }
+
+  /** 标记生命周期事件已发送；返回 true 表示本次是首次（应发事件）。 */
+  private markLifecycle(flag: "install" | "activate"): boolean {
+    const raw = this.settings.get(LIFECYCLE_KEY);
+    const life =
+      typeof raw === "object" && raw !== null ? { ...(raw as Record<string, unknown>) } : {};
+    if (life[flag] === true) return false;
+    life[flag] = true;
+    this.settings.set(LIFECYCLE_KEY, life);
+    return true;
   }
 
   private arm(): void {

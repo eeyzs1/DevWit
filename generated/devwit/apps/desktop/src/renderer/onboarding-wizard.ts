@@ -28,6 +28,8 @@ export interface OnboardingWizardDeps {
   onProvidersChanged: () => void;
   /** 完成步「打开文件夹」：复用主界面 openWorkspace（含 E2E 注入目录钩子）。 */
   onOpenFolder: () => Promise<void>;
+  /** 向导关闭后回调（跳过 / 完成 / 关闭共用；用于串上下文导览等）。 */
+  onClosed?: () => void;
 }
 
 /** t() 的键类型（仅 string 文案；数组文案走 ta()）。 */
@@ -64,12 +66,16 @@ export function openOnboardingWizard(deps: OnboardingWizardDeps): void {
   let activePreset: ProviderPreset | null = null;
 
   const markCompleted = (): void => {
-    void api.settings.set("onboarding.state", { completed: true });
+    void (async () => {
+      const prev = (await api.settings.get("onboarding.state")) as Record<string, unknown> | null;
+      await api.settings.set("onboarding.state", { ...(prev ?? {}), completed: true });
+    })();
   };
   const close = (): void => {
     markCompleted();
     unsubscribe();
     mask.remove();
+    deps.onClosed?.();
   };
 
   // ==========================================================================

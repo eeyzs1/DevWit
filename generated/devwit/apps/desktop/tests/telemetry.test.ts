@@ -102,12 +102,15 @@ describe("TelemetryService（迭代 30 / AC39）", () => {
     const envelope = JSON.parse(first.raw) as PostHogBatch;
     expect(envelope.api_key).toMatch(/^phc_/);
     expect(envelope.batch.length).toBeGreaterThanOrEqual(1);
-    const event = envelope.batch[0]!;
-    expect(event.event).toBe("telemetry_opt_in");
-    expect(event.distinct_id).toMatch(/^[0-9a-f-]{36}$/); // 匿名 installId，与账号无关
-    expect(Number.isNaN(Date.parse(event.timestamp))).toBe(false);
-    // 零内容硬断言：properties 仅 source/version/os 标量
-    expect(event.properties).toEqual({ source: "devwit", version: "0.3.0-test", os: "win32" });
+    const names = envelope.batch.map((e) => e.event);
+    expect(names).toContain("install");
+    expect(names).toContain("telemetry_opt_in");
+    for (const event of envelope.batch) {
+      expect(event.distinct_id).toMatch(/^[0-9a-f-]{36}$/); // 匿名 installId，与账号无关
+      expect(Number.isNaN(Date.parse(event.timestamp))).toBe(false);
+      // 零内容硬断言：properties 仅 source/version/os 标量
+      expect(event.properties).toEqual({ source: "devwit", version: "0.3.0-test", os: "win32" });
+    }
     service.stop();
   });
 
@@ -121,7 +124,12 @@ describe("TelemetryService（迭代 30 / AC39）", () => {
 
     expect(stub.batches.length).toBeGreaterThanOrEqual(1);
     const events = stub.batches.flatMap((batch) => batch.body.events);
-    expect(events.map((event) => event.event)).toEqual(["telemetry_opt_in", "app_start"]);
+    expect(events.map((event) => event.event)).toEqual([
+      "install",
+      "telemetry_opt_in",
+      "session_start",
+      "app_start",
+    ]);
     expect(stub.batches[0]!.url).toBe("https://telemetry.example/ingest");
     expect(stub.batches[0]!.body.source).toBe("devwit");
     for (const event of events) {
@@ -172,13 +180,16 @@ describe("TelemetryService（迭代 30 / AC39）", () => {
     settings.set("telemetry", { enabled: true, endpoint: "https://t.example/a" });
     service.configure();
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(stub.batches.flatMap((b) => b.body.events).map((e) => e.event)).toEqual(["telemetry_opt_in"]);
+    expect(stub.batches.flatMap((b) => b.body.events).map((e) => e.event)).toEqual([
+      "install",
+      "telemetry_opt_in",
+    ]);
 
     settings.set("telemetry", { enabled: false, endpoint: "https://t.example/a" });
     service.configure();
     await new Promise((resolve) => setTimeout(resolve, 20));
     const names = stub.batches.flatMap((b) => b.body.events).map((e) => e.event);
-    expect(names).toEqual(["telemetry_opt_in", "telemetry_opt_out"]);
+    expect(names).toEqual(["install", "telemetry_opt_in", "telemetry_opt_out"]);
 
     // 关闭后 track 直接丢弃
     const sentBefore = stub.batches.flatMap((b) => b.body.events).length;
@@ -233,6 +244,32 @@ describe("TelemetryService（迭代 30 / AC39）", () => {
     service.track("app_start");
     expect(service.isActive()).toBe(false);
     expect(stub.batches).toEqual([]);
+    service.stop();
+  });
+
+  it("R4：install 只发一次；trackActivate 在 opt-in 下只发一次", async () => {
+    const stub = makeFetchStub();
+    const { service, settings } = makeService(stub);
+    settings.set("telemetry", { enabled: true, endpoint: "https://t.example/a" });
+    service.configure();
+    service.start();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const afterStart = stub.batches.flatMap((b) => b.body.events).map((e) => e.event);
+    expect(afterStart.filter((e) => e === "install")).toHaveLength(1);
+    expect(afterStart).toContain("session_start");
+
+    service.start(); // 二次 start：不应再发 install
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(
+      stub.batches.flatMap((b) => b.body.events).filter((e) => e.event === "install")
+    ).toHaveLength(1);
+
+    service.trackActivate();
+    service.trackActivate();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(
+      stub.batches.flatMap((b) => b.body.events).filter((e) => e.event === "activate")
+    ).toHaveLength(1);
     service.stop();
   });
 });

@@ -202,9 +202,10 @@ generated/devwit/
 | **SignPath 代码签名** | 被拒（0 star） | 攒 star 后重新申请 |
 
 ### P1 下一迭代候选
-- [ ] 上下文面板首次导览（加深 PH 已验证卖点）
+- [x] 上下文面板首次导览（加深 PH 已验证卖点）— `apps/desktop/src/renderer/context-tour.ts`
 - [ ] Rust LSP（需评估二进制体积）
-- [ ] PostHog 事件 install/activate/session_start
+- [x] PostHog 事件 install/activate/session_start — opt-in 门控保留
+- [ ] 对话完成时用量/成本更醒目（G2）
 
 ### 推广物料位置
 - 掘金: `distribution/launch/promotion/juejin.md`

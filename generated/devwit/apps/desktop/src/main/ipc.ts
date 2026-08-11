@@ -21,6 +21,7 @@ import { searchInWorkspace } from "@devwit/workspace";
 import type { AiRuntime } from "./ai-runtime.js";
 import { openInExternalEditor } from "./external-editor.js";
 import type { UpdateService } from "./updater.js";
+import type { TelemetryService } from "./telemetry.js";
 
 // ---------------------------------------------------------------------------
 // 依赖注入接口（electron 的结构子集）
@@ -149,7 +150,7 @@ export interface UpdateIpcDeps {
 // ---------------------------------------------------------------------------
 
 /** 构建全部 invoke handler。key 集合 == IPC 常量全集 − PUSH_CHANNELS。 */
-export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: AiRuntime, update?: UpdateIpcDeps, lsp?: LspIpcService, git?: GitIpcService, debug?: DebugIpcService): Record<string, IpcHandler> {
+export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: AiRuntime, update?: UpdateIpcDeps, lsp?: LspIpcService, git?: GitIpcService, debug?: DebugIpcService, telemetry?: TelemetryService): Record<string, IpcHandler> {
   const { workspace, terminal, settings } = services;
   const table: Record<string, IpcHandler> = {};
 
@@ -272,6 +273,7 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
       throw new Error("Invalid ProviderConfig: id required");
     }
     const list = readProviders(settings);
+    const before = list.length;
     const idx = list.findIndex((p) => p.id === provider.id);
     if (idx >= 0) {
       list[idx] = provider;
@@ -279,6 +281,8 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
       list.push(provider);
     }
     settings.set("providers", list);
+    // R4：首次配置模型（0→≥1）记 activate（opt-in 门控在 TelemetryService 内）
+    if (before === 0 && list.length > 0) telemetry?.trackActivate();
   };
 
   // ---- 自动更新（AC16）：未接线时抛明确错误码（白名单通道恒在表内）----
@@ -644,11 +648,22 @@ export interface RegisterIpcDeps {
   git?: GitIpcService;
   /** 生产环境注入 DebugMainService；缺省则 debug 通道抛未接线错误。 */
   debug?: DebugIpcService;
+  /** 生产环境注入 TelemetryService；缺省则不发 activate 事件。 */
+  telemetry?: TelemetryService;
 }
 
 /** 注册全部 IPC handler 与主→渲染事件转发。 */
 export function registerIpcHandlers(deps: RegisterIpcDeps): void {
-  const table = buildHandlerTable(deps.services, deps.hooks, deps.ai, deps.update, deps.lsp, deps.git, deps.debug);
+  const table = buildHandlerTable(
+    deps.services,
+    deps.hooks,
+    deps.ai,
+    deps.update,
+    deps.lsp,
+    deps.git,
+    deps.debug,
+    deps.telemetry
+  );
   for (const [channel, handler] of Object.entries(table)) {
     deps.ipcMain.handle(channel, handler);
   }

@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-11T03:20:00Z",
+  "updated_at": "2026-08-11T06:02:00Z",
   "method": "Chrome CDP playwright connectOverCDP (chrome-ud-alias)",
   "published": {
     "devto": {
@@ -7,11 +7,26 @@
       "url": "https://dev.to/eeyzs1/devwit-v050-an-open-source-ai-ide-with-a-transparent-context-panel-and-a-real-editor-onn",
       "title": "DevWit v0.5.0: an open-source AI IDE with a transparent context panel (and a real editor)"
     },
+    "reddit_opensource": {
+      "status": "live",
+      "url": "https://www.reddit.com/r/opensource/comments/1vl92av/show_devwit_opensource_ai_ide_with_transparent/",
+      "title": "Show: DevWit — open-source AI IDE with transparent per-item LLM context + approval gate",
+      "account": "Savings-Addition3580",
+      "subreddit": "r/opensource",
+      "note": "过了规则警告「Submit without editing」；巡检 removed=false"
+    },
+    "reddit_sideproject": {
+      "status": "removed_by_filters",
+      "url": "https://www.reddit.com/r/SideProject/comments/1vl70te/devwit_opensource_ai_ide_with_transparent_llm/",
+      "title": "DevWit: open-source AI IDE with transparent LLM context + approval gate",
+      "account": "Savings-Addition3580",
+      "subreddit": "r/SideProject",
+      "note": "Sorry, this post was removed by Reddit’s filters"
+    },
     "juejin": {
-      "status": "auditing",
-      "url": "https://juejin.cn/spost/7672325240563679286",
-      "title": "Cursor 的上下文是黑盒——我造了个透明的 AI IDE，开源了",
-      "note": "创作者中心显示审核中；通过后变 /post/ 链接"
+      "status": "live",
+      "url": "https://juejin.cn/post/7672325240563679286",
+      "title": "Cursor 的上下文是黑盒——我造了个透明的 AI IDE，开源了"
     },
     "juejin_previous": {
       "status": "live",
@@ -19,13 +34,15 @@
       "title": "我造了一个 AI IDE：它把发给模型的每一个 token 都摆在你面前"
     }
   },
-  "blocked_network": {
-    "hacker_news": "ERR_CONNECTION_TIMED_OUT — 本机直连不可达，需开启系统/浏览器代理后再发 Show HN",
-    "reddit": "ERR_CONNECTION_RESET — 同上"
+  "skipped": {
+    "hacker_news": "用户要求先跳过；新号 eeyzs1 有 showlim/toonew 限制"
   },
-  "scripts": [
-    "distribution/launch/publish-devto.cjs",
-    "distribution/launch/publish-juejin.cjs",
-    "distribution/launch/publish-juejin-finish.cjs"
-  ]
+  "distribution": {
+    "winget_pr": "https://github.com/microsoft/winget-pkgs/pull/407506 — 2026-08-11 再次友好 ping",
+    "product_changes": [
+      "G1 context tour",
+      "G3 SmartScreen README",
+      "R4 install/session_start/activate telemetry"
+    ]
+  }
 }

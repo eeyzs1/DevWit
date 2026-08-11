@@ -2555,6 +2555,46 @@ body,
   font-size: 15px;
 }
 
+/* ---- 上下文面板首次导览（增长 G1） ---- */
+.dw-tour-mask {
+  z-index: 22;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 72px 24px 24px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.dw-tour-modal {
+  width: 420px;
+  max-width: min(420px, 92vw);
+}
+
+.dw-tour-list {
+  margin: 0;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--dw-fg-muted, #8b949e);
+}
+
+.dw-tab-tour-pulse {
+  box-shadow: 0 0 0 2px var(--dw-accent, #3fb950);
+  animation: dw-tour-pulse 1.2s ease-in-out 3;
+}
+
+@keyframes dw-tour-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px var(--dw-accent, #3fb950);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--dw-accent, #3fb950) 35%, transparent);
+  }
+}
+
 /* ---- 首次运行向导（迭代 18 / AC27） ---- */
 .dw-wizard {
   width: 520px;

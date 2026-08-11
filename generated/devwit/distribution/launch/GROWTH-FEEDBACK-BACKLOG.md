@@ -14,9 +14,9 @@
 
 | ID | 项 | 理由 | 状态 |
 |----|----|------|------|
-| G1 | 首次会话强制亮一次「上下文面板」导览 | PH 夸的是用过才懂的能力；新用户可能看不到 | 待做 |
+| G1 | 首次会话强制亮一次「上下文面板」导览 | PH 夸的是用过才懂的能力；新用户可能看不到 | **已做**（`context-tour.ts`，`onboarding.state.contextTourSeen`） |
 | G2 | 用量行 / 成本估算在对话完成时更醒目 | Ferdi/Furkan 关心 budget；AC35/36 已有基建，需首屏可见 | 待评估 |
-| G3 | Windows 未签名下载页诚实提示 + 绕过步骤 | v0.4.0 近 0 下载，SmartScreen 是转化杀手 | README 部分有，安装失败路径可加强 |
+| G3 | Windows 未签名下载页诚实提示 + 绕过步骤 | v0.4.0 近 0 下载，SmartScreen 是转化杀手 | **已做**（根 README + `generated/devwit/README{,_EN}.md`） |
 | G4 | README / 推广统一话术：透明上下文 + 授权门 | 避免功能清单淹没差异化 | 本轮根 README 已对齐 |
 
 ## P1 — 留存与信任
@@ -25,8 +25,8 @@
 |----|----|------|------|
 | R1 | 攒 star 后重申 SignPath | 未签名阻断 Windows | 等 star |
 | R2 | winget 0.2.0 合并 → 提 0.4.0 | 包管理器自然流量 | 等 moderator |
-| R3 | v0.5.0 发版（编辑器 9 项） | 给推广一个新新闻点 | 功能已完成，未打 tag |
-| R4 | PostHog 事件 install/activate/session_start | 没有激活数据就无法优化漏斗 | 凭据已备，事件可补 |
+| R3 | v0.5.0 发版（编辑器 9 项） | 给推广一个新新闻点 | **已发** Latest |
+| R4 | PostHog 事件 install/activate/session_start | 没有激活数据就无法优化漏斗 | **已做**（仍 opt-in；`TelemetryService` + ProvidersUpsert→activate） |
 
 ## P2 — 广度（勿抢跑于曝光）
 
