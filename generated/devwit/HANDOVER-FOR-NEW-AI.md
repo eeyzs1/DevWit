@@ -205,7 +205,7 @@ generated/devwit/
 - [x] 上下文面板首次导览（加深 PH 已验证卖点）— `apps/desktop/src/renderer/context-tour.ts`
 - [ ] Rust LSP（需评估二进制体积）
 - [x] PostHog 事件 install/activate/session_start — opt-in 门控保留
-- [ ] 对话完成时用量/成本更醒目（G2）
+- [x] 对话完成时用量/成本更醒目（G2）— 对话/活动流用量行 + 状态栏回显
 
 ### 推广物料位置
 - 掘金: `distribution/launch/promotion/juejin.md`
