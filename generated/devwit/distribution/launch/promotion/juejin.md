@@ -75,17 +75,17 @@ DevWit 是 MIT 协议，没有账号系统、没有云同步、没有付费墙�
 
 ## 下载
 
-- **Windows**：[DevWit.Setup.0.4.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit.Setup.0.4.0.exe)
-- **macOS（Apple Silicon）**：[DevWit-0.4.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit-0.4.0-arm64.dmg)（未签名，首次运行 `xattr -dr com.apple.quarantine /Applications/DevWit.app`）
-- **Linux**：[DevWit-0.4.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit-0.4.0.AppImage) / [devwit_0.4.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/devwit_0.4.0_amd64.deb)
+- **Windows**：[DevWit.Setup.0.5.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit.Setup.0.5.0.exe)
+- **macOS（Apple Silicon）**：`brew install --cask eeyzs1/tap/devwit`，或 [DevWit-0.5.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit-0.5.0-arm64.dmg)（未签名，首次运行 `xattr -dr com.apple.quarantine /Applications/DevWit.app`）
+- **Linux**：[DevWit-0.5.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit-0.5.0.AppImage) / [devwit_0.5.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/devwit_0.5.0_amd64.deb)
 
-全部构建产物见 Releases 页：https://github.com/eeyzs1/DevWit/releases
+全部构建产物见 Releases：https://github.com/eeyzs1/DevWit/releases/tag/v0.5.0
 
 ## 最后
 
 如果你也是"上下文洁癖"——想知道 AI 每次到底发了什么、想控制每次请求的成本、想在 AI 动手前拦一下——欢迎试试。
 
-如果对你有帮助，GitHub 给个 ⭐ Star 是最大的支持。项目目前 0 star，star 数是申请免费代码签名（SignPath）的公信号依据，签名后 Windows 用户就不会被 SmartScreen 拦截了。
+如果对你有帮助，给 GitHub 仓库一个 Star 是最大的支持（也是申请免费代码签名 SignPath 的公信号）。
 
 https://github.com/eeyzs1/DevWit
 

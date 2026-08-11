@@ -33,19 +33,20 @@
 
 ## 用户必须亲自做（AI 无法代劳）
 
-推广物料已就绪，缺账号发布。建议本周一次发完：
-
-| 优先级 | 动作 | 物料 |
+| 优先级 | 动作 | 说明 |
 |--------|------|------|
-| P0 | **Show HN**（美西周二–四 7–9 AM = 北京 22–24） | `promotion/reddit-hn.md` |
-| P0 | **掘金**长文 | `promotion/juejin.md` |
-| P0 | **dev.to** 英文帖（`published: true`） | `blog-devto-en.md` |
-| P1 | Reddit r/programming（HN 后隔 1–2 天） | `promotion/reddit-hn.md` |
-| P1 | B 站专栏或录屏 | `promotion/bilibili.md` |
-| P1 | PH 帖巡检新评论 | https://www.producthunt.com/posts/devwit |
+| P0 | **打开代理/VPN** | 当前本机直连 HN / Reddit 超时；开代理后我即可用 CDP 发 Show HN |
+| P0 | Show HN | 物料 `promotion/reddit-hn.md`；美西周二–四 7–9 AM 最佳（今晚北京 22–24） |
+| P1 | Reddit r/programming | HN 后隔 1–2 天 |
+| P1 | B 站 | 专栏/录屏 |
 
-发帖后 2 小时在线回复；把流量尽量导向 GitHub（star）而非仅下载未签名 exe。
+### 本轮已由浏览器 CDP 发布
 
+| 平台 | 状态 | 链接 |
+|------|------|------|
+| **dev.to** | ✅ 已上线 | https://dev.to/eeyzs1/devwit-v050-an-open-source-ai-ide-with-a-transparent-context-panel-and-a-real-editor-onn |
+| **掘金** | ⏳ 审核中 | https://juejin.cn/spost/7672325240563679286 |
+| 掘金（旧文） | ✅ 仍在线 | https://juejin.cn/post/7667564845585465395 |
 ## 平台维护节奏
 
 | 渠道 | 节奏 | 负责人 |

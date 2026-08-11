@@ -1,0 +1,21 @@
+{
+  "devto": {
+    "url": "https://dev.to/new",
+    "title": "New Post - DEV Community",
+    "hasEditor": true,
+    "loginHints": false,
+    "snippet": "Create Post Edit Preview Upload Cover Image Use a ratio of 1000:420 for best results. 🍌 Generate Image Cover Video Link Add up to 4 tags Maximum 4 selections Selected items: Bold CTRL + B Italic CTRL + I Link CTRL + K Ordered list Unordered list Heading Quote Upload image Writing a Great Post Title Think of your post title as a super short (but compelling!) description — like an overview of the"
+  },
+  "juejin": {
+    "url": "https://juejin.cn/editor/drafts/new",
+    "title": "写文章 - 掘金",
+    "hasEditor": true,
+    "loginHints": false,
+    "snippet": "文章将自动保存至草稿箱 草稿箱 发布 ​ 字符数: 0行数: 1正文字数: 0 同步滚动回到顶部"
+  },
+  "devtoProfile": {
+    "url": "https://dev.to/eeyzs1",
+    "title": "Sulynn AI - DEV Community",
+    "snippet": "Skip to content Powered by Algolia Create Post 22 Edit profile Sulynn AI 404 bio not found Joined on Jul 29, 2026 Badges 3 posts published 0 comments written 8 tags followed I shipped 7 AI tools in 2 months. Here's the boring code I kept rewriting. Sulynn AI Aug 6 I shipped 7 AI tools in 2 months. Here's the boring code I kept rewriting. # ai # webdev # productivity # sideprojects Add Comment 2 min read I built 7 AI tools, then realized I was doing it wrong. Here's what I learned. Sulynn AI Aug 3 I built 7 AI tools, then realized I was doing it wrong. Here's what I learned. # aiindiehackers"
+  }
+}

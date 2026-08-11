@@ -1,0 +1,31 @@
+{
+  "updated_at": "2026-08-11T03:20:00Z",
+  "method": "Chrome CDP playwright connectOverCDP (chrome-ud-alias)",
+  "published": {
+    "devto": {
+      "status": "live",
+      "url": "https://dev.to/eeyzs1/devwit-v050-an-open-source-ai-ide-with-a-transparent-context-panel-and-a-real-editor-onn",
+      "title": "DevWit v0.5.0: an open-source AI IDE with a transparent context panel (and a real editor)"
+    },
+    "juejin": {
+      "status": "auditing",
+      "url": "https://juejin.cn/spost/7672325240563679286",
+      "title": "Cursor 的上下文是黑盒——我造了个透明的 AI IDE，开源了",
+      "note": "创作者中心显示审核中；通过后变 /post/ 链接"
+    },
+    "juejin_previous": {
+      "status": "live",
+      "url": "https://juejin.cn/post/7667564845585465395",
+      "title": "我造了一个 AI IDE：它把发给模型的每一个 token 都摆在你面前"
+    }
+  },
+  "blocked_network": {
+    "hacker_news": "ERR_CONNECTION_TIMED_OUT — 本机直连不可达，需开启系统/浏览器代理后再发 Show HN",
+    "reddit": "ERR_CONNECTION_RESET — 同上"
+  },
+  "scripts": [
+    "distribution/launch/publish-devto.cjs",
+    "distribution/launch/publish-juejin.cjs",
+    "distribution/launch/publish-juejin-finish.cjs"
+  ]
+}
