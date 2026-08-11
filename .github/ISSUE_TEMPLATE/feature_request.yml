@@ -1,0 +1,37 @@
+name: Feature / feedback
+description: Suggest an improvement or share product feedback
+title: "[feedback] "
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: source
+    attributes:
+      label: Where is this feedback from?
+      options:
+        - Using DevWit myself
+        - Product Hunt / Reddit / HN / 掘金 / Bilibili
+        - GitHub discussion elsewhere
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you solving?
+      description: What is painful or missing today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Optional concrete idea. "Make X clearer" is fine too.
+    validations:
+      required: false
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it matters
+      description: How does this help more people like / keep using DevWit?
+    validations:
+      required: false

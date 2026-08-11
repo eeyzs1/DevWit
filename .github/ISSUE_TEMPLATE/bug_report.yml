@@ -1,0 +1,55 @@
+name: Bug report
+description: Something is broken or unexpected
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Please strip secrets (API keys, tokens) from logs and screenshots.
+  - type: input
+    id: version
+    attributes:
+      label: DevWit version
+      description: Settings → General, or the GitHub Release tag you installed
+      placeholder: "0.4.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - Windows
+        - macOS (Apple Silicon)
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: extras
+    attributes:
+      label: Logs / screenshots
+      description: Optional. Redact secrets.

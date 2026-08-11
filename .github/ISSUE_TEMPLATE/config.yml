@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Releases / downloads
+    url: https://github.com/eeyzs1/DevWit/releases
+    about: Install builds and release notes
+  - name: Product README
+    url: https://github.com/eeyzs1/DevWit/blob/main/generated/devwit/README.md
+    about: Full product docs (features, build, security)
