@@ -8,8 +8,8 @@
 
 - **GitHub**: https://github.com/eeyzs1/DevWit
 - **协议**: MIT，免费软件，不商业化
-- **版本**: v0.4.0（已发布 Latest），v0.5.0 编辑器增强 9 项已完成（未发版）
-- **测试基线**: 747 单测 / 69 测试文件全绿（tsc + vitest）
+- **版本**: v0.5.0（已发布 Latest）— 编辑器增强 9 项
+- **测试基线**: 747 单测 / 69 测试文件（DAP 偶发超时属环境抖动，重跑全绿）
 - **仓库根**: `generated/devwit/`（git 仓库根在 `DevWit/`）
 
 ## 2. 快速开始
@@ -174,7 +174,7 @@ generated/devwit/
 - P1 编辑器增强（3 项）: 跨文件搜索 / 文件大纲 / 拖拽标签页
 - P2 AI 增强: 上下文 manifest 导出 / RAG 增量索引 / Python LSP
 
-### v0.5.0（编辑器增强 9 项已完成，未发版）
+### v0.5.0（已发布 Latest — 2026-08-11）
 | 功能 | 提交 |
 |------|------|
 | 括号对匹配高亮 + 缩进指南线 | `126056c` |
@@ -187,30 +187,31 @@ generated/devwit/
 | 行复制 + Ctrl+Backspace/Delete 删词 | `9a98844` |
 | Minimap 缩略图 | `7b11d2f` |
 
-### 真实用户指标（2026-08-06）
-- GitHub stars/forks/watchers: **0/0/0**
-- v0.4.0 下载量（发布 3 天）: **0**
-- v0.2.0 下载量: Windows 13 / Mac 4（PH 首发当天，含自测）
-- 北极星目标 10 万用户，当前真实用户 **0**，问题在分发渠道阻塞，非产品功能
+### 真实用户指标（接手时 2026-08-11）
+- GitHub stars/forks/watchers: **0/0/0**（推广待账号发布）
+- 北极星目标 10 万用户；阻塞在分发与曝光，非产品功能
+- Homebrew tap 已跟 Latest；winget 首包 #407506 仍待 moderator；0.5.0 manifest 已入库待首包合并后提 PR
 
 ## 7. 待办事项（按优先级）
 
 ### P0 信任基建（分发阻塞，最高优先级）
 | 项目 | 状态 | 下一步 |
 |------|------|--------|
-| **winget PR #407506** | OPEN，mergeable: clean（8/6 update-branch 后），等 moderator 合并 | 合并后提交 v0.4.0 manifest PR |
-| **SignPath 代码签名** | 被拒（0 star，公信号不足） | 攒 star 后重新申请（用户决策） |
-| **推广** | 物料就绪（掘金/Reddit+HN/B站），待用户登录发布 | 推广带量 → star → SignPath → Windows 转化 |
+| **推广三连发** | 物料就绪 | 用户发 Show HN + 掘金 + dev.to |
+| **winget PR #407506** | OPEN，等 moderator | 合并后提 0.5.0 update PR |
+| **SignPath 代码签名** | 被拒（0 star） | 攒 star 后重新申请 |
 
 ### P1 下一迭代候选
-- [ ] Rust LSP（rust-analyzer，需评估二进制体积）
-- [ ] 度量基建完善（PostHog 事件: install/activate/session_start/mode_switch）
-- [ ] v0.5.0 发版（编辑器增强 9 项已完成，打 tag + release）
+- [ ] 上下文面板首次导览（加深 PH 已验证卖点）
+- [ ] Rust LSP（需评估二进制体积）
+- [ ] PostHog 事件 install/activate/session_start
 
 ### 推广物料位置
 - 掘金: `distribution/launch/promotion/juejin.md`
 - Reddit + HN: `distribution/launch/promotion/reddit-hn.md`
 - B站: `distribution/launch/promotion/bilibili.md`
+- 增长简报: `distribution/launch/GROWTH-OPS-20260811.md`
+- 反馈 backlog: `distribution/launch/GROWTH-FEEDBACK-BACKLOG.md`
 
 ## 8. 外部分发状态
 
@@ -301,6 +302,7 @@ npm run dev          # 启动验证核心功能
 
 ---
 
-**最后更新**: 2026-08-06
-**最新提交**: `bd78d52` docs(handover): 更新至 2026-08-06
-**测试基线**: 747 单测 / 69 测试文件全绿
+**最后更新**: 2026-08-11
+**最新提交**: `7b0af65` chore(release): bump to v0.5.0
+**测试基线**: 747 单测 / 69 测试文件（DAP 抖动重跑全绿）
+**Latest**: https://github.com/eeyzs1/DevWit/releases/tag/v0.5.0

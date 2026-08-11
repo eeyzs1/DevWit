@@ -2,17 +2,14 @@
 
 > 接手目标：让更多人喜欢并持续使用 DevWit。手段 = 推广获客 → 开源信任 → 平台分发 → 反馈驱动迭代。
 
-## 今日实测指标
+## 今日实测指标（发版后 2026-08-11）
 
 | 指标 | 值 | 解读 |
 |------|-----|------|
-| GitHub stars / forks | **0 / 0** | SignPath 曾因公信号不足被拒；star 是信任门槛 |
-| Latest | **v0.4.0**（2026-08-03） | 产品侧就绪 |
-| v0.4.0 下载 | ≈0（仅 latest.yml=1） | 无人触达或 Windows SmartScreen 劝退 |
-| v0.2.0 下载 | Win 17 / Mac 4 | PH 首发当天唯一真实峰值 |
-| winget #407506 | OPEN，validation 通过，等 moderator | 不宜再频繁 ping（上次 8/6） |
-| Homebrew tap | **已升至 0.4.0**（本轮修复） | 修复前卡在 0.3.0 |
-| 根 README | **本轮对齐 v0.4.0**（待 push） | 修复前落地页仍链到 0.3.0 |
+| Latest | **v0.5.0**（已转正） | https://github.com/eeyzs1/DevWit/releases/tag/v0.5.0 |
+| Homebrew tap | **0.5.0** | `eeyzs1/homebrew-tap@a5d88a7` |
+| winget | #407506 仍 OPEN；**0.5.0 manifest 已入库** | 首包合并后提 update PR |
+| GitHub stars | **0** | 下一步靠用户发帖带量 |
 
 北极星：真实活跃用户。当前瓶颈是**分发与曝光**，不是功能缺口。
 
@@ -27,10 +24,12 @@
 
 ## 本轮已执行（AI）
 
-1. 根 `README.md` 从 v0.3.0 对齐到 **v0.4.0** + 差异化对比表 + Star CTA
-2. Homebrew cask **0.3.0 → 0.4.0**（sha256 实证）并推送 `eeyzs1/homebrew-tap`
-3. 开源卫生：`CONTRIBUTING.md` + Issue 模板（bug / feedback）
-4. 反馈 backlog：`distribution/launch/GROWTH-FEEDBACK-BACKLOG.md`
+1. 根 `README.md` 对齐 Latest + 差异化对比表 + Star CTA（已 push）
+2. Homebrew cask 跟到 **0.5.0**（sha256 实证）并推送 tap
+3. 开源卫生：`CONTRIBUTING.md` + Issue/PR 模板
+4. **打 tag 发布 v0.5.0**，CI 三平台成功，已转正 Latest
+5. winget **0.5.0** 四分件入库（待 #407506 合并后提 PR）
+6. 反馈 backlog：`GROWTH-FEEDBACK-BACKLOG.md`
 
 ## 用户必须亲自做（AI 无法代劳）
 
