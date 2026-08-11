@@ -50,9 +50,9 @@
 
 | 渠道 | 节奏 | 负责人 |
 |------|------|--------|
-| GitHub Releases | 功能里程碑打 tag；v0.5.0 编辑器增强已齐可择机发 | AI 准备 + 用户确认 tag |
-| Homebrew | 每个 macOS Release 当日升 version/sha256 | AI |
-| winget | #407506 合并后立刻提 0.4.0 update PR | AI（manifest 已在 `distribution/winget/.../0.4.0/`） |
+| GitHub Releases | 功能里程碑打 tag；**v0.5.0 已发** | AI 准备 + 用户确认 tag |
+| Homebrew | 每个 macOS Release 当日升 version/sha256 | AI（已跟 0.5.0） |
+| winget | #407506 合并后立刻提 **0.5.0** update PR | AI（manifest 在 `.../0.5.0/`） |
 | SignPath | star 有公开信号后再申请 | 用户申请，AI 接 CI |
 | PH / 社区评论 | 每周巡检，转 Issue | AI 起草回复，用户发 |
 
@@ -65,9 +65,10 @@ PH 真实用户（Furkan / Ferdi）反复夸的是：
 
 下一迭代优先加深这两条差异化（成本可读性、授权体验），再扩 Rust LSP 等广度功能。详见反馈 backlog。
 
-## 下一步建议（请用户拍板）
+## 下一步建议
 
-- [ ] 确认：我把本轮 README / CONTRIBUTING / Issue 模板 **commit + push 到 main**
-- [ ] 本周内你完成 Show HN + 掘金 + dev.to 三连发
-- [ ] 是否现在打 **v0.5.0** tag（编辑器 9 项增强已完成）作为下一波推广新闻点
-- [ ] star ≥ 门槛后重申 SignPath
+- [x] commit + push README / CONTRIBUTING / Issue 模板
+- [x] 打 **v0.5.0** tag 并发版（Latest）
+- [ ] 本周完成 Show HN + 掘金 + dev.to 三连发（用 v0.5.0 当新闻点）
+- [ ] star 有公开信号后重申 SignPath
+- [ ] winget #407506 合并后提 0.5.0 update PR
