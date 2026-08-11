@@ -24,11 +24,11 @@ DevWit 是一款自研的 AI 原生桌面 IDE，建立在一条原则上：**AI 
 
 ## 下载安装
 
-**最新版本 v0.4.0**（全部构建产物见 [Releases](https://github.com/eeyzs1/DevWit/releases/tag/v0.4.0)）
+**最新版本 v0.5.0**（全部构建产物见 [Releases](https://github.com/eeyzs1/DevWit/releases/tag/v0.5.0)）
 
 ### Windows（x64）
 
-直接下载：[DevWit.Setup.0.4.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit.Setup.0.4.0.exe)（NSIS 安装包，支持应用内自动更新）。
+直接下载：[DevWit.Setup.0.5.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit.Setup.0.5.0.exe)（NSIS 安装包，支持应用内自动更新）。
 
 winget（已提交 microsoft/winget-pkgs#407506，待社区审批通过后可用）：
 
@@ -43,12 +43,12 @@ brew install --cask eeyzs1/tap/devwit
 xattr -dr com.apple.quarantine /Applications/DevWit.app   # 未签名分发，首次运行前去一次隔离
 ```
 
-或直接下载：[DevWit-0.4.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit-0.4.0-arm64.dmg)。
+或直接下载：[DevWit-0.5.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit-0.5.0-arm64.dmg)。
 
 ### Linux（x64）
 
-- AppImage（支持应用内自动更新）：[DevWit-0.4.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit-0.4.0.AppImage)，`chmod +x` 直接运行
-- Debian/Ubuntu：[devwit_0.4.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/devwit_0.4.0_amd64.deb)，`sudo dpkg -i` 安装
+- AppImage（支持应用内自动更新）：[DevWit-0.5.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit-0.5.0.AppImage)，`chmod +x` 直接运行
+- Debian/Ubuntu：[devwit_0.5.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/devwit_0.5.0_amd64.deb)，`sudo dpkg -i` 安装
 
 ## 核心特性
 

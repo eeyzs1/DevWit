@@ -23,11 +23,11 @@ DevWit 是一款自研的 AI 原生桌面 IDE：融合 VSCode 的编辑器能力
 
 ## 下载安装
 
-**最新版本 v0.4.0 · 免费软件 · MIT 协议**（全部构建产物见 [Releases](https://github.com/eeyzs1/DevWit/releases)）
+**最新版本 v0.5.0 · 免费软件 · MIT 协议**（全部构建产物见 [Releases](https://github.com/eeyzs1/DevWit/releases)）
 
 ### Windows（x64）
 
-直接下载：[DevWit.Setup.0.4.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit.Setup.0.4.0.exe)（NSIS 安装包，可选安装目录，支持 `/S` 静默安装）。
+直接下载：[DevWit.Setup.0.5.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit.Setup.0.5.0.exe)（NSIS 安装包，可选安装目录，支持 `/S` 静默安装）。
 
 winget（已提交 microsoft/winget-pkgs#407506，待社区审批通过后可用）：
 
@@ -44,12 +44,12 @@ brew install --cask eeyzs1/tap/devwit
 xattr -dr com.apple.quarantine /Applications/DevWit.app   # 未签名分发，首次运行前去一次隔离
 ```
 
-或直接下载：[DevWit-0.4.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit-0.4.0-arm64.dmg)（Intel Mac 暂无构建）。
+或直接下载：[DevWit-0.5.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit-0.5.0-arm64.dmg)（Intel Mac 暂无构建）。
 
 ### Linux（x64）
 
-- AppImage（支持应用内自动更新）：[DevWit-0.4.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit-0.4.0.AppImage)，下载后 `chmod +x` 直接运行
-- Debian/Ubuntu：[devwit_0.4.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/devwit_0.4.0_amd64.deb)，`sudo dpkg -i` 安装
+- AppImage（支持应用内自动更新）：[DevWit-0.5.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit-0.5.0.AppImage)，下载后 `chmod +x` 直接运行
+- Debian/Ubuntu：[devwit_0.5.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/devwit_0.5.0_amd64.deb)，`sudo dpkg -i` 安装
 
 ### 自动更新
 
@@ -64,7 +64,7 @@ xattr -dr com.apple.quarantine /Applications/DevWit.app   # 未签名分发，�
 
 | 特性 | 说明 |
 |------|------|
-| 自研编辑器内核 | piece-table 文本缓冲 + Canvas 渲染 + tree-sitter 语法高亮，支持 IME 中文输入、多光标、撤销/重做 |
+| 自研编辑器内核 | piece-table 文本缓冲 + Canvas 渲染 + tree-sitter 语法高亮；IME 中文、多光标、括号匹配/自动配对、自动缩进、代码折叠、minimap、行移动/注释/复制 |
 | 简洁上下文引擎 | 每次 LLM 请求的完整上下文组成（系统提示、工具列表、注入项及各项 token 占用）对用户逐项可见，可逐项开启/关闭，manifest 落盘可审计 |
 | 对话式编程 | 对话请求代码修改，修改以 diff 形式在编辑器内呈现，支持逐块接受/拒绝 |
 | Agent 模式 | 授权门机制：读写文件、执行终端命令均需用户批准；支持多步任务，执行轨迹（trace）完整可见 |

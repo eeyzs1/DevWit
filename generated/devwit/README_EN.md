@@ -23,11 +23,11 @@ Built for: teams with compliance/audit needs, developers who want to know exactl
 
 ## Download & Install
 
-**Latest v0.4.0 · Free software · MIT license** (all build artifacts on the [Releases](https://github.com/eeyzs1/DevWit/releases) page)
+**Latest v0.5.0 · Free software · MIT license** (all build artifacts on the [Releases](https://github.com/eeyzs1/DevWit/releases) page)
 
 ### Windows (x64)
 
-Direct download: [DevWit.Setup.0.4.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit.Setup.0.4.0.exe) (NSIS installer, custom install directory, supports `/S` silent install).
+Direct download: [DevWit.Setup.0.5.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit.Setup.0.5.0.exe) (NSIS installer, custom install directory, supports `/S` silent install).
 
 winget (submitted as microsoft/winget-pkgs#407506; available once community review completes):
 
@@ -44,12 +44,12 @@ brew install --cask eeyzs1/tap/devwit
 xattr -dr com.apple.quarantine /Applications/DevWit.app   # unsigned distribution; de-quarantine once
 ```
 
-Or download directly: [DevWit-0.4.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit-0.4.0-arm64.dmg) (no Intel Mac build yet).
+Or download directly: [DevWit-0.5.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit-0.5.0-arm64.dmg) (no Intel Mac build yet).
 
 ### Linux (x64)
 
-- AppImage (in-app auto-update): [DevWit-0.4.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/DevWit-0.4.0.AppImage) — `chmod +x` and run
-- Debian/Ubuntu: [devwit_0.4.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.4.0/devwit_0.4.0_amd64.deb) — install with `sudo dpkg -i`
+- AppImage (in-app auto-update): [DevWit-0.5.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit-0.5.0.AppImage) — `chmod +x` and run
+- Debian/Ubuntu: [devwit_0.5.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/devwit_0.5.0_amd64.deb) — install with `sudo dpkg -i`
 
 ### Auto-Update
 
@@ -64,7 +64,7 @@ Or download directly: [DevWit-0.4.0-arm64.dmg](https://github.com/eeyzs1/DevWit/
 
 | Feature | Description |
 |---------|-------------|
-| Custom editor kernel | Piece-table text buffer + Canvas rendering + tree-sitter highlighting, with IME (CJK) input, multi-cursor, undo/redo |
+| Custom editor kernel | Piece-table text buffer + Canvas rendering + tree-sitter highlighting; IME (CJK), multi-cursor, bracket match/auto-pair, auto-indent, code folding, minimap, line move/comment/duplicate |
 | Minimal context engine | The full context composition of every LLM request (system prompt, tool list, injected items, per-item token cost) is visible item-by-item and can be toggled individually; manifests are persisted for audit |
 | Conversational coding | Request code changes in chat; edits are presented as an in-editor diff with per-hunk accept/reject |
 | Agent mode | Authorization gate: file writes and terminal commands require explicit user approval; multi-step tasks with fully visible execution traces |
