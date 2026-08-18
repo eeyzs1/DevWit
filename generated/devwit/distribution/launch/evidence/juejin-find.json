@@ -1,0 +1,64 @@
+{
+  "posts": [
+    {
+      "href": "https://juejin.cn/post/7515378780402565171",
+      "text": "AryaNimbus\n1年前\nCursor  AI编程\n全网最全 Cursor 配置指南：从入门到高效工作流！建议收藏\ncursor.npmlib.com/blogs/cursor-setting-guide更多Cursor使用技巧也可关注"
+    },
+    {
+      "href": "https://juejin.cn/post/7515378780402565171",
+      "text": "全网最全 Cursor 配置指南：从入门到高效工作流！建议收藏"
+    },
+    {
+      "href": "https://juejin.cn/post/7515378780402565171",
+      "text": "cursor.npmlib.com/blogs/cursor-setting-guide更多Cursor使用技巧也可关注公众号 AI近距离今天这篇文章... 这可以显著提升多文件项目中的推理和上下文理解能力。尤其在面对架构设计、业务逻辑梳理"
+    },
+    {
+      "href": "https://juejin.cn/post/7515378780402565171",
+      "text": "7"
+    },
+    {
+      "href": "https://juejin.cn/post/7521300452047241267",
+      "text": "狂炫一碗大米饭\n1年前\nTrae  Cursor\nCursor 与 Trae 对比总结：面向前端开发人员的ai IDE\n为我们开发者提供了不同的编程体验。以下将从多个方面对这两款工具进行详细对比。核心功能与定位CursorCursor是基于"
+    },
+    {
+      "href": "https://juejin.cn/post/7521300452047241267",
+      "text": "Cursor 与 Trae 对比总结：面向前端开发人员的ai IDE"
+    },
+    {
+      "href": "https://juejin.cn/post/7521300452047241267",
+      "text": "为我们开发者提供了不同的编程体验。以下将从多个方面对这两款工具进行详细对比。核心功能与定位CursorCursor是基于VS Code深度集成的AI原生IDE，侧重于智能代码补全与上下文感知。它在代码修改和全局上下文引用..."
+    },
+    {
+      "href": "https://juejin.cn/post/7521300452047241267",
+      "text": "7"
+    },
+    {
+      "href": "https://juejin.cn/post/7460161721262391311",
+      "text": "程序员Sunday\n1年前\n前端  Cursor\nCursor 必备使用指南，我用 Cursor 开发 10 多个项目后，才明白这些道理！\n但是我应该怎么才能让它写出我想要的代码呢？当我们在和 Cursor（AI） 沟通时，都会需要使用到 "
+    },
+    {
+      "href": "https://juejin.cn/post/7460161721262391311",
+      "text": "Cursor 必备使用指南，我用 Cursor 开发 10 多个项目后，才明白这些道理！"
+    },
+    {
+      "href": "https://juejin.cn/post/7460161721262391311",
+      "text": "但是我应该怎么才能让它写出我想要的代码呢？当我们在和 Cursor（AI） 沟通时，都会需要使用到 提示词工... 提供清晰的上下文所谓 上下文 指的就是代码的背景信息和场景描述。比如，告诉 Cursor 你正在做一个什么..."
+    },
+    {
+      "href": "https://juejin.cn/post/7460161721262391311",
+      "text": "14"
+    },
+    {
+      "href": "https://juejin.cn/post/7566825225260138539",
+      "text": "飞哥数智谈\n9月前\nCursor  AI编程\n看完 Cursor 2.0，我感觉国产 AI 编程又有希望了\n昨天 Cursor 发布了 2.0 版本，动作不小。今天我们就来看看，它到底带来了哪些真东西。先叠个甲，国内 AI IDE 距离 C"
+    },
+    {
+      "href": "https://juejin.cn/post/7566825225260138539",
+      "text": "看完 Cursor 2.0，我感觉国产 AI 编程又有希望了"
+    },
+    {
+      "href": "https://juejin.cn/post/7566825225260138539",
+      "text": "昨天 Cursor 发布了 2.0 版本，动作不小。今天我们就来看看，它到底带来了哪些真东西。先叠个甲，国内 AI IDE 距离 Cursor 的体验依然有些距离，但这次 2.0 发布，给我一些 Cursor 后劲不足的感觉。重点关注多.."
+    }
+  ]
+}

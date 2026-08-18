@@ -1,0 +1,16 @@
+[
+  {
+    "text": "Publish",
+    "cls": "c-btn c-btn--primary mr-2 whitespace-nowrap",
+    "visible": true,
+    "disabled": false,
+    "type": "button"
+  },
+  {
+    "text": "Save Draft",
+    "cls": "c-btn border border-base-20 mr-2 whitespace-nowrap",
+    "visible": true,
+    "disabled": false,
+    "type": "button"
+  }
+]

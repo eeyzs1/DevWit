@@ -1,0 +1,38 @@
+[
+  {
+    "tag": "BUTTON",
+    "ph": null,
+    "name": null,
+    "aria": null,
+    "role": null,
+    "text": "Open chat",
+    "vis": true
+  },
+  {
+    "tag": "BUTTON",
+    "ph": null,
+    "name": null,
+    "aria": null,
+    "role": null,
+    "text": "Expand user menu",
+    "vis": true
+  },
+  {
+    "tag": "DIV",
+    "ph": null,
+    "name": "body",
+    "aria": "Post body text field",
+    "role": "textbox",
+    "text": "",
+    "vis": true
+  },
+  {
+    "tag": "BUTTON",
+    "ph": null,
+    "name": null,
+    "aria": null,
+    "role": null,
+    "text": "Collapse Navigation",
+    "vis": true
+  }
+]

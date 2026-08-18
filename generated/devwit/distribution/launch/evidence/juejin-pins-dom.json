@@ -1,0 +1,30 @@
+[
+  {
+    "tag": "INPUT",
+    "ph": "探索稀土掘金",
+    "cls": "search-input",
+    "text": "",
+    "vis": true
+  },
+  {
+    "tag": "BUTTON",
+    "ph": null,
+    "cls": "add-btn",
+    "text": "创作者中心",
+    "vis": true
+  },
+  {
+    "tag": "DIV",
+    "ph": "快和掘友一起分享新鲜事！告诉你个小秘密，发布沸点时添加圈子和话题会被更多掘友看到哦～",
+    "cls": "rich-editor",
+    "text": "#新人报道#",
+    "vis": true
+  },
+  {
+    "tag": "BUTTON",
+    "ph": null,
+    "cls": "active",
+    "text": "发布",
+    "vis": true
+  }
+]

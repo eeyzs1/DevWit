@@ -1,0 +1,207 @@
+{
+  "url": "https://www.reddit.com/r/SideProject/submit/?type=TEXT",
+  "buttons": [
+    {
+      "tag": "SHREDDIT-APP",
+      "text": "Submit to r/SideProject\nAdvertise on Reddit\nOpen chat\nCreate\nCreate post\nOpen in",
+      "aria": null,
+      "testid": null,
+      "disabled": null,
+      "w": 1253,
+      "h": 892,
+      "y": 0
+    },
+    {
+      "tag": "FACEPLATE-SCREEN-READER-CONTENT",
+      "text": "Submit to r/SideProject",
+      "aria": null,
+      "testid": null,
+      "disabled": null,
+      "w": 1,
+      "h": 1,
+      "y": 55
+    },
+    {
+      "tag": "REDDIT-HEADER-LARGE",
+      "text": "Advertise on Reddit\nOpen chat\nCreate\nCreate post\nOpen inbox\nExpand user menu",
+      "aria": null,
+      "testid": null,
+      "disabled": null,
+      "w": 1253,
+      "h": 57,
+      "y": 0
+    },
+    {
+      "tag": "CREATE-POST-ENTRY-POINT-WRAPPER",
+      "text": "Create\nCreate post",
+      "aria": null,
+      "testid": null,
+      "disabled": null,
+      "w": 90,
+      "h": 40,
+      "y": 8
+    },
+    {
+      "tag": "FACEPLATE-SCREEN-READER-CONTENT",
+      "text": "Create post",
+      "aria": null,
+      "testid": null,
+      "disabled": null,
+      "w": 1,
+      "h": 1,
+      "y": 28
+    },
+    {
+      "tag": "R-POST-COMPOSER-FORM",
+      "text": "Body text*\n\n\n\n\nSkip to community selector",
+      "aria": null,
+      "testid": null,
+      "disabled": null,
+      "w": 608,
+      "h": 381,
+      "y": 72
+    },
+    {
+      "tag": "FACEPLATE-FORM-SECTION",
+      "text": "Body text*",
+      "aria": null,
+      "testid": null,
+      "disabled": null,
+      "w": 576,
+      "h": 116,
+      "y": 224
+    },
+    {
+      "tag": "SHREDDIT-COMPOSER",
+      "text": "Body text*",
+      "aria": null,
+      "testid": null,
+      "disabled": "false",
+      "w": 608,
+      "h": 112,
+      "y": 224
+    },
+    {
+      "tag": "RTE-TOOLBAR",
+      "text": "",
+      "aria": "text formatting toolbar",
+      "testid": null,
+      "disabled": null,
+      "w": 592,
+      "h": 48,
+      "y": 340
+    }
+  ],
+  "fields": [
+    {
+      "tag": "INPUT",
+      "ph": "Search in ⁨r/SideProject⁩",
+      "name": "q",
+      "testid": null,
+      "role": null,
+      "ce": null,
+      "w": 0,
+      "h": 0,
+      "y": 0
+    },
+    {
+      "tag": "INPUT",
+      "ph": null,
+      "name": "subredditId",
+      "testid": null,
+      "role": null,
+      "ce": null,
+      "w": 0,
+      "h": 0,
+      "y": 0
+    },
+    {
+      "tag": "INPUT",
+      "ph": null,
+      "name": "subredditName",
+      "testid": null,
+      "role": null,
+      "ce": null,
+      "w": 0,
+      "h": 0,
+      "y": 0
+    },
+    {
+      "tag": "INPUT",
+      "ph": null,
+      "name": "prefixedName",
+      "testid": null,
+      "role": null,
+      "ce": null,
+      "w": 0,
+      "h": 0,
+      "y": 0
+    },
+    {
+      "tag": "INPUT",
+      "ph": null,
+      "name": "recaptchaToken",
+      "testid": null,
+      "role": null,
+      "ce": null,
+      "w": 0,
+      "h": 0,
+      "y": 0
+    },
+    {
+      "tag": "INPUT",
+      "ph": null,
+      "name": "type",
+      "testid": null,
+      "role": null,
+      "ce": null,
+      "w": 0,
+      "h": 0,
+      "y": 0
+    },
+    {
+      "tag": "DIV",
+      "ph": null,
+      "name": null,
+      "testid": null,
+      "role": "textbox",
+      "ce": "true",
+      "w": 0,
+      "h": 0,
+      "y": 0
+    },
+    {
+      "tag": "SHREDDIT-COMPOSER",
+      "ph": "Body text*",
+      "name": "body",
+      "testid": null,
+      "role": null,
+      "ce": null,
+      "w": 608,
+      "h": 112,
+      "y": 224
+    },
+    {
+      "tag": "DIV",
+      "ph": null,
+      "name": "body",
+      "testid": null,
+      "role": "textbox",
+      "ce": "true",
+      "w": 608,
+      "h": 112,
+      "y": 224
+    },
+    {
+      "tag": "TEXTAREA",
+      "ph": null,
+      "name": "g-recaptcha-response",
+      "testid": null,
+      "role": null,
+      "ce": null,
+      "w": 0,
+      "h": 0,
+      "y": 0
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "tag": "INPUT",
+    "text": "输入文章标题...",
+    "cls": "title-input title-input",
+    "vis": true
+  },
+  {
+    "tag": "BUTTON",
+    "text": "草稿箱",
+    "cls": "xitu-btn btn-drafts with-padding xitu-btn-outline",
+    "vis": true
+  },
+  {
+    "tag": "BUTTON",
+    "text": "发布",
+    "cls": "xitu-btn",
+    "vis": true
+  },
+  {
+    "tag": "DIV",
+    "text": "请搜索添加标签",
+    "cls": "select-plus byte-select byte-select--normal",
+    "vis": true
+  },
+  {
+    "tag": "BUTTON",
+    "text": "上传封面",
+    "cls": "select-btn",
+    "vis": true
+  },
+  {
+    "tag": "DIV",
+    "text": "请搜索添加专栏，同一篇文章最多添加三个专栏",
+    "cls": "byte-select byte-select--normal",
+    "vis": true
+  },
+  {
+    "tag": "DIV",
+    "text": "请搜索添加话题，最多添加1个话题",
+    "cls": "select-plus byte-select byte-select--normal",
+    "vis": true
+  },
+  {
+    "tag": "BUTTON",
+    "text": "取消",
+    "cls": "ui-btn btn line medium default",
+    "vis": true
+  },
+  {
+    "tag": "BUTTON",
+    "text": "确定并发布",
+    "cls": "ui-btn btn primary medium default",
+    "vis": true
+  },
+  {
+    "tag": "LABEL",
+    "text": "同步滚动",
+    "cls": "",
+    "vis": true
+  }
+]

@@ -1,0 +1,37 @@
+Create Post
+Edit
+Preview
+Whoops, something went wrong:
+title: has already been used in the last five minutes
+Upload Cover Image
+Use a ratio of 1000:420 for best results.
+🍌 Generate Image
+Cover Video Link
+productivity
+Add up to 4 tags
+Maximum 4 selections
+
+Selected items:
+
+# productivity
+Bold CTRL + B
+Italic CTRL + I
+Link CTRL + K
+Ordered list
+Unordered list
+Heading
+Quote
+Upload image
+Editor Basics
+Use Markdown to write and format posts.
+Commonly used syntax
+Embed rich content such as Tweets, YouTube videos, etc. Use the complete URL: {% embed https://... %}. See a list of supported embeds.
+In addition to images for the post's content, you can also drag and drop a cover image.
+Embed coding agent sessions from Claude Code, Codex, Gemini CLI, and more: {% agent_session ID %}. Use named slices to embed different parts throughout your post: {% agent_session ID planning %}. Upload a session.
+Publish
+Save Draft
+|
+Advanced Options
+|
+Revert new changes
+🤖

@@ -1,0 +1,6 @@
+{
+  "url": "https://www.reddit.com/r/SideProject/submit/?type=TEXT",
+  "title": "Submit to r/SideProject",
+  "ok": false,
+  "head": "Skip to main content Submit to r/SideProject Advertise on Reddit Open chat Create Create post Open inbox Expand user menu Most AI coding tools are black boxes. DevWit is a free MIT desktop IDE where:1. Context transparency — every LLM request shows system prompt, tools, RAG hits, terminal output with per-item token costs you can toggle off.2. Authorization gate — file writes and shell commands need one-click approval before they run.Standalone IDE (not a VS Code plugin): self-built editor, TS+Python LSP, Git, DAP, MCP, multi-agent orchestration. Ollama keyless local models supported.GitHub: h"
+}

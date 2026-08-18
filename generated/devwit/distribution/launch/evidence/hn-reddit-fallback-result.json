@@ -1,0 +1,14 @@
+{
+  "hn": {
+    "url": "https://news.ycombinator.com/x?fnid=1TK5bW3nENmHBbKnL4x2qM&fnop=toolong-title",
+    "title": "Submit | Hacker News",
+    "itemUrl": null,
+    "body": " Submit Please limit title to 80 characters. This had 92. title 12 too long url text Leave url blank to submit a question for discussion. If there is no url, text will appear at the top of the thread. If there is a url, text is optional. You can also submit via bookmarklet."
+  },
+  "reddit": {
+    "url": "https://www.reddit.com/r/opensource/submit/?type=TEXT",
+    "title": "",
+    "snippet": "You've been blocked by network security. To continue, log in to your Reddit account or use your developer token If you think you've been blocked by mistake, file a ticket below and we'll look into it. Log in File a ticket",
+    "loginWall": true
+  }
+}

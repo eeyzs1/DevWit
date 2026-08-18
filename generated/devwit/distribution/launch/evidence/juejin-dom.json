@@ -1,0 +1,238 @@
+{
+  "url": "https://juejin.cn/editor/drafts/new",
+  "title": "写文章 - 掘金",
+  "inputs": [
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "INPUT",
+      "id": "",
+      "class": "title-input title-input",
+      "placeholder": "输入文章标题...",
+      "role": null,
+      "contentEditable": null,
+      "text": ""
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "BUTTON",
+      "id": "",
+      "class": "xitu-btn btn-drafts with-padding xitu-btn-outline",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": "草稿箱"
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "BUTTON",
+      "id": "",
+      "class": "xitu-btn",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": "发布"
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "INPUT",
+      "id": "",
+      "class": "byte-select__input",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": ""
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "BUTTON",
+      "id": "",
+      "class": "select-btn",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": "上传封面"
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "INPUT",
+      "id": "",
+      "class": "",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": ""
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "INPUT",
+      "id": "",
+      "class": "byte-select__input",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": ""
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "INPUT",
+      "id": "",
+      "class": "byte-select__input",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": ""
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "TEXTAREA",
+      "id": "",
+      "class": "byte-input__textarea",
+      "placeholder": "",
+      "role": null,
+      "contentEditable": null,
+      "text": ""
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "BUTTON",
+      "id": "",
+      "class": "ui-btn btn line medium default",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": " 取消 "
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "BUTTON",
+      "id": "",
+      "class": "ui-btn btn primary medium default",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": " 确定并发布 "
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "INPUT",
+      "id": "",
+      "class": "file-input",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": ""
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "DIV",
+      "id": "",
+      "class": "bytemd bytemd-split",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": "​\n字符数: 0行数: 1正文字数: 0\n同步滚动回到顶部"
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "DIV",
+      "id": "",
+      "class": "CodeMirror cm-s-default CodeMirror-wrap CodeMirror-focused",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": "​"
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "TEXTAREA",
+      "id": "",
+      "class": "",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": ""
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "INPUT",
+      "id": "",
+      "class": "",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": ""
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "TEXTAREA",
+      "id": "",
+      "class": "byte-input__textarea",
+      "placeholder": "目前仅支持审核通过的西瓜视频链接",
+      "role": null,
+      "contentEditable": null,
+      "text": ""
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "BUTTON",
+      "id": "",
+      "class": "ui-btn cancel-btn btn line medium default",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": " 取消 "
+    },
+    {
+      "sel": "input, textarea, [contenteditable=true], .CodeMirror, .bytemd, .ProseMirror, button",
+      "tag": "BUTTON",
+      "id": "",
+      "class": "ui-btn add-btn btn primary medium default",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": " 确定 "
+    }
+  ],
+  "titleCandidates": [
+    {
+      "sel": "input[placeholder*='标题'], input.title, .title-input input, textarea",
+      "tag": "INPUT",
+      "id": "",
+      "class": "title-input title-input",
+      "placeholder": "输入文章标题...",
+      "role": null,
+      "contentEditable": null,
+      "text": ""
+    },
+    {
+      "sel": "input[placeholder*='标题'], input.title, .title-input input, textarea",
+      "tag": "TEXTAREA",
+      "id": "",
+      "class": "byte-input__textarea",
+      "placeholder": "",
+      "role": null,
+      "contentEditable": null,
+      "text": ""
+    },
+    {
+      "sel": "input[placeholder*='标题'], input.title, .title-input input, textarea",
+      "tag": "TEXTAREA",
+      "id": "",
+      "class": "",
+      "placeholder": null,
+      "role": null,
+      "contentEditable": null,
+      "text": ""
+    },
+    {
+      "sel": "input[placeholder*='标题'], input.title, .title-input input, textarea",
+      "tag": "TEXTAREA",
+      "id": "",
+      "class": "byte-input__textarea",
+      "placeholder": "目前仅支持审核通过的西瓜视频链接",
+      "role": null,
+      "contentEditable": null,
+      "text": ""
+    }
+  ]
+}

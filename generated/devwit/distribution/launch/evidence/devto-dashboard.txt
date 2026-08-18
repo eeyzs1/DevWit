@@ -1,0 +1,105 @@
+Skip to content
+Powered by Algolia 
+Create Post
+22
+Dashboard
+0
+Total post reactions
+0
+Total post comments
+< 500
+Total post views
+Posts
+4
+Series
+Followers
+5
+Following tags
+8
+Following users
+18
+Following organizations
+5
+Analytics
+RSS Import Feeds
+Hidden tags
+0
+Agent Sessions
+0
+Posts
+Show quickie posts
+Recently Created
+Recently Published
+Most Views
+Most Reactions
+Most Comments
+DevWit v0.5.0: an open-source AI IDE with a transparent context panel (and a real editor)
+
+Published: Aug 11 Language: English
+
+0
+0
+< 25
+Manage
+Edit
+I shipped 7 AI tools in 2 months. Here's the boring code I kept rewriting.
+
+Published: Aug 6 Language: English
+
+0
+0
+< 25
+Manage
+Edit
+I built 7 AI tools, then realized I was doing it wrong. Here's what I learned.
+
+Published: Aug 3 Language: English
+
+0
+0
+< 25
+Manage
+Edit
+I built an AI IDE that shows you exactly what it sends to the model
+
+Published: Jul 29 Language: English
+
+0
+0
+< 25
+Manage
+Edit
+
+💎 DEV Diamond Sponsors
+
+Thank you to our Diamond Sponsors for supporting the DEV Community
+
+Google AI is the official AI Model and Platform Partner of DEV
+
+Neon is the official database partner of DEV
+
+Algolia is the official search partner of DEV
+
+DEV Community — A space to discuss and keep up software development and manage your software career
+
+Home
+DEV Challenges
+DEV++
+Videos
+DEV Education Tracks
+DEV Help
+Advertise on DEV
+Organization Accounts
+DEV Showcase
+About
+Contact
+Free Postgres Database
+DEV Shop
+MLH
+Code of Conduct
+Privacy Policy
+Terms of Use
+
+Built on Forem — the open source software that powers DEV and other inclusive communities.
+
+Made with love and Ruby on Rails. DEV Community © 2016 - 2026.

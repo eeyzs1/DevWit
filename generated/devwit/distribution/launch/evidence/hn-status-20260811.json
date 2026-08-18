@@ -1,0 +1,24 @@
+{
+  "updated_at": "2026-08-11T03:52:00Z",
+  "proxy": "enabled (Chrome can reach HN)",
+  "hacker_news": {
+    "account": "eeyzs1 (created/logged in this session; creds in launch-credentials.env)",
+    "show_hn": {
+      "status": "blocked",
+      "reason": "HN temporarily restricting Show HNs for new/unfamiliar users (showlim page)"
+    },
+    "link_submit": {
+      "status": "blocked",
+      "reason": "Sorry, your account isn't able to submit this site. (toonew — brand-new account restriction)"
+    },
+    "next": "Need an aged HN account with some history, OR wait days + contribute comments before submitting. Do NOT spam Create Account."
+  },
+  "reddit": {
+    "status": "blocked_by_network_security",
+    "note": "Page reachable but requires Reddit login; no session in Chrome profile"
+  },
+  "juejin_pins": {
+    "status": "submitted_auditing",
+    "evidence": "user profile shows DevWit pins 1–2 min ago with 审核中"
+  }
+}

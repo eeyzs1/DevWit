@@ -1,0 +1,33 @@
+[
+  {
+    "url": "https://www.reddit.com/r/SideProject/new/",
+    "hasDevWit": false,
+    "snippet": null,
+    "links": []
+  },
+  {
+    "url": "https://www.reddit.com/user/Savings-Addition3580/submitted/",
+    "hasDevWit": true,
+    "snippet": "ved\nHistory\nHidden\nUpvoted\nDownvoted\nback\nforward\nShowing all posts\nCreate Post\nDevWit: open-source AI IDE with transparent LLM context + approval gate\nr/SideProject\n•\n2 min. ago\nDevWit: open-source AI IDE with transparent LLM context + approval gate\n\nMost AI coding tools are bla",
+    "links": [
+      {
+        "href": "https://www.reddit.com/r/SideProject/comments/1vl70te/devwit_opensource_ai_ide_with_transparent_llm/",
+        "t": "DevWit: open-source AI IDE with transparent LLM context + approval gate"
+      },
+      {
+        "href": "https://www.reddit.com/r/SideProject/comments/1vl70te/devwit_opensource_ai_ide_with_transparent_llm/",
+        "t": "DevWit: open-source AI IDE with transparent LLM context + approval gate"
+      },
+      {
+        "href": "https://www.reddit.com/r/SideProject/comments/1vl70te/devwit_opensource_ai_ide_with_transparent_llm/",
+        "t": "Most AI coding tools are black boxes. DevWit is a free MIT desktop IDE where:\n\nContext transparency — every LLM request "
+      }
+    ]
+  },
+  {
+    "url": "https://www.reddit.com/search/?q=DevWit%20transparent%20LLM&type=link&sort=new",
+    "hasDevWit": true,
+    "snippet": "Skip to main content\nDevWit transparent LLM - Reddit Search!\nAdvertise on Reddit\nOpen chat\nCreate\nCreate post\nOpen inbox\nExpand user menu\nAll\nPosts\nCommunities\nComments\nMedia\nProfiles\nback\nforward\nNew\nGenuine question.\nr/",
+    "links": []
+  }
+]

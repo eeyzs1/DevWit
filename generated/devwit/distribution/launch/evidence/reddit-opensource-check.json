@@ -1,0 +1,31 @@
+{
+  "url": "https://www.reddit.com/user/Savings-Addition3580/submitted/",
+  "hasRemoved": true,
+  "snippet": "Skip to main content Savings-Addition3580 (u/Savings-Addition3580) - Reddit Advertise on Reddit Open chat Create Create post Open inbox Expand user menu Savings-Addition3580 u/Savings-Addition3580 Overview Posts Comments Saved History Hidden Upvoted Downvoted back forward Showing all posts Create Post Show: DevWit — open-source AI IDE with transparent per-item LLM context + approval gate r/opensource • 1 min. ago Show: DevWit — open-source AI IDE with transparent per-item LLM context + approval gate I built a free MIT desktop IDE because most AI coding tools are black boxes. Two things I cared about: Context transparency — every LLM request shows the system prompt, tools, RAG hits, and terminal output with per-item token costs. You can toggle any item off and the request shrinks. Authorization gate — file writes and shell commands need one-click approval before they run (on by default). ",
+  "links": [
+    {
+      "href": "https://www.reddit.com/r/opensource/comments/1vl92av/show_devwit_opensource_ai_ide_with_transparent/",
+      "t": "Show: DevWit — open-source AI IDE with transparent per-item LLM context + approval gate"
+    },
+    {
+      "href": "https://www.reddit.com/r/opensource/comments/1vl92av/show_devwit_opensource_ai_ide_with_transparent/",
+      "t": "Show: DevWit — open-source AI IDE with transparent per-item LLM context + approval gate"
+    },
+    {
+      "href": "https://www.reddit.com/r/opensource/comments/1vl92av/show_devwit_opensource_ai_ide_with_transparent/",
+      "t": "I built a free MIT desktop IDE because most AI coding tools are black boxes. \n\nTwo things I cared ab"
+    },
+    {
+      "href": "https://www.reddit.com/r/SideProject/comments/1vl70te/devwit_opensource_ai_ide_with_transparent_llm/",
+      "t": "DevWit: open-source AI IDE with transparent LLM context + approval gate"
+    },
+    {
+      "href": "https://www.reddit.com/r/SideProject/comments/1vl70te/devwit_opensource_ai_ide_with_transparent_llm/",
+      "t": "DevWit: open-source AI IDE with transparent LLM context + approval gate"
+    },
+    {
+      "href": "https://www.reddit.com/r/SideProject/comments/1vl70te/devwit_opensource_ai_ide_with_transparent_llm/",
+      "t": "Most AI coding tools are black boxes. DevWit is a free MIT desktop IDE where:\n\nContext transparency "
+    }
+  ]
+}
