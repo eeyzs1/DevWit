@@ -526,7 +526,14 @@ export class AiRuntime {
       // 错误码保持 ASCII：主进程 stderr 在 GBK 终端输出中文会乱码，文案由渲染端 localizeError 本地化
       throw new Error(`DW_MODE_NOT_FOUND:${input.modeId}`);
     }
-    const fallbackProviderId = input.providerId ?? mode.providerId;
+    let fallbackProviderId = input.providerId ?? mode.providerId;
+    // 兜底（可用性修复）：mode 未绑定、会话未手动选模型时，若已配置 provider，
+    // 取第一个作为默认——避免指挥台创建任务时即使配了模型也报「未绑定模型」。
+    // 显式绑定/手动选择优先；仅当两者皆空才兜底；无任何 provider 才报 DW_MODE_UNBOUND。
+    if (fallbackProviderId === "") {
+      const configured = this.registry.list();
+      fallbackProviderId = configured[0]?.id ?? "";
+    }
     if (fallbackProviderId === "") {
       throw new Error(`DW_MODE_UNBOUND:${mode.id}`);
     }

@@ -15,7 +15,7 @@
  * 特此显式声明。线协议正确性由 llm-providers 包基于真实录制帧的单元测试兜底。
  */
 import { createServer } from "node:http";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -381,9 +381,18 @@ try {
       await browser.close().catch(() => {});
     }
     if (electronProc && !electronProc.killed) {
-      electronProc.kill();
-      // CI（Windows runner）上 GPU/磁盘缓存句柄释放有延迟：等进程真正退出，
-      // 否则随后清理 userData 会撞 EPERM（DawnGraphiteCache 仍被占用）。
+      // 根治 EPERM：Electron 会 fork GPU/渲染/网络等子进程，单纯 kill() 只杀主进程，
+      // 子进程仍持有 userData 缓存句柄（DawnGraphiteCache/Code Cache），Windows 下
+      // 释放延迟导致清理 rmSync 撞 EPERM。用 taskkill /T 连整个进程树一起终止，
+      // 所有子进程退出后句柄释放，userData 目录可安全删除。
+      if (process.platform === "win32") {
+        try {
+          spawnSync("taskkill", ["/PID", String(electronProc.pid), "/T", "/F"], { stdio: "ignore" });
+        } catch { /* taskkill 不可用时回退 kill() */ }
+      } else {
+        electronProc.kill("SIGTERM");
+      }
+      // 仍等主进程退出，确保进程树回收完成
       await new Promise((resolve) => {
         const timer = setTimeout(resolve, 10_000);
         electronProc.once("exit", () => { clearTimeout(timer); resolve(); });
