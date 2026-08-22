@@ -28,6 +28,7 @@ import { openSettingsDialog, type SettingsDialogDeps } from "./settings-dialog.j
 import { openEditorSetupDialog } from "./editor-setup-dialog.js";
 import { openOnboardingWizard } from "./onboarding-wizard.js";
 import { maybeOpenContextTour } from "./context-tour.js";
+import { maybeOpenAuthGateTour } from "./auth-gate-tour.js";
 import "./app.css";
 
 declare global {
@@ -3163,7 +3164,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   contextTab.addEventListener("click", () => activateSideTab("context"));
   traceTab.addEventListener("click", () => activateSideTab("trace"));
 
-  /** 增长 G1：首次强制亮一次上下文面板导览（与向导独立，仅一次）。 */
+  /** 增长 G1+D2：首次强制亮一次上下文面板导览，关闭后顺次亮授权门导览（与向导独立，各仅一次）。 */
   async function scheduleContextTour(): Promise<void> {
     await maybeOpenContextTour({
       api,
@@ -3173,6 +3174,8 @@ async function bootstrap(api: DevwitApi): Promise<void> {
         contextTab.classList.toggle("dw-tab-tour-pulse", on);
       },
     });
+    // D2 授权门导览：上下文导览关闭后顺次弹出，避免两层遮罩叠压
+    await maybeOpenAuthGateTour({ api, showChatTab: () => activateSideTab("chat") });
   }
 
   // ==========================================================================

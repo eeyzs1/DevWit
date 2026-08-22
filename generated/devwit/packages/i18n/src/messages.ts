@@ -201,6 +201,12 @@ const zhCN = {
   "tour.context.bullet2": "每项显示 token 占用；关掉没用的项，请求立刻变小",
   "tour.context.bullet3": "Agent 写文件或跑命令前会弹出授权门——默认开启，可审计",
   "tour.context.gotIt": "知道了，去发第一条消息",
+  "tour.auth.title": "授权门：Agent 不能偷偷动手",
+  "tour.auth.body": "Agent 模式下的写文件、执行终端命令与 MCP 工具调用，执行前都会先问你一句——这不是设置，是硬规则。",
+  "tour.auth.bullet1": "写文件 / 跑命令 / MCP 工具 → 一键批准或拒绝，未批准就不会执行",
+  "tour.auth.bullet2": "可「按项目记住」——高频安全命令自动放行（白名单学习），裁决仍在轨迹留痕",
+  "tour.auth.bullet3": "每一次批准 / 拒绝都记录在执行轨迹里，事后可审计",
+  "tour.auth.gotIt": "知道了，去发第一条消息",
 
   // ---- 页签 ----
   "tab.chat": "对话",
@@ -865,6 +871,12 @@ const enUS: Messages = {
   "tour.context.bullet2": "Per-item token costs; turn off noise and the request shrinks immediately",
   "tour.context.bullet3": "File writes and shell commands need an authorization gate — on by default, auditable",
   "tour.context.gotIt": "Got it — send my first message",
+  "tour.auth.title": "The authorization gate: agents can't act behind your back",
+  "tour.auth.body": "In agent mode, file writes, shell commands, and MCP tool calls are all paused for your approval before they execute — this is a hard rule, not a setting.",
+  "tour.auth.bullet1": "File writes / shell / MCP tools → approve or reject with one click; nothing runs without approval",
+  "tour.auth.bullet2": "“Remember for this project” — frequent safe commands can be auto-approved (whitelist learning), yet every decision stays in the trace",
+  "tour.auth.bullet3": "Every approval / rejection is recorded in the execution trace, auditable later",
+  "tour.auth.gotIt": "Got it — send my first message",
 
   "tab.chat": "Chat",
   "tab.context": "Context",
