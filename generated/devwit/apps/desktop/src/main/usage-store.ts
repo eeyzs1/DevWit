@@ -178,6 +178,10 @@ export class UsageStore {
    * period: day=今日, week=最近7天, month=最近30天, total=全部。
    */
   checkBudget(threshold: number, period: "day" | "week" | "month" | "total", now: Date = new Date(), pricing?: UsagePricing): UsageBudgetAlert {
+    // 阈值 <= 0 视为「未设置有效上限」：不误报（0 成本也不该 0>=0 判超限）。
+    if (!(threshold > 0)) {
+      return { threshold, current: 0, exceeded: false, period };
+    }
     const records = this.readAll();
     let current = 0;
     const nowMs = now.getTime();

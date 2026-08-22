@@ -261,6 +261,14 @@ describe("UsageStore 成本预警", () => {
     expect(alert.current).toBe(0);
     expect(alert.exceeded).toBe(false);
   });
+
+  it("阈值<=0 视为未设置：即使 0 成本也不误报超限（0>=0 不应为 true）", () => {
+    const store = new UsageStore(file);
+    store.append(record({ inputTokens: 40, outputTokens: 15 }));
+    const alert = store.checkBudget(0, "total", new Date(), pricing);
+    expect(alert.exceeded).toBe(false);
+    expect(alert.current).toBe(0);
+  });
 });
 
 describe("UsageStore 导出报告", () => {

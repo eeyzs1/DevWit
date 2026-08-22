@@ -2486,11 +2486,30 @@ body,
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .dw-settings-update-status {
   color: var(--dw-fg-dim);
   font-size: 12px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* settings-update 行内的输入控件：行本身已是 flex，input/select 不再被
+   .dw-form .dw-input 的 width:100% 拉满，否则标签被压缩竖排换行（预算/白名单/阈值）。
+   提高特异性（.dw-form .dw-settings-update）盖过下方 .dw-form .dw-input 的 width:100%。 */
+.dw-form .dw-settings-update .dw-input,
+.dw-form .dw-settings-update .dw-select {
+  width: auto;
+  min-width: 120px;
+  max-width: 100%;
+  flex: 0 1 auto;
+}
+
+.dw-settings-update .dw-settings-pricing-input {
+  width: 110px;
+  flex-shrink: 0;
 }
 
 /* ---- 设置 · 命令白名单（AC29）---- */
