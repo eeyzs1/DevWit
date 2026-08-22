@@ -23,11 +23,11 @@ Built for: teams with compliance/audit needs, developers who want to know exactl
 
 ## Download & Install
 
-**Latest v0.5.0 · Free software · MIT license** (all build artifacts on the [Releases](https://github.com/eeyzs1/DevWit/releases) page)
+**Latest v0.6.0 · Free software · MIT license** (all build artifacts on the [Releases](https://github.com/eeyzs1/DevWit/releases) page)
 
 ### Windows (x64)
 
-Direct download: [DevWit.Setup.0.5.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit.Setup.0.5.0.exe) (NSIS installer, custom install directory, supports `/S` silent install).
+Direct download: [DevWit.Setup.0.6.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.6.0/DevWit.Setup.0.6.0.exe) (NSIS installer, custom install directory, supports `/S` silent install).
 
 > **SmartScreen / “Windows protected your PC”**: Windows builds are not code-signed yet (open-source / free; SignPath needs some stars before we can re-apply). If SmartScreen blocks the installer:
 > 1. Click **More info**
@@ -36,7 +36,7 @@ Direct download: [DevWit.Setup.0.5.0.exe](https://github.com/eeyzs1/DevWit/relea
 >
 > This is not malware — builds come from public [GitHub Actions](https://github.com/eeyzs1/DevWit/actions). A GitHub Star helps us get free signing and remove this friction.
 
-winget (merged via microsoft/winget-pkgs#407506; v0.5.0 update PR [#422497](https://github.com/microsoft/winget-pkgs/pull/422497) submitted):
+winget (merged via microsoft/winget-pkgs#407506; v0.5.0 update PR [#422497](https://github.com/microsoft/winget-pkgs/pull/422497) submitted, v0.6.0 update will follow):
 
 ```powershell
 winget install eeyzs1.DevWit
@@ -51,12 +51,12 @@ brew install --cask eeyzs1/tap/devwit
 xattr -dr com.apple.quarantine /Applications/DevWit.app   # unsigned distribution; de-quarantine once
 ```
 
-Or download directly: [DevWit-0.5.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit-0.5.0-arm64.dmg) (no Intel Mac build yet).
+Or download directly: [DevWit-0.6.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.6.0/DevWit-0.6.0-arm64.dmg) (no Intel Mac build yet).
 
 ### Linux (x64)
 
-- AppImage (in-app auto-update): [DevWit-0.5.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit-0.5.0.AppImage) — `chmod +x` and run
-- Debian/Ubuntu: [devwit_0.5.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/devwit_0.5.0_amd64.deb) — install with `sudo dpkg -i`
+- AppImage (in-app auto-update): [DevWit-0.6.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.6.0/DevWit-0.6.0.AppImage) — `chmod +x` and run
+- Debian/Ubuntu: [devwit_0.6.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.6.0/devwit_0.6.0_amd64.deb) — install with `sudo dpkg -i`
 
 ### Auto-Update
 

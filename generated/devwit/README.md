@@ -23,11 +23,11 @@ DevWit 是一款自研的 AI 原生桌面 IDE：融合 VSCode 的编辑器能力
 
 ## 下载安装
 
-**最新版本 v0.5.0 · 免费软件 · MIT 协议**（全部构建产物见 [Releases](https://github.com/eeyzs1/DevWit/releases)）
+**最新版本 v0.6.0 · 免费软件 · MIT 协议**（全部构建产物见 [Releases](https://github.com/eeyzs1/DevWit/releases)）
 
 ### Windows（x64）
 
-直接下载：[DevWit.Setup.0.5.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit.Setup.0.5.0.exe)（NSIS 安装包，可选安装目录，支持 `/S` 静默安装）。
+直接下载：[DevWit.Setup.0.6.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.6.0/DevWit.Setup.0.6.0.exe)（NSIS 安装包，可选安装目录，支持 `/S` 静默安装）。
 
 > **SmartScreen /「Windows 已保护你的电脑」**：当前 Windows 构建尚未代码签名（免费开源，SignPath 需仓库有一定 Star 后才能申请）。若弹出蓝屏拦截：
 > 1. 点 **更多信息**
@@ -36,7 +36,7 @@ DevWit 是一款自研的 AI 原生桌面 IDE：融合 VSCode 的编辑器能力
 >
 > 这不是病毒——安装包由公开 [GitHub Actions](https://github.com/eeyzs1/DevWit/actions) 构建，源码与产物均可核对。给仓库一个 Star 有助于我们申请免费签名，去掉这层摩擦。
 
-winget（microsoft/winget-pkgs#407506 已合并上线；0.5.0 更新 PR #422497 待审批）：
+winget（microsoft/winget-pkgs#407506 已合并上线；0.5.0 更新 PR #422497 待审批，v0.6.0 更新将随后提交）：
 
 ```powershell
 winget install eeyzs1.DevWit
@@ -51,12 +51,12 @@ brew install --cask eeyzs1/tap/devwit
 xattr -dr com.apple.quarantine /Applications/DevWit.app   # 未签名分发，首次运行前去一次隔离
 ```
 
-或直接下载：[DevWit-0.5.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit-0.5.0-arm64.dmg)（Intel Mac 暂无构建）。
+或直接下载：[DevWit-0.6.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.6.0/DevWit-0.6.0-arm64.dmg)（Intel Mac 暂无构建）。
 
 ### Linux（x64）
 
-- AppImage（支持应用内自动更新）：[DevWit-0.5.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit-0.5.0.AppImage)，下载后 `chmod +x` 直接运行
-- Debian/Ubuntu：[devwit_0.5.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/devwit_0.5.0_amd64.deb)，`sudo dpkg -i` 安装
+- AppImage（支持应用内自动更新）：[DevWit-0.6.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.6.0/DevWit-0.6.0.AppImage)，下载后 `chmod +x` 直接运行
+- Debian/Ubuntu：[devwit_0.6.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.6.0/devwit_0.6.0_amd64.deb)，`sudo dpkg -i` 安装
 
 ### 自动更新
 
