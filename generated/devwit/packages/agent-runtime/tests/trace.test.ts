@@ -101,4 +101,37 @@ describe("historyFromTrace", () => {
       { role: "assistant", content: "综合结论" },
     ]);
   });
+
+  it("assistant 带 toolCalls 时按序配对重建 role=tool 回填消息（防 next-turn 400）", () => {
+    const toolCalls = [
+      { id: "tc1", name: "edit", args: { path: "a.ts" } },
+      { id: "tc2", name: "bash", args: { cmd: "ls" } },
+    ];
+    const messages = historyFromTrace([
+      event("assistant_message", "发起工具调用", { text: "发起工具调用", toolCalls }),
+      event("tool_call", "edit(a.ts)", { tool: "edit", args: { path: "a.ts" } }),
+      event("tool_result", "edit 成功", { result: { ok: true, output: "written" } }),
+      event("tool_call", "bash(ls)", { tool: "bash", args: { cmd: "ls" } }),
+      event("tool_result", "bash 失败", { result: { ok: false, output: "", error: "denied" } }),
+      event("assistant_message", "完成", { text: "完成" }),
+    ]);
+    expect(messages).toEqual([
+      { role: "assistant", content: "发起工具调用", toolCalls },
+      { role: "tool", toolCallId: "tc1", content: "written" },
+      { role: "tool", toolCallId: "tc2", content: "错误: denied" },
+      { role: "assistant", content: "完成" },
+    ]);
+  });
+
+  it("trailing assistant tool_calls 无配对结果时补 tool 消息，避免 next-turn 400", () => {
+    const toolCalls = [{ id: "tc1", name: "read", args: { path: "a.ts" } }];
+    const messages = historyFromTrace([
+      event("assistant_message", "发起工具调用", { text: "发起工具调用", toolCalls }),
+      // 无后续 tool_result（异常/中断轨迹）
+    ]);
+    expect(messages).toEqual([
+      { role: "assistant", content: "发起工具调用", toolCalls },
+      { role: "tool", toolCallId: "tc1", content: "(工具结果缺失)" },
+    ]);
+  });
 });
