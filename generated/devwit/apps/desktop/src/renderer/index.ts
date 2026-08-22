@@ -2963,9 +2963,22 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     }
     step3.appendChild(examples);
 
-    steps.append(step1, step2, step3);
+    // D3 / v0.6.0：没有现成项目？一键生成示例项目（迷你 Web 应用，含预埋 bug 供 Agent 演练）
+    const sampleRow = el("li");
+    const sampleBtn = el("button", "dw-btn dw-btn-primary", t("onboarding.sample.button"));
+    sampleBtn.addEventListener("click", () => void openSampleProject());
+    sampleRow.append(sampleBtn, el("span", "dw-onboarding-hint", t("onboarding.sample.hint")));
+
+    steps.append(step1, step2, step3, sampleRow);
     card.appendChild(steps);
     onboarding.appendChild(card);
+  }
+  /** D3 / v0.6.0：打开示例项目——选定（新建）目录 → 脚手架写入 → 进入工作区。 */
+  async function openSampleProject(): Promise<void> {
+    const root = await api.workspace.openDialog();
+    if (root === null) return;
+    await api.workspace.createSample(root);
+    await enterWorkspace(root);
   }
   function refreshOnboarding(): void {
     onboarding.style.display = workspaceRoot === "" ? "flex" : "none";

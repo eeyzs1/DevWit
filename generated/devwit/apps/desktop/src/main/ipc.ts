@@ -20,6 +20,7 @@ import type { WorkspaceService } from "@devwit/workspace";
 import { searchInWorkspace } from "@devwit/workspace";
 import type { AiRuntime } from "./ai-runtime.js";
 import { openInExternalEditor } from "./external-editor.js";
+import { scaffoldSampleProject } from "./sample-project.js";
 import type { UpdateService } from "./updater.js";
 import type { TelemetryService } from "./telemetry.js";
 
@@ -167,6 +168,10 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
       git?.openWorkspace(dir); // AC41：Git 服务绑定仓库根（非 git 目录状态为 null）
     }
     return dir;
+  };
+  table[IPC.WorkspaceCreateSample] = (_e, root) => {
+    // D3 / v0.6.0：示例项目脚手架（覆盖语义；调用方已让用户选定目标目录）
+    return scaffoldSampleProject(String(root));
   };
   table[IPC.WorkspaceTree] = async (_e, root) => {
     const rootPath = String(root);

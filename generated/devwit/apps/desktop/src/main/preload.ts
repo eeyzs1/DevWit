@@ -23,6 +23,7 @@ function subscribe<TArgs extends unknown[]>(channel: string, cb: (...args: TArgs
 const api: DevwitApi = {
   workspace: {
     openDialog: () => ipcRenderer.invoke(IPC.WorkspaceOpenDialog) as Promise<string | null>,
+    createSample: (root) => ipcRenderer.invoke(IPC.WorkspaceCreateSample, root) as ReturnType<DevwitApi["workspace"]["createSample"]>,
     tree: (root) => ipcRenderer.invoke(IPC.WorkspaceTree, root) as Promise<unknown>,
     read: (filePath) => ipcRenderer.invoke(IPC.WorkspaceRead, filePath) as Promise<string>,
     write: (filePath, content) => ipcRenderer.invoke(IPC.WorkspaceWrite, filePath, content) as Promise<void>,

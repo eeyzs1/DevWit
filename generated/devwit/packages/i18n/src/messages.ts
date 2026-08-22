@@ -170,6 +170,8 @@ const zhCN = {
   "onboarding.step2": "② 打开文件夹",
   "onboarding.step2.hint": "选择你的项目目录，文件树即可浏览",
   "onboarding.step3.hint": "③ 输入第一个意图（点击示例试试）：",
+  "onboarding.sample.button": "打开示例项目（3 分钟上手）",
+  "onboarding.sample.hint": "生成一个可运行的迷你 Todo Web 应用，带你走一遍 上下文面板 → 授权门 → diff 审查 核心闭环。",
   "onboarding.examples": [
     "给当前文件加输入校验并解释改动",
     "把 README 里的待办项拆成任务并逐项实现",
@@ -842,6 +844,8 @@ const enUS: Messages = {
   "onboarding.step2": "② Open a folder",
   "onboarding.step2.hint": "Choose your project directory to browse the file tree",
   "onboarding.step3.hint": "③ Type your first intent (try an example):",
+  "onboarding.sample.button": "Open sample project (3-min tour)",
+  "onboarding.sample.hint": "Generates a runnable mini Todo web app that walks you through the core loop: context panel → authorization gate → diff review.",
   "onboarding.examples": [
     "Add input validation to the current file and explain the changes",
     "Break README todo items into tasks and implement them one by one",

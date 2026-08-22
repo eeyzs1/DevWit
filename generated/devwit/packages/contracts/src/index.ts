@@ -1130,6 +1130,7 @@ export interface SearchResults {
 
 export const IPC = {
   WorkspaceOpenDialog: "workspace:open-dialog",
+  WorkspaceCreateSample: "workspace:create-sample",
   WorkspaceTree: "workspace:tree",
   WorkspaceRead: "workspace:read",
   WorkspaceWrite: "workspace:write",
@@ -1252,6 +1253,12 @@ export type IpcChannel = (typeof IPC)[keyof typeof IPC];
 export interface DevwitApi {
   workspace: {
     openDialog(): Promise<string | null>;
+    /**
+     * 在目标目录生成示例项目（D3 / v0.6.0）：写入迷你 Web 应用模板
+     * （package.json / tsconfig / index.html / src / README），返回创建的文件清单。
+     * 覆盖语义——调用方应先让用户选定（新建）目标目录。
+     */
+    createSample(root: string): Promise<string[]>;
     tree(root: string): Promise<unknown>;
     read(path: string): Promise<string>;
     write(path: string, content: string): Promise<void>;
