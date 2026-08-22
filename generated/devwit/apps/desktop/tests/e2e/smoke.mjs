@@ -405,9 +405,16 @@ try {
   report.finishedAt = new Date().toISOString();
   report.result = failed ? `FAILED: ${failed.message}` : "PASSED";
   writeJson(EVIDENCE, "e2e-report.json", report);
-  // 本次 E2E 使用隔离的临时 userData（DEVWIT_USER_DATA_DIR），结束后清理
-  if (fs.existsSync(userDataDir)) {
-    fs.rmSync(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
+  // 本次 E2E 使用隔离的临时 userData（DEVWIT_USER_DATA_DIR），结束后清理。
+  // Windows runner 上 Electron（DawnGraphiteCache）句柄释放可能持续超 10s，
+  // rmSync 偶发 EPERM——属环境抖动，不应把已 PASSED 的场景误判为失败。
+  // 清理失败时保留临时目录（无害）并降级为非致命。
+  try {
+    if (fs.existsSync(userDataDir)) {
+      fs.rmSync(userDataDir, { recursive: true, force: true, maxRetries: 30, retryDelay: 800 });
+    }
+  } catch {
+    console.log("[e2e] userData 清理 EPERM（Windows 句柄延迟），保留临时目录，不影响结果");
   }
   if (failed) {
     console.error(`[e2e] FAILED: ${failed.stack ?? failed.message}`);
