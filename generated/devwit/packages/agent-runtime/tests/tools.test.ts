@@ -142,6 +142,57 @@ describe("bash", () => {
   });
 });
 
+describe("git 只读工具", () => {
+  it("git_status：跑 git status --short，cwd=工作区根", async () => {
+    const env = makeEnv();
+    env.execHandler = async () => ({ stdout: " M src/todo.ts\n?? new.ts", stderr: "", exitCode: 0 });
+    const result = await executeTool({ id: "t", name: "git_status", args: {} }, env, ctx);
+    expect(result.ok).toBe(true);
+    expect(env.execCalls).toEqual([{ command: "git status --short", cwd: ROOT }]);
+    expect(result.output).toContain("M src/todo.ts");
+  });
+
+  it("git_diff：staged=true 时追加 --cached", async () => {
+    const env = makeEnv();
+    env.execHandler = async () => ({ stdout: "diff --git a/src/todo.ts", stderr: "", exitCode: 0 });
+    const result = await executeTool(
+      { id: "t", name: "git_diff", args: { path: "src/todo.ts", staged: true } },
+      env,
+      ctx
+    );
+    expect(result.ok).toBe(true);
+    expect(env.execCalls[0]?.command).toContain("git diff");
+    expect(env.execCalls[0]?.command).toContain("--cached");
+    expect(env.execCalls[0]?.command).toContain("src/todo.ts");
+  });
+
+  it("git_log：limit 夹在 1..100；git_branch：非空返回分支", async () => {
+    const logEnv = makeEnv();
+    logEnv.execHandler = async () => ({ stdout: "abc1234 fix: 修 bug", stderr: "", exitCode: 0 });
+    const log = await executeTool({ id: "t", name: "git_log", args: { limit: 200 } }, logEnv, ctx);
+    expect(log.ok).toBe(true);
+    expect(logEnv.execCalls[0]?.command).toContain("-100");
+
+    const brEnv = makeEnv();
+    brEnv.execHandler = async () => ({ stdout: "* main\n  dev", stderr: "", exitCode: 0 });
+    const br = await executeTool({ id: "t", name: "git_branch", args: {} }, brEnv, ctx);
+    expect(br.ok).toBe(true);
+    expect(br.output).toContain("main");
+  });
+
+  it("git 非零退出码：ok=false 且输出现场；toolDefinitionsFor 含 git 工具", async () => {
+    const env = makeEnv();
+    env.execHandler = async () => ({ stdout: "", stderr: "fatal: not a git repository", exitCode: 128 });
+    const result = await executeTool({ id: "t", name: "git_status", args: {} }, env, ctx);
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/退出码 128/);
+    expect(result.output).toContain("not a git repository");
+
+    const defs = toolDefinitionsFor(["git_status", "git_log", "nope"]);
+    expect(defs.map((d) => d.name)).toEqual(["git_status", "git_log"]);
+  });
+});
+
 describe("grep / find / ls", () => {
   const FILES = {
     "src/a.ts": "const alpha = 1;\nconst BETA = 2;",

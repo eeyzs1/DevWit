@@ -96,8 +96,32 @@ export function mountActivityStream(
         break;
       }
       case "tool": {
+        // 工具结果审计：状态图标 + 可展开的完整结果（成功输出/失败错误）。
         const state = item.ok === null ? t("act.tool.running") : item.ok ? t("act.tool.ok") : t("act.tool.failed");
-        body.textContent = `${item.summary}（${state}）`;
+        const head = document.createElement("div");
+        head.className = "dw-act-tool-head";
+        const icon = document.createElement("span");
+        icon.className = `dw-act-tool-icon ${item.ok === null ? "dw-state-running" : item.ok ? "dw-state-ok" : "dw-state-fail"}`;
+        icon.textContent = item.ok === null ? "…" : item.ok ? "✓" : "✗";
+        head.appendChild(icon);
+        const label = document.createElement("span");
+        label.className = "dw-act-tool-label";
+        label.textContent = `${item.summary}（${state}）`;
+        head.appendChild(label);
+        body.appendChild(head);
+        if (item.detail !== undefined && item.detail.length > 0) {
+          const detail = document.createElement("pre");
+          detail.className = "dw-act-tool-detail";
+          detail.textContent = item.detail;
+          // 默认折叠；点击头部展开/收起完整结果（审计透明，不默认刷屏）
+          const toggle = (): void => {
+            detail.classList.toggle("dw-collapsed");
+            head.classList.toggle("dw-act-tool-open");
+          };
+          detail.classList.add("dw-collapsed");
+          head.addEventListener("click", toggle);
+          body.appendChild(detail);
+        }
         break;
       }
       case "plan": {

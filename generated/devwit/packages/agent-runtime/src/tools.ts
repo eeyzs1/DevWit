@@ -315,6 +315,46 @@ const lsHandler: ToolHandler = async (args, env, ctx) => {
   return ok(shown.length > 0 ? shown.join("\n") + suffix : "(空目录)");
 };
 
+/**
+ * Git 只读工具（git_*）：在 git 仓库内跑只读 git 命令并返回结果。
+ * 只读免授权（AC4），与 bash 的"执行任意命令需授权"区分——git 只读不改变工作区。
+ * 工作区非 git 仓库时返回明确错误（引导打开 git 仓库或先 git init）。
+ */
+async function runGit(cwd: string, env: ToolEnvironment, args: string[]): Promise<ToolResult> {
+  let result: ExecResult;
+  try {
+    result = await env.exec(`git ${args.join(" ")}`, { cwd });
+  } catch (error) {
+    return fail(`git 执行失败: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const parts: string[] = [];
+  if (result.stdout) parts.push(result.stdout);
+  if (result.stderr) parts.push(`[stderr]\n${result.stderr}`);
+  const output = parts.length > 0 ? truncateOutput(parts.join("\n")) : "(无输出)";
+  if (result.exitCode !== 0) return fail(`git 退出码 ${result.exitCode}`, output);
+  return { ok: true, output };
+}
+
+const gitStatusHandler: ToolHandler = async (_args, env, ctx) =>
+  runGit(ctx.workspaceRoot, env, ["status", "--short"]);
+
+const gitDiffHandler: ToolHandler = async (args, env, ctx) => {
+  const pathArg = optionalString(args, "path");
+  const staged = optionalBoolean(args, "staged") ?? false;
+  const base = staged ? "--cached" : "";
+  const rest = pathArg !== undefined && pathArg.trim() !== "" ? " --" : "";
+  return runGit(ctx.workspaceRoot, env, ["diff", base, rest].filter((s) => s !== "").concat(pathArg !== undefined && pathArg.trim() !== "" ? [pathArg] : []));
+};
+
+const gitLogHandler: ToolHandler = async (args, env, ctx) => {
+  const limit = optionalNumber(args, "limit") ?? 20;
+  const safeLimit = Math.max(1, Math.min(100, Math.floor(limit)));
+  return runGit(ctx.workspaceRoot, env, ["log", `-${safeLimit}`, "--oneline", "--decorate"]);
+};
+
+const gitBranchHandler: ToolHandler = async (_args, env, ctx) =>
+  runGit(ctx.workspaceRoot, env, ["branch", "--list", "--sort=-committerdate"]);
+
 export const TOOL_HANDLERS: Readonly<Record<AgentToolName, ToolHandler>> = {
   read: readHandler,
   write: writeHandler,
@@ -323,6 +363,10 @@ export const TOOL_HANDLERS: Readonly<Record<AgentToolName, ToolHandler>> = {
   grep: grepHandler,
   find: findHandler,
   ls: lsHandler,
+  git_status: gitStatusHandler,
+  git_diff: gitDiffHandler,
+  git_log: gitLogHandler,
+  git_branch: gitBranchHandler,
 };
 
 export function isAgentToolName(name: string): name is AgentToolName {
@@ -411,6 +455,35 @@ export const TOOL_DEFINITIONS: Readonly<Record<AgentToolName, ToolDefinition>> =
     name: "ls",
     description: "列出目录内容（目录名带 / 后缀）",
     parameters: { type: "object", properties: { path: { type: "string", description: "目录路径（默认工作区根）" } } },
+  },
+  git_status: {
+    name: "git_status",
+    description: "查看 Git 工作区状态（git status --short）：改/删/暂存文件清单",
+    parameters: { type: "object", properties: {} },
+  },
+  git_diff: {
+    name: "git_diff",
+    description: "查看 Git diff（未暂存默认；staged=true 看已暂存）。可按路径过滤",
+    parameters: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "限定查看此路径的 diff（可选）" },
+        staged: { type: "boolean", description: "true 查看已暂存（--cached）变更；默认 false" },
+      },
+    },
+  },
+  git_log: {
+    name: "git_log",
+    description: "查看 Git 提交历史（一行为一条：hash + 主题）",
+    parameters: {
+      type: "object",
+      properties: { limit: { type: "number", description: "最近几条提交（默认 20，上限 100）" } },
+    },
+  },
+  git_branch: {
+    name: "git_branch",
+    description: "列出 Git 本地分支（按最近提交时间倒序）",
+    parameters: { type: "object", properties: {} },
   },
 };
 

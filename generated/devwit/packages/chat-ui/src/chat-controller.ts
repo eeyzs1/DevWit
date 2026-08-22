@@ -22,7 +22,7 @@ import { t } from "@devwit/i18n";
 export type ChatItem =
   | { kind: "user"; text: string }
   | { kind: "assistant"; text: string; streaming: boolean }
-  | { kind: "tool"; summary: string; ok: boolean | null }
+  | { kind: "tool"; summary: string; ok: boolean | null; detail?: string }
   | { kind: "authorization"; requestId: string; toolName: string; reason: string; decision: AuthorizationDecision | null; auto?: boolean }
   | { kind: "diagnostics"; count: number; firstLine: string }
   | { kind: "route"; routed: string; providerId: string; score: number; threshold: number }
@@ -336,6 +336,15 @@ export class ChatController {
         if (last?.kind === "tool") {
           last.summary = event.summary;
           last.ok = !event.summary.includes("失败") && !event.summary.includes("拒绝");
+          // 工具结果审计：捕获完整结构化结果（成功输出或失败错误），供活动流展开查看
+          const detail = event.detail as { result?: { ok?: unknown; output?: unknown; error?: unknown } } | undefined;
+          const result = detail?.result;
+          if (detail !== undefined && result !== undefined) {
+            const ok = result.ok === true;
+            const output = typeof result.output === "string" ? result.output : "";
+            const error = typeof result.error === "string" ? result.error : "";
+            last.detail = ok ? (output.length > 0 ? output : "(无输出)") : `错误: ${error || "未知错误"}`;
+          }
         }
         break;
       }

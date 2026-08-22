@@ -20,7 +20,7 @@ export const BUILTIN_CHAT_MODE: ModeDefinition = {
     "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。" +
     "你有 read/grep/find/ls 只读工具，可查看工作区文件帮助回答；此模式不能修改文件或执行命令，" +
     "如需改动，请建议用户切到 Agent 模式。",
-  tools: ["read", "grep", "find", "ls"],
+  tools: ["read", "grep", "find", "ls", "git_status", "git_diff", "git_log", "git_branch"],
   providerId: "",
   contextPolicy: {},
   builtin: true,
@@ -37,7 +37,7 @@ export const BUILTIN_AGENT_MODE: ModeDefinition = {
     "你是 DevWit 的编码 Agent，通过工具逐步完成用户任务。" +
     "先用 read/grep/find/ls 了解现状，再用 write/edit 做最小修改，必要时用 bash 验证。" +
     "修改文件前先读文件；一次只推进一小步；完成后用一句话说明做了什么。",
-  tools: ["read", "write", "edit", "bash", "grep", "find", "ls"],
+  tools: ["read", "write", "edit", "bash", "grep", "find", "ls", "git_status", "git_diff", "git_log", "git_branch"],
   providerId: "",
   // AC30：编辑后 tsc 诊断回馈默认开；AC32：工作流记忆建议注入默认开（均可在上下文面板逐项关闭）
   contextPolicy: { diagnostics: true, workflow: true },
@@ -54,7 +54,7 @@ export const BUILTIN_ORCHESTRATOR_MODE: ModeDefinition = {
   systemPrompt:
     "你是 DevWit 的编排协调者。你的任务由编排器分解后交给并行子 Agent 执行，" +
     "你负责理解用户原始意图，并在收到各子任务结论后给出准确、完整的最终综合答复。",
-  tools: ["read", "write", "edit", "bash", "grep", "find", "ls"],
+  tools: ["read", "write", "edit", "bash", "grep", "find", "ls", "git_status", "git_diff", "git_log", "git_branch"],
   providerId: "",
   // AC30：子 Agent 编辑同样触发诊断回馈；AC32：编排 run 同样受益于工作流记忆
   contextPolicy: { diagnostics: true, workflow: true },

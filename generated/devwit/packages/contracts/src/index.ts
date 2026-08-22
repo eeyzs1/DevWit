@@ -354,9 +354,11 @@ export interface CommunityMcpEntry {
 // Agent 运行时（WU010）
 // ============================================================================
 
-export type AgentToolName = "read" | "write" | "edit" | "bash" | "grep" | "find" | "ls";
+export type AgentToolName =
+  | "read" | "write" | "edit" | "bash" | "grep" | "find" | "ls"
+  | "git_status" | "git_diff" | "git_log" | "git_branch";
 
-/** 需要授权的工具（AC4）：read/grep/find/ls 只读免授权。 */
+/** 需要授权的工具（AC4）：read/grep/find/ls/git_*（只读）免授权。 */
 export const AUTHORIZED_TOOLS: ReadonlySet<string> = new Set(["write", "edit", "bash"]);
 
 export type AuthorizationDecision = "allow" | "allow_session" | "deny";

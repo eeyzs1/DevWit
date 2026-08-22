@@ -518,6 +518,47 @@ body,
   font-size: 11px;
 }
 
+/* ---- 工具调用结果审计（可视化）：状态图标 + 可展开的完整结果 ---- */
+.dw-act-tool-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.dw-act-tool-icon {
+  flex-shrink: 0;
+  width: 14px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--dw-fg-dim);
+}
+.dw-act-tool-icon.dw-state-ok { color: var(--dw-accent); }
+.dw-act-tool-icon.dw-state-fail { color: var(--dw-danger); }
+.dw-act-tool-icon.dw-state-running { color: var(--dw-fg-dim); }
+.dw-act-tool-head.dw-act-tool-open ~ .dw-act-tool-detail,
+.dw-act-tool-detail:not(.dw-collapsed) {
+  display: block;
+}
+.dw-act-tool-detail {
+  margin-top: 4px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--dw-bg-elevated);
+  border: 1px solid var(--dw-border);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow: auto;
+  display: none;
+}
+.dw-act-tool-detail.dw-collapsed {
+  display: none;
+}
+.dw-act-tool-head.dw-act-tool-open .dw-act-tool-label {
+  color: var(--dw-fg);
+}
+
 .dw-act-authorization {
   border-color: var(--dw-accent);
 }
