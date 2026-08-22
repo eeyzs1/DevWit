@@ -32,7 +32,7 @@ DevWit 是一款自研的 AI 原生桌面 IDE，建立在一条原则上：**AI 
 
 > **SmartScreen**：当前未代码签名。若提示「Windows 已保护你的电脑」→ **更多信息** → **仍要运行**。构建来自公开 GitHub Actions；Star 有助于申请免费签名。
 
-winget（已提交 microsoft/winget-pkgs#407506，待社区审批通过后可用）：
+winget（microsoft/winget-pkgs#407506 已合并上线；0.5.0 更新 PR #422497 待审批）：
 
 ```powershell
 winget install eeyzs1.DevWit

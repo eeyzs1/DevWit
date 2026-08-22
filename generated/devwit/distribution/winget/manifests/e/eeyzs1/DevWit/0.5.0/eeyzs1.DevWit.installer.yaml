@@ -17,7 +17,7 @@ AppsAndFeaturesEntries:
     ProductCode: 8de26b52-cf1c-58c4-8f9f-a7b471bba36e
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit%20Setup%200.5.0.exe
+    InstallerUrl: https://github.com/eeyzs1/DevWit/releases/download/v0.5.0/DevWit.Setup.0.5.0.exe
     InstallerSha256: A518E67576C9ABF5473F5DF620D77C7B4ED2101637F00E9AE0F8F02393A120DE
 ManifestType: installer
 ManifestVersion: 1.10.0

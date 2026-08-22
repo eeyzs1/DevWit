@@ -190,7 +190,7 @@ generated/devwit/
 ### 真实用户指标（接手时 2026-08-11）
 - GitHub stars/forks/watchers: **0/0/0**（推广待账号发布）
 - 北极星目标 10 万用户；阻塞在分发与曝光，非产品功能
-- Homebrew tap 已跟 Latest；winget 首包 #407506 仍待 moderator；0.5.0 manifest 已入库待首包合并后提 PR
+- Homebrew tap 已跟 Latest；winget 首包 #407506 已于 2026-08-21 合并（0.2.0 上线）；0.5.0 update PR #422497 已提交待审批
 
 ## 7. 待办事项（按优先级）
 
@@ -198,7 +198,7 @@ generated/devwit/
 | 项目 | 状态 | 下一步 |
 |------|------|--------|
 | **推广三连发** | 物料就绪 | 用户发 Show HN + 掘金 + dev.to |
-| **winget PR #407506** | OPEN，等 moderator | 合并后提 0.5.0 update PR |
+| **winget PR #407506** | ✅ 已合并（2026-08-21，0.2.0 上线） | 0.5.0 update PR [#422497](https://github.com/microsoft/winget-pkgs/pull/422497) 待审批 |
 | **SignPath 代码签名** | 被拒（0 star） | 攒 star 后重新申请 |
 
 ### P1 下一迭代候选
@@ -217,10 +217,9 @@ generated/devwit/
 ## 8. 外部分发状态
 
 ### winget
-- PR #407506: https://github.com/microsoft/winget-pkgs/pull/407506
-- 8/6 update-branch 后 mergeable: clean
-- PR 标题仍为 "version 0.2.0"，合并后提交 v0.4.0 manifest
-- manifest 在 `distribution/winget/manifests/e/eeyzs1/DevWit/0.4.0/`
+- 首包 PR #407506（0.2.0）：✅ 已于 2026-08-21 合并上线 → `winget install eeyzs1.DevWit`
+- 0.5.0 update PR #422497：已提交待审批（winget-pkgs 校验管线运行中）
+- manifest 源在 `distribution/winget/manifests/e/eeyzs1/DevWit/0.5.0/`（InstallerUrl 已修正、SHA256 已实证）
 
 ### Product Hunt
 - 7/30 首发，2 个真实用户正面反馈（Furkan、Ferdi，均夸 token 成本透明度）

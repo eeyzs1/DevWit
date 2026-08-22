@@ -36,7 +36,7 @@ Direct download: [DevWit.Setup.0.5.0.exe](https://github.com/eeyzs1/DevWit/relea
 >
 > This is not malware — builds come from public [GitHub Actions](https://github.com/eeyzs1/DevWit/actions). A GitHub Star helps us get free signing and remove this friction.
 
-winget (submitted as microsoft/winget-pkgs#407506; available once community review completes):
+winget (merged via microsoft/winget-pkgs#407506; v0.5.0 update PR [#422497](https://github.com/microsoft/winget-pkgs/pull/422497) submitted):
 
 ```powershell
 winget install eeyzs1.DevWit

@@ -8,7 +8,7 @@
 |------|-----|------|
 | Latest | **v0.5.0**（已转正） | https://github.com/eeyzs1/DevWit/releases/tag/v0.5.0 |
 | Homebrew tap | **0.5.0** | `eeyzs1/homebrew-tap@a5d88a7` |
-| winget | #407506 仍 OPEN；**0.5.0 manifest 已入库** | 首包合并后提 update PR |
+| winget | #407506 ✅ 已合并（2026-08-21，0.2.0 上线）；**0.5.0 update PR [#422497](https://github.com/microsoft/winget-pkgs/pull/422497) 已提交** | 等合并后验证安装/升级 |
 | GitHub stars | **0** | 下一步靠用户发帖带量 |
 
 北极星：真实活跃用户。当前瓶颈是**分发与曝光**，不是功能缺口。
@@ -53,7 +53,7 @@
 |------|------|--------|
 | GitHub Releases | 功能里程碑打 tag；**v0.5.0 已发** | AI 准备 + 用户确认 tag |
 | Homebrew | 每个 macOS Release 当日升 version/sha256 | AI（已跟 0.5.0） |
-| winget | #407506 合并后立刻提 **0.5.0** update PR | AI（manifest 在 `.../0.5.0/`） |
+| winget | **0.5.0 update PR #422497**（#407506 合并后立即执行） | AI |
 | SignPath | star 有公开信号后再申请 | 用户申请，AI 接 CI |
 | PH / 社区评论 | 每周巡检，转 Issue | AI 起草回复，用户发 |
 
@@ -72,4 +72,4 @@ PH 真实用户（Furkan / Ferdi）反复夸的是：
 - [x] 打 **v0.5.0** tag 并发版（Latest）
 - [ ] 本周完成 Show HN + 掘金 + dev.to 三连发（用 v0.5.0 当新闻点）
 - [ ] star 有公开信号后重申 SignPath
-- [ ] winget #407506 合并后提 0.5.0 update PR
+- [x] winget #407506 合并（2026-08-21）→ 0.5.0 update PR 已提交
