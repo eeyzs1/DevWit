@@ -20,6 +20,8 @@ import type {
   ProviderType,
   RagStatusInfo,
   UpdateStatusInfo,
+  UsageBudgetAlert,
+  UsageBudgetConfig,
   UsageTotals,
 } from "@devwit/contracts";
 import {
@@ -155,6 +157,10 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
   let ragSink: ((status: RagStatusInfo) => void) | null = null;
   const unsubRag = deps.api.rag.onStatus((status) => ragSink?.(status));
 
+  // 预算告警订阅（D1）：对话框级单订阅，通用分区重渲染时只换接收端，不泄漏
+  let budgetSink: ((alert: UsageBudgetAlert) => void) | null = null;
+  const unsubBudget = deps.api.usage.onBudgetAlert((alert) => budgetSink?.(alert));
+
   function applyLocale(): void {
     title.textContent = t("settings.title");
     closeBtn.textContent = t("settings.close");
@@ -173,12 +179,15 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
     updateSink = null; // 离开/重渲染分区时摘除旧接收端
     mcpSink = null;
     ragSink = null;
+    budgetSink = null;
     switch (section) {
       case "general":
         renderGeneral(content, deps, (sink) => {
           updateSink = sink;
         }, (sink) => {
           ragSink = sink;
+        }, (sink) => {
+          budgetSink = sink;
         });
         break;
       case "providers":
@@ -208,6 +217,7 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
     unsubUpdate();
     unsubMcp();
     unsubRag();
+    unsubBudget();
     mask.remove();
   };
   closeBtn.addEventListener("click", close);
@@ -228,7 +238,8 @@ function renderGeneral(
   content: HTMLElement,
   deps: SettingsDialogDeps,
   onUpdateSink: (sink: (status: UpdateStatusInfo) => void) => void,
-  onRagSink: (sink: (status: RagStatusInfo) => void) => void
+  onRagSink: (sink: (status: RagStatusInfo) => void) => void,
+  onBudgetSink: (sink: (alert: UsageBudgetAlert) => void) => void
 ): void {
   const form = el("div", "dw-form");
   const label = el("label", undefined, t("settings.general.language"));
@@ -651,6 +662,194 @@ function renderGeneral(
   };
   void loadPricing();
 
+  // ---- 成本预算仪表盘（D1）：周期阈值 + 自动告警 + 30 天趋势 + 会话归因 ----
+  // 配置存 settings "usage.budget"（enabled/threshold/period）；主进程每次 run 落账后
+  // 自动检查，超限跃迁推送 usage:budget-alert——本区订阅后实时刷新状态徽标。
+  const budgetTitle = el("label", undefined, t("settings.usage.budget.title"));
+  const budgetHint = el("div", "dw-modal-hint", t("settings.usage.budget.hint"));
+
+  // 配置表单
+  const budgetConfigRow = el("div", "dw-settings-update");
+  const budgetToggle = document.createElement("input");
+  budgetToggle.type = "checkbox";
+  budgetConfigRow.append(budgetToggle, el("span", "dw-settings-update-status", t("settings.usage.budget.enable")));
+  const budgetThresholdRow = el("div", "dw-settings-update");
+  budgetThresholdRow.appendChild(el("span", "dw-settings-update-status", t("settings.usage.budget.threshold")));
+  const budgetThresholdInput = el("input", "dw-input dw-settings-pricing-input") as HTMLInputElement;
+  budgetThresholdInput.type = "number";
+  budgetThresholdInput.min = "0";
+  budgetThresholdInput.step = "any";
+  budgetThresholdInput.placeholder = "0.00";
+  budgetThresholdInput.title = t("settings.usage.budget.thresholdTitle");
+  budgetThresholdRow.appendChild(budgetThresholdInput);
+  const budgetPeriodRow = el("div", "dw-settings-update");
+  budgetPeriodRow.appendChild(el("span", "dw-settings-update-status", t("settings.usage.budget.period")));
+  const budgetPeriodSelect = el("select", "dw-input") as HTMLSelectElement;
+  for (const period of ["day", "week", "month", "total"] as const) {
+    const option = document.createElement("option");
+    option.value = period;
+    option.textContent = t(`settings.usage.budget.period.${period}`);
+    budgetPeriodSelect.appendChild(option);
+  }
+  budgetPeriodRow.appendChild(budgetPeriodSelect);
+
+  // 状态卡：当前周期成本 vs 阈值（进度条 + 超限徽标）
+  const budgetStatusBox = el("div", "dw-settings-whitelist");
+  const budgetBarWrap = el("div", "dw-budget-bar");
+  const budgetBar = el("div", "dw-budget-bar-fill") as HTMLDivElement;
+  budgetBarWrap.appendChild(budgetBar);
+  const budgetStatusText = el("div", "dw-modal-hint");
+  budgetStatusBox.append(budgetBarWrap, budgetStatusText);
+
+  // 30 天趋势（byDate 迷你柱状）
+  const budgetTrendBox = el("div", "dw-settings-whitelist");
+  // 会话级成本归因（top 5）
+  const budgetSessionBox = el("div", "dw-settings-whitelist");
+
+  // 导出 + 刷新
+  const budgetExportRow = el("div", "dw-settings-update");
+  const budgetExportCsv = el("button", "dw-btn dw-btn-small", t("settings.usage.budget.export.csv"));
+  const budgetExportJson = el("button", "dw-btn dw-btn-small", t("settings.usage.budget.export.json"));
+  budgetExportRow.append(budgetExportCsv, budgetExportJson);
+  const budgetActions = el("div", "dw-settings-update");
+  const budgetRefreshBtn = el("button", "dw-btn", t("settings.usage.refresh"));
+  budgetActions.appendChild(budgetRefreshBtn);
+
+  /** 读取预算配置（settings 持久值；键缺失或形状非法 → 安全默认未启用）。 */
+  const readBudget = async (): Promise<UsageBudgetConfig> => {
+    const stored = await deps.api.settings.get("usage.budget");
+    if (typeof stored !== "object" || stored === null || Array.isArray(stored)) {
+      return { enabled: false, threshold: 0, period: "day" };
+    }
+    const record = stored as Record<string, unknown>;
+    const period = record["period"] === "day" || record["period"] === "week" || record["period"] === "month" || record["period"] === "total"
+      ? record["period"]
+      : null;
+    const threshold = typeof record["threshold"] === "number" && Number.isFinite(record["threshold"]) ? record["threshold"] : null;
+    if (record["enabled"] !== true || threshold === null || threshold < 0 || period === null) {
+      return { enabled: false, threshold: 0, period: "day" };
+    }
+    return { enabled: true, threshold, period };
+  };
+
+  const saveBudget = async (): Promise<void> => {
+    const threshold = Number(budgetThresholdInput.value.trim() || "0");
+    if (!Number.isFinite(threshold) || threshold < 0) return; // 非法输入不落盘
+    await deps.api.settings.set("usage.budget", {
+      enabled: budgetToggle.checked,
+      threshold,
+      period: budgetPeriodSelect.value as UsageBudgetConfig["period"],
+    });
+    await refreshBudgetStatus();
+  };
+
+  /** 状态卡：按当前配置调 checkBudget 得到 current/threshold/exceeded，渲染进度条与徽标。 */
+  const refreshBudgetStatus = async (): Promise<void> => {
+    const config = await readBudget();
+    budgetToggle.checked = config.enabled;
+    budgetThresholdInput.value = String(config.threshold);
+    budgetPeriodSelect.value = config.period;
+    if (!config.enabled) {
+      budgetBar.style.width = "0%";
+      budgetBar.classList.remove("dw-budget-bar-exceeded");
+      budgetStatusText.textContent = t("settings.usage.budget.disabled");
+      return;
+    }
+    const alert = await deps.api.usage.checkBudget(config.threshold, config.period);
+    const ratio = config.threshold > 0 ? Math.min(1, alert.current / config.threshold) : alert.current > 0 ? 1 : 0;
+    budgetBar.style.width = `${Math.round(ratio * 100)}%`;
+    budgetBar.classList.toggle("dw-budget-bar-exceeded", alert.exceeded);
+    budgetStatusText.textContent = alert.exceeded
+      ? t("settings.usage.budget.exceeded", { cost: formatCost(alert.current), threshold: formatCost(alert.threshold) })
+      : t("settings.usage.budget.status", {
+          cost: formatCost(alert.current),
+          threshold: formatCost(alert.threshold),
+          period: t(`settings.usage.budget.period.${alert.period}`),
+        });
+  };
+
+  /** 30 天趋势：byDate 逐日成本按最大值归一化为迷你柱状。 */
+  const refreshBudgetTrend = async (): Promise<void> => {
+    const daily = await deps.api.usage.dailySummary();
+    budgetTrendBox.textContent = "";
+    if (daily.byDate.length === 0) {
+      budgetTrendBox.appendChild(el("div", "dw-modal-hint", t("settings.usage.empty")));
+      return;
+    }
+    budgetTrendBox.appendChild(el("div", "dw-modal-hint", t("settings.usage.budget.trend")));
+    const maxCost = Math.max(...daily.byDate.map((row) => row.cost ?? 0), 1e-9);
+    for (const row of daily.byDate) {
+      const wrap = el("div", "dw-budget-trend-row");
+      const label = el("span", "dw-budget-trend-date", row.date);
+      const barTrack = el("div", "dw-budget-trend-track");
+      const fill = el("div", "dw-budget-trend-fill") as HTMLDivElement;
+      fill.style.width = `${Math.round(((row.cost ?? 0) / maxCost) * 100)}%`;
+      barTrack.appendChild(fill);
+      const value = el("span", "dw-budget-trend-value", row.cost !== undefined ? formatCost(row.cost) : "-");
+      wrap.append(label, barTrack, value);
+      budgetTrendBox.appendChild(wrap);
+    }
+  };
+
+  /** 会话级成本归因：bySession 按成本降序取前 5。 */
+  const refreshBudgetSessions = async (): Promise<void> => {
+    const daily = await deps.api.usage.dailySummary();
+    budgetSessionBox.textContent = "";
+    const top = daily.bySession.filter((row) => (row.cost ?? 0) > 0 || row.inputTokens + row.outputTokens > 0).slice(0, 5);
+    if (top.length === 0) {
+      budgetSessionBox.appendChild(el("div", "dw-modal-hint", t("settings.usage.budget.sessions.empty")));
+      return;
+    }
+    budgetSessionBox.appendChild(el("div", "dw-modal-hint", t("settings.usage.budget.sessions")));
+    for (const row of top) {
+      const shortId = row.sessionId.length > 16 ? `${row.sessionId.slice(0, 16)}…` : row.sessionId;
+      budgetSessionBox.appendChild(el("div", "dw-settings-whitelist-row",
+        t("settings.usage.row", {
+          name: shortId,
+          input: row.inputTokens,
+          output: row.outputTokens,
+          runs: row.runs,
+        }) + costText(row)));
+    }
+  };
+
+  const refreshBudgetAll = async (): Promise<void> => {
+    await Promise.all([refreshBudgetStatus(), refreshBudgetTrend(), refreshBudgetSessions()]);
+  };
+
+  /** 导出成本报告：Blob 下载（CSV/JSON）。 */
+  const exportBudget = async (format: "csv" | "json"): Promise<void> => {
+    const report = await deps.api.usage.exportReport(format);
+    const blob = new Blob([report], { type: format === "csv" ? "text/csv;charset=utf-8" : "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `devwit-usage.${format}`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  void refreshBudgetAll();
+  budgetRefreshBtn.addEventListener("click", () => void refreshBudgetAll());
+  budgetToggle.addEventListener("change", () => void saveBudget());
+  budgetThresholdInput.addEventListener("change", () => void saveBudget());
+  budgetPeriodSelect.addEventListener("change", () => void saveBudget());
+  budgetExportCsv.addEventListener("click", () => void exportBudget("csv"));
+  budgetExportJson.addEventListener("click", () => void exportBudget("json"));
+  // D1 自动告警：主进程超限跃迁推送 → 状态卡即时刷新（对话框级单订阅经 sink 转发，重渲染不泄漏）
+  onBudgetSink((alert: UsageBudgetAlert) => {
+    if (alert.exceeded) {
+      budgetStatusText.textContent = t("settings.usage.budget.exceeded", {
+        cost: formatCost(alert.current),
+        threshold: formatCost(alert.threshold),
+      });
+      budgetBar.style.width = "100%";
+      budgetBar.classList.add("dw-budget-bar-exceeded");
+    } else {
+      void refreshBudgetStatus();
+    }
+  });
+
   // ---- 匿名遥测（AC39）：opt-in 开关 + 端点输入 + 收集清单明示 ----
   // 即改即存（同语言切换语义），主进程 settings.onChanged 热重配置，无需重启。
   // 默认关闭：从未设置过 "telemetry" 键时开关未勾选、端点为空，不发送任何字节。
@@ -686,6 +885,8 @@ function renderGeneral(
     wfTitle, wfEnableRow, wfList, wfHint,
     usageTitle, usageSummaryBox, usageActions, usageHint,
     pricingTitle, pricingBox, pricingHint,
+    budgetTitle, budgetHint, budgetConfigRow, budgetThresholdRow, budgetPeriodRow,
+    budgetStatusBox, budgetTrendBox, budgetSessionBox, budgetExportRow, budgetActions,
     telemetryTitle, telemetryEnableRow, telemetryEndpointRow, telemetryHint);
 
   // ---- 首次运行向导（迭代 18 / AC27）：允许随时重跑（如换机/重装后引导同伴）----

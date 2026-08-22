@@ -7,7 +7,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { IpcRendererEvent } from "electron";
 import { IPC } from "@devwit/contracts";
-import type { DevwitApi } from "@devwit/contracts";
+import type { DevwitApi, UsageBudgetAlert } from "@devwit/contracts";
 
 /** ipcRenderer.on 包装，返回退订函数。 */
 function subscribe<TArgs extends unknown[]>(channel: string, cb: (...args: TArgs) => void): () => void {
@@ -117,7 +117,8 @@ const api: DevwitApi = {
     clear: () => ipcRenderer.invoke(IPC.UsageClear) as Promise<void>,
     dailySummary: () => ipcRenderer.invoke(IPC.UsageDaily) as ReturnType<DevwitApi["usage"]["dailySummary"]>,
     checkBudget: (threshold, period) => ipcRenderer.invoke(IPC.UsageBudget, threshold, period) as ReturnType<DevwitApi["usage"]["checkBudget"]>,
-    exportReport: (format) => ipcRenderer.invoke(IPC.UsageExport, format) as ReturnType<DevwitApi["usage"]["exportReport"]>
+    exportReport: (format) => ipcRenderer.invoke(IPC.UsageExport, format) as ReturnType<DevwitApi["usage"]["exportReport"]>,
+    onBudgetAlert: (cb) => subscribe<[UsageBudgetAlert]>(IPC.UsageBudgetAlert, cb)
   },
   sessions: {
     list: () => ipcRenderer.invoke(IPC.SessionsList) as ReturnType<DevwitApi["sessions"]["list"]>,

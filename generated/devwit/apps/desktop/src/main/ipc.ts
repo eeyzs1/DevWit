@@ -70,7 +70,8 @@ export const PUSH_CHANNELS: readonly string[] = [
   IPC.LspDiagnosticsChanged,
   IPC.GitChanged,
   IPC.DebugState,
-  IPC.DebugOutput
+  IPC.DebugOutput,
+  IPC.UsageBudgetAlert
 ];
 
 const AI_NOT_WIRED = "DW_AI_NOT_WIRED";

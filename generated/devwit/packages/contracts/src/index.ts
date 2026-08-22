@@ -501,6 +501,19 @@ export interface UsageBudgetAlert {
   period: "day" | "week" | "month" | "total";
 }
 
+/**
+ * 成本预算配置（settings 键 "usage.budget" 的值，D1 成本预算仪表盘）。
+ * - enabled：开启后主进程每次 run 落账后自动检查，超阈值推送 usage:budget-alert；
+ * - threshold：周期成本阈值（货币单位与 pricing 一致）；
+ * - period：统计周期 day/week/month/total。
+ * 键缺失或形状非法时按「未启用」安全默认处理（绝不默认超限告警）。
+ */
+export interface UsageBudgetConfig {
+  enabled: boolean;
+  threshold: number;
+  period: "day" | "week" | "month" | "total";
+}
+
 /** 导出格式（usage:export IPC 参数）。 */
 export type UsageExportFormat = "csv" | "json";
 
@@ -1175,6 +1188,7 @@ export const IPC = {
   UsageClear: "usage:clear",
   UsageDaily: "usage:daily",
   UsageBudget: "usage:budget",
+  UsageBudgetAlert: "usage:budget-alert",
   UsageExport: "usage:export",
   SessionsList: "sessions:list",
   SessionsRename: "sessions:rename",
@@ -1534,6 +1548,12 @@ export interface DevwitApi {
      * period 可选 day/week/month/total。
      */
     checkBudget(threshold: number, period: "day" | "week" | "month" | "total"): Promise<UsageBudgetAlert>;
+    /**
+     * 订阅预算超限告警（主→渲染推送，D1 成本预算仪表盘）。
+     * 开启预算（settings "usage.budget"）后，主进程每次 run 落账自动检查；
+     * 仅在「未超限 → 超限」的跃迁瞬间推送一次（连续超限不重复轰炸）。
+     */
+    onBudgetAlert(cb: (alert: UsageBudgetAlert) => void): () => void;
     /**
      * 导出成本报告为 CSV 或 JSON 字符串，前端可保存为文件。
      */

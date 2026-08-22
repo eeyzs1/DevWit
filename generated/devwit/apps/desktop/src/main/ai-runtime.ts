@@ -35,6 +35,7 @@ import type {
   UsageSummary,
   UsageDailySummary,
   UsageBudgetAlert,
+  UsageBudgetConfig,
   UsageExportFormat,
   WorkflowReuse,
   WorkflowTemplate,
@@ -76,6 +77,8 @@ const WORKFLOW_TEMPLATES_KEY = "workflow.templates";
 const MODE_STATS_KEY = "modes.stats";
 /** settings 键：成本单价表（迭代 27 / AC36，热更新——summary 每次实时读）。 */
 const USAGE_PRICING_KEY = "usage.pricing";
+/** settings 键：成本预算配置（D1 成本预算仪表盘，热更新——每次 run 落账后实时读）。 */
+const USAGE_BUDGET_KEY = "usage.budget";
 
 interface SessionState {
   engine: ContextEngine;
@@ -145,6 +148,8 @@ export class AiRuntime {
   private readonly modeStats: ModeStatsTracker;
   /** 真实 token 用量账本（AC35）：每 run 一条 UsageRecord 追加落盘，读侧聚合。 */
   private readonly usageStore: UsageStore;
+  /** D1 预算告警去重：仅「未超限 → 超限」跃迁推送一次；配置关闭或回落时复位。 */
+  private lastBudgetAlertExceeded = false;
   /** 对话会话元数据（AC37）：改名/删除标记 overlay。 */
   private readonly sessionMeta: SessionMetaStore;
 
@@ -668,6 +673,8 @@ export class AiRuntime {
           finishReason,
         });
       }
+      // D1 成本预算仪表盘：落账后按配置自动检查，超限跃迁时推送 usage:budget-alert
+      this.notifyBudget();
       session.running = false;
     }
   }
@@ -706,6 +713,46 @@ export class AiRuntime {
   private loadPricing(): UsagePricing | undefined {
     const raw = this.settings.get(USAGE_PRICING_KEY);
     return typeof raw === "object" && raw !== null && !Array.isArray(raw) ? (raw as UsagePricing) : undefined;
+  }
+
+  /**
+   * 读取成本预算配置（settings "usage.budget"，D1 成本预算仪表盘）。
+   * 键缺失 / 形状非法（enabled 非 true、阈值非法/负数、周期非法任一成立）
+   * → 安全默认「未启用」——绝不默认超限告警。
+   */
+  private budgetConfig(): UsageBudgetConfig {
+    const raw = this.settings.get(USAGE_BUDGET_KEY);
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return { enabled: false, threshold: 0, period: "day" };
+    const record = raw as Record<string, unknown>;
+    const period =
+      record["period"] === "day" || record["period"] === "week" || record["period"] === "month" || record["period"] === "total"
+        ? record["period"]
+        : null;
+    const threshold = typeof record["threshold"] === "number" && Number.isFinite(record["threshold"]) ? record["threshold"] : null;
+    if (record["enabled"] !== true || threshold === null || threshold < 0 || period === null) {
+      return { enabled: false, threshold: 0, period: "day" };
+    }
+    return { enabled: true, threshold, period };
+  }
+
+  /**
+   * D1 预算自动检查：每次 run 落账后调用（热读取配置）。
+   * 仅当预算开启且「未超限 → 超限」跃迁时推送一次 usage:budget-alert——
+   * 连续超限不重复轰炸；回落或配置关闭时复位跃迁状态。
+   */
+  private notifyBudget(): void {
+    const config = this.budgetConfig();
+    if (!config.enabled) {
+      this.lastBudgetAlertExceeded = false;
+      return;
+    }
+    const alert = this.usageStore.checkBudget(config.threshold, config.period, new Date(), this.loadPricing());
+    if (alert.exceeded) {
+      if (!this.lastBudgetAlertExceeded) this.deps.send(IPC.UsageBudgetAlert, alert);
+      this.lastBudgetAlertExceeded = true;
+    } else {
+      this.lastBudgetAlertExceeded = false;
+    }
   }
 
   cancel(sessionId: string): void {

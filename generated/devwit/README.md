@@ -77,6 +77,7 @@ xattr -dr com.apple.quarantine /Applications/DevWit.app   # 未签名分发，�
 | Agent 模式 | 授权门机制：读写文件、执行终端命令均需用户批准；支持多步任务，执行轨迹（trace）完整可见 |
 | 多 Agent 编排 | 「指挥台」模式自动拆解任务为并行子代理；计划、子任务进度、授权裁决在活动流逐项可见，Planner 异常自动回退单任务执行 |
 | 透明 RAG | 代码库索引（分块 + embedding）就绪后，检索命中以相似度与 token 占用逐项展示、可逐项剔除；索引状态与手动重建在设置页可见 |
+| 成本预算仪表盘 | 按日/周/月/累计设定成本阈值并开启自动告警；超限瞬间推送提醒；近 30 天成本趋势与会话级成本归因可视化，成本报告一键导出 CSV/JSON |
 | 零成本模型接入 | 预设目录一键填充 Ollama 本地免 key、DeepSeek、OpenRouter 免费档；keyless 通道对话与 embedding 双路支持，即装即用 |
 | 多模型接入 | Anthropic API 与 OpenAI 兼容 API 双协议，自定义 base URL 与 API key（safeStorage 加密存储），会话中可切换模型 |
 | 模式自定义 | 创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略，修改热生效无需重启 |
