@@ -161,8 +161,24 @@ async function* walk(
 
 const readHandler: ToolHandler = async (args, env, ctx) => {
   const target = resolveWithinRoot(ctx.workspaceRoot, requireString(args, "path"));
+  const startLine = optionalNumber(args, "start_line");
+  const endLine = optionalNumber(args, "end_line");
   try {
-    return ok(await env.readFile(target));
+    const content = await env.readFile(target);
+    // 行区间读取：大文件分片，避免一次性读全文打爆上下文（默认全文）。
+    if (startLine !== undefined || endLine !== undefined) {
+      const lines = content.split("\n");
+      const total = lines.length;
+      const start = Math.max(1, startLine ?? 1);
+      const end = Math.min(total, endLine ?? total);
+      if (start > end) return fail(`start_line(${start}) 大于 end_line(${end})，无有效区间`);
+      const slice = lines.slice(start - 1, end);
+      const numbered = slice.map((line, i) => `${start + i}: ${line}`).join("\n");
+      return ok(
+        `文件 ${displayPath(ctx.workspaceRoot, target)} 共 ${total} 行，显示第 ${start}-${end} 行：\n${numbered}`
+      );
+    }
+    return ok(content);
   } catch (error) {
     return fail(`读取失败: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -319,8 +335,16 @@ const PATH_PROPERTY = { type: "string", description: "相对工作区根的路�
 export const TOOL_DEFINITIONS: Readonly<Record<AgentToolName, ToolDefinition>> = {
   read: {
     name: "read",
-    description: "读取工作区内文件的全部内容",
-    parameters: { type: "object", properties: { path: PATH_PROPERTY }, required: ["path"] },
+    description: "读取工作区内文件内容；可用 start_line/end_line 读取指定行区间（大文件分片阅读）",
+    parameters: {
+      type: "object",
+      properties: {
+        path: PATH_PROPERTY,
+        start_line: { type: "number", description: "起始行号（从 1 起，可选）" },
+        end_line: { type: "number", description: "结束行号（含，可选）" },
+      },
+      required: ["path"],
+    },
   },
   write: {
     name: "write",

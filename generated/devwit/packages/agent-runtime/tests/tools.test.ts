@@ -44,6 +44,29 @@ describe("read / write / edit", () => {
     expect(miss.error).toMatch(/读取失败/);
   });
 
+  it("read 支持 start_line/end_line 行区间（含行号标注，大文件分片）", async () => {
+    const env = makeEnv({ "a.txt": "l1\nl2\nl3\nl4\nl5" });
+    const slice = await executeTool(
+      { id: "t", name: "read", args: { path: "a.txt", start_line: 2, end_line: 4 } },
+      env,
+      ctx
+    );
+    expect(slice.ok).toBe(true);
+    // 输出应显示 2-4 行且带行号标注
+    expect(slice.output).toContain("共 5 行，显示第 2-4 行");
+    expect(slice.output).toContain("2: l2");
+    expect(slice.output).toContain("3: l3");
+    expect(slice.output).toContain("4: l4");
+    // 越界区间报错
+    const bad = await executeTool(
+      { id: "t", name: "read", args: { path: "a.txt", start_line: 4, end_line: 2 } },
+      env,
+      ctx
+    );
+    expect(bad.ok).toBe(false);
+    expect(bad.error).toMatch(/大于/);
+  });
+
   it("write 写入并自动建父目录；read 可回读", async () => {
     const env = makeEnv();
     const result = await executeTool(

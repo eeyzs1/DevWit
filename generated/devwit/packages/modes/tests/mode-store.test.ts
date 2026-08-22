@@ -33,7 +33,8 @@ describe("内置模式", () => {
     expect(store.get("chat")?.builtin).toBe(true);
     expect(store.get("agent")?.builtin).toBe(true);
     expect(store.get("agent")?.tools).toEqual(["read", "write", "edit", "bash", "grep", "find", "ls"]);
-    expect(store.get("chat")?.tools).toEqual([]);
+    // chat 暴露只读工具（read/grep/find/ls），写/改/执行留给 agent（AC4 只读免授权）
+    expect(store.get("chat")?.tools).toEqual(["read", "grep", "find", "ls"]);
   });
 
   it("AC20：内置 orchestrator 模式 orchestrate=true 且带全量工具集", () => {

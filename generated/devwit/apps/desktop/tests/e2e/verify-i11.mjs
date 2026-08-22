@@ -205,7 +205,7 @@ try {
 
   // ---- 1. 内置「编排」模式可见可选 ----
   const orchestratorOption = await page.textContent('select[title="模式"] option[value="orchestrator"]');
-  assert(orchestratorOption?.trim() === "编排", `内置编排模式显示名应为「编排」（实际: ${orchestratorOption}）`);
+  assert(orchestratorOption?.includes("编排"), `内置编排模式显示名应含「编排」（实际: ${orchestratorOption}）`);
   await page.selectOption('select[title="模式"]', "orchestrator");
   step("模式下拉框选中「编排」（内置 orchestrator 模式）");
 

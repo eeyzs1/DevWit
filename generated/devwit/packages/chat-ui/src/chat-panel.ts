@@ -399,8 +399,11 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
     for (const mode of modes) {
       const option = document.createElement("option");
       option.value = mode.id;
-      // 内置模式工厂名（Chat/Agent）按当前语言本地化显示（迭代 4）
-      option.textContent = displayModeName(mode);
+      // 内置模式工厂名（Chat/Agent）按当前语言本地化显示（迭代 4）。
+      // 追加能力提示：有 write/edit/bash 的全量工具 → 「可读写文件」，否则只读 → 「只读查文件」。
+      const canWrite = mode.tools.includes("write") || mode.tools.includes("edit") || mode.tools.includes("bash");
+      const hint = canWrite ? t("mode.tool.full") : t("mode.tool.readonly");
+      option.textContent = `${displayModeName(mode)}（${hint}）`;
       option.selected = mode.id === controller.currentModeId;
       modeSelect.appendChild(option);
     }

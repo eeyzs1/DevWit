@@ -6,15 +6,21 @@ import { DEFAULT_CONTEXT_POLICY } from "@devwit/context-engine";
  */
 const BUILTIN_TIMESTAMP = "2026-01-01T00:00:00.000Z";
 
-/** 内置 chat 模式：纯对话，零工具，上下文全默认极简（AR007）。 */
+/**
+ * 内置 chat 模式：极简上下文，暴露只读工具（read/grep/find/ls）——
+ * 让用户即使不切到 Agent 模式，Agent 也能查看工作区文件了解现状；
+ * 写/改/执行（write/edit/bash）不在此模式，避免「纯对话」意外改动文件。
+ * 只读工具免授权（AC4：read/grep/find/ls 只读免授权），不破坏极简定位。
+ */
 export const BUILTIN_CHAT_MODE: ModeDefinition = {
   id: "chat",
   name: "Chat",
-  description: "纯对话：极简上下文，无工具",
+  description: "纯对话 + 只读查文件：read/grep/find/ls，不修改文件",
   systemPrompt:
     "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。" +
-    "此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。",
-  tools: [],
+    "你有 read/grep/find/ls 只读工具，可查看工作区文件帮助回答；此模式不能修改文件或执行命令，" +
+    "如需改动，请建议用户切到 Agent 模式。",
+  tools: ["read", "grep", "find", "ls"],
   providerId: "",
   contextPolicy: {},
   builtin: true,
@@ -26,7 +32,7 @@ export const BUILTIN_CHAT_MODE: ModeDefinition = {
 export const BUILTIN_AGENT_MODE: ModeDefinition = {
   id: "agent",
   name: "Agent",
-  description: "多步任务：读写文件与执行命令需用户授权",
+  description: "读写文件与执行命令（全部工具），写/改/执行前需你授权；" + "适合让 Agent 实际改动你的工作区",
   systemPrompt:
     "你是 DevWit 的编码 Agent，通过工具逐步完成用户任务。" +
     "先用 read/grep/find/ls 了解现状，再用 write/edit 做最小修改，必要时用 bash 验证。" +
