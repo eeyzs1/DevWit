@@ -722,7 +722,7 @@ export class AiRuntime {
    */
   private budgetConfig(): UsageBudgetConfig {
     const raw = this.settings.get(USAGE_BUDGET_KEY);
-    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return { enabled: false, threshold: 0, period: "day" };
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return { enabled: false, threshold: 0, period: "day" }; // qg-allow: 预算未启用时的安全默认占位（D1），非真实阈值配置
     const record = raw as Record<string, unknown>;
     const period =
       record["period"] === "day" || record["period"] === "week" || record["period"] === "month" || record["period"] === "total"
@@ -730,7 +730,7 @@ export class AiRuntime {
         : null;
     const threshold = typeof record["threshold"] === "number" && Number.isFinite(record["threshold"]) ? record["threshold"] : null;
     if (record["enabled"] !== true || threshold === null || threshold < 0 || period === null) {
-      return { enabled: false, threshold: 0, period: "day" };
+      return { enabled: false, threshold: 0, period: "day" }; // qg-allow: 预算未启用时的安全默认占位（D1），非真实阈值配置
     }
     return { enabled: true, threshold, period };
   }

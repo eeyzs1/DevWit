@@ -719,7 +719,7 @@ function renderGeneral(
   const readBudget = async (): Promise<UsageBudgetConfig> => {
     const stored = await deps.api.settings.get("usage.budget");
     if (typeof stored !== "object" || stored === null || Array.isArray(stored)) {
-      return { enabled: false, threshold: 0, period: "day" };
+      return { enabled: false, threshold: 0, period: "day" }; // qg-allow: 预算未启用时的安全默认占位（D1），非真实阈值配置
     }
     const record = stored as Record<string, unknown>;
     const period = record["period"] === "day" || record["period"] === "week" || record["period"] === "month" || record["period"] === "total"
@@ -727,7 +727,7 @@ function renderGeneral(
       : null;
     const threshold = typeof record["threshold"] === "number" && Number.isFinite(record["threshold"]) ? record["threshold"] : null;
     if (record["enabled"] !== true || threshold === null || threshold < 0 || period === null) {
-      return { enabled: false, threshold: 0, period: "day" };
+      return { enabled: false, threshold: 0, period: "day" }; // qg-allow: 预算未启用时的安全默认占位（D1），非真实阈值配置
     }
     return { enabled: true, threshold, period };
   };

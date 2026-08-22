@@ -76,8 +76,9 @@ app.whenReady().then(() => {
   // 生产启动两个变量都不设置，向导按 onboarding.state 正常判定。
   if (e2eUserData !== undefined && e2eUserData !== "" && process.env.DEVWIT_E2E_WIZARD !== "1") {
     if (settings.get("onboarding.state") === undefined) {
-      // completed + contextTourSeen：抑制向导与上下文导览，避免挡住既有 E2E 首击
-      settings.set("onboarding.state", { completed: true, contextTourSeen: true });
+      // completed + contextTourSeen + authGateTourSeen：抑制向导与全部首次导览
+      // （上下文/授权门，D2），避免任何遮罩挡住既有 E2E 首击目标。
+      settings.set("onboarding.state", { completed: true, contextTourSeen: true, authGateTourSeen: true });
     }
   }
 
