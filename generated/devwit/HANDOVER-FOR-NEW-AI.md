@@ -302,7 +302,8 @@ npm run dev          # 启动验证核心功能
 
 ---
 
-**最后更新**: 2026-08-11
-**最新提交**: `7b0af65` chore(release): bump to v0.5.0
-**测试基线**: 747 单测 / 69 测试文件（DAP 抖动重跑全绿）
-**Latest**: https://github.com/eeyzs1/DevWit/releases/tag/v0.5.0
+**最后更新**: 2026-08-22
+**最新提交**: `0b02a8a` fix: 指挥台任务模型兜底 + 根治 E2E 进程树清理 EPERM
+**测试基线**: 766 单测 / 71 测试文件（CI 双 job 稳定全绿，含 E2E Smoke）
+**Latest**: https://github.com/eeyzs1/DevWit/releases/tag/v0.6.0
+
