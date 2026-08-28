@@ -1,5 +1,9 @@
-version: 1
-description: DevWit harness 各 prototype 权限矩阵 — foundation/editor/platform/ai/ux/verifier 六个 agent 角色的读写执行边界
+version: 2
+description: |
+  DevWit harness 各 prototype 权限矩阵（v1 角色，向后兼容）PLUS 显式沙箱模式模型
+  （v2，借鉴 DSH 权限理念）。modes 是执行旋钮；presets 把 sandbox_mode 与
+  approval_policy 打包。拒绝是 FINAL——后续 guard 永远不能重新放行已被拒绝的
+  调用（单调收缩）。denial 退出码 126，与任务失败（runner 自身退出码）区分。
 roles:
   foundation-engineer:
     can_read:
@@ -113,3 +117,64 @@ roles:
       - "python verification/check-architecture-boundaries.py --project-root ."
       - "python verification/scan-secret-leak.py --project-root ."
       - "python verification/check-context-audit.py --project-root ."
+
+# --- v2: explicit sandbox modes (DSH-inspired) ---
+# 升级 = 用更宽 mode 的新调用 + 审批，绝不原地变更当前 mode。`full` 需审批。
+# 未知 mode 直接拒绝（fail-closed）。
+modes:
+  read-only:
+    description: "只读巡检：不写、不装、不 push。"
+    can_execute:
+      - "git status"
+      - "git log"
+      - "git diff"
+      - "git show"
+      - "python"
+      - "pytest"
+    forbidden_execute:
+      - "npm install"
+      - "pip install"
+      - "git push"
+      - "git commit"
+      - "rm "
+      - "Remove-Item"
+      - "Set-Content"
+      - "> "
+  workspace-write:
+    description: "仅工作区内写：不触碰宿主机/系统级变更。"
+    can_execute:
+      - "npm"
+      - "npx"
+      - "node"
+      - "python"
+      - "pip"
+      - "git"
+      - "pytest"
+      - "tsc"
+      - "eslint"
+    forbidden_execute:
+      - "sudo"
+      - "curl.*|.*sh"
+      - "wget.*|.*sh"
+      - "rm -rf /"
+      - "mkfs"
+      - "dd if="
+  full:
+    description: "无限制。仅经审批的升级可达。"
+    can_execute: ["*"]
+    forbidden_execute: []
+
+# --- named presets: 打包 sandbox_mode + approval_policy ---
+# `current` 由两个旋钮派生；不匹配任何 preset 的组合为 'custom'（不可作为切换目标）。
+presets:
+  standard:
+    sandbox_mode: workspace-write
+    approval_policy: ask
+  locked:
+    sandbox_mode: read-only
+    approval_policy: never
+  trusted:
+    sandbox_mode: full
+    approval_policy: ask
+
+default_mode: workspace-write
