@@ -3,11 +3,15 @@ import {
   AUTHORIZED_TOOLS,
   MCP_TOOL_PREFIX,
   type AuthorizationDecision,
+  type AuthorizationOutcome,
   type AuthorizationRequest,
+  isAuthorizationGranted,
 } from "@devwit/contracts";
 
 /** 授权处理器：由调用方（如 apps 层经 IPC 弹窗）实现，返回用户裁决。 */
 export type AuthorizationHandler = (request: AuthorizationRequest) => Promise<AuthorizationDecision>;
+
+export { isAuthorizationGranted };
 
 /**
  * 授权记忆（迭代 20 / AC29 授权白名单学习）：
@@ -22,10 +26,8 @@ export interface AuthorizationMemory {
 
 interface PendingAuthorization {
   request: AuthorizationRequest;
-  resolve: (decision: AuthorizationDecision) => void;
-}
-
-/** 生成人类可读的授权理由（授权弹窗与轨迹共用）。 */
+  resolve: (decision: AuthorizationOutcome) => void;
+}/** 生成人类可读的授权理由（授权弹窗与轨迹共用）。 */
 export function buildAuthorizationReason(toolName: string, args: Record<string, unknown>): string {
   const pathArg = typeof args["path"] === "string" ? args["path"] : undefined;
   const commandArg = typeof args["command"] === "string" ? args["command"] : undefined;
@@ -90,18 +92,26 @@ export class Authorizer {
     args: Record<string, unknown>,
     reason: string,
     onCreated?: (request: AuthorizationRequest) => void
-  ): Promise<{ request: AuthorizationRequest; decision: AuthorizationDecision }> {
+  ): Promise<{ request: AuthorizationRequest; decision: AuthorizationOutcome }> {
     const request: AuthorizationRequest = { id: `auth-${randomUUID()}`, toolName, args, reason };
     // 决策前先暴露完整请求（含 id）——IPC 授权弹窗与轨迹记录都依赖 requestId 做裁决关联
     onCreated?.(request);
-    const decision = this.handler
-      ? await this.handler(request)
-      : await new Promise<AuthorizationDecision>((resolve) => {
-          this.pending.set(request.id, { request, resolve });
-        });
+    let decision: AuthorizationOutcome;
+    if (this.handler) {
+      // B-WU3 fail-closed：answerer 抛错/非规范返回 → unavailable（拿不到裁决就不放行）
+      try {
+        decision = await this.handler(request);
+      } catch (error) {
+        decision = "unavailable";
+      }
+    } else {
+      decision = await new Promise<AuthorizationOutcome>((resolve) => {
+        this.pending.set(request.id, { request, resolve });
+      });
+    }
     if (decision === "allow_session") this.sessionAllowed.add(toolName);
     // AC29：裁决完成回调授权记忆（学习层自行过滤 allow/deny/allow_session 语义）
-    this.memory?.recordDecision(toolName, args, decision);
+    this.memory?.recordDecision(toolName, args, decision as AuthorizationDecision);
     return { request, decision };
   }
 
@@ -117,6 +127,15 @@ export class Authorizer {
   /** 会话取消：所有挂起请求按 deny 收尾，避免 agent loop 永远等待。 */
   denyAllPending(): void {
     for (const entry of this.pending.values()) entry.resolve("deny");
+    this.pending.clear();
+  }
+
+  /**
+   * B-WU3：撤回所有挂起请求（abort/取消语义）——按 "cancelled" 收尾，
+   * 与用户拒绝（deny）区分；调用方经 isAuthorizationGranted 同样按拒绝处理。
+   */
+  cancelPending(): void {
+    for (const entry of this.pending.values()) entry.resolve("cancelled");
     this.pending.clear();
   }
 }

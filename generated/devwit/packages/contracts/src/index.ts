@@ -363,6 +363,21 @@ export const AUTHORIZED_TOOLS: ReadonlySet<string> = new Set(["write", "edit", "
 
 export type AuthorizationDecision = "allow" | "allow_session" | "deny";
 
+/**
+ * 授权裁决闭集（B-WU3 / Fusion v3，借鉴 DSH 的 fail-closed 授权语义）：
+ * - allow / allow_session：放行（一次 / 会话内免问）；
+ * - deny：用户显式拒绝；
+ * - cancelled：请求被撤回（会话取消/abort），不算用户拒绝也不算放行；
+ * - unavailable：没有可用 answerer（handler 缺失/抛错/非归属裁决）——闭集，
+ *   调用方必须按拒绝处理（fail-closed：拿不到裁决就不放行）。
+ */
+export type AuthorizationOutcome = "allow" | "allow_session" | "deny" | "cancelled" | "unavailable";
+
+/** fail-closed 守卫：只有显式放行才算 granted；deny/cancelled/unavailable 一律按拒绝。 */
+export function isAuthorizationGranted(outcome: AuthorizationOutcome): boolean {
+  return outcome === "allow" || outcome === "allow_session";
+}
+
 export interface AuthorizationRequest {
   id: string;
   /** 内置工具名或 MCP 全名（mcp__<serverId>__<tool>，迭代 8 起放宽为 string）。 */
@@ -705,7 +720,9 @@ export function isFailureTraceEvent(event: AgentTraceEvent): boolean {
     return result?.ok === false;
   }
   if (event.type === "authorization_decision") {
-    return (event.detail as { decision?: unknown } | undefined)?.decision === "deny";
+    const decision = (event.detail as { decision?: unknown } | undefined)?.decision;
+    // B-WU3 fail-closed：cancelled/unavailable 同样视为失败（授权未通过，工具未执行）
+    return decision === "deny" || decision === "cancelled" || decision === "unavailable";
   }
   return false;
 }

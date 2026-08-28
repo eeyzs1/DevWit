@@ -175,7 +175,8 @@ describe("AgentLoop", () => {
     expect(env.readRelative("out.txt")).toBeUndefined();
 
     const toolMessage = (provider.calls[1]?.messages ?? []).find((m) => m.role === "tool");
-    expect(toolMessage?.content).toContain("用户拒绝授权");
+    // B-WU3 fail-closed：授权未通过（deny）同样拒绝执行，说明回填模型
+    expect(toolMessage?.content).toContain("授权未通过（deny）");
     const decisions = trace.list().filter((event) => event.type === "authorization_decision");
     expect(decisions[0]?.summary).toContain("deny");
   });

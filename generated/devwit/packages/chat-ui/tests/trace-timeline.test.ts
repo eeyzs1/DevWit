@@ -62,17 +62,19 @@ describe("filterTraceEvents（AC36 类型过滤）", () => {
     expect(filterTraceEvents(events, "usage").map((e) => e.type)).toEqual(["usage"]);
   });
 
-  it("failures 走 isFailureTraceEvent 同规则：error / 工具失败 / 授权拒绝", () => {
+  it("failures 走 isFailureTraceEvent 同规则：error / 工具失败 / 授权拒绝（含 B-WU3 cancelled/unavailable）", () => {
     const mixed: AgentTraceEvent[] = [
       event("user_message"),
       event("error"),
       event("tool_result", { result: { ok: false } }),
       event("tool_result", { result: { ok: true } }),
       event("authorization_decision", { decision: "deny" }),
+      event("authorization_decision", { decision: "cancelled" }),
+      event("authorization_decision", { decision: "unavailable" }),
       event("authorization_decision", { decision: "allow" }),
     ];
     const out = filterTraceEvents(mixed, "failures");
-    expect(out.map((e) => e.type)).toEqual(["error", "tool_result", "authorization_decision"]);
+    expect(out.map((e) => e.type)).toEqual(["error", "tool_result", "authorization_decision", "authorization_decision", "authorization_decision"]);
   });
 
   it("空数组输入各过滤器均返回空", () => {

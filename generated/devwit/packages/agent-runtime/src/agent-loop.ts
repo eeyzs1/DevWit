@@ -7,6 +7,7 @@ import type {
   ToolDefinition,
   ToolResult,
 } from "@devwit/contracts";
+import { isAuthorizationGranted } from "@devwit/contracts";
 import type { ContextEngine } from "@devwit/context-engine";
 import { Authorizer, buildAuthorizationReason } from "./authorizer.js";
 import type { DiagnosticsTracker } from "./diagnostics.js";
@@ -199,7 +200,8 @@ export class AgentLoop {
 
     for (;;) {
       if (signal?.aborted) {
-        this.authorizer.denyAllPending();
+        // B-WU3：abort/取消语义——挂起裁决按 cancelled 收尾（同样 fail-closed 拒绝执行）
+        this.authorizer.cancelPending();
         recordUsage();
         trace.record("done", "会话已取消");
         return await this.finishRun({ finishReason: "cancelled", finalText, iterations, ...usagePart() });
@@ -306,7 +308,8 @@ export class AgentLoop {
       }
 
       if (providerCancelled || signal?.aborted) {
-        this.authorizer.denyAllPending();
+        // B-WU3：abort/取消语义——挂起裁决按 cancelled 收尾（同样 fail-closed 拒绝执行）
+        this.authorizer.cancelPending();
         recordUsage();
         trace.record("done", "会话已取消");
         return await this.finishRun({ finishReason: "cancelled", finalText, iterations, ...usagePart() });
@@ -404,9 +407,10 @@ export class AgentLoop {
           }
         );
         trace.record("authorization_decision", `${call.name} → ${decision}`, { requestId: request.id, decision });
-        if (decision === "deny") {
-          const denied: ToolResult = { ok: false, output: "", error: "用户拒绝授权，工具未执行" };
-          trace.record("tool_result", `${call.name} 被用户拒绝`, { result: denied });
+        // B-WU3 fail-closed：只有 allow/allow_session 放行；deny/cancelled/unavailable 一律拒绝
+        if (!isAuthorizationGranted(decision)) {
+          const denied: ToolResult = { ok: false, output: "", error: `授权未通过（${decision}），工具未执行` };
+          trace.record("tool_result", `${call.name} 授权未通过（${decision}）`, { result: denied });
           return denied;
         }
       }
