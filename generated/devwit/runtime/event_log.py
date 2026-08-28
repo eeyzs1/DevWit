@@ -44,6 +44,10 @@ LOG_VERSION = 1
 GEN_EVENT_TYPES = {
     "seed/import", "project/init", "criterion/completed",
     "guard/check", "error/recorded", "mistake/recorded",
+    # A-WU7：goal 语义 + compaction + spill
+    "goal/pause", "goal/resume", "goal/unblock",
+    "compaction/start", "compaction/summary", "compaction/end",
+    "artifact/spilled",
 }
 
 
@@ -123,6 +127,12 @@ def fold(events: list, legacy_snapshot: dict = None) -> dict:
         "revision": 0,
         "asOfSeq": 0,
         "updated_at": None,
+        # A-WU7 goal 语义 + compaction + spill 派生字段
+        "paused": False,
+        "blocked": False,
+        "unblocks": [],
+        "compaction": None,
+        "artifacts": [],
     }
     if legacy_snapshot:
         # seed/import: carry the ENTIRE legacy projection over (superset of the
@@ -158,6 +168,37 @@ def fold(events: list, legacy_snapshot: dict = None) -> dict:
             state["errors"].append(payload.get("message", ""))
         elif typ == "mistake/recorded":
             state["errors"].append(f"[mistake] {payload.get('message', '')}")
+        elif typ == "goal/pause":
+            state["paused"] = True
+            state["status"] = "paused"
+        elif typ == "goal/resume":
+            state["paused"] = False
+            if state.get("status") == "paused":
+                state["status"] = "in_progress"
+        elif typ == "goal/unblock":
+            state["blocked"] = False
+            state["unblocks"].append({
+                "ts": ts, "seq": ev["seq"],
+                "code": payload.get("code", "manual"),
+                "reason": payload.get("reason", ""),
+            })
+        elif typ == "compaction/start":
+            state["compaction"] = {"status": "open", "startedAt": ts}
+        elif typ == "compaction/summary":
+            if state["compaction"] is None:
+                state["compaction"] = {"status": "open"}
+            state["compaction"]["summary"] = payload.get("summary", "")
+        elif typ == "compaction/end":
+            if state["compaction"] is None:
+                state["compaction"] = {"status": "closed"}
+            state["compaction"]["status"] = "closed"
+            state["compaction"]["endedAt"] = ts
+        elif typ == "artifact/spilled":
+            state["artifacts"].append({
+                "key": payload.get("key", "?"),
+                "locator": payload.get("locator", "?"),
+                "bytes": payload.get("bytes", 0),
+            })
         state["updated_at"] = ts
     state["revision"] = len(events)
     state["asOfSeq"] = len(events)
@@ -249,6 +290,24 @@ def check_invariants(project_root: Path = PROJECT_ROOT) -> tuple:
         problems.append(f"INVARIANT_LOG_CORRUPT: {exc}")
         return problems, warnings
 
+    # orphaned compaction: compaction/start|summary 无 compaction/end 收尾 → 孤儿（fail-closed）
+    compaction_open = False
+    for ev in events:
+        if ev["type"] == "compaction/start":
+            compaction_open = True
+        elif ev["type"] == "compaction/end":
+            compaction_open = False
+    if compaction_open:
+        problems.append("INVARIANT_ORPHANED_COMPACTION: compaction/start without compaction/end")
+
+    # artifact/spilled 载荷必须含 key + locator（缺失即坏事件，fail-closed）
+    for ev in events:
+        if ev["type"] == "artifact/spilled":
+            payload = ev.get("payload", {})
+            if not payload.get("key") or not payload.get("locator"):
+                problems.append(
+                    f"INVARIANT_BAD_ARTIFACT: seq {ev['seq']} artifact/spilled missing key/locator")
+
     # stale projection watermark: derived state must not lag the log
     if state_path.exists():
         try:
@@ -305,6 +364,14 @@ def _cmd_events(root: Path) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Append-only event log -> state projection")
     parser.add_argument("--project-root", default=".", help="Project root directory")
+    parser.add_argument("--pause", action="store_true", help="Append goal/pause (A-WU7)")
+    parser.add_argument("--resume", action="store_true", help="Append goal/resume (A-WU7)")
+    parser.add_argument("--unblock", action="store_true",
+                        help="Append goal/unblock with --code/--reason (A-WU7)")
+    parser.add_argument("--code", default="manual", help="Stable machine code for --unblock")
+    parser.add_argument("--reason", default="", help="Human-readable reason for --unblock")
+    parser.add_argument("--compact", action="store_true",
+                        help="Append compaction/start->summary->end block (A-WU7)")
     sub = parser.add_subparsers(dest="cmd")
     sub.add_parser("migrate")
     sub.add_parser("fold")
@@ -318,6 +385,46 @@ def main() -> int:
         return _cmd_fold(root)
     if args.cmd == "events":
         return _cmd_events(root)
+
+    if args.pause:
+        append_events([{"type": "goal/pause", "payload": {}}], project_root=root)
+        state = load_session_state(root)
+        save_session_state(state, root)
+        print(f"PAUSED (asOfSeq={state.get('asOfSeq')})")
+        return 0
+    if args.resume:
+        append_events([{"type": "goal/resume", "payload": {}}], project_root=root)
+        state = load_session_state(root)
+        save_session_state(state, root)
+        print(f"RESUMED (asOfSeq={state.get('asOfSeq')})")
+        return 0
+    if args.unblock:
+        append_events([{"type": "goal/unblock",
+                        "payload": {"code": args.code, "reason": args.reason}}],
+                       project_root=root)
+        state = load_session_state(root)
+        save_session_state(state, root)
+        print(f"UNBLOCKED code={args.code} (asOfSeq={state.get('asOfSeq')})")
+        return 0
+    if args.compact:
+        state = load_session_state(root)
+        summary = {
+            "status": state.get("status"),
+            "ac_completed": len(state.get("progress", {}).get("completed_criteria", [])),
+            "ac_total": len(state.get("progress", {}).get("acceptance_criteria", [])),
+            "guard_log": len(state.get("guard_log", [])),
+            "unblocks": len(state.get("unblocks", [])),
+        }
+        events = [
+            {"type": "compaction/start", "payload": {}},
+            {"type": "compaction/summary", "payload": {"summary": summary}},
+            {"type": "compaction/end", "payload": {}},
+        ]
+        append_events(events, expected_len=state.get("revision", 0), project_root=root)
+        state = load_session_state(root)
+        save_session_state(state, root)
+        print(f"COMPACTED (asOfSeq={state.get('asOfSeq')}, summary={summary})")
+        return 0
 
     # default: invariant check
     problems, warnings = check_invariants(root)

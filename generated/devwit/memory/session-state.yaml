@@ -1,4 +1,4 @@
-status: complete
+status: in_progress
 phase: EVOLVE
 blockers: []
 guard_log:
@@ -108,9 +108,23 @@ progress:
   - id: AC12
     description: 构建成功无错误，迭代 2 每条标准均有可验证证据
     status: pending
-revision: 1
-asOfSeq: 1
-updated_at: '2026-08-29T00:30:03'
+revision: 6
+asOfSeq: 6
+updated_at: '2026-08-29T00:42:32'
+paused: false
+blocked: false
+unblocks: []
+compaction:
+  status: closed
+  startedAt: '2026-08-29T00:42:32'
+  summary:
+    status: in_progress
+    ac_completed: 7
+    ac_total: 12
+    guard_log: 7
+    unblocks: 0
+  endedAt: '2026-08-29T00:42:32'
+artifacts: []
 iteration_2:
   scope: AI-native 工作台 UX 重设计（用户反馈：上手引导 / 外部编辑器替代内置编辑器定位 / Agent 编排可见性）
   acceptance_criteria:

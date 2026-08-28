@@ -1046,3 +1046,29 @@ events:
           双 job success（14e8f07）
       status: complete
       updated_at: '2026-07-28T12:10:00.000000'
+- seq: 2
+  ts: '2026-08-29T00:42:31'
+  type: goal/pause
+  payload: {}
+- seq: 3
+  ts: '2026-08-29T00:42:31'
+  type: goal/resume
+  payload: {}
+- seq: 4
+  ts: '2026-08-29T00:42:32'
+  type: compaction/start
+  payload: {}
+- seq: 5
+  ts: '2026-08-29T00:42:32'
+  type: compaction/summary
+  payload:
+    summary:
+      status: in_progress
+      ac_completed: 7
+      ac_total: 12
+      guard_log: 7
+      unblocks: 0
+- seq: 6
+  ts: '2026-08-29T00:42:32'
+  type: compaction/end
+  payload: {}
