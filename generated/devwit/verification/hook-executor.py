@@ -38,6 +38,10 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
+# v3.0 events helpers (Fusion A-WU2): bail = fail-fast 检查链语义
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "runtime"))
+from events import bail  # noqa: E402
+
 
 def load_hooks_schema(project_root: Path) -> dict:
     """读 verification/runtime-hooks.yaml。"""
@@ -152,16 +156,26 @@ def execute_hook(event_name: str, payload: dict, project_root: Path) -> int:
 
     any_block_fail = False
     any_warn = False
-    for check in checks:
-        passed, output = run_check(check, payload, project_root, ctx)
-        severity = check.get("severity", "warn")
-        marker = "PASS" if passed else f"FAIL({severity})"
-        print(f"  [{marker}] {output.strip()}")
-        if not passed:
-            if severity == "block":
-                any_block_fail = True
-            elif severity == "warn":
-                any_warn = True
+
+    # v3.0 bail 语义（Fusion A-WU2）：按注册序执行，第一个 block 失败即停（fail-fast）；
+    # warn 失败不中断链条（不返回真值），全部执行完再汇总。
+    def make_listener(check):
+        def listener():
+            nonlocal any_block_fail, any_warn
+            passed, output = run_check(check, payload, project_root, ctx)
+            severity = check.get("severity", "warn")
+            marker = "PASS" if passed else f"FAIL({severity})"
+            print(f"  [{marker}] {output.strip()}")
+            if not passed:
+                if severity == "block":
+                    any_block_fail = True
+                    return {"blocked": True, "check": check.get("id", "?")}
+                elif severity == "warn":
+                    any_warn = True
+            return None
+        return listener
+
+    bail([make_listener(c) for c in checks])
 
     print()
     if any_block_fail:
