@@ -1,3 +1,5 @@
+status: complete
+phase: EVOLVE
 blockers: []
 guard_log:
 - action: mark_complete
@@ -28,59 +30,8 @@ guard_log:
   criterion: 构建成功无错误，上述每条标准均有可验证证据
   timestamp: '2026-07-21T07:26:42.827558'
   verdict: VERIFIED
-phase: EVOLVE
+errors: []
 progress:
-  acceptance_criteria:
-  - description: 桌面应用可启动并打开本地项目文件夹，文件树可浏览，自研编辑器可打开/编辑/保存文件
-    id: AC1
-    status: completed
-    traces_to:
-    - WU001
-    - WU002
-    - WU003
-    - WU005
-    verifier: tests/e2e/ac1-workspace-editing.spec.ts + evidence/AC1
-  - description: 简洁上下文引擎：每次 LLM 请求的完整上下文组成（系统提示、工具列表、注入项及各项 token 占用）对用户可见，且用户可逐项开启/关闭
-    id: AC2
-    status: completed
-    traces_to:
-    - WU009
-    - WU012
-    verifier: verification/check-context-audit.py + evidence/AC2/manifest 样例
-  - description: 对话式编程：用户可通过对话请求代码修改，修改以 diff 形式在编辑器内呈现，可逐块接受或拒绝
-    id: AC3
-    status: completed
-    traces_to:
-    - WU013
-    verifier: tests/e2e/ac3-diff-inline-edit.spec.ts + evidence/AC3
-  - description: Agent 模式：Agent 可在用户授权下读写文件并执行终端命令，能完成多步任务，执行轨迹可见
-    id: AC4
-    status: completed
-    traces_to:
-    - WU006
-    - WU010
-    verifier: tests/e2e/ac4-agent-multistep.spec.ts + evidence/AC4
-  - description: 多模型接入：支持 Anthropic API 与 OpenAI 兼容 API，可自定义 base URL 与 API key，会话中可切换模型
-    id: AC5
-    status: completed
-    traces_to:
-    - WU007
-    - WU008
-    - WU012
-    verifier: tests/e2e/ac5-multi-model.spec.ts + evidence/AC5
-  - description: 模式自定义系统：用户可创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略，修改热生效无需重启
-    id: AC6
-    status: completed
-    traces_to:
-    - WU011
-    verifier: tests/e2e/ac6-modes-hot-reload.spec.ts + evidence/AC6
-  - description: 构建成功无错误，上述每条标准均有可验证证据
-    id: AC7
-    status: completed
-    traces_to:
-    - WU001
-    - WU014
-    verifier: npm run build 日志 + verification/ 全部检查报告 + evidence/AC7
   completed_criteria:
   - 桌面应用可启动并打开本地项目文件夹，文件树可浏览，自研编辑器可打开/编辑/保存文件
   - 简洁上下文引擎：每次 LLM 请求的完整上下文组成（系统提示、工具列表、注入项及各项 token 占用）对用户可见，且用户可逐项开启/关闭
@@ -90,6 +41,76 @@ progress:
   - 模式自定义系统：用户可创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略， 修改热生效无需重启
   - 构建成功无错误，上述每条标准均有可验证证据
   failed_criteria: []
+  acceptance_criteria:
+  - id: AC1
+    description: 桌面应用可启动并打开本地项目文件夹，文件树可浏览，自研编辑器可打开/编辑/保存文件
+    status: completed
+    traces_to:
+    - WU001
+    - WU002
+    - WU003
+    - WU005
+    verifier: tests/e2e/ac1-workspace-editing.spec.ts + evidence/AC1
+  - id: AC2
+    description: 简洁上下文引擎：每次 LLM 请求的完整上下文组成（系统提示、工具列表、注入项及各项 token 占用）对用户可见，且用户可逐项开启/关闭
+    status: completed
+    traces_to:
+    - WU009
+    - WU012
+    verifier: verification/check-context-audit.py + evidence/AC2/manifest 样例
+  - id: AC3
+    description: 对话式编程：用户可通过对话请求代码修改，修改以 diff 形式在编辑器内呈现，可逐块接受或拒绝
+    status: completed
+    traces_to:
+    - WU013
+    verifier: tests/e2e/ac3-diff-inline-edit.spec.ts + evidence/AC3
+  - id: AC4
+    description: Agent 模式：Agent 可在用户授权下读写文件并执行终端命令，能完成多步任务，执行轨迹可见
+    status: completed
+    traces_to:
+    - WU006
+    - WU010
+    verifier: tests/e2e/ac4-agent-multistep.spec.ts + evidence/AC4
+  - id: AC5
+    description: 多模型接入：支持 Anthropic API 与 OpenAI 兼容 API，可自定义 base URL 与 API key，会话中可切换模型
+    status: completed
+    traces_to:
+    - WU007
+    - WU008
+    - WU012
+    verifier: tests/e2e/ac5-multi-model.spec.ts + evidence/AC5
+  - id: AC6
+    description: 模式自定义系统：用户可创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略， 修改热生效无需重启
+    status: completed
+    traces_to:
+    - WU011
+    verifier: tests/e2e/ac6-modes-hot-reload.spec.ts + evidence/AC6
+  - id: AC7
+    description: 构建成功无错误，上述每条标准均有可验证证据
+    status: completed
+    traces_to:
+    - WU001
+    - WU014
+    verifier: npm run build 日志 + verification/ 全部检查报告 + evidence/AC7
+  - id: AC8
+    description: 双形态切换：应用提供「指挥台」与「对话」两种主界面形态，顶栏可一键切换，两种形态的工作状态各自保持
+    status: pending
+  - id: AC9
+    description: 任务指挥台：左侧任务列表可创建任务并显示状态（进行中/待授权/完成/失败），中间 Agent 活动流实时渲染执行轨迹事件（用户消息/助手回复/工具调用/授权请求与决定/工具结果），右侧工作区视图含代码与
+      diff 页签
+    status: pending
+  - id: AC10
+    description: 外部编辑器：设置中可配置外部编辑器命令模板（{file}/{line} 占位符），文件树与代码视图可一键在外部编辑器打开当前文件，未配置时给出明确引导
+    status: pending
+  - id: AC11
+    description: 首次使用引导：未打开工作区时主区显示三步引导（配置模型→打开文件夹→输入第一个意图并附示例），对话空态说明主 Agent 行为（规划、调用工具前请求授权、交付证据）
+    status: pending
+  - id: AC12
+    description: 构建成功无错误，迭代 2 每条标准均有可验证证据
+    status: pending
+revision: 1
+asOfSeq: 1
+updated_at: '2026-08-29T00:30:03'
 iteration_2:
   scope: AI-native 工作台 UX 重设计（用户反馈：上手引导 / 外部编辑器替代内置编辑器定位 / Agent 编排可见性）
   acceptance_criteria:
@@ -114,30 +135,40 @@ iteration_2:
 iteration_3:
   scope: 国际化与统一设置入口（用户反馈：中英文切换支持 + 设置按钮/页面缺失）
   acceptance_criteria:
-  - description: 统一设置页：通用/模型/编辑器/模式 四分区左侧导航单一入口（替代原三个独立对话框），语言切换热生效无需重启并持久化（settings "ui.locale"，启动时恢复）
+  - description: 统一设置页：通用/模型/编辑器/模式 四分区左侧导航单一入口（替代原三个独立对话框），语言切换热生效无需重启并持久化（settings
+      "ui.locale"，启动时恢复）
     id: AC12
     status: completed
-    verifier: tests/e2e/iteration2.mjs (AC12 场景) + packages/i18n/tests/i18n.test.ts + evidence/AC12
-  notes: 新增 @devwit/i18n 包（zh-CN/en-US 双词典编译期同型校验、t() 插值/ta() 数组/setLocale 热生效订阅）；renderer + chat-ui 全部界面文案接入词典；顶栏三设置入口合并为单一「设置」
+    verifier: tests/e2e/iteration2.mjs (AC12 场景) + packages/i18n/tests/i18n.test.ts
+      + evidence/AC12
+  notes: 新增 @devwit/i18n 包（zh-CN/en-US 双词典编译期同型校验、t() 插值/ta() 数组/setLocale 热生效订阅）；renderer
+    + chat-ui 全部界面文案接入词典；顶栏三设置入口合并为单一「设置」
   e2e_report: evidence/e2e2-report.json (PASSED，含 AC12 场景)
   unit_tests: 30 files / 239 tests passed
 iteration_4:
   scope: 运行时错误本地化与编辑器引导（用户三反馈：终端乱码 / 中文界面英文残留 / 外部编辑器未配置点击无反应）
   acceptance_criteria:
-  - description: 主进程错误不再向 stderr 输出中文（GBK 终端乱码根因消除）：主进程/包层抛 ASCII 错误码（DW_*），渲染端 localizeError 按当前语言映射词典文案；stderr 无 CJK、无非法 UTF-8 序列
+  - description: 主进程错误不再向 stderr 输出中文（GBK 终端乱码根因消除）：主进程/包层抛 ASCII 错误码（DW_*），渲染端 localizeError
+      按当前语言映射词典文案；stderr 无 CJK、无非法 UTF-8 序列
     id: AC13
     status: completed
     verifier: tests/e2e/verify-i4.mjs + evidence/AC13（stderr-raw.bin 字节级分析）
-  - description: 中英文切换无残留：内置模式名（Chat/Agent）经 displayModeName 按当前语言显示（用户改名优先）；设置·模型/模式表单 label 全部经 t() 输出；英→中往返切换恢复
+  - description: 中英文切换无残留：内置模式名（Chat/Agent）经 displayModeName 按当前语言显示（用户改名优先）；设置·模型/模式表单
+      label 全部经 t() 输出；英→中往返切换恢复
     id: AC13
     status: completed
     verifier: tests/e2e/verify-i4.mjs + evidence/AC13
-  - description: 外部编辑器未配置时点击「外部编辑器 ↗」弹出「选择外部编辑器」引导小页（预设一键填模板 + 自定义），「保存并打开」保存后立即重试打开（真实 spawn 落盘证明）
+  - description: 外部编辑器未配置时点击「外部编辑器 ↗」弹出「选择外部编辑器」引导小页（预设一键填模板 + 自定义），「保存并打开」保存后立即重试打开（真实
+      spawn 落盘证明）
     id: AC13
     status: completed
     verifier: tests/e2e/verify-i4.mjs + tests/e2e/iteration2.mjs (AC10 更新) + evidence/AC13
-  notes: 主进程 ai-runtime/ipc/external-editor 与 modes/llm-providers 包校验错误全部改 ASCII 错误码；i18n 新增 localizeError/displayModeName 与 err.* 词典；新增 renderer/editor-setup-dialog.ts 引导小页；externalBtn 未配置分支在有打开文件时传 onSaved（保存后直接打开当前文件）；诊断脚本 repro-i4.mjs 由 verify-i4.mjs 取代并删除
-  e2e_report: evidence/AC13/verify-i4-report.json (10 项断言全 PASS) + smoke/iteration2 回归 PASSED
+  notes: 主进程 ai-runtime/ipc/external-editor 与 modes/llm-providers 包校验错误全部改 ASCII 错误码；i18n
+    新增 localizeError/displayModeName 与 err.* 词典；新增 renderer/editor-setup-dialog.ts
+    引导小页；externalBtn 未配置分支在有打开文件时传 onSaved（保存后直接打开当前文件）；诊断脚本 repro-i4.mjs 由 verify-i4.mjs
+    取代并删除
+  e2e_report: evidence/AC13/verify-i4-report.json (10 项断言全 PASS) + smoke/iteration2
+    回归 PASSED
   unit_tests: 30 files / 239 tests passed
 iteration_5:
   scope: 通用设置布局与语言跟随系统（用户三反馈：通用分区文字堆叠 / 缺跟随系统选项 / 工具栏与下拉按钮文字不随语言变）
@@ -145,520 +176,848 @@ iteration_5:
   - description: 设置·通用分区 hint 文字不再堆叠（.dw-form 两列 grid 中 hint 跨整行渲染）
     id: AC14
     status: completed
-    verifier: tests/e2e/verify-i5.mjs + evidence/AC14（hint 宽 578.7px=表单 100%、高 38.4px 非逐词换行）
-  - description: 语言选项新增「跟随系统」置顶项：系统中文用中文否则英文（resolveSystemLocale，navigator.language 前缀 zh → zh-CN 否则 en-US）；持久化原始选择 "system"，新用户默认选中；启动恢复按持久化值或系统解析
+    verifier: tests/e2e/verify-i5.mjs + evidence/AC14（hint 宽 578.7px=表单 100%、高 38.4px
+      非逐词换行）
+  - description: 语言选项新增「跟随系统」置顶项：系统中文用中文否则英文（resolveSystemLocale，navigator.language
+      前缀 zh → zh-CN 否则 en-US）；持久化原始选择 "system"，新用户默认选中；启动恢复按持久化值或系统解析
     id: AC14
     status: completed
     verifier: tests/e2e/verify-i5.mjs + evidence/AC14（持久化 "system"、en-GB 系统→英文界面）
-  - description: 语言切换后工具栏/下拉框/tooltip 无残留：文件树 ↗ 按钮 tooltip（tree.external）在 applyLocale 中随语言重写（树不重建保留展开状态）；对话+指挥台两种形态切英文全量文本 dump 无 CJK 残留
+  - description: 语言切换后工具栏/下拉框/tooltip 无残留：文件树 ↗ 按钮 tooltip（tree.external）在 applyLocale
+      中随语言重写（树不重建保留展开状态）；对话+指挥台两种形态切英文全量文本 dump 无 CJK 残留
     id: AC14
     status: completed
     verifier: tests/e2e/verify-i5.mjs + evidence/AC14（dumpAll 覆盖 button/option/placeholder/title/tab/nav）
-  notes: 根因——文件树构建后语言切换不重建导致 ↗ tooltip 停留旧语言；通用分区 hint 落在 110px label 列被挤压（CSS 补 .dw-form > .dw-modal-hint { grid-column: 1 / -1 } + .dw-modal-hint 基础样式）。首启语言改为跟随系统后，smoke/iteration2/verify-i4 三个 e2e 脚本统一加 --lang=zh-CN 固定中文测试环境
-  e2e_report: evidence/AC14/verify-i5-report.json (11 项断言全 PASS) + smoke/iteration2/verify-i4 回归 PASSED
+  notes: '根因——文件树构建后语言切换不重建导致 ↗ tooltip 停留旧语言；通用分区 hint 落在 110px label 列被挤压（CSS 补
+    .dw-form > .dw-modal-hint { grid-column: 1 / -1 } + .dw-modal-hint 基础样式）。首启语言改为跟随系统后，smoke/iteration2/verify-i4
+    三个 e2e 脚本统一加 --lang=zh-CN 固定中文测试环境'
+  e2e_report: evidence/AC14/verify-i5-report.json (11 项断言全 PASS) + smoke/iteration2/verify-i4
+    回归 PASSED
   unit_tests: 30 files / 239 tests passed
 iteration_6:
   scope: 会话持久化（AC15）：对话 + Agent 任务历史落盘，应用重启后恢复现场并保留跨重启记忆
   acceptance_criteria:
-  - description: 轨迹落盘：AgentTrace 事件实时 JSONL 追加 userData/traces/<sessionId>.jsonl（detail.text 存完整原文，summary 截断仅兜底）；会话快照（工作区/任务列表/激活任务/形态/对话 sessionId）防抖 300ms 写 settings "session.state"；sessionId 白名单字符化防路径穿越
+  - description: 轨迹落盘：AgentTrace 事件实时 JSONL 追加 userData/traces/<sessionId>.jsonl（detail.text
+      存完整原文，summary 截断仅兜底）；会话快照（工作区/任务列表/激活任务/形态/对话 sessionId）防抖 300ms 写 settings
+      "session.state"；sessionId 白名单字符化防路径穿越
     id: AC15
     status: completed
-    verifier: tests/ai-runtime-trace.test.ts（真实 tmp fs 回环）+ tests/e2e/verify-i6.mjs + evidence/AC15
-  - description: 重启恢复：工作区/任务列表/形态自动恢复；running/waiting_auth 归一为 interrupted（新状态 + 徽标样式 + i18n）；对话与激活任务轨迹磁盘回放（resumed=true 不标 running）；状态栏提示「已恢复上次会话（N 个任务）」
+    verifier: tests/ai-runtime-trace.test.ts（真实 tmp fs 回环）+ tests/e2e/verify-i6.mjs
+      + evidence/AC15
+  - description: 重启恢复：工作区/任务列表/形态自动恢复；running/waiting_auth 归一为 interrupted（新状态 + 徽标样式
+      + i18n）；对话与激活任务轨迹磁盘回放（resumed=true 不标 running）；状态栏提示「已恢复上次会话（N 个任务）」
     id: AC15
     status: completed
     verifier: tests/e2e/verify-i6.mjs（双进程 kill→重启回环）+ chat-ui tests + evidence/AC15
-  - description: 跨重启记忆：ensureSession 先 loadPersisted 水合磁盘轨迹，run 前 historyFromTrace 重建 priorHistory 注入 transcript（含 toolCalls）；中断任务续发复活为 running，轨迹追加 seq 连续
+  - description: 跨重启记忆：ensureSession 先 loadPersisted 水合磁盘轨迹，run 前 historyFromTrace
+      重建 priorHistory 注入 transcript（含 toolCalls）；中断任务续发复活为 running，轨迹追加 seq 连续
     id: AC15
     status: completed
-    verifier: tests/e2e/verify-i6.mjs（服务端请求体含首轮意图断言）+ agent-runtime trace.test.ts + evidence/AC15/traces-after-restart.json
-  fixes: persistModes 全量持久化——内置模式可编辑（绑定模型/改提示词），此前只存非内置模式导致重启后内置 agent/chat 绑定丢失 DW_MODE_UNBOUND；replaceAll 水合保留内置标志与未来新内置种子
-  e2e_report: evidence/AC15/verify-i6-report.json (23 项断言全 PASS) + smoke/iteration2/verify-i4 回归 PASSED
+    verifier: tests/e2e/verify-i6.mjs（服务端请求体含首轮意图断言）+ agent-runtime trace.test.ts
+      + evidence/AC15/traces-after-restart.json
+  fixes: persistModes 全量持久化——内置模式可编辑（绑定模型/改提示词），此前只存非内置模式导致重启后内置 agent/chat 绑定丢失 DW_MODE_UNBOUND；replaceAll
+    水合保留内置标志与未来新内置种子
+  e2e_report: evidence/AC15/verify-i6-report.json (23 项断言全 PASS) + smoke/iteration2/verify-i4
+    回归 PASSED
   unit_tests: 32 files / 259 tests passed
 iteration_7:
   scope: 自动更新（AC16）：electron-updater 接 GitHub Releases，启动静默检查 + 后台下载 + 状态栏重启提示 + 设置页手动检查
   acceptance_criteria:
-  - description: UpdateService 状态机：开发模式（isPackaged=false）只发 disabled 不加载 electron-updater；打包环境映射 checking/available/downloading/ready/none/error 六态；load 失败降级 error(DW_UPDATE_LOAD_FAILED)；check 并发去重；install 委托 quitAndInstall
+  - description: UpdateService 状态机：开发模式（isPackaged=false）只发 disabled 不加载 electron-updater；打包环境映射
+      checking/available/downloading/ready/none/error 六态；load 失败降级 error(DW_UPDATE_LOAD_FAILED)；check
+      并发去重；install 委托 quitAndInstall
     id: AC16
     status: completed
     verifier: tests/updater.test.ts（9 项：含 E2E 合成序列真实加载回放 + install() 显式空操作防误触退出）
-  - description: 渲染端提示：启动静默检查不打扰（checking/none/error 静默），available/downloading/ready 走瞬态提示，ready 状态栏常驻「重启更新」按钮；设置·通用分区展示当前版本 + 手动「检查更新」+ 内联结果；中英文热切换无残留
+  - description: 渲染端提示：启动静默检查不打扰（checking/none/error 静默），available/downloading/ready
+      走瞬态提示，ready 状态栏常驻「重启更新」按钮；设置·通用分区展示当前版本 + 手动「检查更新」+ 内联结果；中英文热切换无残留
     id: AC16
     status: completed
     verifier: tests/e2e/verify-i7.mjs（DEVWIT_E2E_FAKE_UPDATE 合成序列，13 项断言全 PASS）+ evidence/AC16
-  - description: 发布链路：electron-builder.yml publish(github/eeyzs1/DevWit) 仅声明元数据；release.yml 上传 latest.yml + exe + blockmap（prerelease 默认）；build:main 加 createRequire banner 解决 electron-updater 在 ESM 主进程动态 require
+  - description: 发布链路：electron-builder.yml publish(github/eeyzs1/DevWit) 仅声明元数据；release.yml
+      上传 latest.yml + exe + blockmap（prerelease 默认）；build:main 加 createRequire banner
+      解决 electron-updater 在 ESM 主进程动态 require
     id: AC16
     status: completed
-    verifier: electron-builder.yml + .github/workflows/release.yml + npm run build（dist/main 6.0MB bundle 通过）
-  e2e_report: evidence/AC16/verify-i7-report.json (13 项断言全 PASS) + smoke/iteration2/verify-i4/verify-i6 回归 PASSED
+    verifier: electron-builder.yml + .github/workflows/release.yml + npm run build（dist/main
+      6.0MB bundle 通过）
+  e2e_report: evidence/AC16/verify-i7-report.json (13 项断言全 PASS) + smoke/iteration2/verify-i4/verify-i6
+    回归 PASSED
   unit_tests: 33 files / 268 tests passed
 iteration_8:
   scope: MCP 工具接入（AC17）：stdio 客户端 + 服务器生命周期管理 + 工具聚合路由 + 授权门扩展 + 设置页 MCP 分区
   acceptance_criteria:
-  - description: '@devwit/mcp 包：McpStdioClient（换行分隔 JSON-RPC 2.0，initialize 握手 + tools/list + tools/call，容忍非 JSON 行污染，请求超时拒绝 DW_MCP_TIMEOUT，进程退出拒绝全部挂起）；McpManager 按 settings "mcpServers" 差量同步（新增→启动/删除→停止/指纹变更→重启/停用→下线），状态机 connecting/ready/error/disabled + onDidChange'
+  - description: '@devwit/mcp 包：McpStdioClient（换行分隔 JSON-RPC 2.0，initialize 握手 + tools/list
+      + tools/call，容忍非 JSON 行污染，请求超时拒绝 DW_MCP_TIMEOUT，进程退出拒绝全部挂起）；McpManager 按 settings
+      "mcpServers" 差量同步（新增→启动/删除→停止/指纹变更→重启/停用→下线），状态机 connecting/ready/error/disabled
+      + onDidChange'
     id: AC17
     status: completed
-    verifier: packages/mcp/tests（mcp-client 8 项 + mcp-manager 10 项，真实子进程回环 + fake-mcp-server fixture）
-  - description: 授权门扩展：mcp__<serverId>__<tool> 全名一律需授权（外部服务器能力不可预知默认最严）；agent-loop 新增 extraTools/executeExtraTool 依赖，每轮迭代热聚合 ready 服务器工具，调用按全名前缀路由；MCP 调用失败返回 DW_MCP_* ASCII 错误码
+    verifier: packages/mcp/tests（mcp-client 8 项 + mcp-manager 10 项，真实子进程回环 + fake-mcp-server
+      fixture）
+  - description: 授权门扩展：mcp__<serverId>__<tool> 全名一律需授权（外部服务器能力不可预知默认最严）；agent-loop
+      新增 extraTools/executeExtraTool 依赖，每轮迭代热聚合 ready 服务器工具，调用按全名前缀路由；MCP 调用失败返回 DW_MCP_*
+      ASCII 错误码
     id: AC17
     status: completed
-    verifier: agent-runtime authorizer/agent-loop 测试 + tests/e2e/verify-i8.mjs（授权行含工具全名 + MARKER_FILE 真实落盘）
-  - description: 设置页 MCP 分区：服务器 CRUD 表单（id/name/command/args/env/enabled，渲染端先校验走 i18n）+ 状态徽标（McpChanged 推送实时刷新 连接中/就绪/错误/已停用）+ 工具计数；配置持久化 settings "mcpServers"，热生效无需重启；应用退出 will-quit 停止全部 MCP 子进程
+    verifier: agent-runtime authorizer/agent-loop 测试 + tests/e2e/verify-i8.mjs（授权行含工具全名
+      + MARKER_FILE 真实落盘）
+  - description: 设置页 MCP 分区：服务器 CRUD 表单（id/name/command/args/env/enabled，渲染端先校验走 i18n）+
+      状态徽标（McpChanged 推送实时刷新 连接中/就绪/错误/已停用）+ 工具计数；配置持久化 settings "mcpServers"，热生效无需重启；应用退出
+      will-quit 停止全部 MCP 子进程
     id: AC17
     status: completed
-    verifier: tests/e2e/verify-i8.mjs（12 项断言全 PASS：UI 新增→就绪/热停用→热启用/授权→真实调用落盘/删除清空）+ evidence/AC17
-  notes: preload 暴露 mcp 段（list/upsert/delete/onChanged）；ipc-whitelist 测试补 MCP 三通道未接线断言；tsconfig 根与 apps/desktop 双处 references 补 packages/mcp；i18n 新增 mcp.* 键 21 个（中英同型）
-  e2e_report: evidence/AC17/verify-i8-report.json (12 项断言全 PASS) + smoke/iteration2/verify-i4/verify-i6/verify-i7 回归 PASSED
+    verifier: tests/e2e/verify-i8.mjs（12 项断言全 PASS：UI 新增→就绪/热停用→热启用/授权→真实调用落盘/删除清空）+
+      evidence/AC17
+  notes: preload 暴露 mcp 段（list/upsert/delete/onChanged）；ipc-whitelist 测试补 MCP 三通道未接线断言；tsconfig
+    根与 apps/desktop 双处 references 补 packages/mcp；i18n 新增 mcp.* 键 21 个（中英同型）
+  e2e_report: evidence/AC17/verify-i8-report.json (12 项断言全 PASS) + smoke/iteration2/verify-i4/verify-i6/verify-i7
+    回归 PASSED
   unit_tests: 35 files / 286 tests passed
 iteration_9:
   scope: macOS 构建（AC18）：electron-builder mac target + release.yml macos runner
   acceptance_criteria:
-  - description: electron-builder.yml 新增 mac 段（category=public.app-category.developer-tools，target=dmg+zip——zip 为 electron-updater macOS 必需格式，dmg 供用户安装；未配置签名身份自动跳过签名，未签名包不自动更新、手动下载覆盖）
+  - description: electron-builder.yml 新增 mac 段（category=public.app-category.developer-tools，target=dmg+zip——zip
+      为 electron-updater macOS 必需格式，dmg 供用户安装；未配置签名身份自动跳过签名，未签名包不自动更新、手动下载覆盖）
     id: AC18
     status: completed
-    verifier: js-yaml 静态校验（mac.target=[dmg,zip]、publish=github 不变）+ electron-builder.yml 注释说明
-  - description: release.yml 新增 build-macos job（macos-latest）：npm ci → 显式恢复 Electron darwin 二进制（uname -m 自适应 arm64/x64，ditto 解包 + path.txt，与 Windows 同策略规避 postinstall 残缺）→ npm run dist → action-gh-release 追加 *.dmg/*.zip/*.blockmap/*.yml（latest-mac.yml）到同一 prerelease
+    verifier: js-yaml 静态校验（mac.target=[dmg,zip]、publish=github 不变）+ electron-builder.yml
+      注释说明
+  - description: release.yml 新增 build-macos job（macos-latest）：npm ci → 显式恢复 Electron
+      darwin 二进制（uname -m 自适应 arm64/x64，ditto 解包 + path.txt，与 Windows 同策略规避 postinstall
+      残缺）→ npm run dist → action-gh-release 追加 *.dmg/*.zip/*.blockmap/*.yml（latest-mac.yml）到同一
+      prerelease
     id: AC18
     status: completed
-    verifier: js-yaml 静态校验（jobs=[build-windows,build-macos]、macos 6 步）；真实 macOS 构建由下一 tag CI 运行确认
-  notes: 两 job 并行向同一 tag 追加产物（action-gh-release 处理已存在 release）；latest.yml(win)/latest-mac.yml 文件名不冲突
+    verifier: js-yaml 静态校验（jobs=[build-windows,build-macos]、macos 6 步）；真实 macOS 构建由下一
+      tag CI 运行确认
+  notes: 两 job 并行向同一 tag 追加产物（action-gh-release 处理已存在 release）；latest.yml(win)/latest-mac.yml
+    文件名不冲突
 iteration_10:
   scope: 透明 RAG（AC19）：代码库语义索引 + 检索命中入上下文 manifest 可审计 + 逐项开关 + 设置页代码索引区
   acceptance_criteria:
-  - description: '@devwit/rag 包：chunker（语法感知启发式分块，chunkId=内容哈希稳定 id）+ IndexStore（JSONL 全量原子重写，无 native 依赖的诚实选型）+ CodebaseIndex（全量构建/mtime+size 增量同步/余弦全扫描 topK+token 预算；embedding 失败置 error 态不 throw，队列 catch 自愈不毒化后续同步；dispose 保留磁盘索引）+ codebaseMatchSource（占位项说明未启用/构建中/错误/无命中/检索失败五种无上下文原因，可见性不依赖可用性）'
+  - description: '@devwit/rag 包：chunker（语法感知启发式分块，chunkId=内容哈希稳定 id）+ IndexStore（JSONL
+      全量原子重写，无 native 依赖的诚实选型）+ CodebaseIndex（全量构建/mtime+size 增量同步/余弦全扫描 topK+token
+      预算；embedding 失败置 error 态不 throw，队列 catch 自愈不毒化后续同步；dispose 保留磁盘索引）+ codebaseMatchSource（占位项说明未启用/构建中/错误/无命中/检索失败五种无上下文原因，可见性不依赖可用性）'
     id: AC19
     status: completed
-    verifier: packages/rag/tests（chunker 6 + index-store 5 + codebase-index 8 + codebase-match-source 7）
-  - description: 检索入上下文可审计可裁剪：agent-loop 以 query=userText 调 context-engine（恒定原始意图，工具回填迭代仍按意图检索）；命中块=独立 ContextItem（key=chunkId/score/路径行区间 label），manifest 落盘；context-engine 新增 itemOverrides 逐项开关（类型是总闸，剔除项 tokens=0/content 空），面板复选框剔除/恢复单块
+    verifier: packages/rag/tests（chunker 6 + index-store 5 + codebase-index 8 + codebase-match-source
+      7）
+  - description: 检索入上下文可审计可裁剪：agent-loop 以 query=userText 调 context-engine（恒定原始意图，工具回填迭代仍按意图检索）；命中块=独立
+      ContextItem（key=chunkId/score/路径行区间 label），manifest 落盘；context-engine 新增 itemOverrides
+      逐项开关（类型是总闸，剔除项 tokens=0/content 空），面板复选框剔除/恢复单块
     id: AC19
     status: completed
-    verifier: context-engine tests（setItemOverride 4 项新增）+ tests/e2e/verify-i10.mjs（login.ts 命中 score 0.632 优于 button.ts；剔除后 manifest 零注入）+ evidence/AC19
-  - description: 设置·通用分区「代码索引」：启用开关（settings "rag" 键热更新触发 refreshRag）+ 状态行（未启用/构建中 done/total/已就绪 N 文件 M 块/错误码，RagStatus 推送实时刷新）+ 手动重建按钮；embedder 经 OpenAI 兼容 /v1/embeddings（anthropic 类型优雅降级 DW_EMBED_UNSUPPORTED）；启用时自动打开 codebase_match 类型开关（一次性）；工作区文件事件驱动单文件增量同步；i18n 新增 rag.* 键 7 个 + ctx.codebase_match（中英同型）
+    verifier: context-engine tests（setItemOverride 4 项新增）+ tests/e2e/verify-i10.mjs（login.ts
+      命中 score 0.632 优于 button.ts；剔除后 manifest 零注入）+ evidence/AC19
+  - description: 设置·通用分区「代码索引」：启用开关（settings "rag" 键热更新触发 refreshRag）+ 状态行（未启用/构建中
+      done/total/已就绪 N 文件 M 块/错误码，RagStatus 推送实时刷新）+ 手动重建按钮；embedder 经 OpenAI 兼容 /v1/embeddings（anthropic
+      类型优雅降级 DW_EMBED_UNSUPPORTED）；启用时自动打开 codebase_match 类型开关（一次性）；工作区文件事件驱动单文件增量同步；i18n
+      新增 rag.* 键 7 个 + ctx.codebase_match（中英同型）
     id: AC19
     status: completed
-    verifier: tests/e2e/verify-i10.mjs（初始 disabled→启用→ready fileCount=2→设置页「已就绪」→关闭→disabled 热生效）+ evidence/AC19
-  notes: 修复三处接线——node_modules/@devwit 缺 rag workspace 符号链接（npm install 补建）；enqueue 返回 void 致 buildAll 不等待完成且任务失败毒化 Promise 链（改返回 Promise + 队列 catch 自愈 + buildAll/syncFile 内部兜底置 error 态，errorCodeOf 不再是死代码）；ai-runtime-trace 测试 workspace mock 补 onDidChange。preload 暴露 rag 段（getStatus/rebuild/onStatus），IPC 三通道（RagGetStatus/RagRebuild/RagStatus）
-  e2e_report: evidence/AC19/verify-i10-report.json (16 项断言全 PASS) + smoke/iteration2/verify-i4/verify-i6/verify-i7/verify-i8 回归 PASSED
+    verifier: tests/e2e/verify-i10.mjs（初始 disabled→启用→ready fileCount=2→设置页「已就绪」→关闭→disabled
+      热生效）+ evidence/AC19
+  notes: 修复三处接线——node_modules/@devwit 缺 rag workspace 符号链接（npm install 补建）；enqueue
+    返回 void 致 buildAll 不等待完成且任务失败毒化 Promise 链（改返回 Promise + 队列 catch 自愈 + buildAll/syncFile
+    内部兜底置 error 态，errorCodeOf 不再是死代码）；ai-runtime-trace 测试 workspace mock 补 onDidChange。preload
+    暴露 rag 段（getStatus/rebuild/onStatus），IPC 三通道（RagGetStatus/RagRebuild/RagStatus）
+  e2e_report: evidence/AC19/verify-i10-report.json (16 项断言全 PASS) + smoke/iteration2/verify-i4/verify-i6/verify-i7/verify-i8
+    回归 PASSED
   unit_tests: 43 files / 317 tests passed
 iteration_11:
   scope: 多 Agent 编排（AC20）：内置「编排」模式——Planner 意图分解 → 并行子 Agent 执行 → 综合结论，全程活动流归属可见
   acceptance_criteria:
-  - description: 'AgentOrchestrator（packages/agent-runtime/src/orchestrator.ts）：Planner 非流式调用分解子任务（严格 JSON 解析 parsePlannedTasks，失败/为空退化单任务 fallback=true 透明标注）；子任务 S1..Sn（上限 4）按并发上限 3 并行，每个子 Agent 是完整 AgentLoop（worker 系统提示后缀 + 独立子引擎 createSubEngine 防并发竞争 + 子轨迹事件转发父轨迹带 subagentId/subagentTitle 归属标记，终态事件不转发防误判）；综合阶段汇总各子任务结论流式输出（唯一走 delta 通道）；单子任务失败不拖垮整体（finishReason 在 subagent_done 与综合输入可见）'
+  - description: AgentOrchestrator（packages/agent-runtime/src/orchestrator.ts）：Planner
+      非流式调用分解子任务（严格 JSON 解析 parsePlannedTasks，失败/为空退化单任务 fallback=true 透明标注）；子任务 S1..Sn（上限
+      4）按并发上限 3 并行，每个子 Agent 是完整 AgentLoop（worker 系统提示后缀 + 独立子引擎 createSubEngine 防并发竞争
+      + 子轨迹事件转发父轨迹带 subagentId/subagentTitle 归属标记，终态事件不转发防误判）；综合阶段汇总各子任务结论流式输出（唯一走
+      delta 通道）；单子任务失败不拖垮整体（finishReason 在 subagent_done 与综合输入可见）
     id: AC20
     status: completed
-    verifier: packages/agent-runtime/tests/orchestrator.test.ts（10 项：完整编排/并发上限峰值=2/授权共享继承/fallback/取消）+ tests/e2e/verify-i11.mjs
-  - description: '授权门共享继承：全部子 Agent 共用同一 Authorizer——allow_session 裁决跨子任务继承（S1 write 本会话允许后 S2 write 免问）；子 Agent 授权请求 reason 经 chat-controller 按 detail.subagentId 前缀化（[S1] 写入文件: …）归属可见'
+    verifier: packages/agent-runtime/tests/orchestrator.test.ts（10 项：完整编排/并发上限峰值=2/授权共享继承/fallback/取消）+
+      tests/e2e/verify-i11.mjs
+  - description: '授权门共享继承：全部子 Agent 共用同一 Authorizer——allow_session 裁决跨子任务继承（S1 write
+      本会话允许后 S2 write 免问）；子 Agent 授权请求 reason 经 chat-controller 按 detail.subagentId
+      前缀化（[S1] 写入文件: …）归属可见'
     id: AC20
     status: completed
-    verifier: tests/e2e/verify-i11.mjs（服务端门控保证 S2 授权检查严格在 S1 写盘后，授权行恒为 1，无竞态）+ orchestrator.test.ts 授权共享用例
-  - description: '模式与 UI：内置 orchestrator 模式（orchestrate=true，全量工具集，displayModeName「编排/Orchestrator」）；ModeDefinition.orchestrate 字段校验（非 boolean 拒绝）；ai-runtime.run 按 mode.orchestrate 分流 AgentOrchestrator/AgentLoop；chat-ui 新增 plan（子任务清单/fallback 说明）与 subagent（开始/结束 + finishReason）活动项，对话区 .dw-msg-plan/.dw-msg-subagent 与指挥台活动流双形态渲染；historyFromTrace 过滤带 subagentId 的子代理内部事件不进对话历史（综合消息已承载结论）；i18n 新增 act.plan/act.subagent/mode.builtin.orchestrator.name 键（中英同型）'
+    verifier: tests/e2e/verify-i11.mjs（服务端门控保证 S2 授权检查严格在 S1 写盘后，授权行恒为 1，无竞态）+ orchestrator.test.ts
+      授权共享用例
+  - description: 模式与 UI：内置 orchestrator 模式（orchestrate=true，全量工具集，displayModeName「编排/Orchestrator」）；ModeDefinition.orchestrate
+      字段校验（非 boolean 拒绝）；ai-runtime.run 按 mode.orchestrate 分流 AgentOrchestrator/AgentLoop；chat-ui
+      新增 plan（子任务清单/fallback 说明）与 subagent（开始/结束 + finishReason）活动项，对话区 .dw-msg-plan/.dw-msg-subagent
+      与指挥台活动流双形态渲染；historyFromTrace 过滤带 subagentId 的子代理内部事件不进对话历史（综合消息已承载结论）；i18n
+      新增 act.plan/act.subagent/mode.builtin.orchestrator.name 键（中英同型）
     id: AC20
     status: completed
-    verifier: mode-store/chat-controller/trace 单测 + tests/e2e/verify-i11.mjs（29 项断言全 PASS：编排模式选中→plan 清单→子代理开始/结束行→授权继承→综合结论→trace-events.json 全量归属标记→fallback 退化）
-  notes: 修复 e2e 分流碰撞——orchestrator 模式系统提示含「子 Agent」字样致综合阶段请求被误路由 worker 分支，改用 WORKER_PROMPT_SUFFIX 精确短语「你现在是多 Agent 编排中的一个子 Agent」分流。contracts 新增 AgentTraceEventType=plan/subagent_start/subagent_done + SubTask 接口 + ModeDefinition.orchestrate。agent-loop 增 extraTools/executeExtraTool/maxIterations 依赖注入口子（子 Agent 透传 MCP 工具热聚合）
-  e2e_report: evidence/AC20/verify-i11-report.json (29 项断言全 PASS) + smoke/iteration2/verify-i4/verify-i6/verify-i7/verify-i8/verify-i10 回归 PASSED
+    verifier: mode-store/chat-controller/trace 单测 + tests/e2e/verify-i11.mjs（29 项断言全
+      PASS：编排模式选中→plan 清单→子代理开始/结束行→授权继承→综合结论→trace-events.json 全量归属标记→fallback 退化）
+  notes: 修复 e2e 分流碰撞——orchestrator 模式系统提示含「子 Agent」字样致综合阶段请求被误路由 worker 分支，改用 WORKER_PROMPT_SUFFIX
+    精确短语「你现在是多 Agent 编排中的一个子 Agent」分流。contracts 新增 AgentTraceEventType=plan/subagent_start/subagent_done
+    + SubTask 接口 + ModeDefinition.orchestrate。agent-loop 增 extraTools/executeExtraTool/maxIterations
+    依赖注入口子（子 Agent 透传 MCP 工具热聚合）
+  e2e_report: evidence/AC20/verify-i11-report.json (29 项断言全 PASS) + smoke/iteration2/verify-i4/verify-i6/verify-i7/verify-i8/verify-i10
+    回归 PASSED
   unit_tests: 40 files / 333 tests passed
 iteration_12:
   scope: 分发闭环（AC21）——补 Linux 构建 target，三平台（Windows/macOS/Linux）同一 prerelease 分发
   acceptance_criteria:
-  - description: 'electron-builder.yml 新增 linux 段：AppImage（electron-updater 在 Linux 唯一支持的自动更新格式）+ deb（Debian/Ubuntu 安装包，无自动更新——手动下载覆盖，与未签名 mac 同策略），category=Development；latest-linux.yml 与 latest.yml/latest-mac.yml 同名无冲突'
+  - description: electron-builder.yml 新增 linux 段：AppImage（electron-updater 在 Linux
+      唯一支持的自动更新格式）+ deb（Debian/Ubuntu 安装包，无自动更新——手动下载覆盖，与未签名 mac 同策略），category=Development；latest-linux.yml
+      与 latest.yml/latest-mac.yml 同名无冲突
     id: AC21
     status: completed
-    verifier: CI run 30075590128 实证（build-linux 2m18s success）——v0.1.1 prerelease 资产含 DevWit-0.1.1.AppImage (118.7MB) + devwit_0.1.1_amd64.deb (81.6MB) + latest-linux.yml
-  - description: 'release.yml 新增 build-linux job（ubuntu-latest）：npm ci → uname -m 自适应 linux-x64/arm64 二进制恢复（unzip + path.txt=electron）→ npm run dist → artifacts 追加同一 prerelease（*.AppImage/*.deb/*.blockmap/*.yml）'
+    verifier: CI run 30075590128 实证（build-linux 2m18s success）——v0.1.1 prerelease
+      资产含 DevWit-0.1.1.AppImage (118.7MB) + devwit_0.1.1_amd64.deb (81.6MB) + latest-linux.yml
+  - description: release.yml 新增 build-linux job（ubuntu-latest）：npm ci → uname -m 自适应
+      linux-x64/arm64 二进制恢复（unzip + path.txt=electron）→ npm run dist → artifacts 追加同一
+      prerelease（*.AppImage/*.deb/*.blockmap/*.yml）
     id: AC21
     status: completed
-    verifier: CI run 30075590128 四 job 全 success（prepare-release/windows/macOS/linux）——v0.1.1 prerelease 共 12 资产：exe+blockmap+latest.yml / dmg+zip+blockmap+latest-mac.yml / AppImage+deb+latest-linux.yml
-  notes: 本地为 Windows 环境无法实机构建 Linux 包，静态校验 + CI 实证（与迭代 9 macOS 同口径，已闭环）。v0.1.1 发布实测修复三处——(1) 三平台并行收尾竞争 create release 致 already_exists：新增 prepare-release 前置 job 统一建空 prerelease，构建 job needs 依赖只追加上传；(2) Linux 构建元数据缺失：package.json 补 homepage + author 带 email（deb 必需）；(3) dist 脚本补 --publish never 防 electron-builder 本地/CI 构建时误尝试发布。残留 v0.1.1 release 经 gh api 枚举全量删除后 rerun 成功。
+    verifier: CI run 30075590128 四 job 全 success（prepare-release/windows/macOS/linux）——v0.1.1
+      prerelease 共 12 资产：exe+blockmap+latest.yml / dmg+zip+blockmap+latest-mac.yml
+      / AppImage+deb+latest-linux.yml
+  notes: 本地为 Windows 环境无法实机构建 Linux 包，静态校验 + CI 实证（与迭代 9 macOS 同口径，已闭环）。v0.1.1 发布实测修复三处——(1)
+    三平台并行收尾竞争 create release 致 already_exists：新增 prepare-release 前置 job 统一建空 prerelease，构建
+    job needs 依赖只追加上传；(2) Linux 构建元数据缺失：package.json 补 homepage + author 带 email（deb
+    必需）；(3) dist 脚本补 --publish never 防 electron-builder 本地/CI 构建时误尝试发布。残留 v0.1.1 release
+    经 gh api 枚举全量删除后 rerun 成功。
   ci_evidence: run 30075590128 (success) — https://github.com/eeyzs1/DevWit/releases/tag/v0.1.1
 iteration_13:
   scope: 零成本模型接入（AC22）——免费软件分发目标下的首次上手门槛消除：预设目录 + 免 key 本地服务通道
   acceptance_criteria:
-  - description: 'ProviderPreset 目录（llm-providers/presets.ts）：Ollama（本地免 key，keyless=true）/ DeepSeek（低成本官方 API）/ OpenRouter（聚合含免费档）；AR002 合规——endpoint 知识只属 llm-providers 包，渲染端经 IPC providers:presets 拉取，零硬编码域名'
+  - description: ProviderPreset 目录（llm-providers/presets.ts）：Ollama（本地免 key，keyless=true）/
+      DeepSeek（低成本官方 API）/ OpenRouter（聚合含免费档）；AR002 合规——endpoint 知识只属 llm-providers
+      包，渲染端经 IPC providers:presets 拉取，零硬编码域名
     id: AC22
     status: completed
-    verifier: packages/contracts ProviderPreset 接口 + apps/desktop/tests/ipc-whitelist.test.ts（providers:presets 通道断言）+ tests/e2e/verify-i12.mjs（预设下拉四项）
-  - description: 'keyless 免密钥通道：ProviderConfig.keyless 字段（契约校验 boolean）；openai.ts 跳过凭证解析且不发 authorization 头；embeddings.ts 同样豁免（RAG 本地 embedding 零成本）；registry needKey 校验对 keyless 豁免；凭证存储零写入'
+    verifier: packages/contracts ProviderPreset 接口 + apps/desktop/tests/ipc-whitelist.test.ts（providers:presets
+      通道断言）+ tests/e2e/verify-i12.mjs（预设下拉四项）
+  - description: keyless 免密钥通道：ProviderConfig.keyless 字段（契约校验 boolean）；openai.ts 跳过凭证解析且不发
+      authorization 头；embeddings.ts 同样豁免（RAG 本地 embedding 零成本）；registry needKey 校验对
+      keyless 豁免；凭证存储零写入
     id: AC22
     status: completed
-    verifier: tests/e2e/verify-i12.mjs（服务端 auth-log 实证 /chat/completions 与 /embeddings 双路零 authorization 头 + credentials.list 零写入 + RAG 直达 ready 豁免 DW_RAG_NO_CREDENTIAL）
-  - description: '设置·模型分区预设 UX：预设下拉（自定义置顶 + 三服务）选中自动填 type/baseUrl/显示名/型号 datalist 建议；keyless 预设隐藏 API Key 行并显示免 key 说明（i18n provider.preset.* 中英同型）；回编辑按 type+baseUrl 回匹配预设，不匹配回退自定义但 keyless 按已存配置保留；onboarding step1 引导文案改为「Ollama 本地预设零成本上手」优先'
+    verifier: tests/e2e/verify-i12.mjs（服务端 auth-log 实证 /chat/completions 与 /embeddings
+      双路零 authorization 头 + credentials.list 零写入 + RAG 直达 ready 豁免 DW_RAG_NO_CREDENTIAL）
+  - description: 设置·模型分区预设 UX：预设下拉（自定义置顶 + 三服务）选中自动填 type/baseUrl/显示名/型号 datalist
+      建议；keyless 预设隐藏 API Key 行并显示免 key 说明（i18n provider.preset.* 中英同型）；回编辑按 type+baseUrl
+      回匹配预设，不匹配回退自定义但 keyless 按已存配置保留；onboarding step1 引导文案改为「Ollama 本地预设零成本上手」优先
     id: AC22
     status: completed
-    verifier: tests/e2e/verify-i12.mjs（自动填充/Key 行隐藏/回编辑 keyless 保留 16 项断言全 PASS）+ evidence/AC22（3 截图 + auth-log.json）
-  notes: 顺手清零 6 项 ESLint 存量错误——orchestrator.test.ts this 别名（重构为类私有 async generator consume）、orchestrator.ts/i18n.test.ts/ai-runtime-trace.test.ts 未用导入与形参、iteration2.mjs/verify-i8.mjs raw 未消费改 req.resume() 排空。P0-1 配套：根仓库与 generated/devwit 双份 MIT LICENSE（copyright eeyzs1）随包分发。
-  e2e_report: evidence/AC22/verify-i12-report.json (16 项断言全 PASS) + verify-i8/iteration2 回归 PASSED
+    verifier: tests/e2e/verify-i12.mjs（自动填充/Key 行隐藏/回编辑 keyless 保留 16 项断言全 PASS）+
+      evidence/AC22（3 截图 + auth-log.json）
+  notes: 顺手清零 6 项 ESLint 存量错误——orchestrator.test.ts this 别名（重构为类私有 async generator
+    consume）、orchestrator.ts/i18n.test.ts/ai-runtime-trace.test.ts 未用导入与形参、iteration2.mjs/verify-i8.mjs
+    raw 未消费改 req.resume() 排空。P0-1 配套：根仓库与 generated/devwit 双份 MIT LICENSE（copyright
+    eeyzs1）随包分发。
+  e2e_report: evidence/AC22/verify-i12-report.json (16 项断言全 PASS) + verify-i8/iteration2
+    回归 PASSED
   unit_tests: 42 files / 343 tests passed
 iteration_14:
   scope: 模式导出/导入 JSON（AC23）——无账号的社区分享方式（免费软件定位下的传播闭环配套）
   acceptance_criteria:
-  - description: '导出：设置·模式分区行内「导出」→ 主进程写 JSON，kind=devwit-mode/version=1 信封，负载剥离 id/builtin/createdAt/updatedAt 机器本地字段，内容保真'
+  - description: 导出：设置·模式分区行内「导出」→ 主进程写 JSON，kind=devwit-mode/version=1 信封，负载剥离 id/builtin/createdAt/updatedAt
+      机器本地字段，内容保真
     id: AC23
     status: completed
     verifier: packages/modes/src/mode-port.ts + tests/e2e/verify-i13.mjs + evidence/AC23
-  - description: '导入：删除后导入同名模式恢复（新 id + builtin=false + 工具/提示词全保真，直接入表单）；篡改 kind 拒绝并本地化报错「不是 DevWit 模式文件」；非 JSON 报「不是有效的 JSON」；文件内 providerId 本机不存在→导入后清空未绑定（跨机分享语义，可重绑）'
+  - description: 导入：删除后导入同名模式恢复（新 id + builtin=false + 工具/提示词全保真，直接入表单）；篡改 kind 拒绝并本地化报错「不是
+      DevWit 模式文件」；非 JSON 报「不是有效的 JSON」；文件内 providerId 本机不存在→导入后清空未绑定（跨机分享语义，可重绑）
     id: AC23
     status: completed
     verifier: tests/e2e/verify-i13.mjs（17 项断言全 PASS）+ evidence/AC23（2 截图 + verify-i13-report.json）
-  notes: 修复设置页布局缺陷——.dw-modal-list 在限高 flex 列父容器中被压缩至 0 高导致行内导出按钮不可见不可点，补 flex-shrink:0（空间不足由外层 settings-content 滚动承载）
+  notes: 修复设置页布局缺陷——.dw-modal-list 在限高 flex 列父容器中被压缩至 0 高导致行内导出按钮不可见不可点，补 flex-shrink:0（空间不足由外层
+    settings-content 滚动承载）
   e2e_report: evidence/AC23/verify-i13-report.json (17 项断言全 PASS)
 iteration_15:
   scope: 免费分发渠道（AC24）——包管理器（winget/Homebrew）+ README 双语下载指引；用户明确定位：免费软件，不做商业化基建
   acceptance_criteria:
-  - description: 'winget 清单四分件（version/installer/locale en-US/zh-CN）：真实 v0.1.1 exe URL + SHA256=9417C4D0…F0419；AppsAndFeaturesEntries（Publisher=eeyzs1/DisplayVersion=0.1.1/ProductCode=8de26b52-cf1c-58c4-8f9f-a7b471bba36e）取自本机 NSIS /S 真实安装注册表实证；winget validate 通过；/S 静默装至 HKCU per-user、/S 卸载零残留实证'
+  - description: winget 清单四分件（version/installer/locale en-US/zh-CN）：真实 v0.1.1 exe
+      URL + SHA256=9417C4D0…F0419；AppsAndFeaturesEntries（Publisher=eeyzs1/DisplayVersion=0.1.1/ProductCode=8de26b52-cf1c-58c4-8f9f-a7b471bba36e）取自本机
+      NSIS /S 真实安装注册表实证；winget validate 通过；/S 静默装至 HKCU per-user、/S 卸载零残留实证
     id: AC24
     status: completed
     verifier: distribution/winget/manifests/**（待提交 microsoft/winget-pkgs，README 已诚实标注状态）
-  - description: 'Homebrew tap 上线：创建 eeyzs1/homebrew-tap 并推送 Casks/devwit.rb（sha256=768b6d3a…8874 实证自 Release dmg 资产；depends_on arm64——v0.1.1 仅 Apple Silicon 构建；未签名 caveats 含 xattr 去隔离与 brew upgrade 路径），brew install --cask eeyzs1/tap/devwit 即刻可用'
+  - description: Homebrew tap 上线：创建 eeyzs1/homebrew-tap 并推送 Casks/devwit.rb（sha256=768b6d3a…8874
+      实证自 Release dmg 资产；depends_on arm64——v0.1.1 仅 Apple Silicon 构建；未签名 caveats 含
+      xattr 去隔离与 brew upgrade 路径），brew install --cask eeyzs1/tap/devwit 即刻可用
     id: AC24
     status: completed
     verifier: gh api repos/eeyzs1/homebrew-tap/contents/Casks/devwit.rb 实证在线（https://github.com/eeyzs1/homebrew-tap/blob/main/Casks/devwit.rb）
-  - description: 'README 双语下载指引：分平台直接下载链接（exe/dmg/AppImage/deb 文件名经 Releases API 枚举核实）+ brew/winget 命令 + 分平台自动更新说明表（Win/AppImage 应用内自动更新；未签名 mac 走 brew upgrade 或手动 dmg；deb 手动覆盖）'
+  - description: README 双语下载指引：分平台直接下载链接（exe/dmg/AppImage/deb 文件名经 Releases API 枚举核实）+
+      brew/winget 命令 + 分平台自动更新说明表（Win/AppImage 应用内自动更新；未签名 mac 走 brew upgrade 或手动
+      dmg；deb 手动覆盖）
     id: AC24
     status: completed
-    verifier: README.md / README_EN.md「下载安装 / Download & Install」段 + Releases API v0.1.1 资产枚举（12 资产）
-  notes: distribution/hash-assets.mjs 留存为版本升级重算校验和工具；tap 经 SSH 推送（HTTPS 凭据提示挂起，gh auth git protocol=ssh）；实证用临时下载件（dmg/exe/API 响应 JSON）已清理不入库；winget-pkgs 提交需 CLA 签署，留待用户亲自操作
+    verifier: README.md / README_EN.md「下载安装 / Download & Install」段 + Releases API
+      v0.1.1 资产枚举（12 资产）
+  notes: distribution/hash-assets.mjs 留存为版本升级重算校验和工具；tap 经 SSH 推送（HTTPS 凭据提示挂起，gh
+    auth git protocol=ssh）；实证用临时下载件（dmg/exe/API 响应 JSON）已清理不入库；winget-pkgs 提交需 CLA
+    签署，留待用户亲自操作
   distribution_evidence: https://github.com/eeyzs1/homebrew-tap + https://github.com/eeyzs1/DevWit/releases/tag/v0.1.1
 iteration_16:
   scope: 社区模式生态（AC25）——零账号分享飞轮：官方索引仓库 + 一键导入 + 状态归并
   acceptance_criteria:
-  - description: '索引客户端（modes/community.ts）：GET <base>/index.json，kind/version 校验（DW_MODES_INDEX_NOT_AN_INDEX / UNSUPPORTED_VERSION），file 字段防路径穿越；base 可经 DEVWIT_MODES_INDEX_URL 覆盖（e2e 本地 server），缺省 raw.githubusercontent.com/eeyzs1/devwit-modes/main'
+  - description: 索引客户端（modes/community.ts）：GET <base>/index.json，kind/version 校验（DW_MODES_INDEX_NOT_AN_INDEX
+      / UNSUPPORTED_VERSION），file 字段防路径穿越；base 可经 DEVWIT_MODES_INDEX_URL 覆盖（e2e 本地
+      server），缺省 raw.githubusercontent.com/eeyzs1/devwit-modes/main
     id: AC25
     status: completed
     verifier: packages/modes community 单测 + tests/e2e/verify-i14.mjs
-  - description: '设置·模式分区「社区模式」区：索引加载→条目渲染（名称/双语描述/作者/标签）→一键导入（经 mode-port 同一信封校验管线，新 id + builtin=false）→已导入归并（按名称匹配本地，按钮 disabled 显示「已导入」）；索引拉取失败本地化报错'
+  - description: 设置·模式分区「社区模式」区：索引加载→条目渲染（名称/双语描述/作者/标签）→一键导入（经 mode-port 同一信封校验管线，新
+      id + builtin=false）→已导入归并（按名称匹配本地，按钮 disabled 显示「已导入」）；索引拉取失败本地化报错
     id: AC25
     status: completed
     verifier: tests/e2e/verify-i14.mjs（断言全 PASS：渲染/导入/归并/错误路径）
-  notes: e2e 修复——waitForFunction 浏览器端只认标准 DOM，Playwright nth=/has-text 语法改 querySelectorAll 文本遍历。官方索引仓库 eeyzs1/devwit-modes 上线：5 个首发模式（code-reviewer/commit-scribe/test-writer/doc-writer/refactor-advisor），index.json v1 信封
+  notes: e2e 修复——waitForFunction 浏览器端只认标准 DOM，Playwright nth=/has-text 语法改 querySelectorAll
+    文本遍历。官方索引仓库 eeyzs1/devwit-modes 上线：5 个首发模式（code-reviewer/commit-scribe/test-writer/doc-writer/refactor-advisor），index.json
+    v1 信封
   index_evidence: https://github.com/eeyzs1/devwit-modes（index.json + modes/ 五件）
 iteration_17:
   scope: 首次运行成功路径（AC26）——连接探测 + 型号自动发现 + Ollama 安装引导（免费软件定位下的首配零输入目标）
   acceptance_criteria:
-  - description: 'probeProvider（llm-providers）：真实 GET {baseUrl}/models，5s 超时；三类失败归一 ASCII 错误码——DW_PROBE_TIMEOUT / DW_PROBE_UNREACHABLE / DW_PROBE_HTTP_<status>；keyless 整体跳过凭证解析与 authorization 头'
+  - description: probeProvider（llm-providers）：真实 GET {baseUrl}/models，5s 超时；三类失败归一
+      ASCII 错误码——DW_PROBE_TIMEOUT / DW_PROBE_UNREACHABLE / DW_PROBE_HTTP_<status>；keyless
+      整体跳过凭证解析与 authorization 头
     id: AC26
     status: completed
-    verifier: packages/llm-providers/tests/probe.test.ts + tests/e2e/verify-i15.mjs + evidence/AC26/auth-log.json
-  - description: '设置·模型分区「测试连接」：成功→状态行「连接成功 · 发现 N 个模型」+ 型号 datalist 回填 + 自动预填首发现型号；失败→本地化报错，Ollama 预设追加安装引导（ollama.com + ollama pull）；带 key 探测按原样携带 Bearer 头'
+    verifier: packages/llm-providers/tests/probe.test.ts + tests/e2e/verify-i15.mjs
+      + evidence/AC26/auth-log.json
+  - description: 设置·模型分区「测试连接」：成功→状态行「连接成功 · 发现 N 个模型」+ 型号 datalist 回填 + 自动预填首发现型号；失败→本地化报错，Ollama
+      预设追加安装引导（ollama.com + ollama pull）；带 key 探测按原样携带 Bearer 头
     id: AC26
     status: completed
-    verifier: tests/e2e/verify-i15.mjs（10 项断言全 PASS：keyless 零头 / 带 key Bearer 原样 / 死端口本地化 / Ollama 引导）+ evidence/AC26
-  - description: '主进程 IPC ProvidersProbe：credentialRef 经 settings.resolve 解析（fakeServices 补 resolve mock）；preload 暴露 providers.probe；IPC 白名单测试补通道断言'
+    verifier: tests/e2e/verify-i15.mjs（10 项断言全 PASS：keyless 零头 / 带 key Bearer 原样 /
+      死端口本地化 / Ollama 引导）+ evidence/AC26
+  - description: 主进程 IPC ProvidersProbe：credentialRef 经 settings.resolve 解析（fakeServices
+      补 resolve mock）；preload 暴露 providers.probe；IPC 白名单测试补通道断言
     id: AC26
     status: completed
     verifier: apps/desktop/tests/ipc-whitelist.test.ts + apps/desktop/src/main/ipc.ts
-  notes: 预设 endpoint 硬编码经 qg-allow 人工评审豁免（992a017）——AR002 规定 endpoint 知识单一归属 llm-providers 包，外置配置反而破坏事实源
-  e2e_report: evidence/AC26/verify-i15-report.json (10 项断言全 PASS) + 12 套 e2e 全量回归 PASSED
+  notes: 预设 endpoint 硬编码经 qg-allow 人工评审豁免（992a017）——AR002 规定 endpoint 知识单一归属 llm-providers
+    包，外置配置反而破坏事实源
+  e2e_report: evidence/AC26/verify-i15-report.json (10 项断言全 PASS) + 12 套 e2e 全量回归
+    PASSED
   unit_tests: 45 files / 371 tests passed
 iteration_18:
   scope: 首次运行向导（AC27）——语言→模型→完成 三步引导，首启自动弹出 + 设置页可重跑
   acceptance_criteria:
-  - description: 'onboarding-wizard.ts：全新 userData 首启自动弹出（onboarding.state 未完成且无模型配置时），三步进度指示；老用户升级静默标记完成不打扰；跳过/完成均持久化 completed'
+  - description: onboarding-wizard.ts：全新 userData 首启自动弹出（onboarding.state 未完成且无模型配置时），三步进度指示；老用户升级静默标记完成不打扰；跳过/完成均持久化
+      completed
     id: AC27
     status: completed
     verifier: tests/e2e/verify-i16.mjs + evidence/AC27（01 首启弹出 / 06 同 userData 重启缺席）
-  - description: '语言步：跟随系统/中文/English，切换热生效（界面即时重渲染）并持久化 ui.locale；模型步：默认 Ollama 预设（keyless 隐藏 API Key 行），「测试连接」自动发现型号回填 datalist 并预填首选，保存后 provider 持久化 keyless=true 且凭证存储零写入'
+  - description: 语言步：跟随系统/中文/English，切换热生效（界面即时重渲染）并持久化 ui.locale；模型步：默认 Ollama 预设（keyless
+      隐藏 API Key 行），「测试连接」自动发现型号回填 datalist 并预填首选，保存后 provider 持久化 keyless=true 且凭证存储零写入
     id: AC27
     status: completed
-    verifier: tests/e2e/verify-i16.mjs（18 项断言全 PASS：English 热切换 / ui.locale 持久化 / 探测回填 / auth-log 零 authorization 头 / credentials 零写入）
-  - description: '完成步「打开文件夹」→ 文件树就绪向导关闭，向导配置的 provider 即刻真实对话可用；设置·通用新增「重新运行首次运行向导」入口'
+    verifier: tests/e2e/verify-i16.mjs（18 项断言全 PASS：English 热切换 / ui.locale 持久化 /
+      探测回填 / auth-log 零 authorization 头 / credentials 零写入）
+  - description: 完成步「打开文件夹」→ 文件树就绪向导关闭，向导配置的 provider 即刻真实对话可用；设置·通用新增「重新运行首次运行向导」入口
     id: AC27
     status: completed
-    verifier: tests/e2e/verify-i16.mjs（截图 04 文件树 / 05 真实对话 SSE 渲染 + 服务端零 authorization 头）+ settings-dialog.ts onRerunWizard
-  notes: E2E 隔离钩子——DEVWIT_USER_DATA_DIR 环境默认抑制向导（主进程启动时预置 onboarding.state.completed），DEVWIT_E2E_WIZARD=1 显式开启，既有 12 套 e2e 零改动回归通过
-  e2e_report: evidence/AC27/verify-i16-report.json (18 项断言全 PASS) + 13 套 e2e 全量回归 PASSED
+    verifier: tests/e2e/verify-i16.mjs（截图 04 文件树 / 05 真实对话 SSE 渲染 + 服务端零 authorization
+      头）+ settings-dialog.ts onRerunWizard
+  notes: E2E 隔离钩子——DEVWIT_USER_DATA_DIR 环境默认抑制向导（主进程启动时预置 onboarding.state.completed），DEVWIT_E2E_WIZARD=1
+    显式开启，既有 12 套 e2e 零改动回归通过
+  e2e_report: evidence/AC27/verify-i16-report.json (18 项断言全 PASS) + 13 套 e2e 全量回归
+    PASSED
   unit_tests: 45 files / 371 tests passed
 iteration_19:
   scope: 对话输入增强（AC28）——@文件引用（补全+chips+全文注入+manifest 审计）+ /斜杠命令速切模式
   acceptance_criteria:
-  - description: '@文件引用：输入 @ 弹文件候选（basename 优先过滤，键鼠可选），选中成 chip（去重、×可剔除、@查询原文清除）；发送时 chips 经 ChatContextSnapshot.attachments → AgentRunInput → 主进程 attachmentSource 逐文件读全文注入为独立 file_fragment 项（key=attachment:<路径> 稳定，逐项可剔除，剔除项零注入 manifest 保留可见条目）'
+  - description: '@文件引用：输入 @ 弹文件候选（basename 优先过滤，键鼠可选），选中成 chip（去重、×可剔除、@查询原文清除）；发送时
+      chips 经 ChatContextSnapshot.attachments → AgentRunInput → 主进程 attachmentSource
+      逐文件读全文注入为独立 file_fragment 项（key=attachment:<路径> 稳定，逐项可剔除，剔除项零注入 manifest 保留可见条目）'
     id: AC28
     status: completed
-    verifier: tests/e2e/verify-i17.mjs + evidence/AC28（服务端请求体两附件 MAGIC_TOKEN/beta 可见、用户原文无 @残留、manifest-latest.json attachment 项 enabled+token 精确计数）+ packages/context-engine/tests/sources.test.ts + agent-runtime/tests/agent-loop.test.ts（注入/剔除/默认关 3 项）
-  - description: '/斜杠命令：行首 / 弹模式候选（id 与本地化显示名均可过滤），Enter/Tab/点击选中即 setMode 并清空命令原文；候选打开时方向键导航、Esc 关闭，不触发发送'
+    verifier: tests/e2e/verify-i17.mjs + evidence/AC28（服务端请求体两附件 MAGIC_TOKEN/beta
+      可见、用户原文无 @残留、manifest-latest.json attachment 项 enabled+token 精确计数）+ packages/context-engine/tests/sources.test.ts
+      + agent-runtime/tests/agent-loop.test.ts（注入/剔除/默认关 3 项）
+  - description: /斜杠命令：行首 / 弹模式候选（id 与本地化显示名均可过滤），Enter/Tab/点击选中即 setMode 并清空命令原文；候选打开时方向键导航、Esc
+      关闭，不触发发送
     id: AC28
     status: completed
-    verifier: tests/e2e/verify-i17.mjs（/age 过滤唯一命中 agent → Enter 速切模式下拉变 agent 输入清空；/ 全量列表点选切回 chat；切后第二轮真实对话正常）+ packages/chat-ui/tests/input-triggers.test.ts（17 项）
-  - description: '数据链路：contracts AgentRunInput/ContextCollectInput 增 attachments；agent-loop 透传且本轮带附件时强制打开 file_fragment 类型闸（用户全局开关仍可压过，保持 AC2 总闸语义）；attachmentSource 注册进 ai-runtime 会话引擎与编排子引擎'
+    verifier: tests/e2e/verify-i17.mjs（/age 过滤唯一命中 agent → Enter 速切模式下拉变 agent 输入清空；/
+      全量列表点选切回 chat；切后第二轮真实对话正常）+ packages/chat-ui/tests/input-triggers.test.ts（17
+      项）
+  - description: 数据链路：contracts AgentRunInput/ContextCollectInput 增 attachments；agent-loop
+      透传且本轮带附件时强制打开 file_fragment 类型闸（用户全局开关仍可压过，保持 AC2 总闸语义）；attachmentSource 注册进
+      ai-runtime 会话引擎与编排子引擎
     id: AC28
     status: completed
-    verifier: packages/chat-ui/tests/chat-controller.test.ts（attachments 透传/空数组省略）+ tests/e2e/verify-i17.mjs（manifest 落盘审计）
-  notes: chip 化设计（引用不留在 textarea 文本）保证用户原文干净；input-triggers 纯函数模块独立可测；placeholder 双语更新为「@ 引用文件，/ 切换模式」
-  e2e_report: evidence/AC28/verify-i17-report.json (23 项断言全 PASS) + 14 套 e2e 全量回归 PASSED（smoke + i2~i17）
+    verifier: packages/chat-ui/tests/chat-controller.test.ts（attachments 透传/空数组省略）+
+      tests/e2e/verify-i17.mjs（manifest 落盘审计）
+  notes: chip 化设计（引用不留在 textarea 文本）保证用户原文干净；input-triggers 纯函数模块独立可测；placeholder
+    双语更新为「@ 引用文件，/ 切换模式」
+  e2e_report: evidence/AC28/verify-i17-report.json (23 项断言全 PASS) + 14 套 e2e 全量回归
+    PASSED（smoke + i2~i17）
   unit_tests: 46 files / 395 tests passed
 v020_release:
   scope: v0.2.0 发版 + 包管理器升版
   facts:
-  - tag v0.2.0（1e2cb89）CI 三平台构建成功，Release 12 资产（exe/dmg/zip/AppImage/deb + blockmap + latest*.yml）
-  - 资产完整性实证：exe MZ 头 + dmg koly 尾，大小与 Release 元数据一致；sha256 重算 exe=4A38F963…C4B47 / dmg=27bc9cba…6327
+  - tag v0.2.0（1e2cb89）CI 三平台构建成功，Release 12 资产（exe/dmg/zip/AppImage/deb + blockmap
+    + latest*.yml）
+  - 资产完整性实证：exe MZ 头 + dmg koly 尾，大小与 Release 元数据一致；sha256 重算 exe=4A38F963…C4B47 /
+    dmg=27bc9cba…6327
   - 主仓库清单升版 adf390a：winget 0.2.0 四分件 + homebrew cask version/sha256
-  - homebrew-tap 6cbf5be「devwit 0.2.0」已推送，brew install --cask eeyzs1/tap/devwit 即装 0.2.0
-  - winget PR microsoft/winget-pkgs#407506：验证管线 Validation-Completed + Azure-Pipeline-Passed；Microsoft CLA 已由用户以个人名义签署（license/cla check SUCCESS）；等待社区 moderator 审批（New-Package 流程）
+  - homebrew-tap 6cbf5be「devwit 0.2.0」已推送，brew install --cask eeyzs1/tap/devwit 即装
+    0.2.0
+  - winget PR microsoft/winget-pkgs#407506：验证管线 Validation-Completed + Azure-Pipeline-Passed；Microsoft
+    CLA 已由用户以个人名义签署（license/cla check SUCCESS）；等待社区 moderator 审批（New-Package 流程）
 iteration_20:
   scope: 授权白名单学习（AC29）——批准的命令达阈值毕业进白名单，后续同命令自动放行
   acceptance_criteria:
-  - description: 'bash 授权学习：用户批准同命令 N 次（阈值 2）后命令毕业进 settings 白名单持久化；后续同命令 authorization_auto 事件（source=whitelist）自动放行不再弹窗；设置·通用分区白名单列表可逐条移除/清空，移除后同命令重新询问'
+  - description: bash 授权学习：用户批准同命令 N 次（阈值 2）后命令毕业进 settings 白名单持久化；后续同命令 authorization_auto
+      事件（source=whitelist）自动放行不再弹窗；设置·通用分区白名单列表可逐条移除/清空，移除后同命令重新询问
     id: AC29
     status: completed
-    verifier: tests/e2e/verify-i18.mjs（12 项断言全 PASS：三轮 echo 真实执行 2 询问 + 1 自动放行，marker 三行落盘，磁盘轨迹 authorization_request×2/auto×1 审计链完整，移除后重新询问 + 计数阈值语义）+ evidence/AC29
+    verifier: tests/e2e/verify-i18.mjs（12 项断言全 PASS：三轮 echo 真实执行 2 询问 + 1 自动放行，marker
+      三行落盘，磁盘轨迹 authorization_request×2/auto×1 审计链完整，移除后重新询问 + 计数阈值语义）+ evidence/AC29
   e2e_report: evidence/AC29/verify-i18-report.json (12 项断言全 PASS)
 iteration_21:
   scope: 编辑后诊断回馈（AC30）——agent write/edit 后真跑 tsc，诊断注入下一轮上下文
   acceptance_criteria:
-  - description: 'write 工具执行后对工作区真跑 tsc --noEmit，发现问题活动流报「编辑后发现 N 个问题（首个位置）」并注入本轮上下文（诊断文本含错误码如 TS2322）；修复后诊断清零；模式「诊断」策略默认勾选可逐项关闭；磁盘轨迹 diagnostics 事件带 file/line/column/code/message 明细'
+  - description: write 工具执行后对工作区真跑 tsc --noEmit，发现问题活动流报「编辑后发现 N 个问题（首个位置）」并注入本轮上下文（诊断文本含错误码如
+      TS2322）；修复后诊断清零；模式「诊断」策略默认勾选可逐项关闭；磁盘轨迹 diagnostics 事件带 file/line/column/code/message
+      明细
     id: AC30
     status: completed
-    verifier: tests/e2e/verify-i19.mjs（6 项断言全 PASS：坏文件写入→TS2322@broken.ts 注入第 2 轮请求体→修复写盘→诊断清零，轨迹 diagnostics×2 明细落盘）+ evidence/AC30
+    verifier: tests/e2e/verify-i19.mjs（6 项断言全 PASS：坏文件写入→TS2322@broken.ts 注入第 2 轮请求体→修复写盘→诊断清零，轨迹
+      diagnostics×2 明细落盘）+ evidence/AC30
   e2e_report: evidence/AC30/verify-i19-report.json (6 项断言全 PASS)
 iteration_22:
   scope: 本地小模型路由（AC31）——简单任务走本地 keyless provider，复杂/手动/停用回退模式绑定
   acceptance_criteria:
-  - description: 'task-router 复杂度评分（关键词 + 范围），设置·通用「本地小模型路由」区配置 enabled/localProviderId/阈值热持久化 routing.local；评分 < 阈值 routed=local 走本地 provider，≥ 阈值 routed=complex 走模式绑定；enabled=false → disabled 回退；对话手动选模型 → manual 跳过自动路由；活动流路由行 + 磁盘轨迹 route 事件（score/threshold/reasons/providerId）可审计'
+  - description: task-router 复杂度评分（关键词 + 范围），设置·通用「本地小模型路由」区配置 enabled/localProviderId/阈值热持久化
+      routing.local；评分 < 阈值 routed=local 走本地 provider，≥ 阈值 routed=complex 走模式绑定；enabled=false
+      → disabled 回退；对话手动选模型 → manual 跳过自动路由；活动流路由行 + 磁盘轨迹 route 事件（score/threshold/reasons/providerId）可审计
     id: AC31
     status: completed
-    verifier: tests/e2e/verify-i20.mjs（12 项断言全 PASS：双端点计数证明 local/complex/disabled/manual 四态命中，轨迹 route×4 明细逐项落盘）+ tests/routing.test.ts + agent-runtime/tests/task-router.test.ts + evidence/AC31
+    verifier: tests/e2e/verify-i20.mjs（12 项断言全 PASS：双端点计数证明 local/complex/disabled/manual
+      四态命中，轨迹 route×4 明细逐项落盘）+ tests/routing.test.ts + agent-runtime/tests/task-router.test.ts
+      + evidence/AC31
   notes: 每次 run 先记 route 事件（路由决策可审计）——verify-i6 轨迹断言同步剔除 route 后校验核心序列
   e2e_report: evidence/AC31/verify-i20-report.json (12 项断言全 PASS)
 iteration_23:
   scope: 工作流记忆（AC32）——成功任务轨迹沉淀为可复用工作流模板，相似任务注入建议
   acceptance_criteria:
-  - description: 'workflow-memory：成功完成任务（有工具调用）沉淀模板（intent/modeId/tools/learnedAt/reuseCount）持久化 settings workflow.memory.templates；新任务意图相似（共享关键词）时注入 workflow 类型 ContextItem（标注「建议，非指令」），复用后 reuseCount+1 且落 lastReuseAt；设置·通用「工作流记忆」区开关热生效 + 模板逐条删除；磁盘轨迹 workflow 事件（phase=reuse，templateId/shared/reuseCount）可审计；停用后不学习不匹配'
+  - description: workflow-memory：成功完成任务（有工具调用）沉淀模板（intent/modeId/tools/learnedAt/reuseCount）持久化
+      settings workflow.memory.templates；新任务意图相似（共享关键词）时注入 workflow 类型 ContextItem（标注「建议，非指令」），复用后
+      reuseCount+1 且落 lastReuseAt；设置·通用「工作流记忆」区开关热生效 + 模板逐条删除；磁盘轨迹 workflow 事件（phase=reuse，templateId/shared/reuseCount）可审计；停用后不学习不匹配
     id: AC32
     status: completed
-    verifier: tests/e2e/verify-i21.mjs（12 项断言全 PASS：任务1沉淀模板→任务2命中复用行 + 请求体含建议项→reuseCount 0→1→manifest workflow 项 enabled+token 精确→设置 UI 删除/停用后零沉淀零匹配）+ agent-runtime/tests/workflow-memory.test.ts + evidence/AC32
+    verifier: tests/e2e/verify-i21.mjs（12 项断言全 PASS：任务1沉淀模板→任务2命中复用行 + 请求体含建议项→reuseCount
+      0→1→manifest workflow 项 enabled+token 精确→设置 UI 删除/停用后零沉淀零匹配）+ agent-runtime/tests/workflow-memory.test.ts
+      + evidence/AC32
   e2e_report: evidence/AC32/verify-i21-report.json (12 项断言全 PASS)
 iteration_24:
   scope: 模式运行统计与推荐（AC33）——成功率驱动相似任务模式切换建议，用户显式采纳
   acceptance_criteria:
-  - description: 'ModeStatsTracker：completed 记成功、error 记失败（cancelled/max iterations/aborted 不定级）持久化 settings mode.stats；工作流命中且候选模式定级数 ≥3 且成功率高于当前 → 活动流「模式推荐」行（候选/成功率/定级数/当前 + 模板意图）+ 一键切换按钮；采纳后行转「已采纳」面板模式热切换，后续消息按新模式定级；设置·模式分区行内显示「成功率 X%（n/n 次定级）」；磁盘轨迹 mode_recommend 事件明细可审计'
+  - description: ModeStatsTracker：completed 记成功、error 记失败（cancelled/max iterations/aborted
+      不定级）持久化 settings mode.stats；工作流命中且候选模式定级数 ≥3 且成功率高于当前 → 活动流「模式推荐」行（候选/成功率/定级数/当前
+      + 模板意图）+ 一键切换按钮；采纳后行转「已采纳」面板模式热切换，后续消息按新模式定级；设置·模式分区行内显示「成功率 X%（n/n 次定级）」；磁盘轨迹
+      mode_recommend 事件明细可审计
     id: AC33
     status: completed
-    verifier: tests/e2e/verify-i22.mjs（16 项断言全 PASS：门槛闸 <3 不推荐→agent 3/3 后 chat 相似任务出推荐行→采纳闭环切换→agent 4/4 chat 停留 2/2→设置行内成功率）+ tests/mode-stats.test.ts + agent-runtime/tests/mode-stats.test.ts + evidence/AC33
+    verifier: tests/e2e/verify-i22.mjs（16 项断言全 PASS：门槛闸 <3 不推荐→agent 3/3 后 chat 相似任务出推荐行→采纳闭环切换→agent
+      4/4 chat 停留 2/2→设置行内成功率）+ tests/mode-stats.test.ts + agent-runtime/tests/mode-stats.test.ts
+      + evidence/AC33
   e2e_report: evidence/AC33/verify-i22-report.json (16 项断言全 PASS)
 iteration_25:
   scope: 社区 MCP 服务器索引（AC34）——社区索引扩展 mcpServers 段，一键导入热启动
   acceptance_criteria:
-  - description: 'packages/mcp/community.ts：与社区模式同一索引信封（kind=devwit-modes-index）解析 mcpServers 段（file/name/description/author/tools 预告）；服务器文件 kind=devwit-mcp-server 校验（版本/kind/schema 非法均抛 DW_MCP_* ASCII 错误码）；materializeMcpImport 生成新 id 负载保真；IPC McpCommunityList/Import 双通道，导入即 upsert 热启动聚合工具'
+  - description: packages/mcp/community.ts：与社区模式同一索引信封（kind=devwit-modes-index）解析
+      mcpServers 段（file/name/description/author/tools 预告）；服务器文件 kind=devwit-mcp-server
+      校验（版本/kind/schema 非法均抛 DW_MCP_* ASCII 错误码）；materializeMcpImport 生成新 id 负载保真；IPC
+      McpCommunityList/Import 双通道，导入即 upsert 热启动聚合工具
     id: AC34
     status: completed
-    verifier: packages/mcp/tests/community.test.ts（14 项：解析/路径穿越防护/信封与负载校验/id 生成）+ tests/e2e/verify-i23.mjs（导入 fake-mcp-server 真实 stdio 启动 → ready + 工具 3 个聚合全名可见）
-  - description: '设置·MCP 分区「社区 MCP 服务器」区：索引加载 → 条目（名称 + 作者 + 预告工具数）渲染 → 一键导入热启动 → 结果直接入表单；已导入条目按钮置 disabled 显示「已导入」（按显示名归并）；删除本地服务器社区行恢复「导入」；索引源 500 状态行本地化报错；i18n 新增 mcp.community.* 9 键 + err.mcpIndex*/mcpServer* 10 键（中英同型）'
+    verifier: packages/mcp/tests/community.test.ts（14 项：解析/路径穿越防护/信封与负载校验/id 生成）+
+      tests/e2e/verify-i23.mjs（导入 fake-mcp-server 真实 stdio 启动 → ready + 工具 3 个聚合全名可见）
+  - description: 设置·MCP 分区「社区 MCP 服务器」区：索引加载 → 条目（名称 + 作者 + 预告工具数）渲染 → 一键导入热启动 → 结果直接入表单；已导入条目按钮置
+      disabled 显示「已导入」（按显示名归并）；删除本地服务器社区行恢复「导入」；索引源 500 状态行本地化报错；i18n 新增 mcp.community.*
+      9 键 + err.mcpIndex*/mcpServer* 10 键（中英同型）
     id: AC34
     status: completed
-    verifier: tests/e2e/verify-i23.mjs（全部断言 PASS：条目渲染/导入新 id 负载保真/ready+3 工具/表单回填/已导入归并/删除恢复/500 报错截图）+ evidence/AC34
-  notes: 官方索引仓库 distribution/community-modes/index.json 增 mcpServers 段（filesystem/fetch 两示例条目 + mcp/*.json 服务器文件）；contracts 增 CommunityMcpEntry 与 IPC 双通道
+    verifier: tests/e2e/verify-i23.mjs（全部断言 PASS：条目渲染/导入新 id 负载保真/ready+3 工具/表单回填/已导入归并/删除恢复/500
+      报错截图）+ evidence/AC34
+  notes: 官方索引仓库 distribution/community-modes/index.json 增 mcpServers 段（filesystem/fetch
+    两示例条目 + mcp/*.json 服务器文件）；contracts 增 CommunityMcpEntry 与 IPC 双通道
   e2e_report: evidence/AC34/verify-i23-report.json (全部断言 PASS)
 iteration_26:
   scope: Token 用量可观测（AC35）——provider usage 帧真实计量，跨迭代/编排求和，账本落盘 + 聚合 IPC + 设置区可视化
   acceptance_criteria:
-  - description: '真实计量：provider SSE usage 帧（openai stream_options.include_usage 末尾统计帧 / anthropic message_delta usage）经 llm-providers 解析为 usage 事件；agent-loop 跨迭代求和（TokenUsage input/output），编排路径 Planner + 各子 Agent + 综合三路求和；AgentRunResult.usage 仅在 provider 真实回报时存在（未回报不计入）'
+  - description: 真实计量：provider SSE usage 帧（openai stream_options.include_usage 末尾统计帧
+      / anthropic message_delta usage）经 llm-providers 解析为 usage 事件；agent-loop 跨迭代求和（TokenUsage
+      input/output），编排路径 Planner + 各子 Agent + 综合三路求和；AgentRunResult.usage 仅在 provider
+      真实回报时存在（未回报不计入）
     id: AC35
     status: completed
-    verifier: agent-runtime/tests/agent-loop.test.ts + tests/ai-runtime-trace.test.ts（AC35×2：跨迭代求和落账本 + 未回报不入账）+ tests/e2e/verify-i24.mjs（24 项断言全 PASS）
-  - description: 'UsageStore append-only 账本 userData/usage.jsonl（UsageRecord: ts/sessionId/modeId/providerId/model/双 token/finishReason）；summary 聚合 total/today（本地日期键）/byMode/byProvider；坏行容忍跳过；clear 删账本不动会话轨迹（审计隔离）；IPC usage:summary/usage:clear 白名单注册'
+    verifier: agent-runtime/tests/agent-loop.test.ts + tests/ai-runtime-trace.test.ts（AC35×2：跨迭代求和落账本
+      + 未回报不入账）+ tests/e2e/verify-i24.mjs（24 项断言全 PASS）
+  - description: 'UsageStore append-only 账本 userData/usage.jsonl（UsageRecord: ts/sessionId/modeId/providerId/model/双
+      token/finishReason）；summary 聚合 total/today（本地日期键）/byMode/byProvider；坏行容忍跳过；clear
+      删账本不动会话轨迹（审计隔离）；IPC usage:summary/usage:clear 白名单注册'
     id: AC35
     status: completed
-    verifier: tests/usage-store.test.ts（空账本/跨天聚合/坏行容忍/清零）+ tests/ipc-whitelist.test.ts + evidence/AC35/usage-ledger.json + usage-summary.json
-  - description: 'UI 可视化：活动流/对话面板「用量」行先于完成行渲染（dw-act-usage/dw-msg-usage，与上下文面板 manifest 估算互补）；设置·通用分区「用量统计」区今日/累计/按模式（用户改名优先）/按服务商四组行 + 刷新/清零按钮；清零后空态 + summary 归零；i18n 新增 act.usage*/settings.usage.* 11 键（中英同型）'
+    verifier: tests/usage-store.test.ts（空账本/跨天聚合/坏行容忍/清零）+ tests/ipc-whitelist.test.ts
+      + evidence/AC35/usage-ledger.json + usage-summary.json
+  - description: UI 可视化：活动流/对话面板「用量」行先于完成行渲染（dw-act-usage/dw-msg-usage，与上下文面板 manifest
+      估算互补）；设置·通用分区「用量统计」区今日/累计/按模式（用户改名优先）/按服务商四组行 + 刷新/清零按钮；清零后空态 + summary 归零；i18n
+      新增 act.usage*/settings.usage.* 11 键（中英同型）
     id: AC35
     status: completed
-    verifier: tests/e2e/verify-i24.mjs（24 项断言全 PASS：chat 50/6 + agent 求和 100/20 行先于完成行，账本 2 条明细，轨迹 usage×2 先于 done，summary total/today 150/26·2 byMode/byProvider 分布，设置区渲染截图，清零闭环轨迹保留）+ evidence/AC35
-  notes: verify-i6 核心序列断言同步剔除 usage（同 AC31 route：附加观测事件不改变对话核心序列）；contracts 增 UsageRecord/UsageSummary 与 IPC 双通道 + AgentTraceEventType "usage"
+    verifier: tests/e2e/verify-i24.mjs（24 项断言全 PASS：chat 50/6 + agent 求和 100/20 行先于完成行，账本
+      2 条明细，轨迹 usage×2 先于 done，summary total/today 150/26·2 byMode/byProvider 分布，设置区渲染截图，清零闭环轨迹保留）+
+      evidence/AC35
+  notes: verify-i6 核心序列断言同步剔除 usage（同 AC31 route：附加观测事件不改变对话核心序列）；contracts 增 UsageRecord/UsageSummary
+    与 IPC 双通道 + AgentTraceEventType "usage"
   e2e_report: evidence/AC35/verify-i24-report.json (24 项断言全 PASS)
 iteration_27:
   scope: Agent 可观测性 II（AC36）——轨迹时间线可视化 + 失败定位 + 会话回放 + 成本估算
   acceptance_criteria:
-  - description: '轨迹时间线：packages/chat-ui/trace-timeline.ts 把持久化轨迹渲染为审计时间线（seq 徽标 + 类型徽标 + 时刻 + 相邻耗时 +Δms，点击展开结构化 detail）；类型过滤（全部/消息/工具/授权/用量/失败）含空态；侧栏「轨迹」页签接入'
+  - description: 轨迹时间线：packages/chat-ui/trace-timeline.ts 把持久化轨迹渲染为审计时间线（seq 徽标 +
+      类型徽标 + 时刻 + 相邻耗时 +Δms，点击展开结构化 detail）；类型过滤（全部/消息/工具/授权/用量/失败）含空态；侧栏「轨迹」页签接入
     id: AC36
     status: completed
-    verifier: packages/chat-ui/tests/trace-timeline.test.ts（过滤/Δms/类型键映射纯函数）+ tests/e2e/verify-i25.mjs（32 项断言全 PASS）+ evidence/AC36/01-trace-live-timeline.png
-  - description: '失败定位：isFailureTraceEvent 同规则（error 事件 / 工具结果 ok:false / 授权裁决 deny）主渲染两端一致高亮；「跳到下一个失败」循环导航；「失败」过滤只余失败行；拒绝授权的工具未真实执行（write 未写盘）'
+    verifier: packages/chat-ui/tests/trace-timeline.test.ts（过滤/Δms/类型键映射纯函数）+ tests/e2e/verify-i25.mjs（32
+      项断言全 PASS）+ evidence/AC36/01-trace-live-timeline.png
+  - description: 失败定位：isFailureTraceEvent 同规则（error 事件 / 工具结果 ok:false / 授权裁决 deny）主渲染两端一致高亮；「跳到下一个失败」循环导航；「失败」过滤只余失败行；拒绝授权的工具未真实执行（write
+      未写盘）
     id: AC36
     status: completed
     verifier: tests/e2e/verify-i25.mjs（deny 后 write 未写盘 + 失败导航循环 + 失败过滤断言）+ evidence/AC36/02-trace-failures.png
-  - description: '会话回放：traceList IPC 按 lastAt 倒序返回会话摘要（preview 取首条用户消息 / 事件数 / hasError）；活跃会话实时追加且回放禁用，历史会话进入回放——步进/自动播放（250ms 节奏）/重置/退出，进度 N / total 可见'
+  - description: 会话回放：traceList IPC 按 lastAt 倒序返回会话摘要（preview 取首条用户消息 / 事件数 / hasError）；活跃会话实时追加且回放禁用，历史会话进入回放——步进/自动播放（250ms
+      节奏）/重置/退出，进度 N / total 可见
     id: AC36
     status: completed
-    verifier: tests/ai-runtime-trace.test.ts（listTraceSessions 排序/坏行容忍/hasError 同规则）+ tests/e2e/verify-i25.mjs + evidence/AC36/03-trace-replay.png + trace-list.json
-  - description: '成本估算：设置·通用分区「成本单价」按 服务商·型号 配置每百万 tokens 输入/输出单价（存 settings usage.pricing，summary 每次实时读 → 热生效）；用量行追加成本列（0.000508 = chat 0.000148 + agent 0.00036）；单价表未覆盖记录计 unpricedRuns 显示「未定价」绝不虚构数字；非法单价（负数/非数）按未定价处理'
+    verifier: tests/ai-runtime-trace.test.ts（listTraceSessions 排序/坏行容忍/hasError 同规则）+
+      tests/e2e/verify-i25.mjs + evidence/AC36/03-trace-replay.png + trace-list.json
+  - description: 成本估算：设置·通用分区「成本单价」按 服务商·型号 配置每百万 tokens 输入/输出单价（存 settings usage.pricing，summary
+      每次实时读 → 热生效）；用量行追加成本列（0.000508 = chat 0.000148 + agent 0.00036）；单价表未覆盖记录计 unpricedRuns
+      显示「未定价」绝不虚构数字；非法单价（负数/非数）按未定价处理
     id: AC36
     status: completed
-    verifier: tests/usage-store.test.ts（按单价逐记录估算/部分定价/非法单价/零单价/无定价兼容）+ tests/e2e/verify-i25.mjs（单价回填热显成本）+ evidence/AC36/04-settings-cost.png + usage-summary-priced.json + usage-summary-unpriced.json
+    verifier: tests/usage-store.test.ts（按单价逐记录估算/部分定价/非法单价/零单价/无定价兼容）+ tests/e2e/verify-i25.mjs（单价回填热显成本）+
+      evidence/AC36/04-settings-cost.png + usage-summary-priced.json + usage-summary-unpriced.json
   notes: i18n 全部新文案词典化（trace.*/settings.pricing.* 等键，中英同型校验），语言热切换后页签/过滤/按钮/空态即时重绘（evidence/AC36/05-trace-en.png）
   e2e_report: evidence/AC36/verify-i25-report.json (32 项断言全 PASS)
 iteration_28:
   scope: 对话生产力 II（AC37）——会话持久化与多会话管理（列表/新建/切换/改名/删除）
   acceptance_criteria:
-  - description: '多会话列表：侧栏新增「会话」页签（packages/chat-ui/session-list.ts），数据源 sessions:list IPC——AiRuntime.listChatSessions 筛 sessionId 前缀对话会话（与指挥台 task-session- 任务会话隔离），按 lastAt 倒序；未改名标题回退首条用户消息预览，元信息 时间 · 事件数，当前会话「当前」徽标；空会话无轨迹不入列表'
+  - description: 多会话列表：侧栏新增「会话」页签（packages/chat-ui/session-list.ts），数据源 sessions:list
+      IPC——AiRuntime.listChatSessions 筛 sessionId 前缀对话会话（与指挥台 task-session- 任务会话隔离），按
+      lastAt 倒序；未改名标题回退首条用户消息预览，元信息 时间 · 事件数，当前会话「当前」徽标；空会话无轨迹不入列表
     id: AC37
     status: completed
-    verifier: tests/ai-runtime-trace.test.ts（AC37×3：前缀过滤/倒序/预览回退）+ tests/e2e/verify-i26.mjs（21 项断言全 PASS）+ evidence/AC37/01-sessions-two-rows.png
-  - description: '新建/切换：ChatController.switchSession 清空消息列表改挂新 sessionId（进行中的 run 拒绝切换）；切换历史会话经 api.agent.trace 磁盘轨迹回放 ingestHistory（resumed 语义——不标 running、不触发新 LLM 请求），「当前」徽标随行迁移；session.state 持久化活跃会话 id'
+    verifier: tests/ai-runtime-trace.test.ts（AC37×3：前缀过滤/倒序/预览回退）+ tests/e2e/verify-i26.mjs（21
+      项断言全 PASS）+ evidence/AC37/01-sessions-two-rows.png
+  - description: 新建/切换：ChatController.switchSession 清空消息列表改挂新 sessionId（进行中的 run 拒绝切换）；切换历史会话经
+      api.agent.trace 磁盘轨迹回放 ingestHistory（resumed 语义——不标 running、不触发新 LLM 请求），「当前」徽标随行迁移；session.state
+      持久化活跃会话 id
     id: AC37
     status: completed
-    verifier: tests/e2e/verify-i26.mjs（新会话清空面板/切换回放无 running/重启恢复请求数仍为 2）+ evidence/AC37/02-switched-back.png + 04-restart-restored.png
-  - description: '改名/删除：SessionMetaStore（userData/sessions.json 整体 JSON overlay，轨迹文件仍是内容事实源）rename 空标题清除回退预览、markDeleted 与改名共存、损坏文件按空表启动；删除两段确认（3s 超时复位），deleteChatSession 元数据标记 + 轨迹文件移除 + 主进程内存会话摘除（abort + sessions.delete，防已删会话经内存复活）；删除活跃会话渲染端自动开新会话兜底；任务会话前缀一律拒绝改名/删除'
+    verifier: tests/e2e/verify-i26.mjs（新会话清空面板/切换回放无 running/重启恢复请求数仍为 2）+ evidence/AC37/02-switched-back.png
+      + 04-restart-restored.png
+  - description: 改名/删除：SessionMetaStore（userData/sessions.json 整体 JSON overlay，轨迹文件仍是内容事实源）rename
+      空标题清除回退预览、markDeleted 与改名共存、损坏文件按空表启动；删除两段确认（3s 超时复位），deleteChatSession 元数据标记
+      + 轨迹文件移除 + 主进程内存会话摘除（abort + sessions.delete，防已删会话经内存复活）；删除活跃会话渲染端自动开新会话兜底；任务会话前缀一律拒绝改名/删除
     id: AC37
     status: completed
-    verifier: tests/session-meta-store.test.ts（改名/删除/损坏容忍/字段清洗）+ tests/ai-runtime-trace.test.ts（删除幂等/任务会话误伤防护）+ tests/e2e/verify-i26.mjs（两段确认/删活跃兜底/轨迹文件移除）+ evidence/AC37/03-renamed.png + 05-delete-confirm.png + sessions-final.json
-  notes: 修复单测暴露的真实缺陷——deleteChatSession 原实现只删磁盘文件，内存会话仍在（trace() 内存优先返回已删内容、续跑同 id 重写轨迹文件）；i18n sessions.* 9 键中英同型，组件内订阅 onDidChangeLocale 重绘工具栏与列表（evidence/AC37/06-sessions-en.png）
+    verifier: tests/session-meta-store.test.ts（改名/删除/损坏容忍/字段清洗）+ tests/ai-runtime-trace.test.ts（删除幂等/任务会话误伤防护）+
+      tests/e2e/verify-i26.mjs（两段确认/删活跃兜底/轨迹文件移除）+ evidence/AC37/03-renamed.png +
+      05-delete-confirm.png + sessions-final.json
+  notes: 修复单测暴露的真实缺陷——deleteChatSession 原实现只删磁盘文件，内存会话仍在（trace() 内存优先返回已删内容、续跑同 id
+    重写轨迹文件）；i18n sessions.* 9 键中英同型，组件内订阅 onDidChangeLocale 重绘工具栏与列表（evidence/AC37/06-sessions-en.png）
   e2e_report: evidence/AC37/verify-i26-report.json (21 项断言全 PASS)
 iteration_29:
   scope: 代码智能 II（AC38）——符号级索引与 @符号 引用（启发式提取，零 embedding 依赖，RAG 未配置亦可用）
   acceptance_criteria:
-  - description: '启发式符号提取：packages/rag/symbol-extractor.ts 纯正则多语言规则（TS/JS：function/class/interface/type/enum/const/类方法；Python：def/class/方法/ALL_CAPS 常量；Go：func/接收者方法/struct/interface；Rust：fn/struct/enum/trait/impl 容器+方法归属；Java/C#/Kotlin：class/interface/enum/方法；PHP/Ruby/Swift 同族覆盖），零新增依赖；符号含稳定 id/name/kind/relPath/startLine/endLine/signature/parentName；大括号深度（C 系）与缩进（Python/Ruby）定界，单符号 ≤200 行截断'
+  - description: 启发式符号提取：packages/rag/symbol-extractor.ts 纯正则多语言规则（TS/JS：function/class/interface/type/enum/const/类方法；Python：def/class/方法/ALL_CAPS
+      常量；Go：func/接收者方法/struct/interface；Rust：fn/struct/enum/trait/impl 容器+方法归属；Java/C#/Kotlin：class/interface/enum/方法；PHP/Ruby/Swift
+      同族覆盖），零新增依赖；符号含稳定 id/name/kind/relPath/startLine/endLine/signature/parentName；大括号深度（C
+      系）与缩进（Python/Ruby）定界，单符号 ≤200 行截断
     id: AC38
     status: completed
-    verifier: packages/rag/tests/symbol-extractor.test.ts（18 例：多语言提取/容器归属/单行声明/≤200 行截断/排除规则按语言隔离）+ tests/e2e/verify-i29.mjs（索引行列精确断言 add L1-4 / UserService L1-5 / getName@UserService L2-4）
-  - description: '符号索引：SymbolIndex 全量构建 + 工作区文件事件增量同步（纯内存，重建廉价不落盘；与 RAG 索引生命周期解耦——无 OpenAI provider / RAG 关闭时仍可用）；query 评分排序（name 前缀 > name 子串 > parent > 路径）；resolve(id) 重读文件切片返回当前正文（内容为事实源，文件消失/过期 id 返回 null）'
+    verifier: packages/rag/tests/symbol-extractor.test.ts（18 例：多语言提取/容器归属/单行声明/≤200
+      行截断/排除规则按语言隔离）+ tests/e2e/verify-i29.mjs（索引行列精确断言 add L1-4 / UserService L1-5
+      / getName@UserService L2-4）
+  - description: 符号索引：SymbolIndex 全量构建 + 工作区文件事件增量同步（纯内存，重建廉价不落盘；与 RAG 索引生命周期解耦——无
+      OpenAI provider / RAG 关闭时仍可用）；query 评分排序（name 前缀 > name 子串 > parent > 路径）；resolve(id)
+      重读文件切片返回当前正文（内容为事实源，文件消失/过期 id 返回 null）
     id: AC38
     status: completed
-    verifier: packages/rag/tests/symbol-index.test.ts（8 例：构建过滤/增量同步/删除移除/resolve 重读切片/未知 id null/无效根目录 error 态）+ tests/e2e/verify-i29.mjs（symbols.query IPC 直连 ready + 全量符号列出）
-  - description: '@符号 引用 UI：@ 触发下拉分「文件/符号」两区（符号候选经 symbols:query IPC 异步到达，序号防竞态，文件候选即时渲染不阻塞），符号项带本地化 kind 徽标与路径行号 hint；选中生成符号 chip（kind+name，去重），发送时 symbolRefs 随 AgentRunInput 传递，失败回滚 chips'
+    verifier: packages/rag/tests/symbol-index.test.ts（8 例：构建过滤/增量同步/删除移除/resolve 重读切片/未知
+      id null/无效根目录 error 态）+ tests/e2e/verify-i29.mjs（symbols.query IPC 直连 ready
+      + 全量符号列出）
+  - description: '@符号 引用 UI：@ 触发下拉分「文件/符号」两区（符号候选经 symbols:query IPC 异步到达，序号防竞态，文件候选即时渲染不阻塞），符号项带本地化
+      kind 徽标与路径行号 hint；选中生成符号 chip（kind+name，去重），发送时 symbolRefs 随 AgentRunInput 传递，失败回滚
+      chips'
     id: AC38
     status: completed
-    verifier: tests/e2e/verify-i29.mjs（25 项断言全 PASS：双分区标题/徽标/hint 行列/Enter 与点击选中/ArrowDown 跨区导航/id 去重/× 剔除/重引用）+ evidence/AC38/01-at-suggest-sections.png + 02-symbol-chips.png
-  - description: '上下文注入：symbolRefSource 按 id 解析注入为 file_fragment 项（key=symbol:<id>，label 含符号名与路径行区间，逐项开关可剔除，manifest 落盘可审计）；本轮带 symbolRefs 时强制打开 file_fragment 类型闸（与附件同语义）；符号消失静默跳过不阻断对话'
+    verifier: tests/e2e/verify-i29.mjs（25 项断言全 PASS：双分区标题/徽标/hint 行列/Enter 与点击选中/ArrowDown
+      跨区导航/id 去重/× 剔除/重引用）+ evidence/AC38/01-at-suggest-sections.png + 02-symbol-chips.png
+  - description: 上下文注入：symbolRefSource 按 id 解析注入为 file_fragment 项（key=symbol:<id>，label
+      含符号名与路径行区间，逐项开关可剔除，manifest 落盘可审计）；本轮带 symbolRefs 时强制打开 file_fragment 类型闸（与附件同语义）；符号消失静默跳过不阻断对话
     id: AC38
     status: completed
-    verifier: tests/e2e/verify-i29.mjs（服务端捕获请求体：「## 引用符号 add（src/calc.ts L1-4）」「## 引用符号 UserService（src/user.ts L1-5）」两段注入、正文 token 可见、用户原文无 @残留；manifest symbol:<id> 独立 key 项 enabled + file_fragment + 精确 token 计数）+ evidence/AC38/manifest-latest.json
-  - description: '质量门：symbol-extractor/symbol-index 单测覆盖多语言提取/定界/增量/解析；i18n symbols.* 与 chat.suggest.* 键中英同型；e2e verify-i29.mjs 全断言 PASS（离屏）；构建 + 全量单测 + 全量 e2e 回归 PASS'
+    verifier: tests/e2e/verify-i29.mjs（服务端捕获请求体：「## 引用符号 add（src/calc.ts L1-4）」「##
+      引用符号 UserService（src/user.ts L1-5）」两段注入、正文 token 可见、用户原文无 @残留；manifest symbol:<id>
+      独立 key 项 enabled + file_fragment + 精确 token 计数）+ evidence/AC38/manifest-latest.json
+  - description: 质量门：symbol-extractor/symbol-index 单测覆盖多语言提取/定界/增量/解析；i18n symbols.*
+      与 chat.suggest.* 键中英同型；e2e verify-i29.mjs 全断言 PASS（离屏）；构建 + 全量单测 + 全量 e2e 回归
+      PASS
     id: AC38
     status: completed
-    verifier: 构建 PASS + eslint PASS + vitest 545/545（61 文件）+ tests/e2e/verify-i29.mjs（25 项断言全 PASS，离屏）+ 全量回归 24 套（smoke/iteration2/i4/i6~i8/i10~i26/i29）全 PASS（verify-i25 首跑遇沙箱 EPERM 环境抖动，单独重跑 32 断言全 PASS）
-  notes: 修复 e2e 暴露的真实缺陷——scheduleSymbolQuery 以 lastSymbolQuery="" 初始化导致 @ 空查询首查被去重短路（符号区永不出现）；改为调用侧 keepSymbols 门控（prev 持有同串符号才不重取），空串首查/重开下拉均覆盖。i18n chat.suggest.* / chat.symbol.kind.* 11 键中英同型，placeholder 接线「@ 引用文件或符号」
+    verifier: 构建 PASS + eslint PASS + vitest 545/545（61 文件）+ tests/e2e/verify-i29.mjs（25
+      项断言全 PASS，离屏）+ 全量回归 24 套（smoke/iteration2/i4/i6~i8/i10~i26/i29）全 PASS（verify-i25
+      首跑遇沙箱 EPERM 环境抖动，单独重跑 32 断言全 PASS）
+  notes: 修复 e2e 暴露的真实缺陷——scheduleSymbolQuery 以 lastSymbolQuery="" 初始化导致 @ 空查询首查被去重短路（符号区永不出现）；改为调用侧
+    keepSymbols 门控（prev 持有同串符号才不重取），空串首查/重开下拉均覆盖。i18n chat.suggest.* / chat.symbol.kind.*
+    11 键中英同型，placeholder 接线「@ 引用文件或符号」
   e2e_report: evidence/AC38/report.json (25 项断言全 PASS)
 v030_release:
   scope: v0.3.0 发版 + 包管理器升版
   facts:
   - 发版前质量门：build PASS + eslint PASS + vitest 545/545（61 文件）
-  - tag v0.3.0（4627199 版本 bump 提交）CI run 30202520216 四 job 全 success，Release 12 资产（exe/dmg/zip/AppImage/deb + blockmap + latest*.yml）prerelease
+  - tag v0.3.0（4627199 版本 bump 提交）CI run 30202520216 四 job 全 success，Release 12 资产（exe/dmg/zip/AppImage/deb
+    + blockmap + latest*.yml）prerelease
   - 资产完整性实证：gh release download 重算 sha256 exe=E120D1D1…6473（95741006B）/ dmg=31F3E7C1…6F2E（111128211B）
-  - 本机真实安装实证：NSIS /S 静默装至 HKCU，注册表 DisplayVersion=0.3.0 / Publisher=eeyzs1，DevWit.exe ProductVersion=0.3.0.0（77 文件）
+  - 本机真实安装实证：NSIS /S 静默装至 HKCU，注册表 DisplayVersion=0.3.0 / Publisher=eeyzs1，DevWit.exe
+    ProductVersion=0.3.0.0（77 文件）
   - 主仓库清单升版：winget 0.3.0 四分件（validate 通过）+ homebrew cask 0.3.0
-  - homebrew-tap 5f666eb「devwit 0.3.0」已推送，brew install --cask eeyzs1/tap/devwit 即装 0.3.0
-  - winget PR microsoft/winget-pkgs#407506（0.2.0 首包）仍 OPEN 待社区 moderator 审批；0.3.0 清单已入库，待首包合并后提 update PR
+  - homebrew-tap 5f666eb「devwit 0.3.0」已推送，brew install --cask eeyzs1/tap/devwit 即装
+    0.3.0
+  - winget PR microsoft/winget-pkgs#407506（0.2.0 首包）仍 OPEN 待社区 moderator 审批；0.3.0
+    清单已入库，待首包合并后提 update PR
 iteration_30:
   scope: 度量基建（AC39）——README 双语徽章 + opt-in 匿名遥测（默认关/零内容/端点可配置/热生效）
   acceptance_criteria:
-  - description: 'README 双语徽章：README.md 与 README_EN.md 顶部 shields.io 徽章行——版本（github/v/release）、累计下载量（github/downloads/total）、stars、license（MIT），徽章点击跳转 GitHub 仓库对应页面（北极星 100→1k→10k 的公开度量面）'
+  - description: README 双语徽章：README.md 与 README_EN.md 顶部 shields.io 徽章行——版本（github/v/release）、累计下载量（github/downloads/total）、stars、license（MIT），徽章点击跳转
+      GitHub 仓库对应页面（北极星 100→1k→10k 的公开度量面）
     id: AC39
     status: completed
     verifier: README.md + README_EN.md 徽章行目检 + shields.io URL 指向 eeyzs1/DevWit（已完成）
-  - description: 'Opt-in 遥测 TelemetryService（apps/desktop/src/main/telemetry.ts，electron-free 依赖注入）：默认关闭（从未设置=不发送任何字节）；开启需用户显式勾选；匿名——随机 installId（crypto.randomUUID）持久化于 settings 键 telemetry.installId 并跨重启复用；零内容收集——事件载荷仅 事件名/ISO 时间/installId/应用版本/OS 平台/标量 props，构造上无自由文本入口；端点可配置（settings 键 telemetry.endpoint，空端点即使开启也不发送）；缓冲批量 POST（envelope {source:"devwit",events:[...]}，失败静默丢弃绝不拖垮应用）；配置热生效（settings.onChanged 重配置，无需重启）；opt_in/opt_out 状态切换事件透明记录'
+  - description: Opt-in 遥测 TelemetryService（apps/desktop/src/main/telemetry.ts，electron-free
+      依赖注入）：默认关闭（从未设置=不发送任何字节）；开启需用户显式勾选；匿名——随机 installId（crypto.randomUUID）持久化于 settings
+      键 telemetry.installId 并跨重启复用；零内容收集——事件载荷仅 事件名/ISO 时间/installId/应用版本/OS 平台/标量
+      props，构造上无自由文本入口；端点可配置（settings 键 telemetry.endpoint，空端点即使开启也不发送）；缓冲批量 POST（envelope
+      {source:"devwit",events:[...]}，失败静默丢弃绝不拖垮应用）；配置热生效（settings.onChanged 重配置，无需重启）；opt_in/opt_out
+      状态切换事件透明记录
     id: AC39
     status: completed
-    verifier: tests/telemetry.test.ts 8 项全 PASS（默认关零请求/开启后发 app_start/installId 跨实例复用/opt_in·opt_out 转换/失败容忍/热重配置端点）+ tests/e2e/verify-i30.mjs 17 断言全 PASS
-  - description: '设置 UI 明示清单：设置·通用分区遥测卡——开关 + 端点输入（即改即存热生效，同语言切换语义）+ 收集/绝不收集清单文案；i18n settings.telemetry.* 键中英同型（编译期 typeof zhCN 强制）'
+    verifier: tests/telemetry.test.ts 8 项全 PASS（默认关零请求/开启后发 app_start/installId 跨实例复用/opt_in·opt_out
+      转换/失败容忍/热重配置端点）+ tests/e2e/verify-i30.mjs 17 断言全 PASS
+  - description: 设置 UI 明示清单：设置·通用分区遥测卡——开关 + 端点输入（即改即存热生效，同语言切换语义）+ 收集/绝不收集清单文案；i18n
+      settings.telemetry.* 键中英同型（编译期 typeof zhCN 强制）
     id: AC39
     status: completed
-    verifier: tests/e2e/verify-i30.mjs（卡片可见/默认未勾选/中英清单文案断言全 PASS）+ evidence/AC39/01-telemetry-card.png + 02-telemetry-card-en.png
-  - description: 'e2e 全链路：verify-i30.mjs 本地真实 HTTP 接收端——① 默认关：启动后等待 >flush 周期接收端零请求；② UI 填入端点并勾选开启：收到 telemetry_opt_in（形状断言：仅 事件名/ts/installId/version/os，无任何内容字段）；③ 关闭：收到 telemetry_opt_out 后不再有任何请求；④ 同 userData 重启：收到 app_start 且 installId 与首次一致（稳定性）；证据落盘 evidence/AC39'
+    verifier: tests/e2e/verify-i30.mjs（卡片可见/默认未勾选/中英清单文案断言全 PASS）+ evidence/AC39/01-telemetry-card.png
+      + 02-telemetry-card-en.png
+  - description: e2e 全链路：verify-i30.mjs 本地真实 HTTP 接收端——① 默认关：启动后等待 >flush 周期接收端零请求；②
+      UI 填入端点并勾选开启：收到 telemetry_opt_in（形状断言：仅 事件名/ts/installId/version/os，无任何内容字段）；③
+      关闭：收到 telemetry_opt_out 后不再有任何请求；④ 同 userData 重启：收到 app_start 且 installId 与首次一致（稳定性）；证据落盘
+      evidence/AC39
     id: AC39
     status: completed
-    verifier: tests/e2e/verify-i30.mjs 17 断言全 PASS（默认关零请求/opt_in 五键形状/installId UUID 且跨重启稳定/opt_out 后静默/批量 POST 命中配置路径）+ evidence/AC39/report.json
-  - description: '质量门：构建 + eslint + 全量单测 + 全量 e2e 回归 PASS；证据与报告落盘 evidence/AC39'
+    verifier: tests/e2e/verify-i30.mjs 17 断言全 PASS（默认关零请求/opt_in 五键形状/installId UUID
+      且跨重启稳定/opt_out 后静默/批量 POST 命中配置路径）+ evidence/AC39/report.json
+  - description: 质量门：构建 + eslint + 全量单测 + 全量 e2e 回归 PASS；证据与报告落盘 evidence/AC39
     id: AC39
     status: completed
-    verifier: 构建 PASS + eslint PASS + vitest 553/553（62 文件，新增 telemetry.test.ts 8 项）+ 全量回归 25 套（smoke/iteration2/i4/i6~i8/i10~i26/i29/i30）全 PASS
-  notes: 本地使用统计（聚合服务 UsageStore + usage:summary/clear IPC + 设置·通用分区统计卡）已由迭代26 AC35 建成，本迭代不重复建设；遥测后端账号（PostHog）需用户本人注册，故默认端点留空、端点可配置先行。
+    verifier: 构建 PASS + eslint PASS + vitest 553/553（62 文件，新增 telemetry.test.ts 8
+      项）+ 全量回归 25 套（smoke/iteration2/i4/i6~i8/i10~i26/i29/i30）全 PASS
+  notes: 本地使用统计（聚合服务 UsageStore + usage:summary/clear IPC + 设置·通用分区统计卡）已由迭代26 AC35
+    建成，本迭代不重复建设；遥测后端账号（PostHog）需用户本人注册，故默认端点留空、端点可配置先行。
   e2e_report: evidence/AC39/report.json (17 项断言全 PASS)
 iteration_31:
-  scope: 留存工程·代码智能 III（AC40）——LSP 集成：TypeScript language server（悬停/跳转定义/实时诊断），主力 IDE 定位的第一块留存基石
+  scope: 留存工程·代码智能 III（AC40）——LSP 集成：TypeScript language server（悬停/跳转定义/实时诊断），主力 IDE
+    定位的第一块留存基石
   acceptance_criteria:
-  - description: 'LSP stdio 客户端（packages/lsp，electron-free 依赖注入）：Content-Length 分帧 JSON-RPC 2.0（粘包/半包/单 chunk 多消息正确处理）；initialize(rootUri)→initialized→shutdown→exit 完整生命周期；hover/definition 请求超时拒绝；进程退出拒绝全部挂起（DW_LSP_* ASCII 错误码）；publishDiagnostics 通知回调聚合'
+  - description: LSP stdio 客户端（packages/lsp，electron-free 依赖注入）：Content-Length 分帧
+      JSON-RPC 2.0（粘包/半包/单 chunk 多消息正确处理）；initialize(rootUri)→initialized→shutdown→exit
+      完整生命周期；hover/definition 请求超时拒绝；进程退出拒绝全部挂起（DW_LSP_* ASCII 错误码）；publishDiagnostics
+      通知回调聚合
     id: AC40
     status: completed
-    verifier: packages/lsp 单测 30 项全 PASS（lsp-client 13 项：分帧/粘包/半包/UTF-8 跨 chunk/非法 JSON 容错/握手/重复 start 拒绝/超时/退出拒绝/强杀兜底 + ts-server 17 项：真实 typescript-language-server temp fixture 上 hover/definition/diagnostics 真实应答）
-  - description: 'TsLanguageServer 生命周期：工作区打开即 spawn（ELECTRON_RUN_AS_NODE 使 Electron 二进制当 node 用，零系统依赖）；didOpen/didChange（Full 同步）/didClose 文档同步；诊断聚合 store（per-uri）；状态机 starting/ready/error；应用 will-quit 先 LSP shutdown 请求、超时强杀，零孤儿进程（同 MCP 口径）'
+    verifier: packages/lsp 单测 30 项全 PASS（lsp-client 13 项：分帧/粘包/半包/UTF-8 跨 chunk/非法
+      JSON 容错/握手/重复 start 拒绝/超时/退出拒绝/强杀兜底 + ts-server 17 项：真实 typescript-language-server
+      temp fixture 上 hover/definition/diagnostics 真实应答）
+  - description: TsLanguageServer 生命周期：工作区打开即 spawn（ELECTRON_RUN_AS_NODE 使 Electron
+      二进制当 node 用，零系统依赖）；didOpen/didChange（Full 同步）/didClose 文档同步；诊断聚合 store（per-uri）；状态机
+      starting/ready/error；应用 will-quit 先 LSP shutdown 请求、超时强杀，零孤儿进程（同 MCP 口径）
     id: AC40
     status: completed
-    verifier: ts-server 单测 17 项全 PASS（文档同步/诊断聚合/shutdown 序列/代际防串扰）+ verify-i31.mjs 全链路 PASS + verify-pack-lsp.mjs 退出后零孤儿进程（系统进程表硬断言残留 0）
-  - description: '编辑器 LSP UI（真实渲染端，无 mock）：① 悬停——鼠标驻留 500ms → IPC hover → HTML tooltip 浮层（类型签名，移动/输入/Esc 关闭）；② Ctrl+Click 跳转定义——同文件直接 revealPosition（光标+滚动），跨文件 openFileByPath 后定位；③ 实时诊断——publishDiagnostics 推送 → 当前文件波浪线（canvas 绘制，error 红/warning 黄）+ 状态栏 dw-status-lsp 计数项；didOpen/didChange 防抖同步编辑器缓冲区（未保存内容也参与分析，真实 IDE 语义）'
+    verifier: ts-server 单测 17 项全 PASS（文档同步/诊断聚合/shutdown 序列/代际防串扰）+ verify-i31.mjs
+      全链路 PASS + verify-pack-lsp.mjs 退出后零孤儿进程（系统进程表硬断言残留 0）
+  - description: 编辑器 LSP UI（真实渲染端，无 mock）：① 悬停——鼠标驻留 500ms → IPC hover → HTML tooltip
+      浮层（类型签名，移动/输入/Esc 关闭）；② Ctrl+Click 跳转定义——同文件直接 revealPosition（光标+滚动），跨文件 openFileByPath
+      后定位；③ 实时诊断——publishDiagnostics 推送 → 当前文件波浪线（canvas 绘制，error 红/warning 黄）+ 状态栏
+      dw-status-lsp 计数项；didOpen/didChange 防抖同步编辑器缓冲区（未保存内容也参与分析，真实 IDE 语义）
     id: AC40
     status: completed
-    verifier: verify-i31.mjs 16 断言全 PASS（ready 握手/main.ts 错误行 3+码 2322/状态栏 ✕ 1/鼠标驻留 tooltip 含 add 签名/移开关闭/编辑后 ✕ 2/Ctrl+Click 跳 math.ts 光标 0 行/切回诊断重放）+ evidence/AC40 截图 01-04
-  - description: 'i18n status.lsp.* 键中英同型（启动中/就绪/错误/问题计数）；打包配置：dependencies 声明 typescript-language-server+typescript，electron-builder files/asarUnpack 含对应 node_modules 子集（spawn 子进程不可读 asar 内文件）'
+    verifier: verify-i31.mjs 16 断言全 PASS（ready 握手/main.ts 错误行 3+码 2322/状态栏 ✕ 1/鼠标驻留
+      tooltip 含 add 签名/移开关闭/编辑后 ✕ 2/Ctrl+Click 跳 math.ts 光标 0 行/切回诊断重放）+ evidence/AC40
+      截图 01-04
+  - description: i18n status.lsp.* 键中英同型（启动中/就绪/错误/问题计数）；打包配置：dependencies 声明 typescript-language-server+typescript，electron-builder
+      files/asarUnpack 含对应 node_modules 子集（spawn 子进程不可读 asar 内文件）
     id: AC40
     status: completed
-    verifier: i18n 单测同型校验 PASS + verify-pack-lsp.mjs 4 断言全 PASS（electron-builder --dir 产物直启：ready/诊断行 3/零孤儿）+ 产物目检 app.asar.unpacked 含 typescript-language-server/lib/cli.mjs 与 typescript/lib/tsserver.js（检修发现并修复：typescript 原列 devDependencies 未进包，已移入 dependencies）
-  - description: '质量门：构建 + eslint + 全量单测 + 全量 e2e 回归 PASS；证据与报告落盘 evidence/AC40'
+    verifier: i18n 单测同型校验 PASS + verify-pack-lsp.mjs 4 断言全 PASS（electron-builder --dir
+      产物直启：ready/诊断行 3/零孤儿）+ 产物目检 app.asar.unpacked 含 typescript-language-server/lib/cli.mjs
+      与 typescript/lib/tsserver.js（检修发现并修复：typescript 原列 devDependencies 未进包，已移入 dependencies）
+  - description: 质量门：构建 + eslint + 全量单测 + 全量 e2e 回归 PASS；证据与报告落盘 evidence/AC40
     id: AC40
     status: completed
-    verifier: 构建 PASS + eslint PASS + vitest 583/583（64 文件）+ 全量回归 26 套全 PASS（smoke/iteration2/i4/i6~i8/i10~i26/i29/i30/i31）+ verify-pack-lsp.mjs 4 断言 PASS；evidence/AC40/report.json + pack-report.json
-  notes: LSP 客户端与 MCP 客户端同为 stdio JSON-RPC，但分帧协议不同（MCP 换行分隔/LSP Content-Length 头），独立实现不复用；tsserver 定位经 require.resolve（dev）与 app.asar.unpacked（packaged）双路径；本迭代仅 TypeScript/JavaScript，多语言复用同一 LspClient 后续迭代扩展。检修补录：① verify-i31 末项断言补轮询（tsserver 重推诊断需时，一次性读竞态）；② 打包烟测发现 typescript 未随行（devDependency 不被 electron-builder 收集），移入 dependencies 后 verify-pack-lsp.mjs 验证通过；③ TsLanguageServer 代际+inflight 去重修复并发 openWorkspace 竞态（openDialog/WorkspaceTree 双钩子）
-  e2e_report: evidence/AC40/report.json (16 断言全 PASS) + evidence/AC40/pack-report.json (4 断言全 PASS)
+    verifier: 构建 PASS + eslint PASS + vitest 583/583（64 文件）+ 全量回归 26 套全 PASS（smoke/iteration2/i4/i6~i8/i10~i26/i29/i30/i31）+
+      verify-pack-lsp.mjs 4 断言 PASS；evidence/AC40/report.json + pack-report.json
+  notes: LSP 客户端与 MCP 客户端同为 stdio JSON-RPC，但分帧协议不同（MCP 换行分隔/LSP Content-Length 头），独立实现不复用；tsserver
+    定位经 require.resolve（dev）与 app.asar.unpacked（packaged）双路径；本迭代仅 TypeScript/JavaScript，多语言复用同一
+    LspClient 后续迭代扩展。检修补录：① verify-i31 末项断言补轮询（tsserver 重推诊断需时，一次性读竞态）；② 打包烟测发现 typescript
+    未随行（devDependency 不被 electron-builder 收集），移入 dependencies 后 verify-pack-lsp.mjs
+    验证通过；③ TsLanguageServer 代际+inflight 去重修复并发 openWorkspace 竞态（openDialog/WorkspaceTree
+    双钩子）
+  e2e_report: evidence/AC40/report.json (16 断言全 PASS) + evidence/AC40/pack-report.json
+    (4 断言全 PASS)
 iteration_32:
   scope: 留存工程·版本控制（AC41）——Git 集成（状态徽章/diff 视图/暂存提交），主力 IDE 底线能力
   acceptance_criteria:
-  - description: 'GitService（packages/workspace，electron-free 依赖注入）：真实 git CLI 执行 status/diff/stage/unstage/commit；porcelain v1 双列解析（index/worktree 分列），输出 staged/unstaged/untracked 三组 + branch 名；非 git 仓库/git 不可用/超时返回明确状态不抛错；diff(file) 取 HEAD 版与工作区版双文本（git show HEAD:path + 读盘，untracked 原文为空串、deleted 新文为空串），统一 diff 计算复用 chat-ui computeDiff 纯逻辑'
+  - description: GitService（packages/workspace，electron-free 依赖注入）：真实 git CLI 执行 status/diff/stage/unstage/commit；porcelain
+      v1 双列解析（index/worktree 分列），输出 staged/unstaged/untracked 三组 + branch 名；非 git
+      仓库/git 不可用/超时返回明确状态不抛错；diff(file) 取 HEAD 版与工作区版双文本（git show HEAD:path + 读盘，untracked
+      原文为空串、deleted 新文为空串），统一 diff 计算复用 chat-ui computeDiff 纯逻辑
     id: AC41
     status: completed
-    verifier: packages/workspace/tests/git-service.test.ts 12 项全 PASS（真实 temp git 仓库全序列 + 非仓库 null + 双文本 diff + unstage 旧版 git 回退 reset + 空提交消息拒绝）
-  - description: 'IPC 面（contracts 白名单）：git:get-status/git:diff/git:stage/git:unstage/git:commit invoke 通道 + git:changed 推送通道；DevwitApi.git 类型 + preload 暴露；i18n git.* 键中英同型（面板标题/已暂存/变更/未跟踪/提交占位/非仓库态/状态栏分支）'
+    verifier: packages/workspace/tests/git-service.test.ts 12 项全 PASS（真实 temp git
+      仓库全序列 + 非仓库 null + 双文本 diff + unstage 旧版 git 回退 reset + 空提交消息拒绝）
+  - description: IPC 面（contracts 白名单）：git:get-status/git:diff/git:stage/git:unstage/git:commit
+      invoke 通道 + git:changed 推送通道；DevwitApi.git 类型 + preload 暴露；i18n git.* 键中英同型（面板标题/已暂存/变更/未跟踪/提交占位/非仓库态/状态栏分支）
     id: AC41
     status: completed
-    verifier: 白名单完整性单测 PASS + i18n 同型单测 PASS + verify-i32.mjs 全链路 15 断言 PASS；未接线时 handler 抛 DW_GIT_NOT_WIRED 明确错误码
-  - description: '侧栏 Git 面板（真实渲染端，无 mock）：左栏双页签「文件/Git」；面板含分支名 + 刷新钮 + 变更文件列表（已暂存/变更分组，状态徽章 M/A/D/U 着色），文件行 hover 显 stage/unstage 钮；点击变更文件在编辑区开只读 diff 视图（HEAD ↔ 工作区，+/- 行着色复用 dw-diff 样式，可关闭）；底部提交框（输入消息 → 提交已暂存，无暂存禁用）；非 git 工作区显引导态'
+    verifier: 白名单完整性单测 PASS + i18n 同型单测 PASS + verify-i32.mjs 全链路 15 断言 PASS；未接线时
+      handler 抛 DW_GIT_NOT_WIRED 明确错误码
+  - description: 侧栏 Git 面板（真实渲染端，无 mock）：左栏双页签「文件/Git」；面板含分支名 + 刷新钮 + 变更文件列表（已暂存/变更分组，状态徽章
+      M/A/D/U 着色），文件行 hover 显 stage/unstage 钮；点击变更文件在编辑区开只读 diff 视图（HEAD ↔ 工作区，+/-
+      行着色复用 dw-diff 样式，可关闭）；底部提交框（输入消息 → 提交已暂存，无暂存禁用）；非 git 工作区显引导态
     id: AC41
     status: completed
-    verifier: verify-i32.mjs 15 断言全 PASS（页签切换/分支头 main/变更（1)+未跟踪（1）分组/diff 含 -world +devwit 行/关闭/stage 迁移「已暂存 (1)」+ porcelain CLI 双通道一致/commit 落盘 git log 硬断言）+ evidence/AC41 截图 01-05
-  - description: '状态栏 git 项（branch + 变更计数）+ 自动刷新：工作区文件事件（WorkspaceEvent 推送）防抖触发状态重取；stage/unstage/commit 操作后即时刷新 + git:changed 推送同步渲染端；编辑器保存后状态联动'
+    verifier: verify-i32.mjs 15 断言全 PASS（页签切换/分支头 main/变更（1)+未跟踪（1）分组/diff 含 -world
+      +devwit 行/关闭/stage 迁移「已暂存 (1)」+ porcelain CLI 双通道一致/commit 落盘 git log 硬断言）+
+      evidence/AC41 截图 01-05
+  - description: 状态栏 git 项（branch + 变更计数）+ 自动刷新：工作区文件事件（WorkspaceEvent 推送）防抖触发状态重取；stage/unstage/commit
+      操作后即时刷新 + git:changed 推送同步渲染端；编辑器保存后状态联动
     id: AC41
     status: completed
-    verifier: verify-i32.mjs（状态栏 ⑂ main ✚2 → 提交后 ✚1；文件树 hello.ts M 徽章；文件事件 800ms 防抖联动 refreshGit）
-  - description: '质量门：构建 + eslint + 全量单测 + 全量 e2e 回归 PASS；证据与报告落盘 evidence/AC41'
+    verifier: verify-i32.mjs（状态栏 ⑂ main ✚2 → 提交后 ✚1；文件树 hello.ts M 徽章；文件事件 800ms 防抖联动
+      refreshGit）
+  - description: 质量门：构建 + eslint + 全量单测 + 全量 e2e 回归 PASS；证据与报告落盘 evidence/AC41
     id: AC41
     status: completed
-    verifier: 构建 PASS + eslint PASS + vitest 595/595（65 文件，新增 git-service 12 项）+ 全量回归 27 套全 PASS（smoke/iteration2/i4/i6~i8/i10~i26/i29/i30/i31/i32）+ evidence/AC41/report.json
-  notes: git 可用性依赖用户机 git CLI（与上下文引擎 git_status 同口径，主力 IDE 场景合理）；提交=用户直接动作不经授权门（与编辑器保存同语义）；合并/rebase/分支切换等高级操作后续迭代；diff 复用 computeDiff 保证与 agent diff 渲染一致。收口补录：① 左栏双页签改造时 enterWorkspace/语言热生效仍清空整个 sidebar（会抹掉页签 DOM），改 scoped 到 filesPane；② 文件树徽章经 updateTreeBadges 增量更新（不重建树，保展开/选中态），git:changed 先于树到达时 enterWorkspace 后回填；③ 打开中的 git diff 标题随语言热生效
+    verifier: 构建 PASS + eslint PASS + vitest 595/595（65 文件，新增 git-service 12 项）+ 全量回归
+      27 套全 PASS（smoke/iteration2/i4/i6~i8/i10~i26/i29/i30/i31/i32）+ evidence/AC41/report.json
+  notes: git 可用性依赖用户机 git CLI（与上下文引擎 git_status 同口径，主力 IDE 场景合理）；提交=用户直接动作不经授权门（与编辑器保存同语义）；合并/rebase/分支切换等高级操作后续迭代；diff
+    复用 computeDiff 保证与 agent diff 渲染一致。收口补录：① 左栏双页签改造时 enterWorkspace/语言热生效仍清空整个 sidebar（会抹掉页签
+    DOM），改 scoped 到 filesPane；② 文件树徽章经 updateTreeBadges 增量更新（不重建树，保展开/选中态），git:changed
+    先于树到达时 enterWorkspace 后回填；③ 打开中的 git diff 标题随语言热生效
   e2e_report: evidence/AC41/report.json (15 断言全 PASS)
 iteration_33:
   scope: 留存工程·调试（AC42）——DAP 集成：JS/TS 断点调试（js-debug 适配器），主力 IDE 定位最后一块留存基石
   acceptance_criteria:
-  - description: 'DapClient（packages/dap，electron-free 依赖注入）：Content-Length 分帧 DAP 协议（粘包/半包/单 chunk 多消息正确处理，Buffer 层字节定长）；seq 自增请求/响应匹配（success=false 拒绝）；事件回调（initialized/stopped/continued/terminated/exited/output/breakpoint）；适配器反向请求（runInTerminal 拒答 error 不挂起）；进程退出拒绝全部挂起（DW_DAP_* ASCII 错误码）；请求超时拒绝'
+  - description: DapClient（packages/dap，electron-free 依赖注入）：Content-Length 分帧 DAP
+      协议（粘包/半包/单 chunk 多消息正确处理，Buffer 层字节定长）；seq 自增请求/响应匹配（success=false 拒绝）；事件回调（initialized/stopped/continued/terminated/exited/output/breakpoint）；适配器反向请求（runInTerminal
+      拒答 error 不挂起）；进程退出拒绝全部挂起（DW_DAP_* ASCII 错误码）；请求超时拒绝
     id: AC42
     status: completed
-    verifier: packages/dap 单测 15 项 PASS（假进程驱动：分帧/粘包/半包/UTF-8 跨 chunk/非法 JSON 容错/响应匹配/失败响应/事件分发/反向请求/超时/退出拒绝/强杀兜底）+ TCP 传输工厂（dapDebugServer 只讲 TCP，port=0 系统分配多会话不撞车）
-  - description: 'JsDebugSession（packages/dap）：真实 js-debug 适配器（vendor/js-debug v1.102.0 官方发行版，MIT）spawn 生命周期——initialize→launch(pwa-node, console=internalConsole)→setBreakpoints→configurationDone 完整握手序列；断点命中 stopped 事件（threadId/reason）；stackTrace/scopes/variables 查询；continue/next/stepIn/stepOut 步进；evaluate 表达式求值；terminated/exited 收尾状态机；will-quit 先 disconnect 请求、超时强杀，零孤儿进程（同 LSP/MCP 口径）'
+    verifier: packages/dap 单测 15 项 PASS（假进程驱动：分帧/粘包/半包/UTF-8 跨 chunk/非法 JSON 容错/响应匹配/失败响应/事件分发/反向请求/超时/退出拒绝/强杀兜底）+
+      TCP 传输工厂（dapDebugServer 只讲 TCP，port=0 系统分配多会话不撞车）
+  - description: JsDebugSession（packages/dap）：真实 js-debug 适配器（vendor/js-debug v1.102.0
+      官方发行版，MIT）spawn 生命周期——initialize→launch(pwa-node, console=internalConsole)→setBreakpoints→configurationDone
+      完整握手序列；断点命中 stopped 事件（threadId/reason）；stackTrace/scopes/variables 查询；continue/next/stepIn/stepOut
+      步进；evaluate 表达式求值；terminated/exited 收尾状态机；will-quit 先 disconnect 请求、超时强杀，零孤儿进程（同
+      LSP/MCP 口径）
     id: AC42
     status: completed
-    verifier: 单测 4 项真机驱动 PASS（真实 js-debug 适配器调试 temp node fixture：断点命中行号硬断言 + 变量值读取 + next 步进行移 + evaluate 求值 + continue 至退出 + 无断点跑完 + 重复 start 拒绝 + 未暂停查询拒绝）；双连接模型（C1 引导 + C2 伴随会话，startDebugging 反向请求）；被调试进程 close 事件 = terminated 唯一权威来源；退出后系统进程表零残留
-  - description: 'IPC 面（contracts 白名单）：debug:start/debug:stop/debug:set-breakpoints/debug:continue/debug:next/debug:step-in/debug:step-out/debug:stack/debug:variables/debug:evaluate invoke 通道 + debug:state-changed/debug:stopped/debug:output 推送通道；DevwitApi.debug 类型 + preload 暴露；i18n debug.* 键中英同型（工具栏/面板/状态栏/错误码）'
+    verifier: 单测 4 项真机驱动 PASS（真实 js-debug 适配器调试 temp node fixture：断点命中行号硬断言 + 变量值读取
+      + next 步进行移 + evaluate 求值 + continue 至退出 + 无断点跑完 + 重复 start 拒绝 + 未暂停查询拒绝）；双连接模型（C1
+      引导 + C2 伴随会话，startDebugging 反向请求）；被调试进程 close 事件 = terminated 唯一权威来源；退出后系统进程表零残留
+  - description: IPC 面（contracts 白名单）：debug:start/debug:stop/debug:set-breakpoints/debug:continue/debug:next/debug:step-in/debug:step-out/debug:stack/debug:variables/debug:evaluate
+      invoke 通道 + debug:state-changed/debug:stopped/debug:output 推送通道；DevwitApi.debug
+      类型 + preload 暴露；i18n debug.* 键中英同型（工具栏/面板/状态栏/错误码）
     id: AC42
     status: completed
     verifier: 白名单完整性单测 PASS + i18n 同型单测 PASS + e2e 全链路断言 15 项 PASS
-  - description: '编辑器断点 UI（editor-render）：行号槽点击切换断点（红点绘制，onGutterClick 回调）；调试暂停行高亮（setDebugLine，黄色行背景 + 行号槽指示）；断点集合随文件切换保持；渲染端调试面板（调用栈帧列表 + 作用域变量树 + 求值输入）与工具栏（启动/继续/单步跳过/步入/步出/停止），状态栏 debug 项（状态 + 暂停位置）'
+  - description: 编辑器断点 UI（editor-render）：行号槽点击切换断点（红点绘制，onGutterClick 回调）；调试暂停行高亮（setDebugLine，黄色行背景
+      + 行号槽指示）；断点集合随文件切换保持；渲染端调试面板（调用栈帧列表 + 作用域变量树 + 求值输入）与工具栏（启动/继续/单步跳过/步入/步出/停止），状态栏
+      debug 项（状态 + 暂停位置）
     id: AC42
     status: completed
-    verifier: e2e verify-i33.mjs 15 断言全 PASS（行号槽点击出红点/启动断点命中 main.js:3/调用栈首帧/Local alpha=10 beta=20/evaluate=30/单步跳过行移 3→4 gamma=30/继续至 terminated 输出全量回传/状态机归零可再启动）+ evidence/AC42 4 截图 + report.json
-  - description: '质量门：构建 + eslint + 全量单测 + 全量 e2e 回归 PASS；证据与报告落盘 evidence/AC42；vendor/js-debug 打包配置（files/asarUnpack，spawn 子进程不可读 asar）'
+    verifier: e2e verify-i33.mjs 15 断言全 PASS（行号槽点击出红点/启动断点命中 main.js:3/调用栈首帧/Local
+      alpha=10 beta=20/evaluate=30/单步跳过行移 3→4 gamma=30/继续至 terminated 输出全量回传/状态机归零可再启动）+
+      evidence/AC42 4 截图 + report.json
+  - description: 质量门：构建 + eslint + 全量单测 + 全量 e2e 回归 PASS；证据与报告落盘 evidence/AC42；vendor/js-debug
+      打包配置（files/asarUnpack，spawn 子进程不可读 asar）
     id: AC42
     status: completed
-    verifier: 构建 PASS + eslint PASS + vitest 614/614（67 文件）+ 全量回归 28 套全 PASS（smoke/iteration2/i4/i6~i8/i10~i26/i29/i30/i31/i32/i33）+ evidence/AC42/report.json + pack 产物目检 app.asar.unpacked/vendor/js-debug 完整落包（dapDebugServer.js + bootloader + hash/wasm 运行时依赖）
-  notes: js-debug 不在 npm 注册表（微软仅发 GitHub release tarball），vendor 钉版 v1.102.0 保离线可复现；首迭代仅 JS/TS（pwa-node），其他语言复用同一 DapClient 后续迭代扩展；调试启动=用户直接动作不经授权门（与保存/提交同语义）。收口补录（架构级）：① 弃用 js-debug launch 改 attach 模式——launch 硬编码删除 ELECTRON_RUN_AS_NODE（dapDebugServer.js 内 env 注入 null），Electron 被调试进程误入 GUI 模式永不退出、terminated 永不到达；attach 模式被调试进程由 JsDebugSession 直接 spawn 持有（--inspect-brk 停入口零竞态，env 全控 ELECTRON_RUN_AS_NODE=1），stdout/stderr 管道直挂 onOutput（不经 DAP 转述零重复），close 事件=terminated 唯一权威来源；② dapDebugServer 是伴随会话模型——C1 根连接 initialize→attach→configurationDone 仅作引导，收 startDebugging 反向请求后开 C2 伴随连接（同服务器第二 socket）跑真实会话，断点/栈/变量/步进/求值全在 C2；③ entry pause 兜底——探针实测 js-debug 对 configurationDone 后到达的 --inspect-brk break-on-start 暂停不自 resume（无断点路径上报 stopped reason=pause 悬挂），客户端兜底：启动后首个 stopped 若 reason=pause 自动 continue（debugger 语句 reason=debugger statement 不误伤）；④ evaluate 缺省 frameId 取栈顶帧（js-debug 对无帧 repl 求值直接拒答）
+    verifier: 构建 PASS + eslint PASS + vitest 614/614（67 文件）+ 全量回归 28 套全 PASS（smoke/iteration2/i4/i6~i8/i10~i26/i29/i30/i31/i32/i33）+
+      evidence/AC42/report.json + pack 产物目检 app.asar.unpacked/vendor/js-debug 完整落包（dapDebugServer.js
+      + bootloader + hash/wasm 运行时依赖）
+  notes: js-debug 不在 npm 注册表（微软仅发 GitHub release tarball），vendor 钉版 v1.102.0 保离线可复现；首迭代仅
+    JS/TS（pwa-node），其他语言复用同一 DapClient 后续迭代扩展；调试启动=用户直接动作不经授权门（与保存/提交同语义）。收口补录（架构级）：①
+    弃用 js-debug launch 改 attach 模式——launch 硬编码删除 ELECTRON_RUN_AS_NODE（dapDebugServer.js
+    内 env 注入 null），Electron 被调试进程误入 GUI 模式永不退出、terminated 永不到达；attach 模式被调试进程由 JsDebugSession
+    直接 spawn 持有（--inspect-brk 停入口零竞态，env 全控 ELECTRON_RUN_AS_NODE=1），stdout/stderr
+    管道直挂 onOutput（不经 DAP 转述零重复），close 事件=terminated 唯一权威来源；② dapDebugServer 是伴随会话模型——C1
+    根连接 initialize→attach→configurationDone 仅作引导，收 startDebugging 反向请求后开 C2 伴随连接（同服务器第二
+    socket）跑真实会话，断点/栈/变量/步进/求值全在 C2；③ entry pause 兜底——探针实测 js-debug 对 configurationDone
+    后到达的 --inspect-brk break-on-start 暂停不自 resume（无断点路径上报 stopped reason=pause 悬挂），客户端兜底：启动后首个
+    stopped 若 reason=pause 自动 continue（debugger 语句 reason=debugger statement 不误伤）；④
+    evaluate 缺省 frameId 取栈顶帧（js-debug 对无帧 repl 求值直接拒答）
   e2e_report: evidence/AC42/report.json (15 断言全 PASS)
 growth_launch_1:
   scope: 增长执行（P0 信任基建 + P0 定位与首发）——签名 CI 门控落地 + 首发素材包 + 用户注册清单
-  release_status_verified: 'v0.3.0 = Latest（非 prerelease/draft），12 资产，published 2026-07-26T12:40:15Z；downloads=2（2026-07-28 gh api 核实，发布刚起步）；winget PR microsoft/winget-pkgs#407506 OPEN，license/cla SUCCESS，待 moderator 审批'
+  release_status_verified: v0.3.0 = Latest（非 prerelease/draft），12 资产，published 2026-07-26T12:40:15Z；downloads=2（2026-07-28
+    gh api 核实，发布刚起步）；winget PR microsoft/winget-pkgs#407506 OPEN，license/cla SUCCESS，待
+    moderator 审批
   signing_infra:
-    - scripts/enable-azure-signing.mjs：CI 辅助，读 AZURE_SIGN_PUBLISHER/ENDPOINT/ACCOUNT/PROFILE 四元数据注入 electron-builder.yml azureSignOptions（缺变量拒答 DW_SIGN_ENV_MISSING；delete signtoolOptions 守互斥约束）
-    - release.yml build-windows 新增门控步骤（if: vars.AZURE_SIGN_ENABLED == 'true'）+ dist 步骤 env 透传 AZURE_TENANT_ID/CLIENT_ID/CLIENT_SECRET（secrets）；未启用即跳过，构建保持未签名现状零行为变化
-    - electron-builder.yml 不落盘签名配置（注释说明门控机制）；electron-builder 25.1.8 已原生支持 azureSignOptions 无需升级
-    - 验证：本地 dummy env 注入→js-yaml 结构断言 INJECT_OK→恢复后 RESTORE_OK（committed yml 无 azureSignOptions）；release.yml 门控表达式 + vars/secrets 接线逐项断言 RELEASE_YML_OK
-  signing_eligibility_finding: '关键修正（Microsoft Learn 2026-07 核实）：Azure Artifact Signing（原 Trusted Signing）公共信任证书——个人开发者仅限美国/加拿大，组织限美/加/欧盟/英且需 3 年税务记录。中国个人开发者不可用，原 Azure 选型不适用。主路径转 SignPath Foundation（OSS 免费、全球可申请、与免费软件定位契合，审核数天到数周）；Certum OV 证书（~€100/年、全球个人可申请）付费兜底；Azure CI 门控保留，资格放宽即开即用。另核实：除 Microsoft Store MSIX 外任何签名方案 SmartScreen 信誉均需积累，初期警告不可避免（签名价值=身份可验证+防篡改）'
+  - scripts/enable-azure-signing.mjs：CI 辅助，读 AZURE_SIGN_PUBLISHER/ENDPOINT/ACCOUNT/PROFILE
+    四元数据注入 electron-builder.yml azureSignOptions（缺变量拒答 DW_SIGN_ENV_MISSING；delete
+    signtoolOptions 守互斥约束）
+  - release.yml build-windows 新增门控步骤（if: vars.AZURE_SIGN_ENABLED == 'true'）+ dist
+      步骤 env 透传 AZURE_TENANT_ID/CLIENT_ID/CLIENT_SECRET（secrets）；未启用即跳过，构建保持未签名现状零行为变化
+  - electron-builder.yml 不落盘签名配置（注释说明门控机制）；electron-builder 25.1.8 已原生支持 azureSignOptions
+    无需升级
+  - 验证：本地 dummy env 注入→js-yaml 结构断言 INJECT_OK→恢复后 RESTORE_OK（committed yml 无 azureSignOptions）；release.yml
+    门控表达式 + vars/secrets 接线逐项断言 RELEASE_YML_OK
+  signing_eligibility_finding: 关键修正（Microsoft Learn 2026-07 核实）：Azure Artifact Signing（原
+    Trusted Signing）公共信任证书——个人开发者仅限美国/加拿大，组织限美/加/欧盟/英且需 3 年税务记录。中国个人开发者不可用，原 Azure
+    选型不适用。主路径转 SignPath Foundation（OSS 免费、全球可申请、与免费软件定位契合，审核数天到数周）；Certum OV 证书（~€100/年、全球个人可申请）付费兜底；Azure
+    CI 门控保留，资格放宽即开即用。另核实：除 Microsoft Store MSIX 外任何签名方案 SmartScreen 信誉均需积累，初期警告不可避免（签名价值=身份可验证+防篡改）
   launch_assets:
-    - distribution/launch/product-hunt.md——tagline（60 字符主选+2 备选）/description（244 字符）/first comment/topics/gallery 规格（1270×760，复用 docs/screenshots 六图定顺序）/排期建议（周二至周四 00:01 PT）
-    - distribution/launch/blog-devto-en.md——英文发布博客（dev.to front matter 齐备，published:false 待账号）
-    - distribution/launch/blog-juejin-zh.md——掘金中文版（非直译，按中文读者重组织）
-    - distribution/launch/signup-checklist.md——七平台注册清单（SignPath/PH/PostHog/dev.to/掘金/B站/winget 在途），含 GitHub Variables/Secrets 精确键名与建议执行顺序（SignPath 审核周期最长先排队 → 三平台同日首发 → PostHog → B站）
-  next: 用户注册 SignPath Foundation（先排队）→ Product Hunt + dev.to + 掘金同日三连发（素材齐备只欠账号）→ PostHog key 接入遥测端点 → B站专栏跟进；SignPath API token 到手后接入 release.yml 自定义签名钩子
+  - distribution/launch/product-hunt.md——tagline（60 字符主选+2 备选）/description（244 字符）/first
+    comment/topics/gallery 规格（1270×760，复用 docs/screenshots 六图定顺序）/排期建议（周二至周四 00:01
+    PT）
+  - distribution/launch/blog-devto-en.md——英文发布博客（dev.to front matter 齐备，published:false
+    待账号）
+  - distribution/launch/blog-juejin-zh.md——掘金中文版（非直译，按中文读者重组织）
+  - distribution/launch/signup-checklist.md——七平台注册清单（SignPath/PH/PostHog/dev.to/掘金/B站/winget
+    在途），含 GitHub Variables/Secrets 精确键名与建议执行顺序（SignPath 审核周期最长先排队 → 三平台同日首发 → PostHog
+    → B站）
+  next: 用户注册 SignPath Foundation（先排队）→ Product Hunt + dev.to + 掘金同日三连发（素材齐备只欠账号）→
+    PostHog key 接入遥测端点 → B站专栏跟进；SignPath API token 到手后接入 release.yml 自定义签名钩子
 ci_repair_2026_07_28:
   symptom: CI 自迭代17（4d45feb，2026-07-25）起连红 15 个 run；最后绿 run=4ff6fc7（2026-07-24）
-  root_cause_1: probe.test.ts 假 key 字面量（sk-probe/sk-ant）命中 scan-secret-leak.py plaintext_api_key_assign 规则（apiKey 赋 sk- 前缀字符串即形貌拦截）——代码问题非 CI 问题；修复：假 key 去 sk- 前缀（probe-fake-key/ant-fake-key），行为断言同步。注意：本条记录本身不得写 apiKey 冒号引号 sk- 的完整形貌，否则再次触线（d8892cf 曾因此翻车一次）
-  root_cause_2: quality-gate.py SKIP_DIRS 未含 vendor/——迭代33 引入 vendor/js-debug 钉版第三方代码贡献 15 条 hardcoded + 2 条 simplification 误报（CI 按序停在 scan-secret-leak，此失败被遮蔽，本地跑全套件才暴露）；修复：SKIP_DIRS 增 vendor（与 node_modules 同口径，字节级固定不可改代码不做工程门禁）
-  root_cause_3: 自有代码 5 处合法常量（DEFAULT_LEARNING/DEFAULT_ROUTING 导出常量、chat-controller 反序列化回退 ×2、symbol-index result 页大小）触发 hardcoded_config——逐一评审确认与既有 12 条豁免同类，按 qg-allow 机制豁免并注明原因
+  root_cause_1: probe.test.ts 假 key 字面量（sk-probe/sk-ant）命中 scan-secret-leak.py plaintext_api_key_assign
+    规则（apiKey 赋 sk- 前缀字符串即形貌拦截）——代码问题非 CI 问题；修复：假 key 去 sk- 前缀（probe-fake-key/ant-fake-key），行为断言同步。注意：本条记录本身不得写
+    apiKey 冒号引号 sk- 的完整形貌，否则再次触线（d8892cf 曾因此翻车一次）
+  root_cause_2: quality-gate.py SKIP_DIRS 未含 vendor/——迭代33 引入 vendor/js-debug 钉版第三方代码贡献
+    15 条 hardcoded + 2 条 simplification 误报（CI 按序停在 scan-secret-leak，此失败被遮蔽，本地跑全套件才暴露）；修复：SKIP_DIRS
+    增 vendor（与 node_modules 同口径，字节级固定不可改代码不做工程门禁）
+  root_cause_3: 自有代码 5 处合法常量（DEFAULT_LEARNING/DEFAULT_ROUTING 导出常量、chat-controller
+    反序列化回退 ×2、symbol-index result 页大小）触发 hardcoded_config——逐一评审确认与既有 12 条豁免同类，按 qg-allow
+    机制豁免并注明原因
   lesson: 推送前必须本地跑 CI 同款七项验证套件（本次根因 1 若本地跑过 scan-secret-leak 即不会红 4 天）；CI 顺序短路会遮蔽后续检查，修一个后需本地全量确认再推
-  evidence: 本地 7 项验证全 PASS + vitest 614/614 + eslint PASS；CI run 30327163000 双 job success（14e8f07）
-status: complete
-updated_at: '2026-07-28T12:10:00.000000'
+  evidence: 本地 7 项验证全 PASS + vitest 614/614 + eslint PASS；CI run 30327163000 双 job
+    success（14e8f07）

@@ -58,6 +58,19 @@ def run_error_capture(project_root: Path, error_output: str, source: str) -> lis
 def run_verification(project_root: Path) -> dict:
     result = {"passed": True, "errors": []}
 
+    # Event-log invariant gate (Fusion A-WU1/A-WU2): fail-closed on log
+    # corruption / seq gaps / unknown types / stale projection watermark.
+    invariant_script = project_root / "runtime" / "log_invariant.py"
+    if invariant_script.exists():
+        proc = subprocess.run(
+            [sys.executable, str(invariant_script), "--project-root", str(project_root)],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+        )
+        if proc.returncode != 0:
+            result["passed"] = False
+            combined = proc.stdout + proc.stderr
+            result["errors"].append({"source": "log-invariant", "output": combined})
+
     consistency_script = project_root / "verification" / "consistency-check.py"
     if consistency_script.exists():
         proc = subprocess.run(
