@@ -1,0 +1,11 @@
+# harness-patch.yaml — Fusion Plan v3 (A-WU4)
+# 按行 id 覆盖 harness-composition.yaml；未知 id 会被 compose.py 拒绝（fail-closed）。
+# 示例（启用后取消注释）：
+# version: 1
+# rows:
+#   - id: verification/self-check.py
+#     enabled: false        # 停用某行
+#   - id: planning/budget.yaml
+#     config: {max_rounds: 60}   # deep-merge 进该行 config
+version: 1
+rows: []

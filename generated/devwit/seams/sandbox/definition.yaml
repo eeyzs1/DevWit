@@ -1,0 +1,16 @@
+version: 1
+name: sandbox
+purpose: "Where tool execution is confined (local policy, container, remote, ...)"
+definition:
+  interface: "tools/sandbox.yaml + security/guardrails（权限契约）"
+  methods:
+    - confine
+    - resolve_policy
+requires_provider: true
+requires_consumer: true
+provider:
+  location: "tools/sandbox.yaml backends + tools/enforce-permission.py（Fusion A-WU6 引入）"
+  contract: "每个隔离机制一个 backend"
+consumer:
+  location: "verification/quality-gate.py + guard.py（包装 argv 通过策略执行）"
+  contract: "只经策略包装，denial 即最终（exit 126）"

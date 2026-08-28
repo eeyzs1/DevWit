@@ -1,0 +1,15 @@
+version: 1
+name: ci
+purpose: "Which CI pipeline runs the verification gates (github-actions, noop, ...)"
+definition:
+  interface: ".github/workflows/ci.yml（仓库级 CI：lint → unit → e2e）"
+  methods:
+    - run_gate
+requires_provider: true
+requires_consumer: true
+provider:
+  location: ".github/workflows/ci.yml + release.yml（仓库根，DevWit 产品 CI）"
+  contract: "每个 CI backend 一个适配器"
+consumer:
+  location: "verification/（self-check / quality-gate / hook-executor 等 gate 入口）"
+  contract: "gate 只经 CI 适配器契约接入"

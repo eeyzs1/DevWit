@@ -1,0 +1,20 @@
+version: 1
+name: workitem-source
+purpose: "Where work items come from (files, GitHub issues, Jira, ...)"
+# Capability seam (DSH-inspired): definition / provider / consumer.
+# A seam is COMPLETE only when all three roles exist. One role alone is not a seam.
+definition:
+  interface: "runtime/sources/local_file_source.py (WorkitemSource 抽象基类)"
+  methods:
+    - fetch_brief
+    - fetch_workitems
+    - update_status
+    - create_workitem
+requires_provider: true
+requires_consumer: true
+provider:
+  location: "runtime/sources/<adapter>_source.py（当前 local_file_source.py）"
+  contract: "继承基类并实现全部抽象方法；planning/workitem-source.yaml 按 adapter/class_name 注册"
+consumer:
+  location: "runtime/supervisor.py + orchestrator.py（run_workitem / claim / archive）"
+  contract: "只调用 WorkitemSource 接口，不依赖具体适配器"

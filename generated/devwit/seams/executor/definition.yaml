@@ -1,0 +1,15 @@
+version: 1
+name: executor
+purpose: "Which leaf helper executes a work item (sub-agent, claude-goal, codex-task, ...)"
+definition:
+  interface: "planning/executor-engine.md（适配器协议）+ planning/sub-agent-dispatch.yaml（prototype 拓扑）"
+  methods:
+    - execute
+requires_provider: true
+requires_consumer: true
+provider:
+  location: "planning/sub-agent-dispatch.yaml prototypes（按 S/C/N/K 实例化角色）"
+  contract: "每个 backend 一个适配器，实现 executor 协议"
+consumer:
+  location: "runtime/supervisor.py dispatch + planning/dispatcher.py（task card 实例化）"
+  contract: "只经协议派发，不绑定具体 backend"
