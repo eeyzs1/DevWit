@@ -192,6 +192,11 @@ export interface ContextManifest {
   items: ContextItem[];
   totalTokens: number;
   systemPromptTokens: number;
+  /**
+   * B-WU4（Fusion v3）：系统提示的段组成审计——各 PromptSection 的 name/order。
+   * 仅在使用 PromptSectionRegistry 组装时存在；未用注册表时为 undefined（向后兼容）。
+   */
+  promptSections?: Array<{ name: string; order: number }>;
 }
 
 /** 上下文源：各包可注册新的源（如 workspace 提供 git 状态源）。 */

@@ -9,6 +9,7 @@ import type {
 } from "@devwit/contracts";
 import { makeRawItem, serializeConversationHistory } from "./sources.js";
 import { TiktokenCounter, type TokenCounter } from "./token-counter.js";
+import type { PromptSectionRegistry } from "./prompt-sections.js";
 
 /**
  * 引擎默认上下文策略（AR007 默认极简）：仅系统提示 + 工具定义开启，
@@ -61,6 +62,12 @@ export interface ContextEngineOptions {
   counter?: TokenCounter;
   /** 每次 build 后回调落盘 manifest（AC2 审计要求：每次请求一份）。 */
   manifestStore?: ManifestStore;
+  /**
+   * B-WU4：系统提示段注册表。存在时 build 用它组装系统提示（替代 input.systemPrompt，
+   * 调用方可把模式提示注册为 FIRST_PARTY_SECTION_ORDER.mode 段）；缺省走原
+   * input.systemPrompt（向后兼容）。
+   */
+  promptSections?: PromptSectionRegistry;
 }
 
 export interface ContextBuildInput {
@@ -120,6 +127,7 @@ export class ContextEngine {
   private readonly sessionId: string;
   private readonly counter: TokenCounter;
   private readonly manifestStore?: ManifestStore;
+  private readonly promptSections?: PromptSectionRegistry;
   private readonly sources: ContextSource[] = [];
   private readonly userOverrides = new Map<ContextItemType, boolean>();
   /** 稳定 key 项的逐项开关（AC19）：优先级高于类型级开关，仅对带 key 的项生效。 */
@@ -130,6 +138,7 @@ export class ContextEngine {
     this.sessionId = options.sessionId;
     this.counter = options.counter ?? new TiktokenCounter();
     if (options.manifestStore !== undefined) this.manifestStore = options.manifestStore;
+    if (options.promptSections !== undefined) this.promptSections = options.promptSections;
   }
 
   /** 注册上下文源，返回注销函数。 */
@@ -182,8 +191,21 @@ export class ContextEngine {
    * 产出 manifest 并落盘（每次请求一份，AC2/AR007）。
    */
   async build(input: ContextBuildInput): Promise<ContextBuild> {
+    // B-WU4：注册表存在时组装系统提示（段组成进 manifest 审计）；缺省用模式提示
+    let systemPrompt = input.systemPrompt;
+    let promptSectionsMeta: ContextManifest["promptSections"];
+    if (this.promptSections !== undefined) {
+      const assembled = this.promptSections.assemble({
+        modeId: input.modeId,
+        providerId: input.providerId,
+        model: input.model,
+      });
+      systemPrompt = assembled.text;
+      promptSectionsMeta = assembled.sections;
+    }
+
     const rawItems: ContextItem[] = [
-      makeRawItem("system_prompt", "系统提示", input.systemPrompt, "mode"),
+      makeRawItem("system_prompt", "系统提示", systemPrompt, "mode"),
       makeRawItem("tool_definitions", `工具定义（${input.tools.length} 个）`, serializeToolDefinitions(input.tools), "mode"),
       // 会话历史项恒定存在：composeMessages 依据其 enabled 决定是否注入原始消息，
       // 且"历史开关"必须在 manifest/UI 中始终可见（AC2），与是否注册外部源无关。
@@ -226,6 +248,7 @@ export class ContextEngine {
       systemPromptTokens: items
         .filter((item) => item.type === "system_prompt" && item.enabled)
         .reduce((sum, item) => sum + item.tokens, 0),
+      ...(promptSectionsMeta !== undefined ? { promptSections: promptSectionsMeta } : {}),
     };
 
     if (this.manifestStore) await this.manifestStore.save(manifest);
