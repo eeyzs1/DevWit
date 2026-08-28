@@ -1,0 +1,15 @@
+version: 1
+name: ci
+purpose: "Which CI pipeline runs the verification gates (github-actions, noop, ...)"
+definition:
+  interface: "tools/adapters/ci-github-actions.md (adapter contract)"
+  methods:
+    - run_gate
+requires_provider: true
+requires_consumer: true
+provider:
+  location: "providers/"
+  contract: "one adapter per CI backend"
+consumer:
+  location: "consumers/  (verification gate entry points)"
+  contract: "invokes the CI adapter contract only"

@@ -1,4 +1,4 @@
-# Meta-Harness — AGENT OPERATING INSTRUCTIONS v2.5
+# Meta-Harness — AGENT OPERATING INSTRUCTIONS v3.0
 
 You are a META-HARNESS: you GENERATE complete, runnable, self-evolving harness projects.
 
@@ -6,26 +6,47 @@ You are a META-HARNESS: you GENERATE complete, runnable, self-evolving harness p
 
 **This is the SINGLE entry point. There is no other bootstrap path.**
 
-1. **Read `.meta-harness/PHASE_BRIEF.md`** — this file is updated on every state change. It tells you exactly:
-   - Which phase you're in and whether it's "in_progress", "blocked", or "complete"
+1. **Read `.meta-harness/PHASE_BRIEF.md`** — a DERIVED resume point (never edit it
+   by hand; it is regenerated from `meta/event-log.yaml` at the same watermark).
+   It tells you exactly:
+   - Which phase you're in and whether it's "in_progress", "blocked", "paused", or "complete"
    - What the original acceptance criteria are (locked during INTERPRET)
    - What to do next
 2. **If PHASE_BRIEF.md does not exist** (fresh start):
    - Run self-update: `powershell scripts/check-version.ps1` (Windows) or `bash scripts/check-version.sh` (Linux/Mac)
    - If `UPDATE_AVAILABLE=true`, run the update script, then restart
-   - Run `python meta/meta-orchestrator.py --status` to initialize
+   - Run `python meta/meta-orchestrator.py --status` to initialize (creates the event log)
 3. **If PHASE_BRIEF.md says "status: complete"** → stop. Pipeline is done.
-4. **If PHASE_BRIEF.md says "status: blocked"** → diagnose and fix errors, then run `python meta/meta-orchestrator.py --unblock`
+4. **If PHASE_BRIEF.md says "status: blocked"** → diagnose and fix errors, then run
+   `python meta/meta-orchestrator.py --unblock --code <code> --reason <reason>`.
+   Every unblock records WHY (machine code + human reason). Do NOT unblock without fixing.
 5. **Resume from the phase indicated.** Do NOT re-execute completed phases.
-6. **Before ANY major action**, check the acceptance criteria. If your action does NOT trace to a criterion, STOP — you are experiencing task drift.
+6. **Before ANY major action**, check the acceptance criteria. If your action does NOT
+   trace to a criterion, STOP — you are experiencing task drift.
+7. **Integrity check when in doubt**: `python meta/meta-orchestrator.py --check-invariants`
+   (fail-closed: unknown log versions, seq gaps, stale brief/state, orphaned compaction → FAIL).
+
+## The event log is the single source of truth (v3.0)
+
+- `meta/event-log.yaml` is APPEND-ONLY. Every mutation goes through it with a
+  compare-and-set revision, so a stale writer is rejected, never silently clobbered.
+- `meta/pipeline-state.yaml` and `.meta-harness/PHASE_BRIEF.md` are DERIVED
+  projections. Anything the model sees must be reconstructable from the log
+  (model-visible ⟺ logged). Do not hand-edit projections.
+- Inspect history: `python meta/meta-orchestrator.py --events`
+- Re-derive the brief as a lock-bracketed compaction:
+  `python meta/meta-orchestrator.py --compact`
 
 ## Pipeline: INTERPRET → GENERATE → FACTORY → PROVE → JUDGE → EVOLVE
 
 The pipeline is driven by `meta/meta-orchestrator.py`. This script:
-- Tracks phase state in `meta/pipeline-state.yaml`
-- Writes `.meta-harness/PHASE_BRIEF.md` on every state change (context-loss survival)
+- Appends phase events to `meta/event-log.yaml` (log is truth)
+- Derives `meta/pipeline-state.yaml` + `.meta-harness/PHASE_BRIEF.md` at the same watermark
 - Locks acceptance criteria during INTERPRET to prevent task drift
-- Auto-advances when you run `--advance`
+- Auto-advances when you run `--advance`; refusals are recorded with a stable code
+  and the pipeline blocks only after repeated refusals with the SAME code
+- Runs `hooks/pre-advance/*.py` as a bail gate before every advance (the
+  GENERATE → FACTORY validate-harness gate is `hooks/pre-advance/10-validate-harness.py`)
 
 ## Phase-Specific Rules (LOAD ON DEMAND)
 
@@ -51,31 +72,42 @@ criteria in one step. Confirm the criteria with the user before advancing.
 ```
 python meta/meta-orchestrator.py --advance
 ```
-This does 5 things (v2.4+):
-1. Marks the current phase as complete
-2. Auto-advances to the next phase
-3. **Auto-runs the next phase's script** (generate/agent-factory/verify/judge/evolve)
+This does (v3.0):
+1. Appends a `phase/advance` event and marks the current phase complete
+2. Runs `hooks/pre-advance/*.py` (bail gate — a non-zero hook REFUSES the advance
+   and records `phase/refused` with the hook's code; same code 3× → blocked)
+3. Auto-runs the next phase's script (scaffold/agent-factory/verify/judge/evolve)
 4. Prints detailed instructions for the next phase
-5. Updates `.meta-harness/PHASE_BRIEF.md` for context-loss recovery
+5. Re-derives `.meta-harness/PHASE_BRIEF.md` from the log at the new watermark
 
-If a phase script fails, the error is recorded but the pipeline is NOT blocked
-— review the output, fix the issue, and re-run the script manually if needed.
+If a phase script fails, the error is recorded as an event but the pipeline is
+NOT blocked — review the output, fix the issue, and re-run the script manually
+if needed. `--fail "<error>"` blocks immediately (code `manual-fail`).
 
-**EXCEPTION — GENERATE pre-advance gate (v2.5+):** The GENERATE → FACTORY boundary
-is a BLOCKING gate. `--advance` from GENERATE runs `scripts/validate-harness.py`
-first; if it does not PASS, `--advance` is REFUSED and FACTORY does not start.
-This prevents FACTORY from running on a half-scaffolded harness (mock slots,
-missing work-units, broken DAG refs). Fix the slot fills flagged by the
-validator, re-run `validate-harness.py` until it PASSes, then re-run `--advance`.
-The GENERATE phase is 3 steps: scaffold (auto) → LLM-authored slots (manual) →
-validate (the gate). Only INTERPRET (needs user-confirmed criteria) and
-GENERATE (needs validate-harness PASS) are blocking gates; all other phase
-boundaries remain best-effort as described above.
+**EXCEPTION — GENERATE pre-advance gate (v2.5+, now a hook):** The GENERATE →
+FACTORY boundary is a BLOCKING gate. `--advance` from GENERATE runs
+`scripts/validate-harness.py` through `hooks/pre-advance/10-validate-harness.py`;
+if it does not PASS, `--advance` is REFUSED and FACTORY does not start. This
+prevents FACTORY from running on a half-scaffolded harness (mock slots, missing
+work-units, broken DAG refs). Fix the slot fills flagged by the validator, re-run
+`validate-harness.py` until it PASSes, then re-run `--advance`. The GENERATE
+phase is 3 steps: scaffold (auto) → LLM-authored slots (manual) → validate (the
+gate). Only INTERPRET (needs user-confirmed criteria) and GENERATE (needs
+validate-harness PASS) are blocking gates; all other phase boundaries remain
+best-effort as described above.
 
 **To skip auto-run** (restore pre-v2.4 manual behavior):
 ```
 python meta/meta-orchestrator.py --advance --no-auto-run
 ```
+
+**Pause / resume / rounds:**
+```
+python meta/meta-orchestrator.py --pause
+python meta/meta-orchestrator.py --resume
+```
+`rounds` counts advances and is bounded by `max_rounds` (default 50) — auto-
+continuation cannot run away.
 
 **You MUST then immediately execute the next phase.** Do NOT wait for the user.
 Exception: INTERPRET phase requires user confirmation of assumptions.

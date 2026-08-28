@@ -64,13 +64,14 @@ LAYER_DIRS = {
     "evolution": "Self-Evolution",
     "runtime": "Runtime: Multi-Worktree Orchestration",
     "docs": "Runtime: Documentation Contracts",
+    "seams": "Capability Seams: definition/provider/consumer",
 }
 
 # 通用原语：domain-agnostic 可执行机器，原样复制，LLM 不改
 UNIVERSAL_PRIMITIVES = {
     "context": ["loader.py"],
     "tools": ["tool-discovery.py"],
-    "memory": ["snapshot.py"],
+    "memory": ["snapshot.py", "event-log.yaml"],
     "planning": ["dag-builder.py", "dispatcher.py", "task-card-schema.yaml"],
     "verification": ["self-check.py", "consistency-check.py", "anti-mock-check.py", "quality-gate.py",
                       "dispatch-verifier.py", "hook-executor.py", "runtime-hooks.yaml",
@@ -308,6 +309,12 @@ def scaffold(task: dict, output_dir: Path) -> None:
     skills_src = SEEDS_DIR / "skills"
     if skills_src.exists():
         shutil.copytree(skills_src, output_dir / "skills")
+        write_skill_catalog(output_dir)
+
+    # 复制 seams 目录（能力接缝：definition/provider/consumer 三角色，WP8）
+    seams_src = SEEDS_DIR / "seams"
+    if seams_src.exists():
+        shutil.copytree(seams_src, output_dir / "seams", dirs_exist_ok=True)
 
     # 复制 planning 的 leaf-protocol / executor-engine 等通用文档
     for doc in ("leaf-protocol.md", "executor-engine.md", "planner-engine.md",
@@ -437,6 +444,9 @@ python runtime/event_stream.py verify --project-root .
     with open(output_dir / "harness-scaffold.yaml", "w", encoding="utf-8") as f:
         yaml.dump(manifest, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
+    # 6b. 写 harness-composition.yaml（WP4：声明式组合清单，可被 harness-patch.yaml 按 id 覆盖）
+    write_composition_manifest(output_dir, copied_universal, slot_manifest)
+
     # 7. 写 harness-profile.yaml（运行时契约）
     hp = {
         "version": 1,
@@ -456,6 +466,94 @@ python runtime/event_stream.py verify --project-root .
     print("Next: LLM reads meta/harness-author.md and enriches each slot listed in")
     print(f"      {output_dir / 'harness-scaffold.yaml'}")
     print(f"Then: python scripts/validate-harness.py {output_dir}")
+
+
+# Checks that orchestrator.py --verify runs, or that validate-harness gates run.
+# id (project-relative path) -> runner
+CHECK_ROWS = {
+    "guard.py": "orchestrator",
+    "verification/self-check.py": "orchestrator",
+    "verification/consistency-check.py": "orchestrator",
+    "constraints/entropy-reduction.py": "orchestrator",
+    "verification/anti-mock-check.py": "validate",
+    "verification/quality-gate.py": "validate",
+    "verification/dispatch-verifier.py": "validate",
+    "verification/lint-check.py": "validate",
+    "verification/hook-executor.py": "validate",
+}
+
+
+def write_composition_manifest(output_dir: Path, copied_universal: list,
+                               slot_manifest: list) -> None:
+    """Write harness-composition.yaml: named, patchable rows (WP4).
+
+    Every copied artifact and every LLM slot becomes a row {id, layer, kind,
+    source, enabled, config}. Verification scripts are kind=check with a
+    runner (orchestrator | validate). Users override rows by id through
+    harness-patch.yaml; scripts/compose.py merges and refuses unknown ids.
+    """
+    rows = []
+    for rel in copied_universal:
+        rel = rel.replace("\\", "/")
+        layer = rel.split("/")[0] if "/" in rel else "root"
+        source = f"seeds/{rel}" if "/" in rel else f"seeds/{rel}"
+        if rel in CHECK_ROWS:
+            rows.append({"id": rel, "layer": layer, "kind": "check",
+                         "source": source, "runner": CHECK_ROWS[rel],
+                         "enabled": True, "config": {}})
+        else:
+            rows.append({"id": rel, "layer": layer, "kind": "universal",
+                         "source": source, "enabled": True, "config": {}})
+    for slot in slot_manifest:
+        rel = slot["file"].replace("\\", "/")
+        layer = rel.split("/")[0] if "/" in rel else "root"
+        rows.append({"id": rel, "layer": layer, "kind": "slot",
+                     "source": f"seeds/{rel}", "enabled": True, "config": {}})
+    doc = {"version": 1, "rows": rows}
+    with open(output_dir / "harness-composition.yaml", "w", encoding="utf-8") as f:
+        yaml.dump(doc, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    print(f"  Composition manifest: {output_dir / 'harness-composition.yaml'} "
+          f"({len(rows)} rows)")
+
+
+def write_skill_catalog(output_dir: Path) -> None:
+    """Generate skills/catalog.yaml from the copied skill files (WP5).
+
+    Each skills/*.md becomes a catalog entry {id, name, description, path,
+    whenToUse}. `complete` stays true unless a file cannot be parsed; a broken
+    entry is flagged in the catalog rather than silently dropped.
+    """
+    skills_dir = output_dir / "skills"
+    entries = []
+    problems = []
+    if skills_dir.exists():
+        for md in sorted(skills_dir.glob("*.md")):
+            try:
+                text = md.read_text(encoding="utf-8")
+            except Exception as e:
+                problems.append(f"{md.name}: unreadable ({e})")
+                continue
+            lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+            name = md.stem.replace("-", " ").title()
+            description = ""
+            for ln in lines:
+                if ln.startswith("# "):
+                    name = ln[2:].strip()
+                elif not ln.startswith("#") and not description:
+                    description = ln[:160]
+                    break
+            entries.append({
+                "id": md.stem,
+                "name": name,
+                "description": description,
+                "path": f"skills/{md.name}",
+                "whenToUse": "",
+            })
+    doc = {"version": 1, "complete": not problems,
+           "skills": entries, "problems": problems}
+    with open(skills_dir / "catalog.yaml", "w", encoding="utf-8") as f:
+        yaml.dump(doc, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    print(f"  Skill catalog: {skills_dir / 'catalog.yaml'} ({len(entries)} skills)")
 
 
 def main():

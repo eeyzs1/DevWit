@@ -1,0 +1,46 @@
+# 测试 task：工业过程控制系统
+# domain 为 industrial_control —— 旧 generate.py 的 5 桶（web-app/api-service/automation/
+# data-pipeline/content-system）之外，用于验证 LLM-driven 生成能处理脚本桶外的领域。
+name: "industrial-process-control-system"
+domain: "industrial_control"
+real_need: >-
+  为化工厂的反应釜单元构建一个过程控制系统，采集 OPC UA 温度/压力 tag，
+  在边缘侧做 PID 闭环控制与安全联锁，云端做 TPT 异常检测与工艺优化建议。
+  安全联锁控制指令必须在边缘本地执行，不能从云端下发。
+goal: >-
+  交付一个 cloud-edge 分层的工业过程控制系统，边缘侧保证 1s 内闭环控制与
+  安全联锁，云端提供秒级异常检测与分钟级优化建议，全程可审计。
+scale: "organization"
+quality_attributes:
+  - safety (失效可能造成物理事故，不可逆)
+  - reliability (7x24 连续运行)
+  - auditability (合规要求全程可追溯)
+hard_constraints:
+  - "安全联锁控制指令必须在边缘本地执行，禁止从云端下发到 interlock 执行器"
+  - "控制回路周期 <= 1s，异常检测延迟 <= 10s"
+  - "OPC UA tag 采集失败必须告警并切到安全态，不能静默丢弃"
+  - "所有控制指令与状态变更必须写入审计日志，不可篡改"
+  - "PII 与工艺配方数据在传输与存储时必须加密"
+soft_constraints:
+  - "优先使用 OPC UA 协议采集，而非 OCR 仪表识别"
+  - "TPT 模型推理在 GPU 上做 INT8 量化"
+unknowns:
+  - "反应釜的具体工艺参数范围需工艺工程师确认"
+  - "边缘节点硬件规格（是否有 GPU）"
+acceptance_criteria:
+  - "边缘侧 PID 闭环控制周期 <= 1s，在负载下实测达标"
+  - "安全联锁指令从触发到执行器动作 <= 100ms，且全程在边缘本地完成"
+  - "云端 TPT 异常检测延迟 <= 10s"
+  - "OPC UA tag 采集失败时系统进入安全态并告警，不会静默丢弃"
+  - "所有控制指令与状态变更在审计日志中可追溯，日志不可篡改"
+  - "工艺配方与 PII 数据在传输与存储中均加密"
+assumptions:
+  - "边缘节点运行 NyxOS 类实时操作系统"
+  - "OPC UA server 已在现场设备侧就绪"
+  - "云端有 GPU 节点可用于 TPT 推理"
+complexity:
+  scope: 4
+  criticality: 5
+  novelty: 4
+  coupling: 4
+  tier: full

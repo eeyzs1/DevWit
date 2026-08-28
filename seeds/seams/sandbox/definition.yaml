@@ -1,0 +1,16 @@
+version: 1
+name: sandbox
+purpose: "Where tool execution is confined (local policy, container, remote, ...)"
+definition:
+  interface: "tools/sandbox.yaml + security/sandbox-config.yaml (permission contract)"
+  methods:
+    - confine
+    - resolve_policy
+requires_provider: true
+requires_consumer: true
+provider:
+  location: "providers/"
+  contract: "one backend per confinement mechanism"
+consumer:
+  location: "consumers/  (guard.py / enforce-permission.py)"
+  contract: "wraps argv through the policy only"

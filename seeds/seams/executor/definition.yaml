@@ -1,0 +1,15 @@
+version: 1
+name: executor
+purpose: "Which leaf helper executes a work item (sub-agent, claude-goal, codex-task, ...)"
+definition:
+  interface: "planning/executor-engine.md (adapter protocol)"
+  methods:
+    - execute
+requires_provider: true
+requires_consumer: true
+provider:
+  location: "providers/"
+  contract: "one adapter per backend, implementing the executor protocol"
+consumer:
+  location: "consumers/  (runtime/supervisor.py dispatch)"
+  contract: "dispatches through the protocol only"

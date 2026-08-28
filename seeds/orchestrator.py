@@ -38,6 +38,123 @@ if sys.platform == "win32":
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 
+# ============================================================
+# Append-only event log (WP1: log is truth, state is a projection)
+# ============================================================
+# memory/event-log.yaml is the single source of truth for project progress;
+# memory/session-state.yaml is a DERIVED projection kept for downstream
+# readers. Events are appended, never rewritten. Unknown event types and seq
+# gaps are REFUSED (fail-closed).
+
+EVENT_LOG = PROJECT_ROOT / "memory" / "event-log.yaml"
+SESSION_STATE = PROJECT_ROOT / "memory" / "session-state.yaml"
+
+GEN_EVENT_TYPES = {
+    "seed/import", "project/init", "criterion/completed",
+    "guard/check", "error/recorded", "mistake/recorded",
+}
+
+
+def _load_events() -> list:
+    if not EVENT_LOG.exists():
+        return []
+    with open(EVENT_LOG, "r", encoding="utf-8") as f:
+        doc = yaml.safe_load(f) or {}
+    events = doc.get("events", [])
+    if not isinstance(events, list):
+        raise ValueError("memory/event-log.yaml: 'events' is not a list -- fail-closed")
+    for i, ev in enumerate(events, start=1):
+        if not isinstance(ev, dict) or ev.get("seq") != i:
+            raise ValueError(f"memory/event-log.yaml: seq gap/duplicate at position {i}")
+        if ev.get("type") not in GEN_EVENT_TYPES:
+            raise ValueError(
+                f"memory/event-log.yaml: unknown event type {ev.get('type')!r} at seq {i}")
+    return events
+
+
+def _append_events(new_events: list) -> None:
+    events = _load_events()
+    base = len(events)
+    now = datetime.now().isoformat()
+    for i, ev in enumerate(new_events, start=base + 1):
+        if ev.get("type") not in GEN_EVENT_TYPES:
+            raise ValueError(f"unknown event type {ev.get('type')!r}")
+        events.append({"seq": i, "ts": now, "type": ev["type"],
+                       "payload": ev.get("payload", {})})
+    EVENT_LOG.parent.mkdir(parents=True, exist_ok=True)
+    with open(EVENT_LOG, "w", encoding="utf-8") as f:
+        yaml.dump({"version": 1, "events": events}, f,
+                  default_flow_style=False, allow_unicode=True, sort_keys=False)
+
+
+def _fold(events: list) -> dict:
+    """Pure function: events -> base session state."""
+    state = {
+        "status": "initialized",
+        "progress": {"completed_criteria": [], "failed_criteria": []},
+        "guard_log": [],
+        "errors": [],
+        "revision": len(events),
+        "updated_at": None,
+    }
+    for ev in events:
+        typ, payload, ts = ev["type"], ev.get("payload", {}), ev.get("ts")
+        if typ == "seed/import":
+            snap = payload.get("snapshot") or {}
+            state = {**state, **{k: v for k, v in snap.items() if k in state}}
+        elif typ == "criterion/completed":
+            c = payload.get("criterion")
+            if c and c not in state["progress"]["completed_criteria"]:
+                state["progress"]["completed_criteria"].append(c)
+        elif typ == "guard/check":
+            state["guard_log"].append({
+                "timestamp": ts, "seq": ev["seq"],
+                "action": payload.get("action"), "criterion": payload.get("criterion"),
+                "verdict": payload.get("verdict"),
+            })
+            state["guard_log"] = state["guard_log"][-20:]
+        elif typ == "error/recorded":
+            state["errors"].append(payload.get("message", ""))
+        elif typ == "mistake/recorded":
+            state["errors"].append(f"[mistake] {payload.get('message', '')}")
+        state["updated_at"] = ts
+    return state
+
+
+def load_session_state() -> dict:
+    """Bootstrap/migrate the event log, fold it, overlay task.yaml criteria."""
+    if not EVENT_LOG.exists() and SESSION_STATE.exists():
+        with open(SESSION_STATE, "r", encoding="utf-8") as f:
+            legacy = yaml.safe_load(f) or {}
+        _append_events([{"type": "seed/import", "payload": {"snapshot": legacy}}])
+    if not EVENT_LOG.exists():
+        _append_events([{"type": "project/init", "payload": {}}])
+
+    events = _load_events()
+    state = _fold(events)
+
+    task = load_task()
+    ac_strings = task.get("acceptance_criteria", []) or []
+    ac_dicts = []
+    for i, ac_text in enumerate(ac_strings, 1):
+        status = ("completed" if ac_text in state["progress"]["completed_criteria"]
+                  else "pending")
+        ac_dicts.append({"id": f"AC{i}", "description": ac_text, "status": status})
+    state.setdefault("progress", {})["acceptance_criteria"] = ac_dicts
+    if ac_strings and len(state["progress"]["completed_criteria"]) >= len(ac_strings):
+        state["status"] = "complete"
+    else:
+        state["status"] = "in_progress"
+    return state
+
+
+def save_session_state(state: dict) -> None:
+    """Write the derived projection only; the event log stays the truth."""
+    state["updated_at"] = datetime.now().isoformat()
+    SESSION_STATE.parent.mkdir(parents=True, exist_ok=True)
+    with open(SESSION_STATE, "w", encoding="utf-8") as f:
+        yaml.dump(state, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+
 
 def run_script(script_path: Path, args: list = None) -> subprocess.CompletedProcess:
     cmd = [sys.executable, str(script_path)]
@@ -53,40 +170,6 @@ def load_task() -> dict:
         sys.exit(1)
     with open(task_file, "r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
-
-
-def load_session_state() -> dict:
-    state_file = PROJECT_ROOT / "memory" / "session-state.yaml"
-    if not state_file.exists():
-        # 从 task.yaml 派生 acceptance_criteria 为 dict 列表（guard.py 期望）
-        task = load_task()
-        ac_strings = task.get("acceptance_criteria", []) or []
-        ac_dicts = []
-        for i, ac_text in enumerate(ac_strings, 1):
-            ac_dicts.append({
-                "id": f"AC{i}",
-                "description": ac_text,
-                "status": "pending",
-            })
-        return {
-            "status": "initialized",
-            "progress": {
-                "acceptance_criteria": ac_dicts,  # dict 列表（与 session-state.yaml schema 一致）
-                "completed_criteria": [],  # orchestrator 运行时用 task.yaml 字符串列表填充
-                "failed_criteria": [],  # 预留：未来记录失败 AC
-            },
-            "guard_log": [],
-        }
-    with open(state_file, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
-
-
-def save_session_state(state: dict) -> None:
-    state_file = PROJECT_ROOT / "memory" / "session-state.yaml"
-    state["updated_at"] = datetime.now().isoformat()
-    state_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(state_file, "w", encoding="utf-8") as f:
-        yaml.dump(state, f, default_flow_style=False, allow_unicode=True)
 
 
 def load_architecture_rules() -> dict:
@@ -117,6 +200,7 @@ def run_guard_check(plan_description: str) -> dict:
 def show_status() -> None:
     task = load_task()
     state = load_session_state()
+    save_session_state(state)  # persist the derived projection (guard.py reads it)
     criteria = task.get("acceptance_criteria", [])
     completed = state.get("progress", {}).get("completed_criteria", [])
 
@@ -172,50 +256,89 @@ def show_next() -> None:
     print(f"  4. Run: python orchestrator.py --mark-complete \"criterion\"")
 
 
+# Orchestrator-run check rows: id (project-relative) -> (label, args builder).
+# Only rows kind=check, runner=orchestrator, enabled=true in the merged
+# composition (harness-composition.yaml + harness-patch.yaml) are executed.
+ORCH_CHECK_ARGS = {
+    "guard.py": (lambda p: ["--report"]),
+    "verification/self-check.py": (lambda p: ["--project-root", str(p)]),
+    "verification/consistency-check.py": (lambda p: ["--project-root", str(p)]),
+    "constraints/entropy-reduction.py": (lambda p: ["--dry-run", "--project-root", str(p)]),
+}
+
+
+def _merged_composition() -> dict:
+    """Load the merged composition (harness-patch.yaml over harness-composition.yaml).
+
+    Self-contained merge: rows are keyed by id; a patch row may flip
+    enabled/config. An unknown patch id is LOUD (printed) and skipped, never
+    silently applied. Returns {} for legacy projects without a manifest.
+    """
+    comp = PROJECT_ROOT / "harness-composition.yaml"
+    if not comp.exists():
+        return {}
+    with open(comp, "r", encoding="utf-8") as f:
+        doc = yaml.safe_load(f) or {}
+    rows = doc.get("rows", [])
+    if not isinstance(rows, list):
+        return {}
+    by_id = {r["id"]: r for r in rows if isinstance(r, dict) and r.get("id")}
+
+    patch = PROJECT_ROOT / "harness-patch.yaml"
+    if patch.exists():
+        with open(patch, "r", encoding="utf-8") as f:
+            pdoc = yaml.safe_load(f) or {}
+        for prow in pdoc.get("rows", []) or []:
+            rid = prow.get("id") if isinstance(prow, dict) else None
+            if not rid:
+                print("⚠️  harness-patch.yaml: row without id -- skipped")
+                continue
+            if rid not in by_id:
+                print(f"⚠️  harness-patch.yaml: unknown row id {rid!r} -- skipped "
+                      f"(strict check: python scripts/compose.py)")
+                continue
+            if "enabled" in prow:
+                by_id[rid]["enabled"] = bool(prow["enabled"])
+            if isinstance(prow.get("config"), dict):
+                cfg = by_id[rid].setdefault("config", {}) or {}
+                cfg.update(prow["config"])
+                by_id[rid]["config"] = cfg
+    return {"version": 1, "rows": rows}
+
+
 def run_verification() -> dict:
     print(f"\n{'='*60}")
     print(f"RUNNING VERIFICATION SUITE")
     print(f"{'='*60}")
 
     all_passed = True
+    composition = _merged_composition()
+    rows = composition.get("rows", []) if composition else []
+    check_rows = [r for r in rows
+                  if r.get("kind") == "check" and r.get("runner") == "orchestrator"
+                  and r.get("enabled", True)]
+    if not check_rows:
+        # Legacy project without a composition: keep the historical hardcoded set.
+        check_rows = [{"id": rid} for rid in ORCH_CHECK_ARGS]
 
-    guard_script = PROJECT_ROOT / "guard.py"
-    if guard_script.exists():
-        print("\n--- Guard Compliance Check ---")
-        proc = run_script(guard_script, ["--report"])
+    for row in check_rows:
+        rid = row["id"]
+        args_builder = ORCH_CHECK_ARGS.get(rid)
+        if not args_builder:
+            continue
+        script = PROJECT_ROOT / rid
+        if not script.exists():
+            print(f"⚠️  Check row {rid} missing -- skipped")
+            continue
+        print(f"\n--- {rid} ---")
+        proc = run_script(script, args_builder(PROJECT_ROOT))
         print(proc.stdout)
-
-    self_check = PROJECT_ROOT / "verification" / "self-check.py"
-    if self_check.exists():
-        print("\n--- Self-Check Loop ---")
-        proc = run_script(self_check, ["--project-root", str(PROJECT_ROOT)])
         if proc.returncode != 0:
             all_passed = False
-            print(proc.stdout)
             if proc.stderr:
                 print(proc.stderr[-500:])
         else:
-            print("✅ Self-check passed")
-
-    consistency_check = PROJECT_ROOT / "verification" / "consistency-check.py"
-    if consistency_check.exists():
-        print("\n--- Consistency Check ---")
-        proc = run_script(consistency_check, ["--project-root", str(PROJECT_ROOT)])
-        if proc.returncode != 0:
-            all_passed = False
-            print(proc.stdout)
-        else:
-            print("✅ Consistency check passed")
-
-    entropy_script = PROJECT_ROOT / "constraints" / "entropy-reduction.py"
-    if entropy_script.exists():
-        print("\n--- Entropy Check ---")
-        proc = run_script(entropy_script, ["--dry-run", "--project-root", str(PROJECT_ROOT)])
-        if proc.returncode != 0:
-            all_passed = False
-            print(proc.stdout)
-        else:
-            print("✅ Entropy check passed")
+            print(f"✅ {rid} passed")
 
     print(f"\n{'='*60}")
     if all_passed:
@@ -261,20 +384,15 @@ def mark_complete(criterion_text: str) -> dict:
         print(f"   Fix the issues above and run verification again.")
         return {"status": "verification_failed"}
 
-    completed.append(matched)
-    state.setdefault("progress", {})["completed_criteria"] = completed
-    state["status"] = "in_progress"
-
+    # Event log is the truth: append, then re-fold.
+    _append_events([
+        {"type": "guard/check",
+         "payload": {"action": "mark_complete", "criterion": matched, "verdict": "VERIFIED"}},
+        {"type": "criterion/completed", "payload": {"criterion": matched}},
+    ])
+    state = load_session_state()
+    completed = state.get("progress", {}).get("completed_criteria", [])
     all_done = len(completed) >= len(criteria)
-
-    guard_log = state.get("guard_log", [])
-    guard_log.append({
-        "timestamp": datetime.now().isoformat(),
-        "action": "mark_complete",
-        "criterion": matched,
-        "verdict": "VERIFIED",
-    })
-    state["guard_log"] = guard_log[-20:]
 
     save_session_state(state)
 

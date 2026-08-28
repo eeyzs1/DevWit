@@ -1,0 +1,5 @@
+# Append-only event log (WP1): the single source of truth for project progress.
+# memory/session-state.yaml is a DERIVED projection -- never edit it directly.
+# Events are appended by orchestrator.py; unknown types / seq gaps are refused.
+version: 1
+events: []

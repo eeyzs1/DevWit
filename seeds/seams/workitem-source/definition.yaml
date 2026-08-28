@@ -1,0 +1,20 @@
+version: 1
+name: workitem-source
+purpose: "Where work items come from (files, GitHub issues, Jira, ...)"
+# Capability seam (DSH-inspired): definition / provider / consumer.
+# A seam is COMPLETE only when all three roles exist. One role alone is not a seam.
+definition:
+  interface: "runtime/workitem_source.py (abstract base class)"
+  methods:
+    - fetch_brief
+    - fetch_workitems
+    - update_status
+    - create_workitem
+requires_provider: true
+requires_consumer: true
+provider:
+  location: "providers/  (or runtime/sources/<adapter>_source.py)"
+  contract: "subclasses the base class and implements every abstract method"
+consumer:
+  location: "consumers/  (orchestrator.py run_workitem / runtime/supervisor.py)"
+  contract: "calls only the interface, never a concrete adapter"

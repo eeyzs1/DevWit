@@ -4,6 +4,64 @@ All notable changes to Meta-Harness are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/), adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [3.0.0] — 2026-08-28
+
+### Added — DSH-inspired core concepts (event log, invariants, goals, hooks)
+
+- **Append-only phase event log + projection**: `meta/event-log.yaml` is the
+  single source of truth; `meta/pipeline-state.yaml` and
+  `.meta-harness/PHASE_BRIEF.md` are derived projections with an `asOfSeq`
+  watermark (model-visible ⟺ logged). `scripts/state_fold.py` owns the pure
+  fold + CAS append + legacy migration (`seed/import`).
+- **Fail-closed invariants**: `scripts/log_invariant.py` refuses unknown log
+  versions/event types, seq gaps, stale state/brief watermarks, and orphaned
+  compactions (stable codes, e.g. `INVARIANT_STALE_BRIEF`).
+- **Goal semantics**: `--unblock --code <code> --reason <reason>` records WHY;
+  blocked only after 3 consecutive refusals with the SAME code; `rounds /
+  max_rounds` bound auto-continuation; `--pause` / `--resume`; `--events` dump.
+- **Hooks (bail gate + observers)**: `hooks/pre-advance/*.py` can refuse an
+  advance with a stable code (the GENERATE→FACTORY validate-harness gate moved
+  here); `hooks/phase-complete|phase-enter` are contained observers.
+  `scripts/events.py` provides emit/serial/bail/parallel/waterfall helpers.
+- **Composition manifest + patches**: generated projects ship
+  `harness-composition.yaml` (named rows) + optional `harness-patch.yaml`
+  (override by id; unknown ids refused). `scripts/compose.py` merges;
+  `validate-harness.py` check [10]; generated `orchestrator.py --verify` runs
+  only enabled `runner=orchestrator` rows.
+- **Skill catalog + loader**: generated projects ship `skills/catalog.yaml`;
+  `context/loader.py skill list|load` lists broken skills with reasons.
+- **Compaction + spill**: `--compact` regenerates the brief with
+  `compaction/start/summary/end` lock markers (orphans detected); `scripts/spill.py`
+  persists oversized text to `meta/artifacts/` with a locator, best-effort.
+- **Postmortems**: `memory/postmortems/NNNN-<slug>.md` written by
+  `feedback/mistake-to-constraint.py` (what broke / root cause / why it escaped
+  / durable lesson), idempotent, linked to `mistake/recorded` events.
+- **Capability seams**: generated projects ship `seams/`
+  (workitem-source/executor/ci/sandbox); validate-harness check [11] rejects
+  PARTIAL seams and configured-but-missing adapters.
+- **Permission model**: `tools/permissions.yaml` v2 adds explicit modes
+  (read-only/workspace-write/full) + presets; `guard.py --permission` is a
+  monotonic chain (denial final, exit 126); `tools/enforce-permission.py`
+  separates "sandbox denied" (126) from "task failed" (runner exit code).
+- **Evolution hardening**: `scripts/evolve.py` adds evidence_refs on every
+  mutation, pre-mutation snapshots + `--rollback` + `--list-snapshots`,
+  approval tiers (`AUTO` vs `NEEDS_APPROVAL`), and versioned `generations`.
+- **Doc budgets**: `scripts/verify_doc_budgets.py` (line budgets + single-home
+  duplicate-fact warnings), wired into validate-harness check [12] as WARN.
+- **Tests**: `tests/test_state_fold.py`, `test_orchestrator.py`,
+  `test_compose.py`, `test_events.py`, `test_integration.py` — every new gate
+  ships a regression test that fails without it.
+
+### Changed
+- `meta/meta-orchestrator.py` is now event-driven: all mutations append events
+  with compare-and-set; `--status`/`--next`/`--advance` behavior preserved.
+- `seeds/orchestrator.py` (generated projects) uses `memory/event-log.yaml`
+  with `memory/session-state.yaml` as a derived projection.
+- `tests/test_pipeline.py::test_all_layers_present` fixed: the Layer Test task
+  now uses a full complexity profile so ARTIFACT_GATE-gated artifacts
+  (human-interface/audit-log/session-replay) are copied.
+- AGENTS.md / README.md / META.md updated for the v3.0 architecture.
+
 ## [2.5.0] — 2026-06-24
 
 ### Added

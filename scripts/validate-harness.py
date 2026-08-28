@@ -18,6 +18,7 @@ Usage:
 
 import hashlib
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -654,6 +655,129 @@ def validate(harness_dir: Path) -> tuple:
                 msg = f"  {doc_slot} not a valid dict"
                 report.append(msg)
                 errors.append(msg)
+    report.append("")
+
+    # 9f. harness-composition.yaml + harness-patch.yaml（WP4）
+    report.append("[10] Composition manifest + patch")
+    comp_file = harness_dir / "harness-composition.yaml"
+    if not comp_file.exists():
+        msg = "  MISSING harness-composition.yaml — generated harness must declare its rows"
+        report.append(msg)
+        errors.append(msg)
+    else:
+        compose_script = Path(__file__).resolve().parent / "compose.py"
+        cmd = [sys.executable, str(compose_script), "--composition", str(comp_file)]
+        patch_file = harness_dir / "harness-patch.yaml"
+        if patch_file.exists():
+            cmd += ["--patch", str(patch_file)]
+        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", cwd=str(harness_dir.parent))
+        if proc.returncode != 0:
+            msg = f"  COMPOSE FAIL: {proc.stderr.strip()}"
+            report.append(msg)
+            errors.append(msg)
+        else:
+            merged = load_yaml(comp_file) if not patch_file.exists() else None
+            if patch_file.exists():
+                # compose wrote the merged doc to stdout
+                import io
+                merged = yaml.safe_load(proc.stdout) or {}
+            nrows = len((merged or {}).get("rows", [])) if isinstance(merged, dict) else 0
+            report.append(f"  PASS — composition valid ({nrows} rows)"
+                          + (" with patch" if patch_file.exists() else ""))
+    report.append("")
+
+    # 9g. Capability seams: definition/provider/consumer 三角色（WP8）
+    report.append("[11] Capability seams (definition/provider/consumer)")
+    seams_root = harness_dir / "seams"
+    seam_errors = []
+    if not seams_root.exists():
+        msg = "  MISSING seams/ directory — generated harness must declare capability seams"
+        report.append(msg)
+        errors.append(msg)
+    else:
+        seam_dirs = [d for d in seams_root.iterdir() if d.is_dir()]
+        if not seam_dirs:
+            msg = "  seams/ is empty — no seam definitions found"
+            report.append(msg)
+            errors.append(msg)
+        for seam_dir in sorted(seam_dirs):
+            name = seam_dir.name
+            def_file = seam_dir / "definition.yaml"
+            if not def_file.exists():
+                msg = f"  seam '{name}' missing definition.yaml"
+                report.append(msg)
+                errors.append(msg)
+                continue
+            sd = load_yaml(def_file)
+            if not isinstance(sd, dict) or sd.get("version") != 1:
+                msg = f"  seam '{name}' definition.yaml invalid (expected version 1)"
+                report.append(msg)
+                errors.append(msg)
+                continue
+            providers = list((seam_dir / "providers").glob("*.py")) \
+                if (seam_dir / "providers").is_dir() else []
+            consumers = list((seam_dir / "consumers").glob("*.py")) \
+                if (seam_dir / "consumers").is_dir() else []
+            if sd.get("requires_provider", True) and not providers and consumers:
+                msg = (f"  seam '{name}' is PARTIAL: consumer present but NO provider "
+                       f"-- a seam is complete only with all three roles")
+                report.append(msg)
+                errors.append(msg)
+            if sd.get("requires_consumer", True) and not consumers and providers:
+                msg = (f"  seam '{name}' is PARTIAL: provider present but NO consumer "
+                       f"-- a seam is complete only with all three roles")
+                report.append(msg)
+                errors.append(msg)
+            if not providers and not consumers:
+                msg = (f"  seam '{name}' has no provider/consumer yet "
+                       f"-- pending LLM GENERATE fill (WARN)")
+                report.append(msg)
+                warnings.append(msg)
+            # workitem-source special case: adapter may live in runtime/sources/.
+            if name == "workitem-source":
+                ws_file = harness_dir / "planning" / "workitem-source.yaml"
+                if ws_file.exists():
+                    ws = load_yaml(ws_file)
+                    if isinstance(ws, dict) and ws.get("adapter"):
+                        adapter_src = harness_dir / "runtime" / "sources" / f"{ws['adapter']}_source.py"
+                        if not providers and not adapter_src.exists():
+                            sources_dir = harness_dir / "runtime" / "sources"
+                            built = [f.name for f in sources_dir.glob("*_source.py")] \
+                                if sources_dir.is_dir() else []
+                            if built:
+                                msg = (f"  seam 'workitem-source' adapter '{ws['adapter']}' "
+                                       f"not found in providers/ nor runtime/sources/ "
+                                       f"(built: {built})")
+                                report.append(msg)
+                                errors.append(msg)
+                            else:
+                                msg = (f"  seam 'workitem-source' adapter '{ws['adapter']}' "
+                                       f"not yet synthesized (LLM GENERATE) -- WARN")
+                                report.append(msg)
+                                warnings.append(msg)
+        if not any("seam" in e for e in errors):
+            report.append(f"  PASS — {len(seam_dirs)} seams declared with all roles")
+    report.append("")
+
+    # 9h. Doc budgets（WP12：单一事实归属 + 行数预算）
+    report.append("[12] Doc budgets")
+    budgets_script = Path(__file__).resolve().parent / "verify_doc_budgets.py"
+    if not budgets_script.exists():
+        msg = "  MISSING scripts/verify_doc_budgets.py"
+        report.append(msg)
+        errors.append(msg)
+    else:
+        proc = subprocess.run([sys.executable, str(budgets_script), str(harness_dir)],
+                              capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", cwd=str(harness_dir.parent))
+        if proc.returncode != 0:
+            # Budget violations are guidance: warn, do not block the gate.
+            msg = f"  WARN -- doc budget violations (run verify_doc_budgets.py):\n{proc.stdout}"
+            report.append(msg)
+            warnings.append(msg)
+        else:
+            report.append("  PASS -- doc budgets within limits")
     report.append("")
 
     # 总结

@@ -101,6 +101,90 @@ def load_profile(project_root: Path) -> dict:
     return {"tier": "standard", "scope": 3, "criticality": 3, "novelty": 3, "coupling": 3}
 
 
+# ---------------------------------------------------------------- skills (WP5)
+# DSH-inspired skill registry: the model sees only the CATALOG (name +
+# description); bodies load on demand. A broken skill is listed with a reason,
+# never silently skipped. `complete` distinguishes authoritative absence from
+# a transient read failure (fail-closed: an incomplete catalog is never trusted).
+
+def load_skill_catalog(project_root: Path) -> dict:
+    """Load skills/catalog.yaml. Returns {complete, skills, problems}."""
+    catalog_file = project_root / "skills" / "catalog.yaml"
+    result = {"complete": False, "skills": [], "problems": []}
+    if not catalog_file.exists():
+        result["problems"].append("skills/catalog.yaml missing")
+        return result
+    try:
+        with open(catalog_file, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except Exception as e:
+        result["problems"].append(f"skills/catalog.yaml unparsable: {e}")
+        return result
+    if not isinstance(data, dict) or data.get("version") != 1:
+        result["problems"].append("skills/catalog.yaml unknown version (expected 1)")
+        return result
+    skills = data.get("skills", [])
+    if not isinstance(skills, list):
+        result["problems"].append("skills/catalog.yaml 'skills' is not a list")
+        return result
+    result["complete"] = bool(data.get("complete", True))
+    for entry in skills:
+        if not isinstance(entry, dict) or not entry.get("id"):
+            result["problems"].append("catalog entry without id")
+            continue
+        skill = {
+            "id": entry["id"],
+            "name": entry.get("name", entry["id"]),
+            "description": entry.get("description", ""),
+            "path": entry.get("path", f"skills/{entry['id']}.md"),
+            "whenToUse": entry.get("whenToUse", ""),
+            "broken": None,
+        }
+        body_path = project_root / skill["path"]
+        if not body_path.exists():
+            skill["broken"] = f"skill body missing: {skill['path']}"
+        result["skills"].append(skill)
+    return result
+
+
+def skill_list(project_root: Path) -> int:
+    """Print the catalog (id/name/description); broken skills carry a reason."""
+    catalog = load_skill_catalog(project_root)
+    print(f"SKILL CATALOG (complete={catalog['complete']})")
+    if not catalog["skills"]:
+        print("  (no skills)")
+    for s in catalog["skills"]:
+        if s["broken"]:
+            print(f"  [BROKEN] {s['id']} -- {s['name']}  ({s['broken']})")
+        else:
+            print(f"  {s['id']:<28} {s['name']}")
+            if s["description"]:
+                print(f"      {s['description']}")
+    for p in catalog["problems"]:
+        print(f"  [CATALOG] {p}")
+    return 0
+
+
+def skill_load(project_root: Path, skill_id: str) -> int:
+    """Print a skill body. Unknown/broken skills exit non-zero with a reason."""
+    catalog = load_skill_catalog(project_root)
+    match = next((s for s in catalog["skills"] if s["id"] == skill_id), None)
+    if match is None:
+        known = ", ".join(s["id"] for s in catalog["skills"]) or "(none)"
+        print(f"ERROR: unknown skill {skill_id!r} -- known: {known}", file=sys.stderr)
+        return 2
+    if match["broken"]:
+        print(f"ERROR: skill {skill_id!r} is broken: {match['broken']}", file=sys.stderr)
+        return 2
+    body_path = project_root / match["path"]
+    try:
+        sys.stdout.write(body_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"ERROR: cannot read {body_path}: {e}", file=sys.stderr)
+        return 2
+    return 0
+
+
 # 停用词表：过滤虚词/常见动词，避免 keyword overlap 信号被无意义词污染。
 STOP_WORDS = {
     # 英文虚词/代词/助动词
@@ -240,10 +324,30 @@ def assemble_context(task: dict, project_root: Path) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Context Loader (v2: four-function)")
-    parser.add_argument("--task", required=True, help="Path to task card YAML")
-    parser.add_argument("--project-root", default=".", help="Project root directory")
+    sub = parser.add_subparsers(dest="command")
+
+    ctx = sub.add_parser("context", help="assemble the full context bundle (default)")
+    ctx.add_argument("--task", required=True, help="Path to task card YAML")
+    ctx.add_argument("--project-root", default=".", help="Project root directory")
+
+    sk = sub.add_parser("skill", help="skill catalog registry (WP5)")
+    sk_sub = sk.add_subparsers(dest="skill_command", required=True)
+    sk_list = sk_sub.add_parser("list", help="list the skill catalog")
+    sk_list.add_argument("--project-root", default=".", help="Project root directory")
+    sk_load = sk_sub.add_parser("load", help="load a skill body by id")
+    sk_load.add_argument("id", help="skill id")
+    sk_load.add_argument("--project-root", default=".", help="Project root directory")
+
     args = parser.parse_args()
 
+    if args.command == "skill":
+        root = Path(args.project_root).resolve()
+        if args.skill_command == "list":
+            sys.exit(skill_list(root))
+        if args.skill_command == "load":
+            sys.exit(skill_load(root, args.id))
+
+    # default: context
     task_file = Path(args.task)
     if not task_file.exists():
         print(f"ERROR: Task file not found: {task_file}")

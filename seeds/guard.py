@@ -331,6 +331,69 @@ def run_guard(plan_description: str) -> dict:
     return result
 
 
+# ---------------------------------------------------------------- permission chain (WP9)
+# Monotonic model borrowed from DSH tool guards: a decision starts allowed, and
+# each guard can only DENY -- a returned denial is final, no later check can
+# re-allow it. Unknown modes are denied (fail-closed).
+
+PERMISSION_MODES = ("read-only", "workspace-write", "full")
+
+
+def load_permission_modes() -> dict:
+    perms_file = PROJECT_ROOT / "tools" / "permissions.yaml"
+    if not perms_file.exists():
+        return {}
+    with open(perms_file, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    return data.get("modes", {}) or {}
+
+
+def permission_chain(plan_description: str, mode: str = None) -> dict:
+    """Evaluate the plan against the active mode's forbidden patterns.
+
+    Returns {verdict: ALLOWED|DENIED, code, reason}. Denial is FINAL.
+    """
+    modes = load_permission_modes()
+    active = mode or "workspace-write"
+    if active not in PERMISSION_MODES:
+        return {"verdict": "DENIED", "code": "PERMISSION_UNKNOWN_MODE",
+                "reason": f"unknown permission mode {active!r} -- fail-closed"}
+    m = modes.get(active)
+    if m is None:
+        return {"verdict": "DENIED", "code": "PERMISSION_MODE_UNCONFIGURED",
+                "reason": f"mode {active!r} not configured in tools/permissions.yaml"}
+    forbidden = m.get("forbidden_execute", []) or []
+    plan_lower = plan_description.lower()
+    for pat in forbidden:
+        if re.search(pat, plan_lower):
+            return {"verdict": "DENIED", "code": "PERMISSION_DENIED",
+                    "reason": f"plan matches forbidden pattern '{pat}' under mode {active!r} "
+                              f"-- denial is final; escalate with a NEW call and approval"}
+    return {"verdict": "ALLOWED", "code": None,
+            "reason": f"plan allowed under mode {active!r}"}
+
+
+def permission_current() -> None:
+    """Show the resolved mode + derived preset (never a separate flag)."""
+    perms_file = PROJECT_ROOT / "tools" / "permissions.yaml"
+    if not perms_file.exists():
+        print("permissions.yaml missing -- no permission model")
+        return
+    with open(perms_file, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    presets = data.get("presets", {}) or {}
+    default_mode = data.get("default_mode", "workspace-write")
+    mode = default_mode
+    policy = "ask"
+    preset_name = "custom"
+    for name, p in presets.items():
+        if p.get("sandbox_mode") == mode:
+            policy = p.get("approval_policy", policy)
+            preset_name = name
+            break
+    print(f"Permission mode: {mode}  (derived preset: {preset_name}, approval: {policy})")
+
+
 def print_guard_result(result: dict) -> None:
     print("\n" + "=" * 70)
     print("GUARD CHECK RESULT")
@@ -387,7 +450,15 @@ def main():
     parser.add_argument("--check", default=None, help="Description of what you plan to do")
     parser.add_argument("--status", action="store_true", help="Check if guard system is active")
     parser.add_argument("--report", action="store_true", help="Generate compliance report")
+    parser.add_argument("--permission", default=None, choices=list(PERMISSION_MODES),
+                        help="Evaluate the plan against this sandbox mode (WP9)")
+    parser.add_argument("--permission-current", action="store_true",
+                        help="Show the resolved permission mode and derived preset")
     args = parser.parse_args()
+
+    if args.permission_current:
+        permission_current()
+        return
 
     if args.report:
         compliance_report()
@@ -411,6 +482,20 @@ def main():
 
     if result["verdict"] == "BLOCKED":
         sys.exit(1)
+
+    # WP9: monotonic permission chain -- a denial here is FINAL.
+    if args.permission:
+        perm = permission_chain(args.check, args.permission)
+        print("\n" + "=" * 70)
+        print(f"PERMISSION CHAIN ({args.permission})")
+        print("=" * 70)
+        print(f"Verdict: {perm['verdict']}")
+        print(f"Reason: {perm['reason']}")
+        print("=" * 70)
+        if perm["verdict"] == "DENIED":
+            print(f"🛑 PERMISSION DENIED [{perm['code']}] -- denial is FINAL. "
+                  f"Escalation requires a NEW call with a wider mode and approval.")
+            sys.exit(126)
 
 
 if __name__ == "__main__":

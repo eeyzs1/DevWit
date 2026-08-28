@@ -246,6 +246,7 @@ def propose_mutations(genome: dict, evidence: dict, fitness: float) -> list:
             "target": "harness_genome.constraints",
             "description": "Add constraint from unresolved mistake pattern",
             "evidence": f"{unresolved} unresolved meta-mistakes",
+            "evidence_refs": [f"meta_mistakes.unresolved={unresolved}"],
             "expected_outcome": "Reduce mistake recurrence",
         })
 
@@ -262,6 +263,7 @@ def propose_mutations(genome: dict, evidence: dict, fitness: float) -> list:
             "target": "harness_genome.constraints",
             "description": "Strengthen generation completeness constraint",
             "evidence": f"{incomplete} incomplete generations",
+            "evidence_refs": [f"generation_results.incomplete={incomplete}"],
             "expected_outcome": "Improve generation completeness rate",
         })
 
@@ -275,10 +277,71 @@ def propose_mutations(genome: dict, evidence: dict, fitness: float) -> list:
                 "target": f"harness_genome.constraints[{untriggered[0].get('id', '')}]",
                 "description": f"Weaken untriggered constraint {untriggered[0].get('id', '')}",
                 "evidence": f"Constraint never triggered, {len(untriggered)} untriggered total",
+                "evidence_refs": [f"constraints.untriggered={len(untriggered)}"],
                 "expected_outcome": "Reduce unnecessary constraint overhead",
             })
 
     return mutations
+
+
+def classify_approval(mutation: dict) -> str:
+    """Approval tier (WP10): high-risk mutations need human approval.
+
+    WEAKEN is always NEEDS_APPROVAL; STRENGTHEN touching verification or the
+    evolution system is NEEDS_APPROVAL (mirroring the safety rules); ADD is
+    AUTO (low-risk addition).
+    """
+    t = mutation["type"]
+    if t == "WEAKEN_CONSTRAINT":
+        return "NEEDS_APPROVAL"
+    if t == "STRENGTHEN_CONSTRAINT":
+        target = mutation.get("target", "").lower()
+        if "verification" in target or "evolution" in target:
+            return "NEEDS_APPROVAL"
+        return "AUTO"
+    return "AUTO"
+
+
+def snapshot_genome(project_root: Path, genome: dict, reason: str) -> Path:
+    """Snapshot the genome BEFORE mutations so every change is reversible."""
+    snap_dir = project_root / "evolution" / "snapshots"
+    snap_dir.mkdir(parents=True, exist_ok=True)
+    version = genome.get("version", 1)
+    ts = datetime.now().strftime("%Y%m%dT%H%M%S")
+    target = snap_dir / f"genome-v{version}-{ts}-{reason}.yaml"
+    with open(target, "w", encoding="utf-8") as f:
+        yaml.dump(genome, f, default_flow_style=False, allow_unicode=True)
+    return target
+
+
+def rollback(project_root: Path) -> int:
+    """Restore the latest genome snapshot; log the rollback. Exit 0 on success."""
+    snap_dir = project_root / "evolution" / "snapshots"
+    if not snap_dir.exists():
+        print("No snapshots to roll back to.")
+        return 1
+    snaps = sorted(snap_dir.glob("genome-*.yaml"))
+    if not snaps:
+        print("No snapshots to roll back to.")
+        return 1
+    latest = snaps[-1]
+    with open(latest, "r", encoding="utf-8") as f:
+        genome = yaml.safe_load(f) or {}
+    save_genome(project_root, genome)
+    log = load_evolution_log(project_root)
+    log["mutations"].append({
+        "timestamp": datetime.now().isoformat(),
+        "trigger": "rollback",
+        "type": "ROLLBACK",
+        "description": f"restored genome from {latest.name}",
+        "evidence": latest.name,
+        "evidence_refs": [f"snapshot={latest.name}"],
+        "status": "accepted",
+        "approval": "AUTO",
+    })
+    save_evolution_log(project_root, log)
+    print(f"Rolled back to {latest.name} (version {genome.get('version')}).")
+    return 0
 
 
 def check_safety(mutation: dict, genome: dict) -> bool:
@@ -361,7 +424,8 @@ def apply_mutation(genome: dict, mutation: dict) -> dict:
     return new_genome
 
 
-def run_evolution(project_root: Path, trigger: str = "periodic", dry_run: bool = False) -> dict:
+def run_evolution(project_root: Path, trigger: str = "periodic", dry_run: bool = False,
+                  apply_needs_approval: bool = False) -> dict:
     print(f"\n{'='*60}")
     print(f"EVOLUTION CYCLE — Trigger: {trigger}")
     print(f"{'='*60}")
@@ -374,6 +438,8 @@ def run_evolution(project_root: Path, trigger: str = "periodic", dry_run: bool =
     print(f"Evidence: {yaml.dump(evidence, default_flow_style=False)}")
 
     mutations = propose_mutations(genome, evidence, fitness)
+    for m in mutations:
+        m["approval"] = classify_approval(m)
     print(f"\nProposed mutations: {len(mutations)}")
 
     if not mutations:
@@ -383,11 +449,24 @@ def run_evolution(project_root: Path, trigger: str = "periodic", dry_run: bool =
     max_mutations = max(1, int(len(genome.get("harness_genome", {}).get("constraints", [])) * 0.3))
     mutations = mutations[:max_mutations]
 
+    # WP10: snapshot the pre-mutation genome so every change is reversible.
+    snapshot = None
+    if not dry_run:
+        snapshot = snapshot_genome(project_root, genome, reason=trigger)
+
     applied = []
+    pending = []
     for mutation in mutations:
-        print(f"\n  Mutation: {mutation['type']} — {mutation['description']}")
+        approval = mutation["approval"]
+        print(f"\n  Mutation: {mutation['type']} — {mutation['description']} [{approval}]")
         print(f"  Evidence: {mutation['evidence']}")
+        print(f"  Evidence refs: {mutation.get('evidence_refs', [])}")
         print(f"  Expected: {mutation['expected_outcome']}")
+
+        if approval == "NEEDS_APPROVAL" and not apply_needs_approval:
+            print(f"  🔒 NEEDS APPROVAL — pending (re-run with --apply-needs-approval to apply)")
+            pending.append({**mutation, "status": "pending_approval"})
+            continue
 
         if not check_safety(mutation, genome):
             continue
@@ -410,26 +489,44 @@ def run_evolution(project_root: Path, trigger: str = "periodic", dry_run: bool =
                 applied.append({**mutation, "status": "rejected", "fitness_delta": new_fitness - fitness})
 
     if not dry_run and applied:
+        # Versioned generations (WP10): keep the previous genome generation.
+        generations = genome.setdefault("generations", [])
+        generations.append({
+            "version": genome.get("version", 1),
+            "timestamp": datetime.now().isoformat(),
+            "snapshot": str(snapshot) if snapshot else None,
+            "mutations": [f"{m['type']}:{m.get('evidence', '')[:40]}" for m in applied
+                          if m.get("status") == "accepted"],
+        })
+        genome["version"] = genome.get("version", 1) + 1
         save_genome(project_root, genome)
 
         log = load_evolution_log(project_root)
         for mutation in applied:
-            log["mutations"].append({
+            entry = {
                 "timestamp": datetime.now().isoformat(),
                 "trigger": trigger,
                 "type": mutation["type"],
                 "description": mutation["description"],
                 "evidence": mutation["evidence"],
+                "evidence_refs": mutation.get("evidence_refs", []),
+                "approval": mutation.get("approval", "AUTO"),
                 "status": mutation["status"],
                 "fitness_after": fitness,
-            })
+            }
+            if mutation.get("status") == "accepted":
+                entry["snapshot"] = str(snapshot) if snapshot else None
+                entry["rollback"] = f"python scripts/evolve.py --project-root {project_root} --rollback"
+            log["mutations"].append(entry)
         save_evolution_log(project_root, log)
 
     print(f"\n{'='*60}")
-    print(f"Evolution complete — Fitness: {fitness}, Applied: {len(applied)}")
+    print(f"Evolution complete — Fitness: {fitness}, Applied: {len(applied)}, "
+          f"Pending approval: {len(pending)}")
     print(f"{'='*60}")
 
-    return {"fitness": fitness, "mutations_proposed": len(mutations), "mutations_applied": len(applied)}
+    return {"fitness": fitness, "mutations_proposed": len(mutations),
+            "mutations_applied": len(applied), "pending_approval": len(pending)}
 
 
 def main():
@@ -438,10 +535,29 @@ def main():
     parser.add_argument("--trigger", default="periodic", choices=["periodic", "reactive", "emergency", "adaptive"],
                         help="Evolution trigger type")
     parser.add_argument("--dry-run", action="store_true", help="Propose mutations without applying")
+    parser.add_argument("--apply-needs-approval", action="store_true",
+                        help="Apply NEEDS_APPROVAL mutations (human approval given)")
+    parser.add_argument("--rollback", action="store_true",
+                        help="Restore the latest genome snapshot and log the rollback")
+    parser.add_argument("--list-snapshots", action="store_true",
+                        help="List available genome snapshots")
     args = parser.parse_args()
 
     project_root = Path(args.project_root).resolve()
-    run_evolution(project_root, args.trigger, args.dry_run)
+
+    if args.list_snapshots:
+        snap_dir = project_root / "evolution" / "snapshots"
+        snaps = sorted(snap_dir.glob("genome-*.yaml")) if snap_dir.exists() else []
+        if not snaps:
+            print("No snapshots.")
+        for s in snaps:
+            print(f"  {s.name}")
+        return
+
+    if args.rollback:
+        sys.exit(rollback(project_root))
+
+    run_evolution(project_root, args.trigger, args.dry_run, args.apply_needs_approval)
 
 
 if __name__ == "__main__":

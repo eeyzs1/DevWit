@@ -1,0 +1,79 @@
+version: 1
+events:
+- seq: 1
+  ts: '2026-08-28T15:23:05.696690+00:00'
+  type: seed/import
+  phase: null
+  payload:
+    snapshot:
+      pipeline_version: 2.5.0
+      current_phase: EVOLVE
+      phase_order:
+      - INTERPRET
+      - GENERATE
+      - FACTORY
+      - PROVE
+      - JUDGE
+      - EVOLVE
+      completed_phases:
+      - INTERPRET
+      - GENERATE
+      - FACTORY
+      - PROVE
+      - JUDGE
+      - EVOLVE
+      phase_history:
+      - phase: INTERPRET
+        action: interpreted
+        timestamp: '2026-07-20T20:58:15.461552'
+      - phase: INTERPRET
+        action: completed
+        timestamp: '2026-07-20T21:39:54.697289'
+      - phase: GENERATE
+        action: script_executed
+        timestamp: '2026-07-20T21:39:54.921107'
+      - phase: GENERATE
+        action: completed
+        timestamp: '2026-07-20T22:11:46.669954'
+      - phase: FACTORY
+        action: script_executed
+        timestamp: '2026-07-20T22:11:46.793517'
+      - phase: FACTORY
+        action: completed
+        timestamp: '2026-07-20T22:12:19.182469'
+      - phase: PROVE
+        action: completed
+        timestamp: '2026-07-20T22:14:02.918088'
+      - phase: JUDGE
+        action: completed
+        timestamp: '2026-07-21T07:27:44.648878'
+      - phase: EVOLVE
+        action: script_executed
+        timestamp: '2026-07-21T07:27:44.772101'
+      - phase: EVOLVE
+        action: completed
+        timestamp: '2026-07-21T07:28:24.443619'
+      status: complete
+      created_at: '2026-07-20T20:58:15.375133'
+      updated_at: '2026-07-21T07:28:24.445628'
+      project_name: DevWit
+      generated_project_dir: E:\AI_Generated_Projects\DevWit\generated\devwit
+      acceptance_criteria:
+      - 桌面应用可启动并打开本地项目文件夹，文件树可浏览，自研编辑器可打开/编辑/保存文件
+      - 简洁上下文引擎：每次 LLM 请求的完整上下文组成（系统提示、工具列表、注入项及各项 token 占用）对用户可见，且用户可逐项开启/关闭
+      - 对话式编程：用户可通过对话请求代码修改，修改以 diff 形式在编辑器内呈现，可逐块接受或拒绝
+      - Agent 模式：Agent 可在用户授权下读写文件并执行终端命令，能完成多步任务，执行轨迹可见
+      - 多模型接入：支持 Anthropic API 与 OpenAI 兼容 API，可自定义 base URL 与 API key，会话中可切换模型
+      - 模式自定义系统：用户可创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略，修改热生效无需重启
+      - 构建成功无错误，上述每条标准均有可验证证据
+      verified_criteria:
+      - 桌面应用可启动并打开本地项目文件夹，文件树可浏览，自研编辑器可打开/编辑/保存文件
+      - 简洁上下文引擎：每次 LLM 请求的完整上下文组成（系统提示、工具列表、注入项及各项 token 占用）对用户可见，且用户可逐项开启/关闭
+      - 对话式编程：用户可通过对话请求代码修改，修改以 diff 形式在编辑器内呈现，可逐块接受或拒绝
+      - Agent 模式：Agent 可在用户授权下读写文件并执行终端命令，能完成多步任务，执行轨迹可见
+      - 多模型接入：支持 Anthropic API 与 OpenAI 兼容 API，可自定义 base URL 与 API key，会话中可切换模型
+      - 模式自定义系统：用户可创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略，修改热生效无需重启
+      - 构建成功无错误，上述每条标准均有可验证证据
+      errors:
+      - '[PROVE] 2026-07-20T22:12:19.322352: Phase script exited with code 1'
+      - '[JUDGE] 2026-07-20T22:14:03.011062: Phase script exited with code 1'

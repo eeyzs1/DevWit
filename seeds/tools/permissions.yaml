@@ -1,5 +1,9 @@
-version: 1
-description: Permission manifest per agent role
+version: 2
+description: |
+  Permission manifest per agent role (v1, backward compatible) PLUS an explicit
+  sandbox-mode model (v2, WP9). Modes are the enforcement knobs; presets bundle
+  a mode with an approval policy. A denial is FINAL -- a later guard can never
+  re-allow what an earlier guard denied (monotonic shrinking).
 roles:
   planner:
     can_read:
@@ -45,3 +49,66 @@ roles:
       - "pytest"
       - "ruff check"
       - "mypy"
+
+# --- v2: explicit sandbox modes (WP9) ---
+# Escalation is a NEW call with a wider mode, never a mutation of the current
+# one. `full` is approval-gated. Unknown modes are refused (fail-closed).
+modes:
+  read-only:
+    description: "Inspect only: no writes, no installs, no push."
+    can_execute:
+      - "git status"
+      - "git log"
+      - "git diff"
+      - "git show"
+      - "python"
+      - "pytest"
+    forbidden_execute:
+      - "npm install"
+      - "pip install"
+      - "git push"
+      - "git commit"
+      - "rm "
+      - "Remove-Item"
+      - "Set-Content"
+      - "> "
+  workspace-write:
+    description: "Write within the workspace only; no host/system mutation."
+    can_execute:
+      - "npm"
+      - "node"
+      - "python"
+      - "pip"
+      - "git"
+      - "pytest"
+      - "ruff"
+      - "tsc"
+      - "eslint"
+      - "mypy"
+    forbidden_execute:
+      - "sudo"
+      - "curl.*|.*sh"
+      - "wget.*|.*sh"
+      - "rm -rf /"
+      - "mkfs"
+      - "dd if="
+  full:
+    description: "Unrestricted. Only reachable through an approved escalation."
+    can_execute: ["*"]
+    forbidden_execute: []
+
+# --- named presets: bundle sandbox_mode + approval_policy (approval/preset) ---
+# `current` is DERIVED from the two knobs; a mix that matches no preset is
+# 'custom' (never a switch target).
+presets:
+  standard:
+    sandbox_mode: workspace-write
+    approval_policy: ask
+  locked:
+    sandbox_mode: read-only
+    approval_policy: never
+  trusted:
+    sandbox_mode: full
+    approval_policy: ask
+
+default_mode: workspace-write

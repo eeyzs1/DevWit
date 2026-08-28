@@ -32,6 +32,14 @@ Every generated harness project MUST have all of these layers with executable ar
 
 Every generated project MUST have these root-level enforcement scripts:
 
+### The event log is the single source of truth (v3.0)
+`meta/event-log.yaml` (and `memory/event-log.yaml` in generated projects) is an
+APPEND-ONLY log; `pipeline-state.yaml` / `session-state.yaml` / `PHASE_BRIEF.md`
+are DERIVED projections. Anything the model sees must be reconstructable from the
+log (model-visible ⟺ logged). `scripts/state_fold.py` owns the pure fold;
+`scripts/log_invariant.py` fail-closes on unknown shapes, seq gaps, stale
+projections, and orphaned compactions. All writes are compare-and-set (CAS).
+
 ### guard.py — Pre-Action Constraint Guard
 Runs BEFORE any code change. Validates planned actions against architecture rules (layer access, dependency direction), detects mock patterns (mock, fake, stub, simulated, placeholder) and simplification patterns (hardcode, skip validation, no error handling). Returns PASS or BLOCKED. Must verify orchestrator has been run first.
 
