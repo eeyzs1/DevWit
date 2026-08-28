@@ -1,10 +1,19 @@
 # DevWit 融合进化实施计划 — Fusion Plan v3 (work units)
 
-> 状态：PLANNED（2026-08-28）
+> 状态：**COMPLETE**（2026-08-29 终验通过）
 > 背景：meta-harness 已升级至 v3.0.0（DeepSeek Harness 理念：事件日志即真相源 / fail-closed
 > 不变量 / 钩子 / 接缝 / 权限模型 v2 / 压缩+spill / postmortem / 进化加固）。
 > 本计划把 v3.0 能力融合进 DevWit：**层面 A** 升级生成项目 harness 运行时（v2.6 → v3.0 形态），
 > **层面 B** 融合 DSH 产品架构到 IDE 本体。两层面文件集互不重叠 → 并行执行。
+
+## 完成状态
+
+- 层面 A：A-WU1 事件日志统一 ✅ / A-WU2 事件分发+bail ✅ / A-WU3 seams ✅ / A-WU4 composition+patch ✅ /
+  A-WU5 skills 目录 ✅ / A-WU6 权限 v2 ✅ / A-WU7 goal+compaction+spill ✅ / A-WU8 postmortem+回归 ✅
+- 层面 B：B-WU1 会话日志即真相源 ✅ / B-WU2 agent loop 事件化 ✅ / B-WU3 授权 fail-closed+seams ✅ /
+  B-WU4 系统提示段注册表 ✅ / B-WU5 模式插件化 ✅ / B-WU6 AgentBackend seam ✅
+- 终验：全量单测 793+ 通过 / tsc -b 全绿 / 事件日志不变量 PASS / orchestrator --verify 全过
+- 提交：generated/devwit 14 个提交（355b530 → bf5aa80）+ root 1 个（9ca5a6b）
 
 ## 0. 执行原则（所有 work unit 必须遵守）
 
