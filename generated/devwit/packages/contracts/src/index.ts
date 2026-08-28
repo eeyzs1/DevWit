@@ -383,6 +383,7 @@ export type AgentTraceEventType =
   | "diagnostics"
   | "route"
   | "workflow"
+  | "request_rewrite"
   | "mode_recommend"
   | "usage"
   | "plan"
@@ -407,6 +408,11 @@ export type AgentTraceEventType =
  * - authorization_auto：命令白名单命中，未经弹窗自动放行（detail.toolName/args/reason +
  *   source="whitelist"）。不产生 authorization_request/decision 对——审计语义为
  *   「这次执行之所以没问你」。
+ *
+ * B-WU2（Fusion v3 / DSH 风格扩展点）：
+ * - request_rewrite：agent/pre-step 瀑布改写请求时落盘（detail.messages 为改写后的
+ *   完整请求消息）。模型可见 ⟺ 已入日志：改写内容可从此事件重建（session-log 不变量
+ *   把 request_rewrite 快照视为可溯源来源）。
  *
  * 诊断回馈（迭代 21 / AC30）：
  * - diagnostics：write/edit 工具改写文件后对工作区跑 tsc 诊断的结果快照

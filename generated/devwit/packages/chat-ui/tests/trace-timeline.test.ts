@@ -102,7 +102,7 @@ describe("deltaMs（AC36 相邻事件耗时）", () => {
 });
 
 describe("TRACE_TYPE_KEY（AC36 类型徽标词典键）", () => {
-  it("覆盖全部 18 种 AgentTraceEventType（防新增类型漏配文案）", () => {
+  it("覆盖全部 19 种 AgentTraceEventType（防新增类型漏配文案）", () => {
     const ALL_TYPES: AgentTraceEventType[] = [
       "user_message",
       "assistant_message",
@@ -115,6 +115,7 @@ describe("TRACE_TYPE_KEY（AC36 类型徽标词典键）", () => {
       "diagnostics",
       "route",
       "workflow",
+      "request_rewrite",
       "mode_recommend",
       "usage",
       "plan",

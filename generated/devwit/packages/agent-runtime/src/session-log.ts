@@ -131,12 +131,23 @@ export function assertModelVisibleLogged(
     }
   }
 
-  // 3. provided ⊆ derived（按序对齐；跳过 system）
+  // 3. provided ⊆ (derived ∪ request_rewrite 快照)（按序对齐；跳过 system）
+  // B-WU2：pre-step 瀑布改写过的请求以 request_rewrite 事件落盘——改写后的消息
+  // 对模型可见，必须同样可从日志重建（"model-visible <=> logged"）。
   const providedIdx: ChatMessage[] = messages.filter((m) => m.role !== "system");
   const logIdx = new Map<string, number>(); // role:toolCallId|content -> count
-  for (const m of derived) {
+  const indexMessage = (m: ChatMessage): void => {
     const key = m.role === "tool" ? `tool:${m.toolCallId ?? ""}` : `${m.role}:${m.content}`;
     logIdx.set(key, (logIdx.get(key) ?? 0) + 1);
+  };
+  for (const m of derived) indexMessage(m);
+  for (const ev of events) {
+    if (ev.type !== "request_rewrite") continue;
+    const d = ev.detail as { messages?: unknown } | undefined;
+    if (!Array.isArray(d?.messages)) continue;
+    for (const m of d.messages as ChatMessage[]) {
+      if (m && typeof m === "object" && typeof (m as ChatMessage).role === "string") indexMessage(m);
+    }
   }
   for (const m of providedIdx) {
     const key = m.role === "tool" ? `tool:${m.toolCallId ?? ""}` : `${m.role}:${m.content}`;

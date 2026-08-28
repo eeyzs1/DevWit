@@ -40,6 +40,65 @@ export interface AgentLoopDeps {
    * 下一轮请求经上下文源自动携带（修复闭环）。缺省时零成本跳过。
    */
   diagnostics?: DiagnosticsTracker;
+  /**
+   * B-WU2（Fusion v3 / DSH 风格扩展点）：turn/step 生命周期 + 请求瀑布 +
+   * 工具管线钩子。全部可选；缺省时行为与旧版完全一致（零开销旁路）。
+   */
+  extensions?: AgentLoopExtensions;
+}
+
+/**
+ * agent/pre-step 瀑布上下文：本轮将发给模型的请求（build 产物）。
+ * 改写/拒绝都只会影响本轮请求；transcript 仍是会话的规范历史。
+ */
+export interface PreStepContext {
+  sessionId: string;
+  userText: string;
+  messages: ChatMessage[];
+  tools: ToolDefinition[];
+  iteration: number;
+  signal?: AbortSignal;
+}
+
+/**
+ * pre-step 决策（waterfall 语义，kind 判别）：
+ * - { kind: "reject" }：拒绝本轮——不调用模型，turn 以 error 关闭（原因入轨迹）；
+ * - { kind: "rewrite" }：改写请求——改写后的 messages/tools 成为本轮模型请求，
+ *   并以 request_rewrite 事件落盘（"model-visible <=> logged"）；
+ * - undefined：放行（委托给下一监听者）。
+ */
+export type PreStepDecision =
+  | { kind: "reject"; reason: string }
+  | { kind: "rewrite"; messages: ChatMessage[]; tools?: ToolDefinition[] }
+  | undefined;
+
+/** agent/step-end 串行观察者上下文（不可改写结果）。 */
+export interface StepEndContext {
+  iteration: number;
+  assistantText: string;
+  toolCalls: ToolCall[];
+}
+
+/** tools/* 管线钩子（B-WU2）：preExecute 可拒绝，postExecute 只观察。 */
+export interface ToolPipelineHooks {
+  preExecute?: (call: ToolCall, ctx: ToolContext) => Promise<{ deny: string } | undefined>;
+  postExecute?: (call: ToolCall, result: ToolResult, ctx: ToolContext) => void | Promise<void>;
+}
+
+/** agent/turn-end 串行观察者上下文。 */
+export interface TurnEndContext {
+  finishReason: AgentFinishReason;
+  iterations: number;
+  finalText: string;
+  errorMessage?: string;
+}
+
+/** B-WU2 扩展注册表（全部可选）。 */
+export interface AgentLoopExtensions {
+  preStep?: (ctx: PreStepContext) => Promise<PreStepDecision>;
+  onStepEnd?: (ctx: StepEndContext) => void | Promise<void>;
+  toolPipeline?: ToolPipelineHooks;
+  onTurnEnd?: (ctx: TurnEndContext) => void | Promise<void>;
 }
 
 export type AgentFinishReason = "completed" | "max_iterations" | "cancelled" | "error";
@@ -143,13 +202,13 @@ export class AgentLoop {
         this.authorizer.denyAllPending();
         recordUsage();
         trace.record("done", "会话已取消");
-        return { finishReason: "cancelled", finalText, iterations, ...usagePart() };
+        return await this.finishRun({ finishReason: "cancelled", finalText, iterations, ...usagePart() });
       }
       iterations += 1;
       if (iterations > maxIterations) {
         recordUsage();
         trace.record("done", `达到最大迭代数 ${maxIterations}，停止`);
-        return { finishReason: "max_iterations", finalText, iterations: iterations - 1, ...usagePart() };
+        return await this.finishRun({ finishReason: "max_iterations", finalText, iterations: iterations - 1, ...usagePart() });
       }
 
       const build = await this.deps.engine.build({
@@ -187,8 +246,39 @@ export class AgentLoop {
       const toolCalls: ToolCall[] = [];
       let providerCancelled = false;
       let streamError: string | null = null;
+
+      // B-WU2：agent/pre-step 瀑布——可拒绝本轮或改写请求（改写落 request_rewrite 日志）
+      let requestMessages = build.messages;
+      let requestTools = build.tools;
+      if (this.deps.extensions?.preStep !== undefined) {
+        const decision = await this.deps.extensions.preStep({
+          sessionId: input.sessionId,
+          userText: input.userText,
+          messages: requestMessages,
+          tools: requestTools,
+          iteration: iterations,
+          signal,
+        });
+        if (decision !== undefined) {
+          if (decision.kind === "reject") {
+            const reason = decision.reason;
+            trace.record("error", `pre-step 拒绝: ${reason}`);
+            return await this.finishRun({ finishReason: "error", finalText, iterations, errorMessage: reason });
+          }
+          if (decision.kind === "rewrite") {
+            requestMessages = decision.messages;
+            requestTools = decision.tools ?? requestTools;
+            // model-visible <=> logged：改写后的请求必须可溯源
+            trace.record("request_rewrite", `pre-step 改写请求（iteration ${iterations}）`, {
+              messages: requestMessages,
+              tools: requestTools,
+            });
+          }
+        }
+      }
+
       try {
-        for await (const event of this.deps.provider.streamChat(build.messages, build.tools, signal)) {
+        for await (const event of this.deps.provider.streamChat(requestMessages, requestTools, signal)) {
           switch (event.type) {
             case "text":
               assistantText += event.text;
@@ -219,12 +309,12 @@ export class AgentLoop {
         this.authorizer.denyAllPending();
         recordUsage();
         trace.record("done", "会话已取消");
-        return { finishReason: "cancelled", finalText, iterations, ...usagePart() };
+        return await this.finishRun({ finishReason: "cancelled", finalText, iterations, ...usagePart() });
       }
       if (streamError !== null) {
         recordUsage();
         trace.record("error", streamError);
-        return { finishReason: "error", finalText, iterations, errorMessage: streamError, ...usagePart() };
+        return await this.finishRun({ finishReason: "error", finalText, iterations, errorMessage: streamError, ...usagePart() });
       }
 
       if (assistantText.length > 0) finalText = assistantText;
@@ -239,10 +329,13 @@ export class AgentLoop {
         { text: assistantText, ...(toolCalls.length > 0 ? { toolCalls } : {}) }
       );
 
+      // B-WU2：agent/step-end 串行观察者（每步触发，含工具步）
+      await this.deps.extensions?.onStepEnd?.({ iteration: iterations, assistantText, toolCalls });
+
       if (toolCalls.length === 0) {
         recordUsage();
         trace.record("done", "任务完成");
-        return { finishReason: "completed", finalText, iterations, ...usagePart() };
+        return await this.finishRun({ finishReason: "completed", finalText, iterations, ...usagePart() });
       }
 
       for (const call of toolCalls) {
@@ -253,6 +346,17 @@ export class AgentLoop {
     }
   }
 
+  /** 统一出口：turn 结果确定后先触发 agent/turn-end 观察者（B-WU2），再返回。 */
+  private async finishRun(result: AgentRunResult): Promise<AgentRunResult> {
+    await this.deps.extensions?.onTurnEnd?.({
+      finishReason: result.finishReason,
+      iterations: result.iterations,
+      finalText: result.finalText,
+      ...(result.errorMessage !== undefined ? { errorMessage: result.errorMessage } : {}),
+    });
+    return result;
+  }
+
   private async runOneTool(
     call: ToolCall,
     workspaceRoot: string,
@@ -260,6 +364,19 @@ export class AgentLoop {
     signal?: AbortSignal
   ): Promise<ToolResult> {
     trace.record("tool_call", `${call.name}(${summarizeArgs(call.args)})`, { tool: call.name, args: call.args });
+
+    const ctx: ToolContext = { workspaceRoot, ...(signal ? { signal } : {}) };
+
+    // B-WU2：tools/pre-execute 瀑布——可拒绝（记 tool_result 拒绝，跳过授权与执行）
+    const pipeline = this.deps.extensions?.toolPipeline;
+    if (pipeline?.preExecute !== undefined) {
+      const veto = await pipeline.preExecute(call, ctx);
+      if (veto?.deny !== undefined) {
+        const denied: ToolResult = { ok: false, output: "", error: veto.deny };
+        trace.record("tool_result", `${call.name} 被管线拒绝`, { result: denied });
+        return denied;
+      }
+    }
 
     // 授权门：内置写工具（write/edit/bash）与全部 MCP 工具（AC17）执行前必经裁决
     if (this.authorizer.needsAuthorization(call.name)) {
@@ -295,10 +412,11 @@ export class AgentLoop {
       }
     }
 
-    const ctx: ToolContext = { workspaceRoot, ...(signal ? { signal } : {}) };
     const result = isAgentToolName(call.name)
       ? await executeTool(call, this.deps.env, ctx)
       : await this.executeExternal(call, ctx);
+    // B-WU2：tools/post-execute 观察者（不能改结果，只观察）
+    if (pipeline?.postExecute !== undefined) await pipeline.postExecute(call, result, ctx);
     trace.record(
       "tool_result",
       result.ok ? `${call.name} 成功` : `${call.name} 失败: ${result.error ?? "未知错误"}`,

@@ -67,6 +67,7 @@ export const TRACE_TYPE_KEY: Record<AgentTraceEventType, TraceTypeMessageKey> = 
   diagnostics: "trace.type.diagnostics",
   route: "trace.type.route",
   workflow: "trace.type.workflow",
+  request_rewrite: "trace.type.request_rewrite",
   mode_recommend: "trace.type.mode_recommend",
   usage: "trace.type.usage",
   plan: "trace.type.plan",
