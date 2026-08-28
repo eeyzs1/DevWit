@@ -9,5 +9,6 @@ export * from "./workflow-memory.js";
 export * from "./mode-stats.js";
 export * from "./trace.js";
 export * from "./session-log.js";
+export * from "./agent-backend.js";
 export * from "./agent-loop.js";
 export * from "./orchestrator.js";
