@@ -1,5 +1,6 @@
 import type { ContextItemType, ModeDefinition } from "@devwit/contracts";
 import { DEFAULT_CONTEXT_POLICY } from "@devwit/context-engine";
+import { ModeScopeRegistry } from "./mode-scope.js";
 
 /**
  * 内置模式的固定创建时间（确定性常量，便于审计与测试）。
@@ -114,6 +115,12 @@ function cloneMode(mode: ModeDefinition): ModeDefinition {
 export class ModeStore {
   private readonly modes = new Map<string, ModeDefinition>();
   private readonly listeners = new Set<() => void>();
+
+  /**
+   * B-WU5：per-mode 作用域注册空间（隔离 + 热更新）。与模式 CRUD 并存——
+   * 模式定义管"是什么"，scope 管"这个模式能挂什么能力"（提示段/动态工具/上下文源）。
+   */
+  readonly scope = new ModeScopeRegistry();
 
   constructor(seedBuiltin = true) {
     if (seedBuiltin) {

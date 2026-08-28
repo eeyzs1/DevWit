@@ -2,3 +2,4 @@
 export * from "./mode-store.js";
 export * from "./mode-port.js";
 export * from "./community.js";
+export * from "./mode-scope.js";
