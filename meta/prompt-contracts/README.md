@@ -10,6 +10,7 @@ agent）按 `instructions.md` 的提示词契约产出结构化输出，`scripts
 | AUDIT 审计 | `audit/` | `memory/audit-report.yaml` | judge / orchestrator |
 | INNOVATE 推陈出新 | `innovate/` | `evolution/innovation-proposals.yaml` | `seeds/evolution/innovation-engine.py` |
 | DEEPEN 意图深化 | `deepen/` | `memory/deepen-corrections.yaml` | `scripts/interpret.py --deepen` |
+| RESEARCH 领域自学习 | `research/` | `memory/research-findings.yaml` | `scripts/interpret.py --research`（30-research-gate 强制：novelty>=3 时） |
 | PLAN-REVIEW 计划评审 | `plan-review/` | `memory/plan-review.yaml` | guard（advisory） |
 | EVOLVE 变异提案 | `evolve/` | `evolution/mutation-proposals.yaml` | `scripts/evolve.py --proposals` |
 

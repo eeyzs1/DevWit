@@ -56,7 +56,7 @@
 3. Phase 完整性：检查每个 Phase 的 PHASE_DONE
 4. 重新运行强制命令（去重）
 5. 抽查可验证标准
-6. Deliverable 检查：对每个 deliverable 运行 `repo-state.sh deliverable <baseline> <path>`
+6. Deliverable 检查：对每个 deliverable 对比完整工作树（committed + staged + unstaged + untracked），确认其与 baseline 一致、无缺失无越界
 7. 打印 `AUDIT_VERIFY`
 
 如有缺口：`AUDIT_GAPS` → 写 fix spec → 内联执行 → 循环（最多 3 轮）。

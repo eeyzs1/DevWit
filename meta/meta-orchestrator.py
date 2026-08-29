@@ -137,7 +137,11 @@ PHASE: INTERPRET -- Intent -> Structured Task
 7. DEEPEN (enforced by hooks/pre-advance/20-deepen-gate.py): write
    memory/deepen-corrections.yaml per meta/prompt-contracts/deepen/, then:
    python scripts/interpret.py --deepen memory/deepen-corrections.yaml --task task.yaml
-8. When confirmed and deepened, run: python meta/meta-orchestrator.py --advance
+8. RESEARCH for unknown domains (enforced by hooks/pre-advance/30-research-gate.py
+   when complexity.novelty >= 3): learn the domain online, write
+   memory/research-findings.yaml per meta/prompt-contracts/research/, then:
+   python scripts/interpret.py --research memory/research-findings.yaml --task task.yaml
+9. When confirmed, deepened and researched, run: python meta/meta-orchestrator.py --advance
 """,
     "GENERATE": """
 PHASE: GENERATE -- Task -> Executable Harness Project (v2 LLM-driven flow)
@@ -150,6 +154,8 @@ STEP 1 (auto-run by --advance): scaffold.py
 STEP 2 (LLM must execute manually -- script cannot do this):
   - Read meta/harness-author.md and generated/[project-name]/harness-scaffold.yaml
   - Fill every LLM slot with project-specific content (NO mock, NO placeholders)
+  - Fill context/domain-brief.yaml FIRST (dynamic domain template, C); when
+    novelty>=3 or unknowns remain, ground its sources in real research (A)
 
 STEP 3 (manual before --advance to FACTORY): validate-harness.py
   - python scripts/validate-harness.py generated/[project-name]

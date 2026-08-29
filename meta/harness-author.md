@@ -19,6 +19,19 @@ harness 回答一个问题："在这个具体项目上，agent 怎样才算可�
 
 ## 执行步骤
 
+### Step 0: 领域研究（先学习，再合成 —— 仅在需要时）
+
+先读 task.yaml 的 `complexity.novelty` 与 `unknowns`：
+
+- **需要研究**：`novelty >= 3`（领域分类器判定为陌生领域）**或** `unknowns` 非空（未决未知项）。
+- 需要研究时，**先上网学习该领域**再动笔：
+  1. 检索该领域的标准 / 不变量 / 主流技术栈 / 常见失败模式 / 安全与合规要求；
+  2. 把学习结论写进 **`context/domain-brief.yaml`**，`sources` 至少一条**真实 http(s) 来源**
+     （validate-harness.py check [13] 强制，纯幻觉 = 拒绝）；
+  3. 之后所有 slot 的领域内容都以这个简报为准——它是本项目"动态模板"的单一事实源。
+- 不需要研究（熟悉领域、无未决 unknowns）：`domain-brief.yaml` 仍要填（它是每个项目的
+  领域模型），但 `sources` 可以为空。
+
 ### Step 1: 读输入
 1. 读 `task.yaml` —— 项目名、domain、real_need、goal、hard_constraints、acceptance_criteria、unknowns、assumptions、complexity
 2. 读 `harness-scaffold.yaml` —— 列出所有待填充 slot + 每个 slot 的 guidance
@@ -46,6 +59,17 @@ harness 回答一个问题："在这个具体项目上，agent 怎样才算可�
 - 是否所有引用的组件在 task.yaml 里存在？
 
 ## Slot 填充规范（按文件）
+
+### context/domain-brief.yaml（**动态模板，先填这个**）
+- `domain`: 该项目的真实领域名（不限于 5 个固定桶；陌生领域给出准确名称）
+- `rationale`: 为什么是这个领域模型（一至两句话）
+- `invariants`: 该领域的典型不变量（如工业控制：安全联锁必须本地执行；金融：账务必平）
+- `component_map`: 组件 → 职责（从 goal/hard_constraints/real_need 推导）
+- `workflows`: 该领域的典型工作流
+- `advancement_roadmap`: 四阶段进阶（Basic/Solid/Advanced/Excellent）——创新引擎会用它
+- `sources`: 领域研究来源（novelty>=3 或存在未决 unknowns 时，≥1 条真实 http(s)）
+- **其他所有 slot 的领域内容必须与这里一致**——architecture-rules 的组件、
+  sub-agent-dispatch 的角色、security-guardrails 的敏感面，都从这里派生
 
 ### context/knowledge-index.yaml
 - `mappings`: 改为该项目的真实源码路径 → 知识域映射
@@ -292,6 +316,10 @@ merge-coordinator prototype。只有 `merge_allowed` 才需要——而 C>=4 项
 6. **domain 由 task 决定** —— 不从 5 个固定桶选；按 task 实际领域合成
 7. **workitem source adapter 必须合成** —— 不预设 adapter；据 task.work_source 在 runtime/sources/ 生成实现
 8. **文档双重产物** —— harness-doc + project-doc 两个 contract 都要填，纳入 evolution loop
+9. **领域研究依据（A）** —— novelty>=3 或存在未决 unknowns 时，context/domain-brief.yaml 的
+   sources 必须含 ≥1 条真实 http(s) 来源；领域知识来自真实研究，不是幻觉
+10. **动态模板（C）** —— context/domain-brief.yaml 是每个项目合成的领域模板，先填它，
+    其他 slot 的领域内容一律以它为准，禁止回退到通用 web 规则
 
 ## 完成后
 

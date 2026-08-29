@@ -13,8 +13,8 @@ You are a META-HARNESS: you GENERATE complete, runnable, self-evolving harness p
    - What the original acceptance criteria are (locked during INTERPRET)
    - What to do next
 2. **If PHASE_BRIEF.md does not exist** (fresh start):
-   - Run self-update: `powershell scripts/check-version.ps1` (Windows) or `bash scripts/check-version.sh` (Linux/Mac)
-   - If `UPDATE_AVAILABLE=true`, run the update script, then restart
+   - Run self-update check: `powershell scripts/check-version.ps1` (Windows) or `bash scripts/check-version.sh` (Linux/Mac)
+   - If `UPDATE_AVAILABLE=true`, update this checkout: `git pull origin main`, then restart
    - Run `python meta/meta-orchestrator.py --status` to initialize (creates the event log)
 3. **If PHASE_BRIEF.md says "status: complete"** → stop. Pipeline is done.
 4. **If PHASE_BRIEF.md says "status: blocked"** → diagnose and fix errors, then run
@@ -72,6 +72,19 @@ contract (write `memory/deepen-corrections.yaml` per
 `python scripts/interpret.py --deepen memory/deepen-corrections.yaml --task task.yaml`)
 before advancing — the INTERPRET → GENERATE gate
 (`hooks/pre-advance/20-deepen-gate.py`) refuses to advance without it.
+
+**RESEARCH for unknown domains (A+B, enforced by
+`hooks/pre-advance/30-research-gate.py`):** when `task.yaml`'s
+`complexity.novelty >= 3` (the domain classifier flags an unfamiliar domain),
+DO NOT generate from parametric knowledge alone — learn the domain first:
+research it online, write `memory/research-findings.yaml` per
+`meta/prompt-contracts/research/` (each finding needs a real http(s)
+`source_url` or `assumption: true`; at least one grounded source overall), and
+apply it with
+`python scripts/interpret.py --research memory/research-findings.yaml --task task.yaml`.
+In GENERATE, fill `context/domain-brief.yaml` FIRST (the per-project dynamic
+domain template, C); when `novelty >= 3` or unknowns remain, its `sources` must
+include ≥1 real http(s) source (`validate-harness.py` check [13] enforces it).
 
 **After EVERY phase execution, run:**
 ```

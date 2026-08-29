@@ -45,3 +45,8 @@ Every hook receives one JSON object in the `MH_CONTEXT` environment variable
 - `pre-advance/20-deepen-gate.py` — the INTERPRET -> GENERATE gate (B):
   advancing from INTERPRET requires `memory/deepen-corrections.yaml` that
   satisfies the DEEPEN contract schema. Do not delete.
+- `pre-advance/30-research-gate.py` — the INTERPRET -> GENERATE research gate
+  (A+B): advancing from INTERPRET when `complexity.novelty >= 3` (unknown
+  domain) requires `memory/research-findings.yaml` satisfying the RESEARCH
+  contract schema with at least one grounded http(s) source. Familiar domains
+  are a no-op. Do not delete.

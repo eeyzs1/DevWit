@@ -120,7 +120,7 @@ def main():
         print("  Meta-Harness update available!")
         print(f"  Current: {current}")
         print(f"  Latest:  {latest}")
-        print("  To update: python scripts/update-harness.py")
+        print("  To update: git pull origin main (this checkout), then restart")
         print("=" * 46)
 
 

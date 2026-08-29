@@ -48,9 +48,8 @@ Commands to re-run: <deduplicated list>
 
 #### A5. Deliverable + Baseline Diff 检查
 对 ROADMAP.md 中每个 Phase 的 Deliverables 列表：
-- 运行 `repo-state.sh deliverable <baseline-ref> "<path>"`
-- 对比完整工作树（committed + staged + unstaged + untracked）
-- `missing` → AUDIT_GAP
+- 对比完整工作树（committed + staged + unstaged + untracked），检查 deliverable 是否与 baseline-ref 一致
+- 缺失（`missing`）→ AUDIT_GAP
 
 **Baseline Diff 检查**（见 `seeds/verification/baseline-diff-check.md`）：
 - 运行 `git diff --name-status <baseline-ref> HEAD`

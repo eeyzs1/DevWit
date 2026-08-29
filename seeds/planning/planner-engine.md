@@ -29,7 +29,7 @@ Planner 是 Meta-Harness 的规划引擎。它接收用户的模糊需求，经�
 - 记录到 `applied-memories.md`
 
 ### 0.4 声明运行命名空间
-- 使用 `scripts/claim-run.sh` 原子创建 `.meta-harness/runs/<run-id>/` 目录
+- 原子创建 `.meta-harness/runs/<run-id>/` 目录（用项目可用的工具/命令，无预设脚本）
 - 检查是否有活跃运行可续接
 - 打印共存警告（同一工作树不能同时执行两个运行）
 
@@ -66,15 +66,12 @@ greenfield | brownfield | bugfix | refactor | ui
 ## Stage 2: 侦察（并行）
 
 ### 棕场
-```bash
-detect-stack.sh > context.md      # 技术栈、包管理器、构建/测试/lint 命令
-summarize-repo.sh > repo-map.md   # 目录结构、关键模块、风险区域
-```
+用项目可用的工具并行探测（无预设脚本；参考 `tools/tool-discovery.py`）：
+- 技术栈、包管理器、构建/测试/lint 命令 → `context.md`
+- 目录结构、关键模块、风险区域 → `repo-map.md`
 
 ### 绿场
-```bash
-detect-env.sh > context.md        # 环境信息、可用工具
-```
+- 环境信息、可用工具 → `context.md`
 
 输出 5 行摘要：技术栈、包管理器、构建命令、值得注意的模块、风险区域。
 

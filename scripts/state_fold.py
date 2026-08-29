@@ -85,7 +85,7 @@ def _now_iso() -> str:
 
 def _default_state() -> dict:
     return {
-        "pipeline_version": "3.1.0",
+        "pipeline_version": "3.2.0",
         "current_phase": PIPELINE_PHASES[0],
         "phase_order": list(PIPELINE_PHASES),
         "completed_phases": [],

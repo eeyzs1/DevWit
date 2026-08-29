@@ -460,6 +460,118 @@ def apply_deepen(task: dict, corrections: dict, output_path: Path = None) -> dic
     return task
 
 
+# ---------------------------------------------------------------- research (A+B)
+# The RESEARCH prompt contract produces memory/research-findings.yaml. Unlike
+# DEEPEN (which corrects within the known 5-bucket vocabulary), RESEARCH is the
+# escape hatch for UNKNOWN domains: the LLM goes online, learns the domain, and
+# records grounded findings (source_url) before the agent locks criteria and
+# generates. apply_research validates (schema + evidence grounding) and merges
+# over the baseline task.yaml. Domain is deliberately NOT restricted to the 5
+# known buckets — research is how a task leaves the bucket vocabulary.
+
+RESEARCH_CONTRACT_DIR = Path(__file__).resolve().parent.parent / "meta" / "prompt-contracts" / "research"
+RESEARCH_FIELDS = ("scale", "goal", "quality_attributes", "acceptance_criteria", "assumptions")
+
+
+def _research_dict_errors(findings: dict, task: dict) -> list:
+    """Errors for an in-memory findings dict: schema + evidence grounding.
+
+    Empty list == valid. Called by both validate_research (path-based, for the
+    gate) and apply_research (dict-based, for the merge).
+    """
+    import validate_contract as vc
+    errors = []
+    schema_path = RESEARCH_CONTRACT_DIR / "schema.yaml"
+    if not schema_path.exists():
+        errors.append("research schema not found (meta/prompt-contracts/research/schema.yaml)")
+    else:
+        try:
+            vc.validate_value(findings, vc.load_schema(schema_path), "findings", errors)
+        except ValueError as e:
+            errors.append(str(e))
+    if errors:
+        return errors
+
+    findings_list = findings.get("findings", [])
+    grounded = [f for f in findings_list if isinstance(f.get("source_url"), str)
+                and f["source_url"].startswith(("http://", "https://"))]
+    if not grounded:
+        errors.append("findings: at least one finding must carry a real http(s) "
+                      "source_url (research must be grounded, not assumption-only)")
+
+    baseline_domain = str(task.get("domain", "")).replace("-", "_").strip().lower()
+    domain = findings.get("domain")
+    if domain is not None:
+        d = str(domain).replace("-", "_").strip().lower()
+        if not d:
+            errors.append("domain must be a non-empty string")
+        elif d != baseline_domain and not grounded:
+            errors.append(f"domain correction ({baseline_domain!r} -> {d!r}) requires "
+                          "at least one grounded source_url")
+
+    for i, f in enumerate(findings_list):
+        claim = f.get("claim")
+        if not isinstance(claim, str) or not claim.strip():
+            errors.append(f"findings[{i}].claim must be a non-empty string")
+        if not f.get("source_url") and not f.get("assumption"):
+            errors.append(f"findings[{i}]: each finding needs source_url OR assumption: true")
+    return errors
+
+
+def validate_research(findings_path, task: dict) -> list:
+    """Validate a RESEARCH-contract findings file against schema + grounding."""
+    import validate_contract as vc
+    try:
+        findings = vc.load_output(findings_path)
+    except ValueError as e:
+        return [str(e)]
+    if not isinstance(findings, dict):
+        return ["findings must be a mapping"]
+    return _research_dict_errors(findings, task)
+
+
+def apply_research(task: dict, findings: dict, output_path: Path = None) -> dict:
+    """Validate findings and merge them over the baseline task.yaml.
+
+    Returns None (with errors on stderr) when findings are invalid; otherwise
+    returns the merged task. Resolves unknowns via `resolved_unknowns` entries
+    of the form "Unknown -> Resolution".
+    """
+    errors = _research_dict_errors(findings, task)
+    if errors:
+        print("RESEARCH FAIL:", file=sys.stderr)
+        for e in errors:
+            print(f"  - {e}", file=sys.stderr)
+        return None
+
+    domain = str(findings.get("domain", "")).replace("-", "_").strip().lower()
+    if domain:
+        task["domain"] = domain
+    for field in RESEARCH_FIELDS:
+        if field in findings and findings[field] is not None:
+            task[field] = findings[field]
+
+    # Resolve unknowns: "Unknown -> Resolution" entries remove matching unknowns.
+    resolved = findings.get("resolved_unknowns") or []
+    current = list(task.get("unknowns") or [])
+    for entry in resolved:
+        text = str(entry)
+        if "->" not in text:
+            continue
+        target = text.split("->", 1)[0].strip().lower()
+        current = [u for u in current
+                   if not (isinstance(u, str) and u.strip().lower() == target)]
+    task["unknowns"] = current
+
+    if output_path is not None:
+        write_task_file(task, output_path)
+        print(f"Researched task written to: {output_path}")
+        print(f"  Domain: {task['domain']} | Unknowns: {len(task.get('unknowns', []))} | "
+              f"Findings: {len(findings.get('findings', []))} | "
+              f"Resolved unknowns: {len(resolved)}")
+    return task
+
+
 def main():
     parser = argparse.ArgumentParser(description="Meta-Harness Interpreter")
     parser.add_argument("--intent", default=None, help="Raw intent string")
@@ -467,12 +579,14 @@ def main():
     parser.add_argument("--output", default=None, help="Output task definition file (YAML)")
     parser.add_argument("--deepen", default=None, metavar="CORRECTIONS",
                         help="Apply a DEEPEN-contract corrections file (WP7)")
-    parser.add_argument("--task", default=None, help="task.yaml to deepen (with --deepen)")
+    parser.add_argument("--research", default=None, metavar="FINDINGS",
+                        help="Apply a RESEARCH-contract findings file (A/B)")
+    parser.add_argument("--task", default=None, help="task.yaml to deepen/research (with --deepen/--research)")
     args = parser.parse_args()
 
-    if args.deepen:
+    if args.deepen or args.research:
         if not args.task:
-            print("ERROR: --deepen requires --task <task.yaml>")
+            print("ERROR: --deepen/--research requires --task <task.yaml>")
             sys.exit(1)
         task_path = Path(args.task)
         if not task_path.exists():
@@ -480,13 +594,22 @@ def main():
             sys.exit(1)
         with open(task_path, "r", encoding="utf-8") as f:
             task = yaml.safe_load(f) or {}
-        corrections_path = Path(args.deepen)
-        if not corrections_path.exists():
-            print(f"ERROR: Corrections file not found: {corrections_path}")
-            sys.exit(1)
-        with open(corrections_path, "r", encoding="utf-8") as f:
-            corrections = yaml.safe_load(f) or {}
-        result = apply_deepen(task, corrections, Path(args.output) if args.output else task_path)
+        if args.deepen:
+            corrections_path = Path(args.deepen)
+            if not corrections_path.exists():
+                print(f"ERROR: Corrections file not found: {corrections_path}")
+                sys.exit(1)
+            with open(corrections_path, "r", encoding="utf-8") as f:
+                corrections = yaml.safe_load(f) or {}
+            result = apply_deepen(task, corrections, Path(args.output) if args.output else task_path)
+        else:
+            findings_path = Path(args.research)
+            if not findings_path.exists():
+                print(f"ERROR: Findings file not found: {findings_path}")
+                sys.exit(1)
+            with open(findings_path, "r", encoding="utf-8") as f:
+                findings = yaml.safe_load(f) or {}
+            result = apply_research(task, findings, Path(args.output) if args.output else task_path)
         sys.exit(0 if result is not None else 1)
 
     if args.intent:

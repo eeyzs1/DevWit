@@ -96,8 +96,9 @@ Vague Intent → [Interpreter] → Structured Task Definition
 
 **Command-line usage:**
 ```bash
-# Generate a complete harness project
-python scripts/generate.py --task <task-file.yaml> --template <domain>
+# v2 generation flow (scaffold script → LLM slot authoring → validate gate)
+python scripts/scaffold.py --task task.yaml --output generated/<project-name>
+python scripts/validate-harness.py generated/<project-name>
 
 # Verify generated project completeness (7+2 layer check)
 python scripts/verify-generation.py <generated-project-dir>
@@ -110,9 +111,6 @@ python seeds/evolution/innovation-engine.py --project-root <generated-project-di
 
 # Run innovation cycle in a generated project
 python orchestrator.py --innovate
-
-# View quality score
-python scripts/quality-score.py
 ```
 
 ---
@@ -140,14 +138,9 @@ evolution/          ← Meta-level self-evolution system
   genome.md           Current evolvable state (what can mutate)
   log.md              Evolution history (fossil record)
 │
-templates/          ← Domain templates (Generation Factory format, each layer specifies executable artifacts)
-  web-app/            Web application
-  api-service/        API service
-  data-pipeline/      Data pipeline
-  content-system/     Content system
-  automation/         Automation
+templates/          ← Removed (v1 domain templates, superseded by the dynamic domain-brief)
 │
-seeds/              ← Seed artifacts (executable template files per layer, copied by generate.py)
+seeds/              ← Seed artifacts (executable template files per layer, copied by scaffold.py)
   context/            loader.py, knowledge-index.yaml
   tools/              schemas.yaml, sandbox.yaml, permissions.yaml, mcp-config.json
   memory/             snapshot.py, compression-rules.yaml
@@ -167,19 +160,16 @@ seeds/              ← Seed artifacts (executable template files per layer, cop
 generated/          ← Generation output (result of each compilation, git-ignored)
 memory/             ← Meta-knowledge (cross-project, compounding over time)
   generation-log.md   Every generation is tracked (human-readable)
-  generation-log.yaml Every generation tracked (machine-readable, maintained by generate.py)
+  generation-log.yaml Every generation tracked (machine-readable, maintained by the execution pipeline)
   meta-mistakes.md    Generation failures → pipeline improvements
   task-patterns.md    Known task patterns (faster interpretation)
   decisions.md        Architecture decision records
   progress.md         Execution progress
 │
 scripts/            ← Executable scripts (cross-platform Python)
-  generate.py         Core generation pipeline: task → complete harness project
+  scaffold.py         v2 generation skeleton: task → harness dirs + universal primitives + LLM slot manifest
   verify-generation.py Verify 7+2 layer completeness of generated projects
   evolve.py           Evidence-driven evolution engine
-  verify.py           Post-task verification (lint, typecheck, test, secrets)
-  pre-task.py         Pre-task checks (task card, git status, blockers)
-  quality-score.py    Quality metrics
 ```
 
 ---
@@ -311,15 +301,14 @@ When JUDGE determines all criteria are satisfied, the system doesn't stop — it
 
 ## Verification Mechanism
 
-The system uses a **three-layer verification approach**:
+Verification works in two layers:
 
 | Layer | File | Purpose |
 |---|---|---|
-| Declarative | `scripts/verify.py` (docstring) | Defines **WHAT to check** (platform-agnostic) |
-| Executable | `scripts/verify.py` | Implements **HOW to check** (cross-platform Python) |
-| Completeness | `scripts/verify-generation.py` | Verifies generated projects have all 7+2 layers |
+| Generation completeness | `scripts/verify-generation.py` | Verifies generated projects have all 7+2 layers |
+| Runtime verification | generated project's `verification/` (self-check / anti-mock / quality-gate / run-tests) + `orchestrator.py --verify` | Real checks inside the project; evidence recorded in the ledger |
 
-AI agents read the declarative layer and translate checks to their current platform. Humans can run the Python scripts directly.
+Agents run the generated project's own verification gates after each phase; humans can run the Python scripts directly.
 
 ---
 
@@ -346,7 +335,7 @@ AI agents read the declarative layer and translate checks to their current platf
 - No execution without interpretation — run the interpreter first
 - No agent without a harness — every agent operates within generated constraints
 - No constraint without a reason — every rule must trace to a task requirement
-- No completion without verification — run `scripts/verify.py` after changes
+- No completion without verification — run the generated project's verification gates after changes (e.g. `verification/self-check.py` / `orchestrator.py --verify`)
 - Generate EXECUTABLE systems, not just documents — every layer must have concrete artifacts
 - Agent topology is GENERATED from task analysis, not selected from presets
 - Context files must stay under 60 lines

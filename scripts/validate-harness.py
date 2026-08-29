@@ -783,6 +783,49 @@ def validate(harness_dir: Path) -> tuple:
             report.append("  PASS -- doc budgets within limits")
     report.append("")
 
+    # 9i. Domain brief + research grounding（C + A）：
+    #     每个 harness 必须合成 context/domain-brief.yaml（动态模板）；
+    #     当 novelty>=3 或存在未决 unknowns 时，其 sources 必须含真实 http(s) 来源
+    #     （领域研究依据，fail-closed——研究不足 = 领域知识来自幻觉 = 拒绝）。
+    report.append("[13] Domain brief + research grounding")
+    brief_file = harness_dir / "context" / "domain-brief.yaml"
+    cx = task.get("complexity") or {}
+    try:
+        novelty = int(cx.get("novelty", 3) or 3)
+    except (TypeError, ValueError):
+        novelty = 3
+    unknowns = [u for u in (task.get("unknowns") or [])
+                if not isinstance(u, str) or "no specific unknowns" not in u.lower()]
+    research_needed = novelty >= 3 or bool(unknowns)
+    if not brief_file.exists():
+        msg = "  MISSING context/domain-brief.yaml — every harness must synthesize its domain brief"
+        report.append(msg)
+        errors.append(msg)
+    else:
+        brief = load_yaml(brief_file)
+        if not isinstance(brief, dict) or not isinstance(brief.get("domain"), str) \
+                or not brief["domain"].strip() or brief["domain"].strip() == "placeholder":
+            msg = "  domain-brief.yaml must declare a non-placeholder 'domain'"
+            report.append(msg)
+            errors.append(msg)
+        else:
+            sources = brief.get("sources") or []
+            real = [s for s in sources if isinstance(s, str) and s.startswith(("http://", "https://"))]
+            if research_needed:
+                if not real:
+                    msg = (f"  domain-brief.yaml has no http(s) source but research is required "
+                           f"(novelty={novelty}, unknowns={len(unknowns)}) — the domain brief must "
+                           "be grounded in real research (A)")
+                    report.append(msg)
+                    errors.append(msg)
+                else:
+                    report.append(f"  PASS — domain-brief grounded in {len(real)} source(s) "
+                                  f"(research required: novelty={novelty}, unknowns={len(unknowns)})")
+            else:
+                report.append("  PASS — domain-brief present (research not required: "
+                              f"novelty={novelty}, unknowns={len(unknowns)})")
+    report.append("")
+
     # 总结
     report.append("=== Summary ===")
     report.append(f"  Errors:   {len(errors)}")

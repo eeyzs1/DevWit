@@ -4,6 +4,71 @@ All notable changes to Meta-Harness are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/), adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [3.2.0] — 2026-08-29
+
+### Added — "learn the domain before you generate" (A+B+C)
+
+- **RESEARCH prompt contract** (`meta/prompt-contracts/research/`): for unknown
+  domains the agent must LEARN before locking criteria and generating. Findings
+  (`memory/research-findings.yaml`) are schema-validated AND evidence-grounded:
+  each finding needs a real http(s) `source_url` or `assumption: true`, and at
+  least one grounded source overall — assumption-only "research" is refused.
+- **`scripts/interpret.py --research`**: validates findings and merges them over
+  the baseline task.yaml — corrects `domain` to ANY name (research is the escape
+  hatch out of the 5-bucket vocabulary), overrides semantic fields, and resolves
+  `unknowns` via `resolved_unknowns` ("Unknown -> Resolution").
+- **`hooks/pre-advance/30-research-gate.py`**: INTERPRET -> GENERATE refuses to
+  advance when `complexity.novelty >= 3` (unfamiliar domain) without schema-valid,
+  grounded research findings. Familiar domains are a no-op (research is a
+  conditional cost, not a tax on every task).
+- **`context/domain-brief.yaml` LLM slot (dynamic template, C)**: every scaffold
+  now carries a per-project domain brief (domain/rationale/invariants/
+  component_map/workflows/advancement_roadmap/sources) that the LLM synthesizes
+  FIRST and that every other slot derives from — replacing the fixed 5-bucket
+  template system. `seeds/context/domain-brief.yaml` is the baseline.
+- **`validate-harness.py` check [13]** (fail-closed): when `novelty >= 3` or
+  unresolved unknowns remain, the domain brief's `sources` must contain ≥1 real
+  http(s) URL; a placeholder `domain` is rejected. Research evidence is enforced
+  at the GENERATE -> FACTORY gate, not left to self-report.
+- **Tests**: `tests/test_research.py` (9 tests) covers contract validation,
+  grounding rejection, the research gate (refuse -> invalid -> pass, no-op for
+  familiar domains), scaffold slot emission and validate-harness grounding;
+  `tests/test_pipeline.py` re-targeted from v1 `generate.py` to v2 `scaffold.py`.
+
+### Removed — deprecated v1 generation path + dead files
+
+- **`scripts/generate.py`** (v1) and **`templates/`** (5 fixed domain templates):
+  explicitly superseded by the v2 flow (`scaffold.py` -> `harness-author.md` ->
+  `validate-harness.py`) since v2.5; the dynamic `domain-brief.yaml` replaces the
+  fixed bucket system. Docs updated (README/README_EN/META/harness-generator).
+- **`scripts/init-harness.sh`** (zero references; superseded by
+  `init-harness-submodule.*`), **`scripts/e2e-runtime-test.py`** + `.e2e-runtime-test/`
+  artifact dir (zero references), **`seeds/verification/snapshot-rollback.md`**
+  (zero references).
+- The v1-only knowledge prefill (`preseed_long_term`) is gone with `generate.py`;
+  knowledge content is now LLM-synthesized per task.
+
+### Removed — second cleanup pass: files the LLM cannot reach
+
+- **`scripts/verify.py` / `scripts/pre-task.py` / `scripts/quality-score.py`**:
+  "doc ghosts" — described in README/META but on no load path (not in
+  phase-loader, not copied by scaffold, not invoked by orchestrator/guard).
+- **Installer cluster** (`install.*`, `uninstall.*`, `update-harness.*`,
+  `migrate.*`, `migrate-legacy.*`, `init-harness-submodule.*`, `verify.ps1/sh`,
+  `bootstrap-update.*`) + **`seeds/project/deployment-guide.md`** (which was the
+  only doc referencing them, and it was itself zero-referenced): human
+  deployment tooling the pipeline never loads. Kept only the self-contained
+  `check-version.ps1/sh/py` (AGENTS.md preflight); self-update is now a plain
+  `git pull origin main` (AGENTS.md + check-version.py updated).
+- **Shell helpers** (`seeds/tools/detect-env.sh`, `detect-stack.sh`,
+  `summarize-repo.sh`, `repo-state.sh`, `validate-phase.sh`,
+  `seeds/planning/claim-run.sh`): referenced by docs that ARE shipped into
+  generated projects (`planner-engine.md`, `protocol-template.md`) but never
+  copied — dangling references that would FileNotFoundError at runtime.
+  References rewritten to generic "use available tools" instructions
+  (planner-engine / protocol-template / scope-fence / auditor-engine /
+  harness-generator).
+
 ## [3.1.0] — 2026-08-29
 
 ### Added — "verify the world, not the self-report" (script vs prompt hybrid)

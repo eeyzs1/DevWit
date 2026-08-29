@@ -2,191 +2,105 @@
 """
 Test suite for the Meta-Harness generation pipeline.
 
+v1 (generate.py + templates/) was removed in favor of the v2 flow
+(scaffold.py script -> LLM slot authoring -> validate-harness.py gate), so the
+template-bucket tests were replaced by scaffold-equivalent coverage here and in
+tests/test_research.py (domain-brief slot + research grounding).
+
 Run: python -m pytest tests/ -v
 """
 
-import json
 import shutil
-import tempfile
+import subprocess
+import sys
 from pathlib import Path
 
 import yaml
 import pytest
 
 HARNESS_ROOT = Path(__file__).resolve().parent.parent
-sys_path_hack = str(HARNESS_ROOT / "scripts")
+SCRIPTS = HARNESS_ROOT / "scripts"
 
-import sys
-if sys_path_hack not in sys.path:
-    sys.path.insert(0, sys_path_hack)
-
-
-class TestTaskValidation:
-    def test_valid_task(self):
-        from generate import validate_task
-        task = {"name": "Test", "domain": "api_service", "goal": "Build an API"}
-        errors = validate_task(task)
-        assert len(errors) == 0
-
-    def test_missing_required_fields(self):
-        from generate import validate_task
-        task = {"name": "Test"}
-        errors = validate_task(task)
-        assert len(errors) >= 2
-        assert any("domain" in e for e in errors)
-        assert any("goal" in e for e in errors)
-
-    def test_empty_name(self):
-        from generate import validate_task
-        task = {"name": "", "domain": "api", "goal": "Build"}
-        errors = validate_task(task)
-        assert any("name" in e for e in errors)
-
-    def test_wrong_type_for_array(self):
-        from generate import validate_task
-        task = {"name": "Test", "domain": "api", "goal": "Build", "acceptance_criteria": "not a list"}
-        errors = validate_task(task)
-        assert any("acceptance_criteria" in e for e in errors)
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
 
 
-class TestTemplateDetection:
-    def test_api_service(self):
-        from generate import detect_template
-        assert detect_template({"domain": "api_service"}) == "api-service"
-
-    def test_web_app(self):
-        from generate import detect_template
-        assert detect_template({"domain": "web_app"}) == "web-app"
-
-    def test_automation(self):
-        from generate import detect_template
-        assert detect_template({"domain": "automation"}) == "automation"
-
-    def test_data_pipeline(self):
-        from generate import detect_template
-        assert detect_template({"domain": "data_pipeline"}) == "data-pipeline"
-
-    def test_unknown_defaults_to_web_app(self):
-        from generate import detect_template
-        assert detect_template({"domain": "unknown_thing"}) == "web-app"
+def _run(cwd, *args):
+    proc = subprocess.run([sys.executable, *args], cwd=str(cwd),
+                          capture_output=True, text=True, encoding="utf-8",
+                          errors="replace")
+    return proc.returncode, proc.stdout + proc.stderr
 
 
-class TestTemplateParsing:
-    def test_parse_api_service_template(self):
-        from generate import parse_template
-        template_file = HARNESS_ROOT / "templates" / "api-service" / "template.md"
-        if not template_file.exists():
-            pytest.skip("api-service template not found")
-        result = parse_template(template_file)
-        assert len(result["constraints"]) > 0
-        assert len(result["workflows"]) > 0
-        assert len(result["verification_checklist"]) > 0
-
-    def test_parse_web_app_template(self):
-        from generate import parse_template
-        template_file = HARNESS_ROOT / "templates" / "web-app" / "template.md"
-        if not template_file.exists():
-            pytest.skip("web-app template not found")
-        result = parse_template(template_file)
-        assert len(result["constraints"]) > 0
-        assert len(result["workflows"]) > 0
-
-    def test_parse_nonexistent_template(self):
-        from generate import parse_template
-        result = parse_template(Path("/nonexistent/template.md"))
-        assert result["constraints"] == []
+def _write_task(path: Path, **extra) -> Path:
+    task = {
+        "name": "Test API",
+        "domain": "api_service",
+        "goal": "Build a REST API",
+        "acceptance_criteria": ["API responds correctly", "Validation works"],
+        "complexity": {"scope": 3, "criticality": 3, "novelty": 3,
+                       "coupling": 3, "tier": "standard"},
+    }
+    task.update(extra)
+    path.write_text(yaml.dump(task), encoding="utf-8")
+    return path
 
 
-class TestGeneration:
-    @pytest.fixture
-    def temp_output(self):
-        tmp = tempfile.mkdtemp(prefix="harness_test_")
-        yield Path(tmp)
-        shutil.rmtree(tmp, ignore_errors=True)
+def _scaffold(tmp_path, task=None) -> tuple:
+    task = task or _write_task(tmp_path / "task.yaml")
+    out = tmp_path / "gen"
+    code, out_text = _run(tmp_path, str(SCRIPTS / "scaffold.py"),
+                          "--task", str(task), "--output", str(out))
+    return code, out_text, out
 
-    def test_generate_api_service(self, temp_output):
-        from generate import generate
-        task = {
-            "name": "Test API",
-            "domain": "api_service",
-            "real_need": "Need an API",
-            "goal": "Build a REST API",
-            "acceptance_criteria": ["API responds correctly", "Validation works"],
-        }
-        generate(task, "api-service", temp_output)
 
-        assert (temp_output / "AGENTS.md").exists()
-        assert (temp_output / "CLAUDE.md").exists()
+# ---------------------------------------------------------------- v2 scaffold
 
-        agents_md = (temp_output / "AGENTS.md").read_text(encoding="utf-8")
-        assert "Test API" in agents_md
-        assert "api-service" in agents_md
+class TestScaffold:
+    def test_scaffold_creates_all_layer_dirs(self, tmp_path):
+        code, out, gen = _scaffold(tmp_path)
+        assert code == 0, out
+        for layer in ("context", "tools", "memory", "planning", "verification",
+                      "feedback", "constraints", "security", "observability",
+                      "evolution", "runtime", "docs", "seams"):
+            assert (gen / layer).is_dir(), f"missing layer dir: {layer}"
 
-    def test_generate_web_app(self, temp_output):
-        from generate import generate
-        task = {
-            "name": "Test Web App",
-            "domain": "web_app",
-            "real_need": "Need a web app",
-            "goal": "Build a web application",
-            "acceptance_criteria": ["Users can sign up"],
-        }
-        generate(task, "web-app", temp_output)
+    def test_scaffold_emits_root_and_manifest(self, tmp_path):
+        code, out, gen = _scaffold(tmp_path)
+        assert code == 0, out
+        for f in ("AGENTS.md", "CLAUDE.md", ".cursorrules", "task.yaml",
+                  "harness-scaffold.yaml", "harness-profile.yaml",
+                  "harness-composition.yaml", "orchestrator.py", "guard.py"):
+            assert (gen / f).exists(), f"missing root artifact: {f}"
+        manifest = yaml.safe_load((gen / "harness-scaffold.yaml").read_text(encoding="utf-8"))
+        assert len(manifest["llm_slots"]) > 0
+        # C: the dynamic domain template is always an LLM slot
+        assert any(s["file"] == "context/domain-brief.yaml" for s in manifest["llm_slots"])
+        profile = yaml.safe_load((gen / "harness-profile.yaml").read_text(encoding="utf-8"))
+        assert profile["factors"]["scope"] == 3
 
-        agents_md = (temp_output / "AGENTS.md").read_text(encoding="utf-8")
-        assert "web-app" in agents_md
+    def test_scaffold_rejects_invalid_task(self, tmp_path):
+        task = tmp_path / "task.yaml"
+        task.write_text("name: X\ndomain: api_service\n", encoding="utf-8")  # goal missing
+        code, out = _run(tmp_path, str(SCRIPTS / "scaffold.py"),
+                         "--task", str(task), "--output", str(tmp_path / "gen"))
+        assert code != 0 and "Missing required field" in out
 
-    def test_different_templates_produce_different_output(self, temp_output):
-        from generate import generate
-        task_api = {
-            "name": "API Project",
-            "domain": "api_service",
-            "goal": "Build API",
-            "acceptance_criteria": ["test"],
-        }
-        task_web = {
-            "name": "Web Project",
-            "domain": "web_app",
-            "goal": "Build web app",
-            "acceptance_criteria": ["test"],
-        }
+    def test_scaffold_refuses_overwrite_non_harness_dir(self, tmp_path):
+        _write_task(tmp_path / "task.yaml")
+        (tmp_path / "gen").mkdir()
+        (tmp_path / "gen" / "precious.txt").write_text("keep", encoding="utf-8")
+        code, out = _run(tmp_path, str(SCRIPTS / "scaffold.py"),
+                         "--task", str(tmp_path / "task.yaml"),
+                         "--output", str(tmp_path / "gen"))
+        assert code != 0 and "Refusing to overwrite" in out
+        assert (tmp_path / "gen" / "precious.txt").exists()
 
-        api_dir = temp_output / "api"
-        web_dir = temp_output / "web"
-        generate(task_api, "api-service", api_dir)
-        generate(task_web, "web-app", web_dir)
 
-        api_ki = yaml.safe_load((api_dir / "context" / "knowledge-index.yaml").read_text())
-        web_ki = yaml.safe_load((web_dir / "context" / "knowledge-index.yaml").read_text())
-        assert api_ki.get("mappings") != web_ki.get("mappings")
-
-        api_rules = yaml.safe_load((api_dir / "constraints" / "architecture-rules.yaml").read_text(encoding="utf-8"))
-        web_rules = yaml.safe_load((web_dir / "constraints" / "architecture-rules.yaml").read_text(encoding="utf-8"))
-        assert api_rules.get("dependency_direction") != web_rules.get("dependency_direction")
-
-    def test_all_layers_present(self, temp_output):
-        from generate import generate, LAYER_ARTIFACTS
-        task = {
-            "name": "Layer Test",
-            "domain": "api_service",
-            "goal": "Test layers",
-            "acceptance_criteria": ["test"],
-            # ARTIFACT_GATE (v2.5+) gates human-interface (C>=4), audit-log
-            # (C>=4), session-replay (tier==full): use a full-profile task so
-            # every declared artifact is copied.
-            "complexity": {"scope": 3, "criticality": 4, "novelty": 4,
-                           "coupling": 4, "tier": "full"},
-        }
-        generate(task, "api-service", temp_output)
-
-        for layer, artifacts in LAYER_ARTIFACTS.items():
-            for artifact in artifacts:
-                assert (temp_output / layer / artifact).exists(), f"Missing: {layer}/{artifact}"
-
+# ---------------------------------------------------------------- interpreter
 
 class TestInterpreter:
     def test_api_intent(self):
-        sys.path.insert(0, str(HARNESS_ROOT / "scripts"))
         from interpret import interpret_intent
         result = interpret_intent("I need a REST API for managing tasks")
         assert result["domain"] == "api_service"
@@ -207,6 +121,8 @@ class TestInterpreter:
         result = interpret_intent("I need a customer onboarding system")
         assert "customer onboarding" in result["goal"].lower()
 
+
+# ---------------------------------------------------------------- evolution
 
 class TestEvolution:
     def test_evolve_dry_run(self):

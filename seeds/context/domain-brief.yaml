@@ -1,0 +1,21 @@
+# context/domain-brief.yaml — 领域简报（动态模板，替代固定模板分桶）
+#
+# 这是生成项目的领域知识单一来源（C: 每次生成都合成"自己的模板"）。
+# LLM 在 GENERATE 阶段为【本任务】合成本文件；其他所有 slot 的领域内容
+# （architecture-rules / sub-agent-dispatch / security-guardrails / workflows /
+# domain-advancements …）必须与这里的领域模型一致。
+#
+# 当任务被判定为陌生领域（complexity.novelty >= 3）或 task.yaml 仍有未决
+# unknowns 时，`sources` 必须包含 ≥1 个真实 http(s) 来源（A: 研究依据，由
+# validate-harness.py check [13] 强制）——领域知识必须来自真实研究，而非幻觉。
+domain: placeholder
+rationale: ""
+invariants: []
+component_map: {}
+workflows: []
+advancement_roadmap:
+  Basic: []
+  Solid: []
+  Advanced: []
+  Excellent: []
+sources: []

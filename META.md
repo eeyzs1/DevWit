@@ -92,13 +92,8 @@ meta/
 evolution/                 ← Meta-level evidence-driven self-evolution
   framework.md             ← Evolution algorithm (evidence-based)
                              (genome.yaml / log.yaml live in seeds/evolution/ as generation seeds)
-templates/                 ← Domain templates (Generation Factory format)
-  web-app/template.md      ← Each template specifies per-layer executable artifacts
-  api-service/template.md
-  automation/template.md
-  data-pipeline/template.md
-  content-system/template.md
-seeds/                     ← Seed artifacts for each layer (copied by generate.py)
+templates/                 ← 已删除（v1 领域模板，被 v2 的动态 domain-brief 取代）
+seeds/                     ← Seed artifacts for each layer (copied by scaffold.py)
   context/                 ← loader.py, knowledge-index.yaml
   tools/                   ← schemas.yaml, sandbox.yaml, permissions.yaml, mcp-config.json, tool-discovery.py
   memory/                  ← snapshot.py, compression-rules.yaml
@@ -112,16 +107,13 @@ seeds/                     ← Seed artifacts for each layer (copied by generate
   orchestrator.py          ← Entry point for generated projects
   guard.py                 ← Pre-action constraint guard (mock + simplification + tool diversity checks)
 scripts/                   ← Executable scripts (cross-platform Python)
-  generate.py              ← Core generation pipeline: task → complete harness project
+  scaffold.py              ← v2 生成骨架：task → harness 目录 + 通用原语 + LLM slot 清单（manifest）
   verify-generation.py     ← Verify 7+2+evolution layer completeness of generated projects
   evolve.py                ← Evidence-driven evolution engine
-  verify.py                ← Post-task verification (lint, typecheck, test, secrets)
-  pre-task.py              ← Pre-task checks (task card, git status, blockers)
-  quality-score.py         ← Harness quality metrics
 generated/                 ← Output: generated harness projects (git-ignored)
 memory/                    ← Meta-level memory (compounds over time)
   decisions.md             ← Architecture Decision Records
-  generation-log.yaml      ← Generation history (maintained by generate.py, human & machine readable)
+  generation-log.yaml      ← Generation history (maintained by the execution pipeline, human & machine readable)
   meta-mistakes.md         ← Meta-harness mistake log
   progress.md              ← Cross-session progress tracking
   task-patterns.md         ← Known task pattern catalog

@@ -94,9 +94,10 @@ A full project in `generated/[project-name]/` that includes:
 ## Architecture (v2 — LLM-driven scaffolding)
 
 > **本节是 GENERATE 阶段的当前实现（v2）。**
-> v1 用单一脚本 `scripts/generate.py` 把所有内容（包括 domain 特化）都硬编码进脚本。
+> v1 曾用单一脚本 `scripts/generate.py` 把所有内容（包括 domain 特化）都硬编码进脚本，
+> 并依赖 `templates/` 的 5 个领域模板分桶。
+> **v1（generate.py + templates/）已删除**——v2 是唯一流程。
 > v2 把工作切成三类：**脚本做确定性的事 / LLM 做语义分析 / 校验器守门**。
-> 旧的 `generate.py` 仍保留作向后兼容与对照基线，但新项目应使用 v2 流程。
 
 ### 三类工作的分工（第一性原理）
 
@@ -156,11 +157,13 @@ python scripts/validate-harness.py generated/<project>
 
 ### v2 解决的 v1 局限
 
+> v1（`scripts/generate.py` + `templates/`）已删除——下表记录其设计缺陷，v2 已解决。
+
 | v1 局限 | v2 解法 |
 |--------|--------|
 | `generate.py` 用 `template_name` 字符串分桶，桶内无项目差异 | scaffold 不知道 domain；LLM 按每个 task 实例改写 |
 | `customize_*` 函数里硬编码 5 个 domain 的 dict（web-app/api-service/automation/data-pipeline/content-system） | 不存在硬编码 dict；LLM 在任意 domain 上都能改写 |
-| 5 桶之外回退 `web-app`（`generate.py:229` 的 `domain_map.get(domain, "web-app")`） | scaffold 不分桶，所有 domain 一视同仁 |
+| 5 桶之外回退 `web-app`（v1 `domain_map.get(domain, "web-app")`） | scaffold 不分桶，所有 domain 一视同仁 |
 | S/C/N/K 标量只驱动 ARTIFACT_GATE 谓词，丢失了语义 | 仍然驱动 ARTIFACT_GATE（结构裁剪），语义由 LLM 提供 |
 | 项目级差异（同一 domain 不同项目）无法表达 | LLM 按 task.yaml 的 hard_constraints / acceptance_criteria 实例化 |
 
@@ -171,15 +174,15 @@ python scripts/validate-harness.py generated/<project>
 - `tests/task-industrial-control.yaml` — task 测试用例
 - `generated/industrial-control/harness-scaffold.yaml` — scaffold manifest（24 LLM slots）
 - `validate-harness.py` 输出：**24/24 slots enriched，6/6 AC 可追溯，0 mock patterns，PASS**
-- 对照：旧 `generate.py` 同一 task → `Template: web-app`（silent fallback），`architecture-rules.yaml` 仍是 `frontend→api→service→repo→DB`，`security-guardrails.yaml` 仍是 `email/phone/ssn` masking
+- 对照：旧 v1 `generate.py`（已删除）同一 task → `Template: web-app`（silent fallback），`architecture-rules.yaml` 仍是 `frontend→api→service→repo→DB`，`security-guardrails.yaml` 仍是 `email/phone/ssn` masking
 
 
 
 ## Complexity-Driven Adaptive Generation (S/C/N/K + ARTIFACT_GATE)
 
 > **已实现**（替换原 CONCEPTUAL 的 `phase-activation.yaml` 与 `run_mode` 设计）。
-> 第一性原理：harness 规模应按任务复杂度自适应，而非固定全量复制；
-> 知识库应按 Novelty 差异化预填，而非 long-term 初始为空。
+> 第一性原理：harness 规模应按任务复杂度自适应，而非固定全量复制。
+> （v1 曾按 Novelty 预填知识库，该逻辑随 v1 删除——v2 知识内容由 LLM 合成。）
 > 原 per-phase `phase-activation.yaml` 概念已推翻，replaced by S/C/N/K + ARTIFACT_GATE（生成时裁剪）+ harness-profile.yaml（运行时契约）。
 
 ### 1. 复杂度模型：difficulty 拆为 S/C/N/K 四正交因子
@@ -203,7 +206,7 @@ python scripts/validate-harness.py generated/<project>
 
 ### 2. ARTIFACT_GATE：按因子裁剪 artifact
 
-`scripts/generate.py` 的 `ARTIFACT_GATE` 谓词表，`copy_seed_artifacts(output_dir, layer, profile)` 按 profile 过滤：
+`scripts/scaffold.py` 的 `ARTIFACT_GATE` 谓词表，按 profile 过滤可选层 slot（`slot_included()`）：
 
 | 层 | artifact | 谓词 |
 |----|----------|------|
@@ -236,7 +239,7 @@ python scripts/validate-harness.py generated/<project>
 
 ### 3. harness-profile.yaml：运行时契约
 
-`scripts/generate.py` 的 `write_harness_profile()` 写入项目根 `harness-profile.yaml`：
+`scripts/scaffold.py` 写入项目根 `harness-profile.yaml`（生成时锁定 verification.command，P0#2）：
 
 ```yaml
 version: 1
@@ -258,17 +261,13 @@ note: Structure fixed at generation; activation tuned at runtime via phase-activ
 **结构生成时定**（tier/factors/active_artifacts/context_budget），**激活运行时调**（`loader.py` / `agent-factory.py` 读此文件）。
 `harness-profile.yaml` 缺失时运行时视为 `standard`（向后兼容）。
 
-### 4. preseed_long_term：按 N 预填知识库
+### 4. 知识预填（v1 已删除，v2 由 LLM 合成）
 
-`scripts/generate.py` 的 `preseed_long_term()` 按 Novelty 差异化预填 `memory/long-term/`：
-
-| Novelty | 预填内容 | 输出文件 |
-|---------|----------|----------|
-| N≤2 | 不预填（熟悉领域，多了是上下文污染） | 仅 .gitkeep |
-| N==3 | domain-advancements 的 Solid 阶段 innovations | known-patterns.yaml |
-| N≥4 | Solid + Advanced 阶段，并从 trigger 字段生成反模式 | known-patterns.yaml + anti-patterns.yaml |
-
-源数据来自 `seeds/evolution/domain-advancements-{template}.yaml`（回退 `domain-advancements.yaml`）。
+> v1 的 `preseed_long_term()`（按 Novelty 预填 `memory/long-term/` 的 known-patterns /
+> anti-patterns，源数据来自 `seeds/evolution/domain-advancements-{template}.yaml`）
+> **随 v1（generate.py + templates/）一起删除**。v2 中知识内容由 LLM 在 GENERATE
+> 阶段按 task.yaml 合成（evolution/domain-advancements.yaml 是 LLM slot），不再有
+> 模板分桶的预填逻辑。
 
 ### 5. agent-factory：从 S 推导 agent 拓扑
 
@@ -309,7 +308,7 @@ note: Structure fixed at generation; activation tuned at runtime via phase-activ
 
 ## Single-File Configuration (project.yaml) — CONCEPTUAL
 
-> **Note:** `project.yaml` is a design target. The current `scripts/generate.py`
+> **Note:** `project.yaml` is a design target. The current `scripts/scaffold.py`
 > does NOT yet emit a `project.yaml`; configuration is spread across the
 > per-layer YAML files copied from `seeds/`. When a future generator upgrade
 > adds `project.yaml` emission, the per-layer files should be derived from it.
@@ -373,7 +372,7 @@ See `seeds/planning/project-yaml-template.yaml` for the full template with all o
 
 ## Output Structure
 
-> This tree reflects what `scripts/generate.py` actually emits. Items marked
+> This tree reflects what `scripts/scaffold.py` (v2) actually emits. Items marked
 > `CONCEPTUAL` are described above as design targets but are NOT yet
 > auto-generated. Items gated by `ARTIFACT_GATE` are conditionally emitted
 > based on the S/C/N/K complexity profile (see above).
@@ -394,10 +393,11 @@ generated/[project-name]/
 ├── src/                   ← Domain-specific source layout (e.g. src/api, src/services)
 ├── tests/                 ← Test directory
 ├── context/               ← Layer 1: Context Engineering (seed artifacts, always)
+│   └── domain-brief.yaml   ←   LLM 合成的领域简报（动态模板，C；novelty>=3 或存在 unknowns 时 sources 须含 ≥1 真实 http(s) 来源，A）
 ├── tools/                 ← Layer 2: Tool Integration (seed artifacts, always)
 ├── memory/                ← Layer 3: Memory & State
 │   ├── session-state.yaml ←   Progress, completed/failed criteria, guard_log
-│   └── long-term/         ←   按 N 预填：.gitkeep (N≤2) / known-patterns.yaml (N==3) / +anti-patterns.yaml (N≥4)
+│   └── long-term/         ←   （v1 preseed 已删除：v2 无生成时预填，LLM 按需创建）
 ├── planning/              ← Layer 4: Planning & Orchestration (seed artifacts, always)
 ├── verification/          ← Layer 5: Verification & Guardrails (ARTIFACT_GATE 裁剪；self-check.py 必在)
 │   └── format-validators/ ←   JSON schemas (api-contract, config)
@@ -417,9 +417,10 @@ generated/[project-name]/
 
 > **Not yet auto-generated** (referenced conceptually above): `skills/` directory
 > (skills live in the meta-harness `seeds/skills/` and are loaded on demand by
-> the phase loader, not copied into each generated project), and the shell
-> helpers `claim-run.sh` / `detect-env.sh` / `detect-stack.sh` /
-> `summarize-repo.sh` / `repo-state.sh` / `validate-phase.sh`.
+> the phase loader, not copied into each generated project). The v1 shell
+> helpers（claim-run.sh / detect-env.sh / detect-stack.sh / summarize-repo.sh /
+> repo-state.sh / validate-phase.sh）已随清理删除——v2 不做预设脚本，环境/栈探测
+> 由执行 agent 用项目可用工具完成。
 
 ## Anti-Patterns
 - Do NOT generate documentation-only layers — every layer must have executable artifacts

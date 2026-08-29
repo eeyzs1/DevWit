@@ -95,6 +95,11 @@ ROOT_UNIVERSAL = ["guard.py", "orchestrator.py"]
 # LLM 填充 slot：含项目特定内容，从 seed 基线改写
 # 每条: (layer, filename, guidance)
 LLM_SLOTS = [
+    ("context", "domain-brief.yaml",
+     "领域简报（动态模板，替代固定 5 桶模板，C）：domain + rationale + invariants（领域不变量）+ "
+     "component_map（组件→职责）+ workflows（领域工作流）+ advancement_roadmap（四阶段进阶）+ "
+     "sources。当 novelty>=3 或 task 存在未决 unknowns 时，sources 必须含 ≥1 个真实 http(s) 来源 "
+     "（来自领域研究，A）——其他所有 slot 的领域内容必须与此一致。"),
     ("context", "knowledge-index.yaml",
      "分析 task 的组件结构，把 mappings 改为该项目的真实路径到知识域映射。每条带 description + tags。"),
     ("tools", "schemas.yaml",

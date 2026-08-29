@@ -33,7 +33,7 @@
 |------|---------|---------|------------|
 | **Trae** | `AGENTS.md` | ✅ 自动加载 | 打开项目即可 |
 | **Claude Code** | `CLAUDE.md` | ✅ 自动加载 | 打开项目即可 |
-| **Cursor** | `.cursorrules` | ✅ 自动加载 | 打开项目即可（generate.py 自动生成 .cursorrules 重定向到 AGENTS.md） |
+| **Cursor** | `.cursorrules` | ✅ 自动加载 | 打开项目即可（scaffold.py 自动生成 .cursorrules 重定向到 AGENTS.md） |
 | **其他 AI 工具** | — | ⚠️ 需手动 | 在对话中手动发送 `AGENTS.md` 的内容作为上下文 |
 
 **关键：AI 必须读到规则文件才能按管道工作。** 如果 AI 没读到规则，它就会跳过管道直接干活——这不是我们想要的。
@@ -96,8 +96,9 @@ Agent = Model + Harness
 
 **命令行使用：**
 ```bash
-# 生成一个完整的 harness 项目
-python scripts/generate.py --task <task-file.yaml> --template <domain>
+# v2 生成流程（scaffold 脚本 → LLM 填充 slot → validate 门禁）
+python scripts/scaffold.py --task task.yaml --output generated/<project-name>
+python scripts/validate-harness.py generated/<project-name>
 
 # 验证生成的项目是否完整（7+2层检查）
 python scripts/verify-generation.py <generated-project-dir>
@@ -110,9 +111,6 @@ python seeds/evolution/innovation-engine.py --project-root <generated-project-di
 
 # 在生成的项目中运行创新周期
 python orchestrator.py --innovate
-
-# 查看质量评分
-python scripts/quality-score.py
 ```
 
 **管道控制（v3.1，事件日志驱动）：**
@@ -159,14 +157,9 @@ evolution/          ← 元级自我进化系统
   framework.md        进化算法（基因组、适应度、变异、选择）
                        （genome.yaml / log.yaml 在 seeds/evolution/ 作为生成种子）
 │
-templates/          ← 领域模板（生成工厂格式，每层指定可执行产物）
-  web-app/            Web 应用
-  api-service/        API 服务
-  data-pipeline/      数据管道
-  content-system/     内容系统
-  automation/         自动化
+templates/          ← 已删除（v1 领域模板，被 v2 的动态 domain-brief 取代）
 │
-seeds/              ← 种子产物（每层的可执行模板文件，由 generate.py 复制）
+seeds/              ← 种子产物（每层的可执行模板文件，由 scaffold.py 复制）
   context/            loader.py, knowledge-index.yaml
   tools/              schemas.yaml, sandbox.yaml, permissions.yaml, mcp-config.json
   memory/             snapshot.py, compression-rules.yaml
@@ -185,19 +178,16 @@ seeds/              ← 种子产物（每层的可执行模板文件，由 gene
 │
 generated/          ← 生成输出（每次编译的结果，git-ignored）
 memory/             ← 元知识（跨项目积累，越用越强）
-  generation-log.yaml 每次生成的记录（由 generate.py 维护，人类与机器可读）
+  generation-log.yaml 每次生成的记录（由执行管道维护，人类与机器可读）
   meta-mistakes.md    生成失败 → 管道改进
   task-patterns.md    已知任务模式（加速解释）
   decisions.md        架构决策记录
   progress.md         执行进度
 │
 scripts/            ← 可执行脚本（跨平台 Python）
-  generate.py         核心生成管道：任务 → 完整 harness 项目
+  scaffold.py          v2 生成骨架：任务 → harness 目录 + 通用原语 + LLM slot 清单
   verify-generation.py 验证生成项目的7+2层完整性
   evolve.py           证据驱动进化引擎
-  verify.py           后置验证（lint、类型检查、测试、密钥扫描）
-  pre-task.py         前置检查（任务卡、git 状态、阻塞器）
-  quality-score.py    质量评分
 ```
 
 ---
@@ -378,15 +368,14 @@ Node/Cordis 运行时，全部以 Python + YAML + Markdown 实现）：
 
 ## 验证机制
 
-系统使用**三层验证**：
+验证分两层：
 
 | 层 | 文件 | 作用 |
 |---|---|---|
-| 声明层 | `scripts/verify.py` (docstring) | 定义**检查什么**（平台无关） |
-| 执行层 | `scripts/verify.py` | 实现**怎么检查**（跨平台 Python） |
-| 完整性层 | `scripts/verify-generation.py` | 验证生成的项目是否7+2层完整 |
+| 生成完整性 | `scripts/verify-generation.py` | 验证生成的项目是否7+2层完整 |
+| 运行时验证 | 生成项目的 `verification/`（self-check / anti-mock / quality-gate / run-tests）+ `orchestrator.py --verify` | 项目内真实执行检查，证据进账本 |
 
-AI 代理读声明层，翻译成当前平台的命令。人类可以直接跑 Python 脚本。
+代理在每个阶段后运行生成项目自己的验证门禁；人类可直接跑 Python 脚本。
 
 ---
 
@@ -413,7 +402,7 @@ AI 代理读声明层，翻译成当前平台的命令。人类可以直接跑 P
 - 没有解释就不执行 — 先运行解释器
 - 没有 Harness 就不代理 — 每个代理在约束内操作
 - 没有原因就不约束 — 每条规则必须追溯到需求
-- 没有验证就不完成 — 改动后运行 `scripts/verify.py`
+- 没有验证就不完成 — 改动后运行生成项目的验证门禁（如 `verification/self-check.py` / `orchestrator.py --verify`）
 - 生成可执行系统，不是文档 — 每层必须有可执行产物
 - 代理拓扑从任务分析生成，不从预设选择
 - 上下文文件不超过 60 行

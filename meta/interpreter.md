@@ -104,7 +104,7 @@ Once acceptance criteria are confirmed, the interpreter hands off to the **Plann
 |-------|------|---------------|
 | Stage 0 | Environment Detection | Read project.yaml, detect tools, preload memory, claim run namespace |
 | Stage 1 | Requirement Clarification | Greenfield checklist or brownfield 0-2 questions |
-| Stage 2 | Reconnaissance | Parallel: detect-stack + summarize-repo (brownfield) or detect-env (greenfield) |
+| Stage 2 | Reconnaissance | Parallel: probe stack/package/build commands + build a repo map (brownfield) or detect environment/tools (greenfield) — using project-available tools, no preset scripts |
 | Stage 3 | Deep Think | Risks, dependencies, research, write THINKING.md |
 | Stage 4 | Adaptive Decomposition | Derive phase count, declare Phase DAG, map skills to phases |
 | Stage 5 | Write Phase Specs | Write ROADMAP.md, STATE.md, phase-N/spec.md files |

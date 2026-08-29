@@ -1,6 +1,7 @@
 # 测试 task：工业过程控制系统
-# domain 为 industrial_control —— 旧 generate.py 的 5 桶（web-app/api-service/automation/
-# data-pipeline/content-system）之外，用于验证 LLM-driven 生成能处理脚本桶外的领域。
+# domain 为 industrial_control —— 旧 v1（scripts/generate.py，已删除）的 5 桶
+# （web-app/api-service/automation/data-pipeline/content-system）之外，用于验证
+# LLM-driven 生成（v2：scaffold + LLM author）能处理脚本桶外的领域。
 name: "industrial-process-control-system"
 domain: "industrial_control"
 real_need: >-

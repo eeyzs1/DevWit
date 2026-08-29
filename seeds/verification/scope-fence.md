@@ -67,7 +67,7 @@ Verdict: AUDIT_GAP — 1 scope violation
 
 对于超过 1000 文件的仓库，Phase spec 应使用以下结构组织上下文：
 
-### 1. 仓库地图（由 summarize-repo.sh 生成，~200 行）
+### 1. 仓库地图（~200 行，由执行 agent 用项目可用工具生成）
 
 ```
 src/
