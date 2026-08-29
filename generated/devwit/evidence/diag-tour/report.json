@@ -1,0 +1,119 @@
+{
+  "初始态": {
+    "model": {
+      "rect": {
+        "x": 1085.3333740234375,
+        "y": 82,
+        "w": 190.6666717529297,
+        "h": 24
+      },
+      "display": "block",
+      "visibility": "visible",
+      "opacity": "1"
+    },
+    "mode": {
+      "rect": {
+        "x": 888.6666870117188,
+        "y": 82,
+        "w": 190.6666717529297,
+        "h": 24
+      },
+      "display": "block",
+      "visibility": "visible",
+      "opacity": "1"
+    },
+    "hasModelSelect": true,
+    "hasModeSelect": true,
+    "tourMask": false,
+    "tourMaskClass": null,
+    "tourText": null,
+    "tourGotIt": null,
+    "topbarButtons": [
+      "DevWit指挥台打开文件夹保存 (Ctrl+S)外部编辑器 ↗Blame未打开文件设置",
+      "指挥台",
+      "打开文件夹",
+      "保存 (Ctrl+S)",
+      "外部编辑器 ↗",
+      "Blame",
+      "设置"
+    ]
+  },
+  "关掉第一个tour后": {
+    "model": {
+      "rect": {
+        "x": 1085.3333740234375,
+        "y": 82,
+        "w": 190.6666717529297,
+        "h": 24
+      },
+      "display": "block",
+      "visibility": "visible",
+      "opacity": "1"
+    },
+    "mode": {
+      "rect": {
+        "x": 888.6666870117188,
+        "y": 82,
+        "w": 190.6666717529297,
+        "h": 24
+      },
+      "display": "block",
+      "visibility": "visible",
+      "opacity": "1"
+    },
+    "hasModelSelect": true,
+    "hasModeSelect": true,
+    "tourMask": false,
+    "tourMaskClass": null,
+    "tourText": null,
+    "tourGotIt": null,
+    "topbarButtons": [
+      "DevWit指挥台打开文件夹保存 (Ctrl+S)外部编辑器 ↗Blame未打开文件设置",
+      "指挥台",
+      "打开文件夹",
+      "保存 (Ctrl+S)",
+      "外部编辑器 ↗",
+      "Blame",
+      "设置"
+    ]
+  },
+  "关掉全部tour后": {
+    "model": {
+      "rect": {
+        "x": 1085.3333740234375,
+        "y": 82,
+        "w": 190.6666717529297,
+        "h": 24
+      },
+      "display": "block",
+      "visibility": "visible",
+      "opacity": "1"
+    },
+    "mode": {
+      "rect": {
+        "x": 888.6666870117188,
+        "y": 82,
+        "w": 190.6666717529297,
+        "h": 24
+      },
+      "display": "block",
+      "visibility": "visible",
+      "opacity": "1"
+    },
+    "hasModelSelect": true,
+    "hasModeSelect": true,
+    "tourMask": false,
+    "tourMaskClass": null,
+    "tourText": null,
+    "tourGotIt": null,
+    "topbarButtons": [
+      "DevWit指挥台打开文件夹保存 (Ctrl+S)外部编辑器 ↗Blame未打开文件设置",
+      "指挥台",
+      "打开文件夹",
+      "保存 (Ctrl+S)",
+      "外部编辑器 ↗",
+      "Blame",
+      "设置"
+    ]
+  }
+}

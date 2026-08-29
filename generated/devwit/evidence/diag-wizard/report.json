@@ -1,0 +1,170 @@
+[
+  {
+    "label": "启动即查",
+    "data": {
+      "modelSelect": {
+        "rect": {
+          "w": 190.6666717529297,
+          "h": 24
+        },
+        "optionCount": 1,
+        "value": ""
+      },
+      "ancestors": [
+        {
+          "tag": "SELECT",
+          "cls": "dw-select",
+          "display": "block",
+          "vis": "visible",
+          "rectH": 24,
+          "rectW": 190.6666717529297
+        },
+        {
+          "tag": "DIV",
+          "cls": "dw-chat-toolbar",
+          "display": "flex",
+          "vis": "visible",
+          "rectH": 36.66666793823242,
+          "rectW": 399.3333435058594
+        },
+        {
+          "tag": "DIV",
+          "cls": "dw-chat",
+          "display": "flex",
+          "vis": "visible",
+          "rectH": 676,
+          "rectW": 399.3333435058594
+        },
+        {
+          "tag": "DIV",
+          "cls": "dw-side-body",
+          "display": "flex",
+          "vis": "visible",
+          "rectH": 676,
+          "rectW": 399.3333435058594
+        },
+        {
+          "tag": "DIV",
+          "cls": "dw-side",
+          "display": "flex",
+          "vis": "visible",
+          "rectH": 712,
+          "rectW": 400
+        },
+        {
+          "tag": "DIV",
+          "cls": "dw-ide",
+          "display": "grid",
+          "vis": "visible",
+          "rectH": 712,
+          "rectW": 1282
+        },
+        {
+          "tag": "DIV",
+          "cls": "dw-main",
+          "display": "block",
+          "vis": "visible",
+          "rectH": 712,
+          "rectW": 1282
+        },
+        {
+          "tag": "DIV",
+          "cls": "",
+          "display": "flex",
+          "vis": "visible",
+          "rectH": 776,
+          "rectW": 1282
+        }
+      ],
+      "wizardPresent": true,
+      "wizardText": "首次运行向导1. 语言2. 模型3. 完成DevWit 是免费开源的 AI 原生 IDE：你描述意图，Agent 规划并交付可审查的修改。三步完成初始配置——语",
+      "tourPresent": false,
+      "hasProviderOpts": false,
+      "headerText": "DevWit指挥台打开文件夹保存 (Ctrl+S)外部编辑器 ↗Blame未打开"
+    }
+  },
+  {
+    "label": "关闭向导/tour后",
+    "data": {
+      "modelSelect": {
+        "rect": {
+          "w": 0,
+          "h": 0
+        },
+        "optionCount": 1,
+        "value": ""
+      },
+      "ancestors": [
+        {
+          "tag": "SELECT",
+          "cls": "dw-select",
+          "display": "block",
+          "vis": "visible",
+          "rectH": 0,
+          "rectW": 0
+        },
+        {
+          "tag": "DIV",
+          "cls": "dw-chat-toolbar",
+          "display": "flex",
+          "vis": "visible",
+          "rectH": 0,
+          "rectW": 0
+        },
+        {
+          "tag": "DIV",
+          "cls": "dw-chat",
+          "display": "none",
+          "vis": "visible",
+          "rectH": 0,
+          "rectW": 0
+        },
+        {
+          "tag": "DIV",
+          "cls": "dw-side-body",
+          "display": "flex",
+          "vis": "visible",
+          "rectH": 676,
+          "rectW": 399.3333435058594
+        },
+        {
+          "tag": "DIV",
+          "cls": "dw-side",
+          "display": "flex",
+          "vis": "visible",
+          "rectH": 712,
+          "rectW": 400
+        },
+        {
+          "tag": "DIV",
+          "cls": "dw-ide",
+          "display": "grid",
+          "vis": "visible",
+          "rectH": 712,
+          "rectW": 1282
+        },
+        {
+          "tag": "DIV",
+          "cls": "dw-main",
+          "display": "block",
+          "vis": "visible",
+          "rectH": 712,
+          "rectW": 1282
+        },
+        {
+          "tag": "DIV",
+          "cls": "",
+          "display": "flex",
+          "vis": "visible",
+          "rectH": 776,
+          "rectW": 1282
+        }
+      ],
+      "wizardPresent": false,
+      "wizardText": null,
+      "tourPresent": true,
+      "hasProviderOpts": false,
+      "headerText": "DevWit指挥台打开文件夹保存 (Ctrl+S)外部编辑器 ↗Blame未打开"
+    }
+  }
+]

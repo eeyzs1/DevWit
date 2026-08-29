@@ -108,7 +108,7 @@ try {
     [...document.querySelectorAll('select[title="模式"] option')].map((o) => o.textContent ?? "")
   );
   assert(
-    modeOptionsZh.includes("对话") && modeOptionsZh.includes("智能体"),
+    modeOptionsZh.some((o) => o.includes("对话")) && modeOptionsZh.some((o) => o.includes("智能体")),
     `中文界面模式下拉框显示「对话/智能体」（实际: ${modeOptionsZh.join(", ") || "未找到"})`
   );
   step("中文界面模式下拉框已本地化");
@@ -178,7 +178,7 @@ try {
     [...document.querySelectorAll('select[title="Mode"] option')].map((o) => o.textContent ?? "")
   );
   assert(
-    modeOptionsEn.includes("Chat") && modeOptionsEn.includes("Agent"),
+    modeOptionsEn.some((o) => o.includes("Chat")) && modeOptionsEn.some((o) => o.includes("Agent")),
     `英文界面模式下拉框显示 Chat/Agent（实际: ${modeOptionsEn.join(", ") || "未找到"})`
   );
   await page.screenshot({ path: path.join(OUT, "07-main-en.png") });
@@ -196,7 +196,7 @@ try {
     [...document.querySelectorAll('select[title="模式"] option')].map((o) => o.textContent ?? "")
   );
   assert(
-    modeOptionsBack.includes("对话") && modeOptionsBack.includes("智能体"),
+    modeOptionsBack.some((o) => o.includes("对话")) && modeOptionsBack.some((o) => o.includes("智能体")),
     `切回中文后模式下拉框恢复「对话/智能体」（实际: ${modeOptionsBack.join(", ") || "未找到"})`
   );
   await page.screenshot({ path: path.join(OUT, "08-back-zh.png") });

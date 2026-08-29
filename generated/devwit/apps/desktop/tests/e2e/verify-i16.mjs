@@ -206,6 +206,13 @@ try {
   await page.screenshot({ path: path.join(OUT, "04-workspace-entered.png") });
   step("完成步「打开文件夹」→ 文件树就绪，向导关闭（截图 04）");
 
+  // 增长 G1+D2：首次会话会顺次弹出「上下文导览」与「授权门导览」遮罩模态。
+  // 直接用 DOM 移除（点击可能被遮罩拦截）；随后模型/模式下拉位于「对话」面板
+  // 工具栏（.dw-chat-toolbar）内，.dw-chat 仅在对话页签激活时可见——先切对话页签。
+  await page.evaluate(() => document.querySelectorAll(".dw-tour-mask, .dw-modal-mask").forEach((m) => m.remove()));
+  await page.click('.dw-tab:has-text("对话")').catch(() => {});
+  await page.waitForTimeout(500);
+
   // ---- 6. 真实对话：SSE 应答 + 零 authorization 头 ----
   await page.selectOption('select[title="模型"]', saved[0].id);
   await page.selectOption('select[title="模式"]', "chat");
