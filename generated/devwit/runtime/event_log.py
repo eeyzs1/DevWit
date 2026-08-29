@@ -48,6 +48,8 @@ GEN_EVENT_TYPES = {
     "goal/pause", "goal/resume", "goal/unblock",
     "compaction/start", "compaction/summary", "compaction/end",
     "artifact/spilled",
+    # v3.1：证据账本（verify/test/audit 运行证据，供契约溯源）
+    "verify/run", "test/run", "audit/round",
 }
 
 
@@ -99,12 +101,28 @@ def append_events(new_events: list, expected_len: int = None, project_root: Path
             raise ValueError(f"unknown event type {ev.get('type')!r}")
         events.append({"seq": i, "ts": now, "type": ev["type"],
                        "payload": ev.get("payload", {})})
+    _chain_events(events)  # v3.1 P2#12：哈希链完整性
     log_path = project_root / "memory" / "event-log.yaml"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with open(log_path, "w", encoding="utf-8") as f:
         yaml.dump({"version": LOG_VERSION, "events": events}, f,
                   default_flow_style=False, allow_unicode=True, sort_keys=False)
     return len(events)
+
+
+def _chain_events(events: list) -> list:
+    """v3.1 P2#12：给事件序列补 prev_hash/hash 哈希链（就地）。"""
+    import hashlib
+    import json
+    prev = ""
+    for ev in events:
+        ev.pop("hash", None)
+        canonical = json.dumps({k: v for k, v in ev.items() if k != "hash"},
+                               sort_keys=True, ensure_ascii=False, default=str)
+        ev["prev_hash"] = prev
+        ev["hash"] = hashlib.sha256((prev + canonical).encode("utf-8")).hexdigest()
+        prev = ev["hash"]
+    return events
 
 
 # ---------------------------------------------------------------- fold
@@ -198,6 +216,17 @@ def fold(events: list, legacy_snapshot: dict = None) -> dict:
                 "key": payload.get("key", "?"),
                 "locator": payload.get("locator", "?"),
                 "bytes": payload.get("bytes", 0),
+            })
+        elif typ in ("verify/run", "test/run", "audit/round"):
+            # v3.1 证据账本：记录可溯源运行证据（契约校验用）
+            kind = typ.split("/")[0]
+            name = payload.get("name") or payload.get("command") or str(ev["seq"])
+            state.setdefault("evidence", {})[typ] = state.setdefault("evidence", {}).get(typ, [])
+            state["evidence"][typ].append({
+                "kind": kind,
+                "name": name,
+                "passed": bool(payload.get("passed", payload.get("exit") == 0)),
+                "seq": ev["seq"],
             })
         state["updated_at"] = ts
     state["revision"] = len(events)

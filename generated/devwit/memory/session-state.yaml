@@ -108,9 +108,9 @@ progress:
   - id: AC12
     description: 构建成功无错误，迭代 2 每条标准均有可验证证据
     status: pending
-revision: 6
-asOfSeq: 6
-updated_at: '2026-08-29T00:42:32'
+revision: 9
+asOfSeq: 9
+updated_at: '2026-08-29T11:10:21'
 paused: false
 blocked: false
 unblocks: []
@@ -1035,3 +1035,17 @@ ci_repair_2026_07_28:
   lesson: 推送前必须本地跑 CI 同款七项验证套件（本次根因 1 若本地跑过 scan-secret-leak 即不会红 4 天）；CI 顺序短路会遮蔽后续检查，修一个后需本地全量确认再推
   evidence: 本地 7 项验证全 PASS + vitest 614/614 + eslint PASS；CI run 30327163000 双 job
     success（14e8f07）
+evidence:
+  test/run:
+  - kind: test
+    name: tests
+    passed: false
+    seq: 7
+  - kind: test
+    name: tests
+    passed: true
+    seq: 8
+  - kind: test
+    name: tests
+    passed: true
+    seq: 9

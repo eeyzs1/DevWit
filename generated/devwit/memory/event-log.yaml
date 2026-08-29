@@ -1046,18 +1046,26 @@ events:
           双 job success（14e8f07）
       status: complete
       updated_at: '2026-07-28T12:10:00.000000'
+  prev_hash: ''
+  hash: 3c88b7c7d9749a1896749d2adc4f323312b0bc92d6efceb2e33f80f7773fb7c3
 - seq: 2
   ts: '2026-08-29T00:42:31'
   type: goal/pause
   payload: {}
+  prev_hash: 3c88b7c7d9749a1896749d2adc4f323312b0bc92d6efceb2e33f80f7773fb7c3
+  hash: b52afa03230a7fec7032661474bd0cf1475fcc6e16f365bafb365dee3ab73a80
 - seq: 3
   ts: '2026-08-29T00:42:31'
   type: goal/resume
   payload: {}
+  prev_hash: b52afa03230a7fec7032661474bd0cf1475fcc6e16f365bafb365dee3ab73a80
+  hash: 1ddc9823217d480ac7c65e2bcf27cfea662fffb92f80a687b78b941912b9d044
 - seq: 4
   ts: '2026-08-29T00:42:32'
   type: compaction/start
   payload: {}
+  prev_hash: 1ddc9823217d480ac7c65e2bcf27cfea662fffb92f80a687b78b941912b9d044
+  hash: 1d89a44fe0bd693350f123c7786d9563e06ba16217afe0c3f7d65fa13b066b9a
 - seq: 5
   ts: '2026-08-29T00:42:32'
   type: compaction/summary
@@ -1068,7 +1076,56 @@ events:
       ac_total: 12
       guard_log: 7
       unblocks: 0
+  prev_hash: 1d89a44fe0bd693350f123c7786d9563e06ba16217afe0c3f7d65fa13b066b9a
+  hash: 37b6e675eb3784aac45136b70d9793c753393a3d87ffa40ca345282cdd9cfd45
 - seq: 6
   ts: '2026-08-29T00:42:32'
   type: compaction/end
   payload: {}
+  prev_hash: 37b6e675eb3784aac45136b70d9793c753393a3d87ffa40ca345282cdd9cfd45
+  hash: 0a279bb378d4d7a10362adb85b0ac4f3ace019ea386aae21fd04570da4e03fe2
+- seq: 7
+  ts: '2026-08-29T11:09:08'
+  type: test/run
+  payload:
+    name: tests
+    command: npm test
+    exit: -1
+    passed: false
+    summary: 'could not run tests: [WinError 2] The system cannot find the file specified'
+  prev_hash: 0a279bb378d4d7a10362adb85b0ac4f3ace019ea386aae21fd04570da4e03fe2
+  hash: ba70b4d57f18ee5279926382599c77f1d603159059e45507fd6cb504774cd0cf
+- seq: 8
+  ts: '2026-08-29T11:09:43'
+  type: test/run
+  payload:
+    name: tests
+    command: npm test
+    exit: 0
+    passed: true
+    summary: "nflict theirs：保留传入分支版本  598ms\n   ✓ GitService（真实 temp 仓库） > resolveConflict\
+      \ manual：标记已解决（保留手动编辑内容）  596ms\n\n Test Files  78 passed (78)\n      Tests\
+      \  808 passed (808)\n   Start at  11:09:31\n   Duration  12.14s (transform 5.62s,\
+      \ setup 0ms, collect 21.49s, tests 71.30s, environment 12ms, prepare 7.30s)\n\
+      \nLoad (node:internal/modules/cjs/loader:261:19)\n    at Module.executeUserEntryPoint\
+      \ [as runMain] (node:internal/modules/run_main:154:5)\n    at node:internal/main/run_main_module:33:47\n\
+      \nNode.js v26.7.0"
+  prev_hash: ba70b4d57f18ee5279926382599c77f1d603159059e45507fd6cb504774cd0cf
+  hash: fe1567070fd2d56b5963d3b3408909015c7edfec7446145c6374cf555aa44f4b
+- seq: 9
+  ts: '2026-08-29T11:10:21'
+  type: test/run
+  payload:
+    name: tests
+    command: npm test
+    exit: 0
+    passed: true
+    summary: "nflict theirs：保留传入分支版本  617ms\n   ✓ GitService（真实 temp 仓库） > resolveConflict\
+      \ manual：标记已解决（保留手动编辑内容）  642ms\n\n Test Files  78 passed (78)\n      Tests\
+      \  808 passed (808)\n   Start at  11:10:08\n   Duration  12.47s (transform 5.32s,\
+      \ setup 0ms, collect 20.87s, tests 72.74s, environment 12ms, prepare 7.40s)\n\
+      \nLoad (node:internal/modules/cjs/loader:261:19)\n    at Module.executeUserEntryPoint\
+      \ [as runMain] (node:internal/modules/run_main:154:5)\n    at node:internal/main/run_main_module:33:47\n\
+      \nNode.js v26.7.0"
+  prev_hash: fe1567070fd2d56b5963d3b3408909015c7edfec7446145c6374cf555aa44f4b
+  hash: fcb91583b9773a98395e9ba7f364b741cee1424a4b476d4d6d6050a9d652b605

@@ -1,35 +1,68 @@
-criteria:
-- criterion: 桌面应用可启动并打开本地项目文件夹，文件树可浏览，自研编辑器可打开/编辑/保存文件
-  evidence: Found in completed_criteria and verification passed
-  verdict: PROVEN
-- criterion: 简洁上下文引擎：每次 LLM 请求的完整上下文组成（系统提示、工具列表、注入项及各项 token 占用）对用户可见，且用户可逐项开启/关闭
-  evidence: Found in completed_criteria and verification passed
-  verdict: PROVEN
-- criterion: 对话式编程：用户可通过对话请求代码修改，修改以 diff 形式在编辑器内呈现，可逐块接受或拒绝
-  evidence: Found in completed_criteria and verification passed
-  verdict: PROVEN
-- criterion: Agent 模式：Agent 可在用户授权下读写文件并执行终端命令，能完成多步任务，执行轨迹可见
-  evidence: Found in completed_criteria and verification passed
-  verdict: PROVEN
-- criterion: 多模型接入：支持 Anthropic API 与 OpenAI 兼容 API，可自定义 base URL 与 API key，会话中可切换模型
-  evidence: Found in completed_criteria and verification passed
-  verdict: PROVEN
-- criterion: 模式自定义系统：用户可创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略， 修改热生效无需重启
-  evidence: Found in completed_criteria and verification passed
-  verdict: PROVEN
-- criterion: 构建成功无错误，上述每条标准均有可验证证据
-  evidence: Found in completed_criteria and verification passed
-  verdict: PROVEN
-goal: 开发一款 Electron + TypeScript 桌面 AI IDE：自研编辑器内核 + pi 式简洁上下文引擎 （默认极少注入、每项上下文可见可裁剪）+
-  对话式编程（diff 内联编辑）+ Agent 模式 （读写文件/执行命令的多步任务）+ 多模型接入（Anthropic/OpenAI 兼容 API，可自定义
-  endpoint） + 用户自定义模式系统（每个模式独立定义 prompt/工具集/模型/上下文注入策略，热更新生效）。 无自建云端后端，本地 agent runtime
-  直连模型 API。
-insufficient_evidence: 0
-not_proven: 0
-project: DevWit — 简洁上下文 AI 原生桌面 IDE
-proven: 7
-timestamp: '2026-07-22T18:23:30.507497'
-total_criteria: 7
+version: 1
+project: "DevWit — 简洁上下文 AI 原生桌面 IDE"
 verdict: PROVEN
-verification_passed: true
-verification_run: true
+proven: 7
+not_proven: 0
+insufficient_evidence: 0
+criteria:
+- criterion: "桌面应用可启动并打开本地项目文件夹，文件树可浏览，自研编辑器可打开/编辑/保存文件"
+  verdict: PROVEN
+  confidence: high
+  evidence_refs:
+  - "file:evidence/AC1/save-verification.txt"
+  - "file:evidence/AC1/01-app-launched.png"
+  - "test:tests"
+  - "event:9"
+  rationale: "真实 Electron 启动 + 文件树渲染 + 自研 piece-table 编辑器打开/编辑/Ctrl+S 保存，磁盘内容验证一致（evidence/AC1）。"
+- criterion: "简洁上下文引擎：每次 LLM 请求的完整上下文组成（系统提示、工具列表、注入项及各项 token 占用）对用户可见，且用户可逐项开启/关闭"
+  verdict: PROVEN
+  confidence: high
+  evidence_refs:
+  - "file:evidence/AC2/manifest-328386b9-a833-44d2-9741-0876cd0df3d2.json"
+  - "file:evidence/AC2/06-context-panel.png"
+  - "test:tests"
+  - "event:9"
+  rationale: "每请求 manifest 落盘（items 逐项 + token 占用），上下文面板可视化，逐项开关热生效。"
+- criterion: "对话式编程：用户可通过对话请求代码修改，修改以 diff 形式在编辑器内呈现，可逐块接受或拒绝"
+  verdict: PROVEN
+  confidence: high
+  evidence_refs:
+  - "file:evidence/AC3/diff-verification.txt"
+  - "file:evidence/AC3/08-diff-view.png"
+  - "test:tests"
+  - "event:9"
+  rationale: "对话提案 → 编辑器内 diff 视图（逐块）→ 全部接受 → 应用并保存，磁盘内容验证一致。"
+- criterion: "Agent 模式：Agent 可在用户授权下读写文件并执行终端命令，能完成多步任务，执行轨迹可见"
+  verdict: PROVEN
+  confidence: high
+  evidence_refs:
+  - "file:evidence/AC4/agent-verification.txt"
+  - "file:evidence/AC4/trace.json"
+  - "test:tests"
+  - "event:9"
+  rationale: "授权门拦截（允许/本会话允许/拒绝）→ write 真实落盘；轨迹（tool_call/authorization_request/decision/tool_result/done）完整。"
+- criterion: "多模型接入：支持 Anthropic API 与 OpenAI 兼容 API，可自定义 base URL 与 API key，会话中可切换模型"
+  verdict: PROVEN
+  confidence: high
+  evidence_refs:
+  - "file:evidence/AC5/providers.json"
+  - "file:evidence/AC5/request-log.json"
+  - "test:tests"
+  - "event:9"
+  rationale: "凭证 safeStorage 加密 + 自定义 baseUrl；会话中切 provider，manifest + 线侧请求双重证明。"
+- criterion: "模式自定义系统：用户可创建/编辑/删除模式，每个模式独立定义系统提示、工具集、模型与上下文注入策略，修改热生效无需重启"
+  verdict: PROVEN
+  confidence: high
+  evidence_refs:
+  - "file:evidence/AC6/modes-after-upsert.json"
+  - "file:evidence/AC6/request-log.json"
+  - "test:tests"
+  - "event:9"
+  rationale: "新建模式即时出现在下拉框（无重启），线侧 system prompt = 新模式提示；删除即时生效。"
+- criterion: "构建成功无错误，上述每条标准均有可验证证据"
+  verdict: PROVEN
+  confidence: high
+  evidence_refs:
+  - "test:tests"
+  - "event:9"
+  rationale: "全量单测（npm test，806+）通过证明构建无错误；每条标准均有 evidence/AC* 证据 + test:tests 溯源。"
