@@ -1,0 +1,25 @@
+{
+  "mcpView": [
+    {
+      "config": {
+        "id": "demo-mcp",
+        "name": "Demo MCP",
+        "command": "node",
+        "args": [
+          "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\dw-demo-project\\mcp-server.mjs"
+        ],
+        "enabled": true
+      },
+      "state": "ready",
+      "tools": [
+        {
+          "serverId": "demo-mcp",
+          "name": "echo",
+          "fullName": "mcp__demo-mcp__echo",
+          "description": "Echo back the given text"
+        }
+      ]
+    }
+  ],
+  "tools": []
+}
