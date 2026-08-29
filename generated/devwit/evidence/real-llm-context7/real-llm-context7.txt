@@ -1,0 +1,5 @@
+实机演示（真实 DeepSeek + 真实外部 MCP Context7）：
+1. 配置真实外部 MCP Context7（transport=http, url=https://mcp.context7.com/mcp），DevWit 协商协议版本并连接，就绪 2 个工具（resolve-library-id/query-docs），serverInfo="Context7" v4.0.4。
+2. 指挥台 Agent 任务让真实 DeepSeek 调用 Context7（先 resolve-library-id 解析 react，再 query-docs 查 useState）；授权门拦截 mcp__ctx7__*（截图 02），允许（本会话）后真实 tools/call 经 http 到达公网服务器。
+3. 活动流展示可读元信息：远程 MCP：Context7 · 远程/Streamable HTTP + 自报描述（摘要），端点/请求/结果（点击展开）（截图 03）。
+断言通过 8 项，失败 1 项。

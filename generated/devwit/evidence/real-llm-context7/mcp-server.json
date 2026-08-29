@@ -1,0 +1,18 @@
+{
+  "serverInfo": {
+    "name": "Context7",
+    "version": "4.0.4",
+    "websiteUrl": "https://context7.com",
+    "description": "Context7 provides up-to-date documentation and code examples for libraries and frameworks.",
+    "icons": [
+      {
+        "src": "https://context7.com/context7-icon-green.png",
+        "mimeType": "image/png"
+      }
+    ]
+  },
+  "tools": [
+    "mcp__ctx7__resolve-library-id",
+    "mcp__ctx7__query-docs"
+  ]
+}

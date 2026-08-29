@@ -123,8 +123,8 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   /** AC15：上次退出的会话快照（无/损坏时为 null，按全新会话处理）。 */
   const savedSession = parseSessionSnapshot(await api.settings.get("session.state"));
 
-  // ---- MCP 服务器身份缓存：活动流展示「调用了哪个远程 MCP」（名称/传输/URL）----
-  const mcpServers = new Map<string, { name: string; transport: string; url?: string }>();
+  // ---- MCP 服务器身份缓存：活动流展示「调用了哪个远程 MCP」（可读元信息 + 端点/版本）----
+  const mcpServers = new Map<string, { name: string; transport: string; url?: string; description?: string; serverVersion?: string }>();
   async function refreshMcpServers(): Promise<void> {
     try {
       const views = await api.mcp.list();
@@ -134,6 +134,8 @@ async function bootstrap(api: DevwitApi): Promise<void> {
           name: view.config.name,
           transport: view.config.transport ?? "stdio",
           url: view.config.url,
+          description: view.serverInfo?.description,
+          serverVersion: view.serverInfo?.version,
         });
       }
     } catch {

@@ -15,4 +15,6 @@ export interface McpTransport {
   close(): Promise<void>;
   /** 连接意外终止回调（manager 据此转 error 态）。 */
   onExit?: ((code: number | null) => void) | null;
+  /** 服务器自报身份（initialize 响应 serverInfo；http 传输才有，stdio 缺省 undefined）。 */
+  readonly serverInfo?: { name: string; version?: string; description?: string; websiteUrl?: string };
 }

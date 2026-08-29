@@ -69,6 +69,7 @@ interface ServerEntry {
   /** 原始工具定义（服务器侧名字）。 */
   tools: ToolDefinition[];
   errorCode?: string;
+  serverInfo?: { name: string; version?: string; description?: string; websiteUrl?: string };
   /** 启动代际：异步 start 完成时若代际已变（被停用/重启），结果作废。 */
   generation: number;
 }
@@ -216,6 +217,7 @@ export class McpManager {
         tools,
       };
       if (entry.errorCode !== undefined) view.errorCode = entry.errorCode;
+      if (entry.serverInfo !== undefined) view.serverInfo = entry.serverInfo;
       return view;
     });
   }
@@ -239,7 +241,7 @@ export class McpManager {
     const generation = entry.generation;
     this.emitChange();
 
-    const client = (entry.config.transport ?? "stdio") === "http"
+    const client: McpTransport = (entry.config.transport ?? "stdio") === "http"
       ? new McpHttpClient(entry.config, { requestTimeoutMs: this.requestTimeoutMs, resolveAuth: this.resolveAuth })
       : new McpStdioClient(entry.config, this.requestTimeoutMs);
     entry.client = client;
@@ -257,6 +259,7 @@ export class McpManager {
       .then((tools) => {
         if (entry.generation !== generation) return; // 期间被停用/重启，结果作废
         entry.tools = tools;
+        entry.serverInfo = client.serverInfo ?? undefined;
         entry.state = "ready";
         this.emitChange();
       })

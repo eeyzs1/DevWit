@@ -1,0 +1,43 @@
+用户使用真实远程 MCP（Context7）查询 React 的 useState 的用法。先用 resolve-library-id 把 react 解析成 library id，再调用 query-docs 查询 useState。必须调用 MCP 工具。路由本地路由未开启 → 模式绑定模型 deepseek-ds助手我先用 Context7 解析 React 的 library id。工具✓mcp__ctx7__resolve-library-id 成功（成功）远程 MCP：Context7 · 远程/Streamable HTTPContext7 provides up-to-date documentation and code examples for libraries and frameworks.远程端点：https://mcp.context7.com/mcp
+服务器：Context7 · 4.0.4
+请求：{"query":"React useState hook","libraryName":"React"}
+结果：Available Libraries:
+
+- Title: React
+- Context7-compatible library ID: /reactjs/react.dev
+- Description: React.dev is the official documentation website for React, a JavaScript library for building user interfaces, providing guides, API references, and tutorials.
+- Code Snippets: 5957
+- Source Reputation: High
+- Benchmark Score: 89.88
+- Versions: __branch__v18
+----------
+- Title: React
+- Context7-compatible library ID: /react/react
+- Description: React is a JavaScript library for building user interfaces.
+- Code Snippets: 6602
+- Source Reputation: High
+- Benchmark Score: 65.9
+- Versions: v19.2.7, v18.2.0
+----------
+- Title: React
+- Context7-compatible library ID: /websites/react_dev
+- Description: React is a JavaScript library for building user interfaces. It allows developers to create interactive web and native applications using reusable components, enabling efficient and scalable UI development.
+- Code Snippets: 5435
+- Source Reputation: High
+- Benchmark Score: 83.4
+----------
+- Title: React
+- Context7-compatible library ID: /websites/react_dev_reference
+- Description: React is a JavaScript library for building user interfaces with reusable components, hooks, and APIs for managing state and side effects.
+- Code Snippets: 2738
+- Source Reputation: High
+- Benchmark Score: 81.62
+----------
+- Title: React
+- Context7-compatible library ID: /websites/react_dev_reference_react
+- Description: React is a JavaScript library for building user interfaces using reusable components with reactive data binding and server-side rendering capabilities.
+- Code Snippets: 1039
+- Source Reputation: High
+- Benchmark Score: 85.88授权mcp__ctx7__resolve-library-id：调用 MCP 工具: mcp__ctx7__resolve-library-id {"query":"React useState hook","libraryName":"React"}已裁决：本会话允许助手解析到 React 的 library id。我来查询 useState 的用法。工具…mcp__ctx7__query-docs({"libraryId":"/reactjs/react.dev","query":"useState hook usage, initial state, setter function, functional updates"})（执行中…）远程 MCP：Context7 · 远程/Streamable HTTPContext7 provides up-to-date documentation and code examples for libraries and frameworks.远程端点：https://mcp.context7.com/mcp
+服务器：Context7 · 4.0.4
+请求：{"libraryId":"/reactjs/react.dev","query":"useState hook usage, initial state, setter function, functional updates"}授权mcp__ctx7__query-docs：调用 MCP 工具: mcp__ctx7__query-docs {"libraryId":"/reactjs/react.dev","query":"useState hook usage, initial state, setter function, functional updates"}允许本会话允许拒绝

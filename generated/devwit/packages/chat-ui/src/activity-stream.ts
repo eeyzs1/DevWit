@@ -15,8 +15,8 @@ export interface ActivityStreamOptions {
   onProposalReview?: (assistantText: string) => void;
   /** 模式 id → 当前语言显示名（错误文案本地化用，可选）。 */
   resolveModeName?: (modeId: string) => string;
-  /** MCP server id → 服务器身份（名称/传输/URL），用于活动流展示「调用了哪个远程 MCP」。 */
-  resolveMcpServer?: (serverId: string) => { name: string; transport: string; url?: string } | null;
+  /** MCP server id → 服务器身份（名称/传输/URL/自报摘要），用于活动流展示「调用了哪个远程 MCP」。 */
+  resolveMcpServer?: (serverId: string) => { name: string; transport: string; url?: string; description?: string; serverVersion?: string } | null;
 }
 
 /** 从工具全名解析 MCP server id（mcp__<id>__<tool>）；非 MCP 工具返回 null。 */
@@ -122,17 +122,27 @@ export function mountActivityStream(
         label.textContent = `${item.summary}（${state}）`;
         head.appendChild(label);
         body.appendChild(head);
-        // 远程 MCP 服务器身份（名称/传输/URL）——让用户看到「调用了哪个远程 MCP」
+        // 远程 MCP 身份（摘要：可读的名 + 传输；不暴露 URL/IP）。详细信息在折叠区。
         const sid = mcpServerId(item.summary);
         const mcp = sid !== null ? options.resolveMcpServer?.(sid) : undefined;
         if (mcp !== undefined && mcp !== null) {
           const meta = document.createElement("div");
           meta.className = "dw-act-tool-meta";
-          meta.textContent = t("act.tool.mcp", { name: mcp.name, transport: transportLabel(mcp.transport), url: mcp.url ?? "—" });
+          meta.textContent = t("act.tool.mcp", { name: mcp.name, transport: transportLabel(mcp.transport) });
           body.appendChild(meta);
+          if (mcp.description !== undefined && mcp.description !== "") {
+            const desc = document.createElement("div");
+            desc.className = "dw-act-tool-desc";
+            desc.textContent = mcp.description;
+            body.appendChild(desc);
+          }
         }
-        // 折叠区：请求 + 完整结果（审计透明，不默认刷屏）
+        // 折叠区：远程端点/服务器/请求 + 完整结果（审计透明，不默认刷屏）
         const parts: string[] = [];
+        if (mcp?.url !== undefined && mcp.url !== "") parts.push(t("act.tool.endpoint", { url: mcp.url }));
+        if (mcp?.serverVersion !== undefined && mcp.serverVersion !== "") {
+          parts.push(t("act.tool.server", { name: mcp.name, version: mcp.serverVersion }));
+        }
         if (item.request !== undefined) parts.push(t("act.tool.request", { json: item.request }));
         if (item.detail !== undefined && item.detail.length > 0) parts.push(t("act.tool.result", { text: item.detail }));
         if (parts.length > 0) {

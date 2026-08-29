@@ -4,7 +4,7 @@ import { McpHttpClient } from "../src/http-client.js";
 import type { ToolDefinition, ToolResult } from "@devwit/contracts";
 
 type RouteResp = { status?: number; contentType?: string; body?: unknown; raw?: string; sse?: string };
-type Route = RouteResp | ((req: { id: number; method: string }) => RouteResp);
+type Route = RouteResp | ((req: { id: number; method: string; proto?: string; mcpMethod?: string }) => RouteResp);
 
 /** 构造一个 mock fetch：按请求 body 的 method 路由到 routes，记录每次请求。 */
 function makeFetch(routes: Record<string, Route>, auth?: Record<string, string>) {
@@ -21,7 +21,7 @@ function makeFetch(routes: Record<string, Route>, auth?: Record<string, string>)
       headers,
     });
     const route = routes[req.method ?? ""] ?? (() => ({ status: 404, body: null }));
-    const r = typeof route === "function" ? route({ id: req.id ?? 0, method: req.method ?? "" }) : route;
+    const r = typeof route === "function" ? route({ id: req.id ?? 0, method: req.method ?? "", proto: headers["MCP-Protocol-Version"], mcpMethod: headers["Mcp-Method"] }) : route;
     const bodyText = r.sse !== undefined ? r.sse : (r.raw !== undefined ? r.raw : (r.body !== undefined ? JSON.stringify(r.body) : ""));
     const status = r.status ?? 200;
     const contentType = r.sse !== undefined ? "text/event-stream" : (r.contentType ?? "application/json");
@@ -156,5 +156,25 @@ describe("McpHttpClient（远程 MCP / Streamable HTTP）", () => {
     await c.start();
     await c.callTool("中文工具", {});
     expect(calls.find((c) => c.mcpMethod === "tools/call")?.mcpName).toMatch(/^=\?base64\?/);
+  });
+
+  it("协议版本协商：2026-07-28 被拒 → 降级 2025-06-18；旧版不发 Mcp-Method 头", async () => {
+    const { fetchImpl, calls } = makeFetch({
+      initialize: (req) => {
+        if (req.proto === "2026-07-28") return { status: 400, body: { jsonrpc: "2.0", id: req.id, error: { code: -32020, message: "legacy handshake" } } };
+        return { body: jsonResult({ protocolVersion: req.proto ?? "2025-06-18", serverInfo: { name: "ctx", version: "1" }, capabilities: {} }) };
+      },
+      "tools/list": () => ({ body: jsonResult({ tools: [{ name: "resolve", description: "", inputSchema: {} }] }) }),
+    });
+    const c = new McpHttpClient(CONFIG, { fetch: fetchImpl });
+    const tools = await c.start();
+    expect(tools.map((t) => t.name)).toEqual(["resolve"]);
+    // 先试过 2026-07-28（带 Mcp-Method 头），被拒后降级到 2025-06-18
+    const initCalls = calls.filter((c) => c.method === "initialize");
+    expect(initCalls.some((c) => c.proto === "2026-07-28")).toBe(true);
+    expect(initCalls.some((c) => c.proto === "2025-06-18")).toBe(true);
+    // 2025-06-18（旧版）那次不发送 Mcp-Method 头
+    const legacy = calls.find((c) => c.proto === "2025-06-18");
+    expect(legacy?.mcpMethod).toBeUndefined();
   });
 });

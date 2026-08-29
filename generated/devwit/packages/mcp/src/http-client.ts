@@ -14,6 +14,9 @@ import type { McpServerConfig, ToolDefinition, ToolResult } from "@devwit/contra
 import type { McpTransport } from "./transport.js";
 
 export const HTTP_PROTOCOL_VERSION = "2026-07-28";
+/** 支持的协议版本（新→旧）。真实公网 MCP 服务器多为 2025-06-18 / 2025-03-26（Streamable HTTP，
+ *  无会话、不要求 Mcp-Method 头）；2024-11-05 旧 SSE 会话本期不自动降级（超出范围，见文档）。 */
+export const PROTOCOL_VERSIONS = ["2026-07-28", "2025-06-18", "2025-03-26"] as const;
 const CLIENT_INFO = { name: "devwit", version: "0.1.0" } as const;
 
 /** fetch 的最小结构依赖（Node 20 主进程全局 fetch）。 */
@@ -87,6 +90,7 @@ export class McpHttpClient implements McpTransport {
   private nextId = 1;
   private activeAbort: AbortController | null = null;
   private requestTimeoutMs: number;
+  serverInfo: { name: string; version?: string; description?: string; websiteUrl?: string } | undefined;
 
   constructor(
     config: Pick<McpServerConfig, "id" | "name" | "url" | "headers" | "auth">,
@@ -117,18 +121,34 @@ export class McpHttpClient implements McpTransport {
   }
 
   async start(): Promise<ToolDefinition[]> {
-    // 协议版本协商：先试现代 2026-07-28；旧版（2025-03-26..2025-11-25 带 Mcp-Session-Id）
-    // 与 2024-11-05 SSE 的完整协商本期只在响应被拒时提示（见 README 未来项）。
-    const initResult = await this.postJsonRpc("initialize", {
-      protocolVersion: this.version,
-      capabilities: {},
-      clientInfo: CLIENT_INFO,
-    });
-    // 服务器可能协商到更低版本：若 result.protocolVersion 存在则采用之
-    const initR = initResult as { protocolVersion?: string; serverInfo?: unknown } | undefined;
-    if (initR?.protocolVersion && initR.protocolVersion !== this.version) {
+    // 协议版本协商（新→旧）：服务器可能只支持较旧版本（多为 2025-06-18 / 2025-03-26），
+    // 逐版本试 initialize，收到有效 result 即采用该版本；全部失败抛 NEGOTIATE。
+    let initResult: unknown = null;
+    let initErr: unknown = null;
+    for (const version of PROTOCOL_VERSIONS) {
+      this.version = version;
+      try {
+        initResult = await this.postJsonRpc("initialize", {
+          protocolVersion: version,
+          capabilities: {},
+          clientInfo: CLIENT_INFO,
+        });
+        initErr = null;
+        break;
+      } catch (error) {
+        initErr = error;
+      }
+    }
+    if (initResult === null) {
+      const detail = initErr instanceof Error ? initErr.message : String(initErr);
+      throw new Error(`DW_MCP_HTTP_NEGOTIATE:${detail.slice(0, 200)}`);
+    }
+    // 服务器若协商到列表中的版本则采用之（响应的 protocolVersion）
+    const initR = initResult as { protocolVersion?: string; serverInfo?: { name: string; version?: string; description?: string; websiteUrl?: string } } | undefined;
+    if (initR?.protocolVersion && (PROTOCOL_VERSIONS as readonly string[]).includes(initR.protocolVersion)) {
       this.version = initR.protocolVersion;
     }
+    if (initR?.serverInfo !== undefined) this.serverInfo = initR.serverInfo;
     const listResult = (await this.postJsonRpc("tools/list", {})) as { tools?: Array<{ name: string; description?: string; inputSchema?: Record<string, unknown> }> } | undefined;
     const rawTools = Array.isArray(listResult?.tools) ? listResult.tools : [];
     this.started = true;
@@ -182,16 +202,22 @@ export class McpHttpClient implements McpTransport {
       jsonrpc: "2.0",
       id,
       method,
-      params: { ...params, _meta: { "io.modelcontextprotocol/protocolVersion": this.version } },
+      params: {
+        ...params,
+        // __meta 协议版本只在 initialize 握手声明；非握手请求只带 MCP-Protocol-Version 头（部分服务器拒绝多余 _meta）
+        ...(method === "initialize" ? { _meta: { "io.modelcontextprotocol/protocolVersion": this.version } } : {}),
+      },
     };
+    const isModern = this.version === "2026-07-28";
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       Accept: "application/json, text/event-stream",
       "MCP-Protocol-Version": this.version,
-      "Mcp-Method": method,
       ...(await this.authHeaders()),
     };
-    if (opts?.mcpName !== undefined) headers["Mcp-Name"] = encodeHeaderValue(opts.mcpName);
+    // Mcp-Method / Mcp-Name 是 2026-07-28 新增的必需头；旧版本服务器不需要（发了可能被拒，如 Context7）
+    if (isModern) headers["Mcp-Method"] = method;
+    if (isModern && opts?.mcpName !== undefined) headers["Mcp-Name"] = encodeHeaderValue(opts.mcpName);
 
     const controller = new AbortController();
     this.activeAbort = controller;

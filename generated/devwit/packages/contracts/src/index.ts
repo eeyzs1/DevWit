@@ -878,6 +878,8 @@ export interface McpServerView {
   state: McpServerState;
   tools: McpToolInfo[];
   errorCode?: string;
+  /** 服务器自报身份（initialize 响应 serverInfo；http 传输才有）。 */
+  serverInfo?: { name: string; version?: string; description?: string; websiteUrl?: string };
 }
 
 // ============================================================================

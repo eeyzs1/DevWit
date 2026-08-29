@@ -565,6 +565,14 @@ body,
   white-space: pre-wrap;
   word-break: break-word;
 }
+.dw-act-tool-desc {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--dw-fg-dim);
+  opacity: 0.85;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 .dw-act-authorization {
   border-color: var(--dw-accent);
