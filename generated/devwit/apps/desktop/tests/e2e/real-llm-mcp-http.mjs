@@ -88,9 +88,12 @@ function startHttpMcp() {
 function launchElectron(cdpPort) {
   return new Promise((resolve, reject) => {
     const exe = path.join(ROOT, "node_modules", "electron", "dist", "electron.exe");
+    const envVars = { ...process.env, DEVWIT_E2E_OPEN_DIR: proj, DEVWIT_USER_DATA_DIR: userDataDir, DEEPSEEK_API_KEY: KEY };
+    // 默认离屏（无窗口）；设置 DEVWIT_HEADED=1 时弹出可见 DevWit 窗口供人观看
+    if (!process.env.DEVWIT_HEADED) envVars.DEVWIT_E2E_OFFSCREEN = "1";
     const proc = spawn(exe, [`--remote-debugging-port=${cdpPort}`, "--lang=zh-CN", "."], {
       cwd: ROOT,
-      env: { ...process.env, DEVWIT_E2E_OPEN_DIR: proj, DEVWIT_USER_DATA_DIR: userDataDir, DEVWIT_E2E_OFFSCREEN: "1", DEEPSEEK_API_KEY: KEY },
+      env: envVars,
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stderrBuf = "";
