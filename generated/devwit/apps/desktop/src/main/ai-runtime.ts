@@ -31,6 +31,7 @@ import type {
   RagStatusInfo,
   SymbolsQueryResult,
   TraceSessionInfo,
+  ToolDefinition,
   UsagePricing,
   UsageSummary,
   UsageDailySummary,
@@ -41,12 +42,12 @@ import type {
   WorkflowTemplate,
 } from "@devwit/contracts";
 import { DEFAULT_RAG_CONFIG, IPC, isFailureTraceEvent } from "@devwit/contracts";
-import { AgentLoop, AgentOrchestrator, AgentTrace, Authorizer, CommandWhitelistMemory, createNodeEnvironment, DEFAULT_LEARNING, decideRoute, DiagnosticsTracker, historyFromTrace, ModeStatsTracker, parseModeRunStats, parseRoutingConfig, parseWorkflowTemplates, WorkflowMemory } from "@devwit/agent-runtime";
-import type { AgentRunResult, CommandWhitelistSnapshot, ToolEnvironment, WhitelistLearningConfig } from "@devwit/agent-runtime";
-import { attachmentSource, ContextEngine, fileFragmentSource, gitStatusSource, selectionSource, symbolRefSource, TiktokenCounter, workflowSource } from "@devwit/context-engine";
+import { AgentLoop, AgentOrchestrator, AgentTrace, Authorizer, BackendRegistry, CommandWhitelistMemory, createNodeEnvironment, DEFAULT_LEARNING, decideRoute, DiagnosticsTracker, historyFromTrace, InternalAgentBackend, ModeStatsTracker, parseModeRunStats, parseRoutingConfig, parseWorkflowTemplates, WorkflowMemory } from "@devwit/agent-runtime";
+import type { AgentBackend, AgentBackendInput, AgentBackendResult, AgentRunResult, CommandWhitelistSnapshot, ToolEnvironment, WhitelistLearningConfig } from "@devwit/agent-runtime";
+import { attachmentSource, ContextEngine, fileFragmentSource, FIRST_PARTY_SECTION_ORDER, gitStatusSource, PromptSectionRegistry, selectionSource, symbolRefSource, TiktokenCounter, workflowSource } from "@devwit/context-engine";
 import { createEmbedder, ProviderRegistry } from "@devwit/llm-providers";
 import { McpManager, validateMcpServerConfig } from "@devwit/mcp";
-import { ModeStore } from "@devwit/modes";
+import { ModeStore, type ModeScopeRegistry } from "@devwit/modes";
 import { CodebaseIndex, codebaseMatchSource, SymbolIndex } from "@devwit/rag";
 import type { SettingsStore } from "@devwit/settings";
 import { getGitStatus } from "@devwit/workspace";
@@ -152,6 +153,15 @@ export class AiRuntime {
   private lastBudgetAlertExceeded = false;
   /** 对话会话元数据（AC37）：改名/删除标记 overlay。 */
   private readonly sessionMeta: SessionMetaStore;
+  /**
+   * B-WU4/B-WU6 接线（Fusion v3）：
+   * - promptSections：会话引擎共享的系统提示段注册表——run 前按模式清空重装
+   *   （mode 提示 + modeStore.scope 的 prompt_section 段），manifest 记录段组成；
+   * - backends：AgentBackend 注册表——run 时按 settings agent.backendId 解析，
+   *   外部后端缺失/不可用自动回落 internal（自研 loop，行为不变）。
+   */
+  private readonly promptSections = new PromptSectionRegistry();
+  private readonly backends = new BackendRegistry();
 
   constructor(deps: AiRuntimeDeps) {
     this.deps = deps;
@@ -526,6 +536,8 @@ export class AiRuntime {
       // 错误码保持 ASCII：主进程 stderr 在 GBK 终端输出中文会乱码，文案由渲染端 localizeError 本地化
       throw new Error(`DW_MODE_NOT_FOUND:${input.modeId}`);
     }
+    // B-WU4/B-WU5：run 前按模式重装系统提示段（mode 提示 + 模式作用域 prompt_section 段）
+    this.syncModeSections(mode);
     let fallbackProviderId = input.providerId ?? mode.providerId;
     // 兜底（可用性修复）：mode 未绑定、会话未手动选模型时，若已配置 provider，
     // 取第一个作为默认——避免指挥台创建任务时即使配了模型也报「未绑定模型」。
@@ -633,7 +645,8 @@ export class AiRuntime {
           trace: session.trace,
           createSubEngine: () => this.createSubEngine(input.sessionId),
           onAssistantDelta: (delta) => this.emitDelta(input.sessionId, delta),
-          extraTools: () => this.mcpManager.toolDefinitions(),
+          // B-WU5：编排 run 同样聚合模式作用域动态工具 + MCP 工具
+          extraTools: () => this.modeScopeTools(mode.id),
           executeExtraTool: (call) => this.mcpManager.callTool(call),
           diagnostics: session.diagnostics,
         });
@@ -647,13 +660,28 @@ export class AiRuntime {
           authorizer: session.authorizer,
           trace: session.trace,
           onAssistantDelta: (delta) => this.emitDelta(input.sessionId, delta),
-          // AC17：MCP 工具热聚合（每轮迭代取当前 ready 服务器工具集）与调用路由
-          extraTools: () => this.mcpManager.toolDefinitions(),
+          // AC17：MCP 工具热聚合（每轮迭代取当前 ready 服务器工具集）与调用路由；
+          // B-WU5：模式作用域动态工具（modeStore.scope kind=tool）前置聚合
+          extraTools: () => this.modeScopeTools(mode.id),
           executeExtraTool: (call) => this.mcpManager.callTool(call),
           // AC30：编辑后 tsc 诊断回馈（快照源已挂会话引擎）
           diagnostics: session.diagnostics,
         });
-        runResult = await loop.run(input, session.abort.signal, priorHistory);
+        // B-WU6：经 BackendRegistry 解析——配置了可用外部后端（如 claude-agent-sdk/codex
+        // provider）时走外部执行；缺省/不可用回落 internal（自研 loop，行为不变）。
+        const internal = new InternalAgentBackend(() => loop);
+        const backend = this.backends.resolve(this.readBackendId(), internal);
+        if (backend === internal) {
+          runResult = await loop.run(input, session.abort.signal, priorHistory);
+        } else {
+          const externalResult = await backend.run({
+            ...toBackendInput(input),
+            signal: session.abort.signal,
+          });
+          // 外部后端事件映射回会话轨迹（审计/持久化/续聊同一事实源）
+          session.trace.loadPersisted(externalResult.events);
+          runResult = fromBackendResult(externalResult);
+        }
       }
       finishReason = runResult.finishReason;
       // AC32：成功 run 沉淀工作流模板（本轮含 done 无 error 且至少一次工具调用才够格；
@@ -990,6 +1018,53 @@ export class AiRuntime {
     return (stored as { enabled?: unknown }).enabled !== false;
   }
 
+  /**
+   * B-WU4/B-WU5：run 前按模式重装系统提示段。
+   * mode 提示为基底段（FIRST_PARTY_SECTION_ORDER.mode）；模式作用域注册的
+   * prompt_section 段按注册序接在 context 段位之后。仅一个 mode 段时组装结果
+   * 与旧 input.systemPrompt 完全一致（行为不变）；manifest 记录段组成审计。
+   */
+  private syncModeSections(mode: ModeDefinition): void {
+    this.promptSections.clear();
+    this.promptSections.register({
+      name: "mode",
+      order: FIRST_PARTY_SECTION_ORDER.mode,
+      text: mode.systemPrompt,
+    });
+    const scopeSections = this.modeStore.scope.list<string>(mode.id, "prompt_section");
+    for (const [i, entry] of scopeSections.entries()) {
+      this.promptSections.register({
+        name: `mode-scope:${entry.key}`,
+        order: FIRST_PARTY_SECTION_ORDER.context + i,
+        text: entry.value,
+      });
+    }
+  }
+
+  /** B-WU5：模式作用域动态工具 + MCP 工具热聚合（agent-loop 与编排共用）。 */
+  private modeScopeTools(modeId: string): ToolDefinition[] {
+    const scopeTools = this.modeStore.scope
+      .list<ToolDefinition>(modeId, "tool")
+      .map((entry) => entry.value);
+    return [...scopeTools, ...this.mcpManager.toolDefinitions()];
+  }
+
+  /** B-WU6：读取配置的 agent 后端 id（settings agent.backendId，缺省 internal）。 */
+  private readBackendId(): string {
+    const raw = this.settings.get("agent.backendId");
+    return typeof raw === "string" && raw.length > 0 ? raw : "internal";
+  }
+
+  /** B-WU6：宿主/插件注册外部 agent 后端（claude-agent-sdk/codex 等 provider）。 */
+  registerAgentBackend(backend: AgentBackend): () => void {
+    return this.backends.register(backend);
+  }
+
+  /** B-WU5：模式作用域注册空间（宿主可挂 per-mode 提示段/动态工具/上下文源）。 */
+  get modeScope(): ModeScopeRegistry {
+    return this.modeStore.scope;
+  }
+
   private ensureSession(sessionId: string, modeId: string): SessionState {
     const existing = this.sessions.get(sessionId);
     if (existing !== undefined) return existing;
@@ -1086,6 +1161,7 @@ export class AiRuntime {
   private createEngine(sessionId: string): ContextEngine {
     return new ContextEngine({
       sessionId,
+      promptSections: this.promptSections,
       manifestStore: {
         save: async (manifest) => {
           this.latestManifest = manifest;
@@ -1179,4 +1255,31 @@ export class AiRuntime {
 /** 工作区根 → 索引目录名（防路径穿越：渲染可控 root 字符串，哈希后作目录名）。 */
 function hashWorkspaceRoot(root: string): string {
   return createHash("sha1").update(path.resolve(root)).digest("hex").slice(0, 12);
+}
+
+// ---------------------------------------------------------------------------
+// B-WU6：AgentBackend 接缝的输入/结果映射（外部后端与内部 loop 之间的桥）。
+// 说明：外部后端只拿到最小上下文（sessionId/userText/workspaceRoot/modeId）；
+// 富字段（attachments/symbolRefs/activeFile/selection/terminalTail）暂不跨接缝
+// ——若接入 claude-agent-sdk/codex provider 需要这些字段，扩展 AgentBackendInput 即可。
+// ---------------------------------------------------------------------------
+
+function toBackendInput(input: AgentRunInput): AgentBackendInput {
+  return {
+    sessionId: input.sessionId,
+    userText: input.userText,
+    workspaceRoot: input.workspaceRoot,
+    modeId: input.modeId,
+  };
+}
+
+function fromBackendResult(result: AgentBackendResult): AgentRunResult {
+  return {
+    finishReason: result.finishReason,
+    finalText: result.finalText,
+    // 外部后端不回报迭代数：0（不参与 loop 语义，仅结果形状兼容）
+    iterations: 0,
+    ...(result.usage !== undefined ? { usage: result.usage } : {}),
+    ...(result.errorMessage !== undefined ? { errorMessage: result.errorMessage } : {}),
+  };
 }

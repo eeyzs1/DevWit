@@ -61,6 +61,11 @@ export class PromptSectionRegistry {
     this.sections.delete(name);
   }
 
+  /** 清空全部段（按 run/模式切换重新组装时使用；会话引擎持有同一实例跨 run 复用）。 */
+  clear(): void {
+    this.sections.clear();
+  }
+
   /** 当前全部段（按 order 再名字排序）。 */
   list(): PromptSection[] {
     return [...this.sections.values()].sort(
