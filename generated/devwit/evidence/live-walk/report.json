@@ -1,0 +1,193 @@
+{
+  "screens": [
+    {
+      "name": "A. 首次引导向导（全新 userData）",
+      "at": "2026-08-29T02:23:37.659Z"
+    },
+    {
+      "name": "B1. 应用启动 + 工作区文件树",
+      "at": "2026-08-29T02:23:39.396Z"
+    },
+    {
+      "name": "B2. 编辑器打开/编辑/保存",
+      "at": "2026-08-29T02:24:09.629Z"
+    },
+    {
+      "name": "B3. 凭证 + provider 注册",
+      "at": "2026-08-29T02:24:09.644Z"
+    },
+    {
+      "name": "B4. 对话（流式回复）",
+      "at": "2026-08-29T02:24:09.800Z"
+    },
+    {
+      "name": "B5. 上下文面板（manifest 逐项 + token）",
+      "at": "2026-08-29T02:24:09.913Z"
+    },
+    {
+      "name": "B6. diff 审查视图",
+      "at": "2026-08-29T02:24:20.266Z"
+    },
+    {
+      "name": "B7. Agent 模式授权门",
+      "at": "2026-08-29T02:25:20.593Z"
+    },
+    {
+      "name": "B8. 会话中切换模型",
+      "at": "2026-08-29T02:25:23.744Z"
+    },
+    {
+      "name": "B9. 模式热更新（新模式即时出现）",
+      "at": "2026-08-29T02:25:23.753Z"
+    },
+    {
+      "name": "B10. 设置页",
+      "at": "2026-08-29T02:25:24.684Z"
+    },
+    {
+      "name": "B11. 指挥台/任务中心（指挥台）",
+      "at": "2026-08-29T02:25:55.407Z"
+    }
+  ],
+  "requestLog": [
+    {
+      "model": "live-model-a",
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls",
+        "git_status",
+        "git_diff",
+        "git_log",
+        "git_branch"
+      ],
+      "systemPrompt": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。你有 read/grep/find/ls 只读工具，可查看工作区文件帮助回答；此模式不能修改文件或执行命令，如需改动，请建议用户切到 Agent 模式。",
+      "messageCount": 2
+    },
+    {
+      "model": "live-model-a",
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls",
+        "git_status",
+        "git_diff",
+        "git_log",
+        "git_branch"
+      ],
+      "systemPrompt": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。你有 read/grep/find/ls 只读工具，可查看工作区文件帮助回答；此模式不能修改文件或执行命令，如需改动，请建议用户切到 Agent 模式。",
+      "messageCount": 4
+    },
+    {
+      "model": "live-model-a",
+      "tools": [
+        "read",
+        "write",
+        "edit",
+        "bash",
+        "grep",
+        "find",
+        "ls",
+        "git_status",
+        "git_diff",
+        "git_log",
+        "git_branch"
+      ],
+      "systemPrompt": "你是 DevWit 的编码 Agent，通过工具逐步完成用户任务。先用 read/grep/find/ls 了解现状，再用 write/edit 做最小修改，必要时用 bash 验证。修改文件前先读文件；一次只推进一小步；完成后用一句话说明做了什么。",
+      "messageCount": 6
+    },
+    {
+      "model": "live-model-a",
+      "tools": [
+        "read",
+        "write",
+        "edit",
+        "bash",
+        "grep",
+        "find",
+        "ls",
+        "git_status",
+        "git_diff",
+        "git_log",
+        "git_branch"
+      ],
+      "systemPrompt": "你是 DevWit 的编码 Agent，通过工具逐步完成用户任务。先用 read/grep/find/ls 了解现状，再用 write/edit 做最小修改，必要时用 bash 验证。修改文件前先读文件；一次只推进一小步；完成后用一句话说明做了什么。",
+      "messageCount": 8
+    }
+  ],
+  "consoleLog": [],
+  "errors": [],
+  "policy": {
+    "system_prompt": true,
+    "tool_definitions": true,
+    "file_fragment": false,
+    "git_status": false,
+    "terminal_output": false,
+    "selection": false,
+    "conversation_history": false,
+    "codebase_match": false,
+    "diagnostics": false,
+    "workflow": false,
+    "custom": false
+  },
+  "agentFileExists": false,
+  "agentFileContent": null,
+  "usage": {
+    "total": {
+      "inputTokens": 175,
+      "outputTokens": 57,
+      "runs": 3
+    },
+    "today": {
+      "inputTokens": 175,
+      "outputTokens": 57,
+      "runs": 3
+    },
+    "byMode": [
+      {
+        "modeId": "chat",
+        "inputTokens": 80,
+        "outputTokens": 32,
+        "runs": 2
+      },
+      {
+        "modeId": "agent",
+        "inputTokens": 95,
+        "outputTokens": 25,
+        "runs": 1
+      }
+    ],
+    "byProvider": [
+      {
+        "providerId": "live-a",
+        "model": "live-model-a",
+        "inputTokens": 175,
+        "outputTokens": 57,
+        "runs": 3
+      }
+    ]
+  },
+  "bridgeApi": [
+    "agent",
+    "context",
+    "credentials",
+    "debug",
+    "externalEditor",
+    "git",
+    "lsp",
+    "mcp",
+    "modes",
+    "providers",
+    "rag",
+    "sessions",
+    "settings",
+    "symbols",
+    "terminal",
+    "update",
+    "usage",
+    "workspace"
+  ],
+  "traceTypes": "n/a"
+}

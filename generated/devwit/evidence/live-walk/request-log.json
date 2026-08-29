@@ -1,0 +1,68 @@
+[
+  {
+    "model": "live-model-a",
+    "tools": [
+      "read",
+      "grep",
+      "find",
+      "ls",
+      "git_status",
+      "git_diff",
+      "git_log",
+      "git_branch"
+    ],
+    "systemPrompt": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。你有 read/grep/find/ls 只读工具，可查看工作区文件帮助回答；此模式不能修改文件或执行命令，如需改动，请建议用户切到 Agent 模式。",
+    "messageCount": 2
+  },
+  {
+    "model": "live-model-a",
+    "tools": [
+      "read",
+      "grep",
+      "find",
+      "ls",
+      "git_status",
+      "git_diff",
+      "git_log",
+      "git_branch"
+    ],
+    "systemPrompt": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。你有 read/grep/find/ls 只读工具，可查看工作区文件帮助回答；此模式不能修改文件或执行命令，如需改动，请建议用户切到 Agent 模式。",
+    "messageCount": 4
+  },
+  {
+    "model": "live-model-a",
+    "tools": [
+      "read",
+      "write",
+      "edit",
+      "bash",
+      "grep",
+      "find",
+      "ls",
+      "git_status",
+      "git_diff",
+      "git_log",
+      "git_branch"
+    ],
+    "systemPrompt": "你是 DevWit 的编码 Agent，通过工具逐步完成用户任务。先用 read/grep/find/ls 了解现状，再用 write/edit 做最小修改，必要时用 bash 验证。修改文件前先读文件；一次只推进一小步；完成后用一句话说明做了什么。",
+    "messageCount": 6
+  },
+  {
+    "model": "live-model-a",
+    "tools": [
+      "read",
+      "write",
+      "edit",
+      "bash",
+      "grep",
+      "find",
+      "ls",
+      "git_status",
+      "git_diff",
+      "git_log",
+      "git_branch"
+    ],
+    "systemPrompt": "你是 DevWit 的编码 Agent，通过工具逐步完成用户任务。先用 read/grep/find/ls 了解现状，再用 write/edit 做最小修改，必要时用 bash 验证。修改文件前先读文件；一次只推进一小步；完成后用一句话说明做了什么。",
+    "messageCount": 8
+  }
+]
