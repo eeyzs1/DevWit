@@ -10,6 +10,7 @@
     "已提交 Agent 任务：真实 DeepSeek 调用 Context7",
     "授权门拦截 Context7 工具（截图 02）",
     "已允许（本会话）→ Context7 tools/call 真实发出",
+    "Agent 任务完成",
     "活动流展示可读的 Context7 元信息（名称/传输/描述/端点/请求/结果）（截图 03）"
   ],
   "assertions": [
@@ -18,11 +19,10 @@
     "应暴露 Context7 工具（实际 mcp__ctx7__resolve-library-id,mcp__ctx7__query-docs）",
     "serverInfo.name 应为 Context7（实际 Context7）",
     "serverInfo 应含可读描述",
-    "授权行应含 Context7 工具全名（mcp__ctx7__*）: 授权mcp__ctx7__resolve-library-id：调用 MCP 工具: mcp__ctx7__resolve-library-id {\"query\":\"React useState hook\",\"libraryName\":\"React\"}允许本会话允许拒绝",
+    "授权行应含 Context7 工具全名（mcp__ctx7__*）: 授权mcp__ctx7__resolve-library-id：调用 MCP 工具: mcp__ctx7__resolve-library-id {\"query\":\"useState hook usage\",\"libraryName\":\"React\"}允许本会话允许拒绝",
+    "Agent 任务未在限时内完成",
     "活动流应展示 Context7（名称）",
     "活动流应展示远程 MCP 传输元信息"
   ],
-  "failures": [
-    "Agent 任务未在限时内完成"
-  ]
+  "failures": []
 }

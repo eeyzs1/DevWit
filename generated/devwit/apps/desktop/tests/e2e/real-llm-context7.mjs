@@ -134,21 +134,33 @@ try {
   await page.screenshot({ path: path.join(OUT, "02-ctx7-auth-gate.png") });
   step(`授权门拦截 Context7 工具（截图 02）`);
 
-  const sessionAllow = page.locator('.dw-act-authorization >> text=本会话允许').first();
+  const sessionAllow = page.locator('.dw-act-authorization button:text-is("本会话允许")').first();
   if (await sessionAllow.count()) await sessionAllow.click().catch(() => {});
-  else await page.click(".dw-act-authorization >> text=允许").catch(() => {});
+  else await page.locator('.dw-act-authorization button:text-is("允许")').first().click().catch(() => {});
   step("已允许（本会话）→ Context7 tools/call 真实发出");
 
-  const doneDeadline = Date.now() + 420_000;
+  // 循环等待完成：期间若出现新授权门则精准点「允许」；超过 40s 无推进则打印诊断（追踪是否真卡住）
+  const doneDeadline = Date.now() + 600_000;
   let done = false;
+  let lastAct = "";
+  let lastChange = Date.now();
   while (Date.now() < doneDeadline) {
     if (await page.locator(".dw-act-done").count()) { done = true; break; }
-    if (await page.locator(".dw-act-authorization").count()) {
-      await page.click(".dw-act-authorization >> text=允许").catch(() => {});
+    if (await page.locator('.dw-act-authorization button:text-is("允许")').count()) {
+      await page.locator('.dw-act-authorization button:text-is("允许")').first().click().catch(() => {});
+      await page.waitForTimeout(800);
+    } else {
+      await page.waitForTimeout(1500);
     }
-    await page.waitForTimeout(800);
+    const act = await page.textContent(".dw-activity").catch(() => "");
+    if (act !== lastAct) { lastAct = act; lastChange = Date.now(); }
+    else if (Date.now() - lastChange > 40_000) {
+      console.error(`[ctx7][diag] 40s 无推进，最后活动: ${(act ?? "").slice(-300)}`);
+      lastChange = Date.now();
+    }
   }
   assert(done, "Agent 任务未在限时内完成");
+  step("Agent 任务完成");
 
   // 活动流应展示可读的 Context7 元信息
   await page.waitForTimeout(600);
@@ -176,6 +188,18 @@ try {
     electronProc.kill();
     await new Promise((resolve) => { const timer = setTimeout(resolve, 10_000); electronProc.once("exit", () => { clearTimeout(timer); resolve(); }); });
   }
+  // 保留 trace 供诊断（若任务未完成，从这里看真实卡点）
+  try {
+    const traceDir = path.join(userDataDir, "traces");
+    if (fs.existsSync(traceDir)) {
+      for (const f of fs.readdirSync(traceDir).filter((x) => x.endsWith(".jsonl"))) {
+        fs.copyFileSync(path.join(traceDir, f), path.join(OUT, f));
+        const body = fs.readFileSync(path.join(traceDir, f), "utf-8");
+        const tail = body.trim().split("\n").slice(-3).join("\n");
+        console.error(`[ctx7][trace] ${f} 尾部:\n${tail}`);
+      }
+    }
+  } catch { /* 忽略 */ }
   if (fs.existsSync(userDataDir)) fs.rmSync(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
   if (report.failures.length > 0) {
     console.error(`[ctx7] ${report.failures.length} 项断言失败，详见 ${OUT}/report.json`);

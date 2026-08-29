@@ -1,6 +1,6 @@
-用户使用真实远程 MCP（Context7）查询 React 的 useState 的用法。先用 resolve-library-id 把 react 解析成 library id，再调用 query-docs 查询 useState。必须调用 MCP 工具。路由本地路由未开启 → 模式绑定模型 deepseek-ds助手我先用 Context7 解析 React 的 library id。工具✓mcp__ctx7__resolve-library-id 成功（成功）远程 MCP：Context7 · 远程/Streamable HTTPContext7 provides up-to-date documentation and code examples for libraries and frameworks.远程端点：https://mcp.context7.com/mcp
+用户使用真实远程 MCP（Context7）查询 React 的 useState 的用法。先用 resolve-library-id 把 react 解析成 library id，再调用 query-docs 查询 useState。必须调用 MCP 工具。路由本地路由未开启 → 模式绑定模型 deepseek-ds助手我将按照要求使用真实远程 MCP（Context7）查询 React 的 useState 用法。首先解析 react 的 library id。工具✓mcp__ctx7__resolve-library-id 成功（成功）远程 MCP：Context7 · 远程/Streamable HTTPContext7 provides up-to-date documentation and code examples for libraries and frameworks.远程端点：https://mcp.context7.com/mcp
 服务器：Context7 · 4.0.4
-请求：{"query":"React useState hook","libraryName":"React"}
+请求：{"query":"useState hook usage","libraryName":"React"}
 结果：Available Libraries:
 
 - Title: React
@@ -8,7 +8,7 @@
 - Description: React.dev is the official documentation website for React, a JavaScript library for building user interfaces, providing guides, API references, and tutorials.
 - Code Snippets: 5957
 - Source Reputation: High
-- Benchmark Score: 89.88
+- Benchmark Score: 89.89
 - Versions: __branch__v18
 ----------
 - Title: React
@@ -16,7 +16,7 @@
 - Description: React is a JavaScript library for building user interfaces.
 - Code Snippets: 6602
 - Source Reputation: High
-- Benchmark Score: 65.9
+- Benchmark Score: 65.99
 - Versions: v19.2.7, v18.2.0
 ----------
 - Title: React
@@ -38,6 +38,242 @@
 - Description: React is a JavaScript library for building user interfaces using reusable components with reactive data binding and server-side rendering capabilities.
 - Code Snippets: 1039
 - Source Reputation: High
-- Benchmark Score: 85.88授权mcp__ctx7__resolve-library-id：调用 MCP 工具: mcp__ctx7__resolve-library-id {"query":"React useState hook","libraryName":"React"}已裁决：本会话允许助手解析到 React 的 library id。我来查询 useState 的用法。工具…mcp__ctx7__query-docs({"libraryId":"/reactjs/react.dev","query":"useState hook usage, initial state, setter function, functional updates"})（执行中…）远程 MCP：Context7 · 远程/Streamable HTTPContext7 provides up-to-date documentation and code examples for libraries and frameworks.远程端点：https://mcp.context7.com/mcp
+- Benchmark Score: 85.88授权mcp__ctx7__resolve-library-id：调用 MCP 工具: mcp__ctx7__resolve-library-id {"query":"useState hook usage","libraryName":"React"}已裁决：本会话允许助手已成功解析出多个 React 库。我选择官方文档源 `/reactjs/react.dev`（权威性高，benchmark 评分最高），然后用 query-docs 查询 useState 用法。工具✓mcp__ctx7__query-docs 成功（成功）远程 MCP：Context7 · 远程/Streamable HTTPContext7 provides up-to-date documentation and code examples for libraries and frameworks.远程端点：https://mcp.context7.com/mcp
 服务器：Context7 · 4.0.4
-请求：{"libraryId":"/reactjs/react.dev","query":"useState hook usage, initial state, setter function, functional updates"}授权mcp__ctx7__query-docs：调用 MCP 工具: mcp__ctx7__query-docs {"libraryId":"/reactjs/react.dev","query":"useState hook usage, initial state, setter function, functional updates"}允许本会话允许拒绝
+请求：{"libraryId":"/reactjs/react.dev","query":"useState hook usage and examples"}
+结果：### Example Component with State
+
+Source: https://github.com/reactjs/react.dev/blob/main/src/content/learn/adding-interactivity.md
+
+This example demonstrates how to use the `useState` hook to manage a counter that increments when a button is clicked.
+
+```jsx
+import { useState } from 'react';
+
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <button onClick={() => setCount(count + 1)}>
+      You clicked {count} times
+    </button>
+  );
+}
+```
+
+--------------------------------
+
+### Todo List Application
+
+Source: https://github.com/reactjs/react.dev/blob/main/src/content/reference/react/useState.md
+
+This example demonstrates how to manage a list (array) of todo items using `useState`. It includes components for adding, editing, and deleting todos, showcasing how to update array state immutably using spread syntax, `map()`, and `filter()`.
+
+```javascript
+import { useState } from 'react';
+import AddTodo from './AddTodo.js';
+import TaskList from './TaskList.js';
+
+let nextId = 3;
+const initialTodos = [
+  { id: 0, title: 'Buy milk', done: true },
+  { id: 1, title: 'Eat tacos', done: false },
+  { id: 2, title: 'Brew tea', done: false },
+];
+
+export default function TaskApp() {
+  const [todos, setTodos] = useState(initialTodos);
+
+  function handleAddTodo(title) {
+    setTodos([
+      ...todos,
+      {
+        id: nextId++,
+        title: title,
+        done: false
+      }
+    ]);
+  }
+
+  function handleChangeTodo(nextTodo) {
+    setTodos(todos.map(t => {
+      if (t.id === nextTodo.id) {
+        return nextTodo;
+      } else {
+        return t;
+      }
+    }));
+  }
+
+  function handleDeleteTodo(todoId) {
+    setTodos(
+      todos.filter(t => t.id !== todoId)
+    );
+  }
+
+  return (
+    <>
+      <AddTodo
+        onAddTodo={handleAddTodo}
+      />
+      <TaskList
+        todos={todos}
+        onChangeTodo={handleChangeTodo}
+        onDeleteTodo={handleDeleteTodo}
+      />
+    </>
+  );
+}
+```
+
+```javascript
+import { useState } from 'react';
+
+export default function AddTodo({ onAddTodo }) {
+  const [title, setTitle] = useState('');
+  return (
+    <>
+      <input
+        placeholder="Add todo"
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+      />
+      <button onClick={() => {
+        setTitle('');
+        onAddTodo(title);
+      }}>Add</button>
+    </>
+  )
+}
+```
+
+```javascript
+import { useState } from 'react';
+
+export default function TaskList({
+  todos,
+  onChangeTodo,
+  onDeleteTodo
+}) {
+  return (
+    <ul>
+      {todos.map(todo => (
+        <li key={todo.id}>
+          <Task
+            todo={todo}
+            onChange={onChangeTodo}
+            onDelete={onDeleteTodo}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Task({ todo, onChange, onDelete }) {
+  const [isEditing, setIsEditing] = useState(false);
+  let todoContent;
+  if (isEditing) {
+    todoContent = (
+      <>
+        <input
+          value={todo.title}
+          onChange={e => {
+            onChange({
+              ...todo,
+              title: e.target.value
+            });
+          }} />
+        <button onClick={() => setIsEditing(false)}>
+          Save
+        </button>
+      </>
+    );
+  } else {
+    todoContent = (
+      <>
+        {todo.title}
+        <button onClick={() => setIsEditing(true)}>
+          Edit
+        </button>
+      </>
+    );
+  }
+  return (
+    <label>
+      <input
+        type="checkbox"
+        checked={todo.done}
+        onChange={e => {
+          onChange({
+            ...todo,
+            done: e.target.checked
+          });
+        }}
+      />
+      {todoContent}
+      <button onClick={() => onDelete(todo.id)}>
+        Delete
+      </button>
+    </label>
+  );
+}
+```
+
+```css
+button { margin: 5px; }
+li { list-style-type: none; }
+ul, li { margin: 0; padding: 0; }
+```
+
+--------------------------------
+
+### Import useState and Initialize State in Square (JavaScript)
+
+Source: https://github.com/reactjs/react.dev/blob/main/src/content/learn/tutorial-tic-tac-toe.md
+
+Imports the useState hook from React and uses it to declare a state variable 'value' with an initial 'null' value, replacing the 'value' prop.
+
+```js
+import { useState } from 'react';
+
+function Square() {
+  const [value, setValue] = useState(null);
+
+  function handleClick() {
+    //...
+```
+
+--------------------------------
+
+### Importing useState
+
+Source: https://github.com/reactjs/react.dev/blob/main/src/content/learn/index.md
+
+How to import the useState Hook from React.
+
+```js
+import { useState } from 'react';
+```
+
+### Usage > Basic useState examples > Counter (number)
+
+Source: https://github.com/reactjs/react.dev/blob/main/src/content/reference/react/useState.md
+
+In this example, the count state variable holds a number. Clicking the button increments it.授权mcp__ctx7__query-docs：调用 MCP 工具: mcp__ctx7__query-docs {"libraryId":"/reactjs/react.dev","query":"useState hook usage and examples"}已裁决：允许助手已完成使用真实远程 MCP（Context7）查询 React 的 `useState` 用法。
+
+任务结论：
+
+1. **解析 library id**：通过 `resolve-library-id` 将 React 解析为多个候选库，我选取了官方文档源 `/reactjs/react.dev`（权威性 High，benchmark 89.89，版本 `__branch__v18`）。
+
+2. **查询文档**：通过 `query-docs` 获取了 `useState` 的用法示例，包含：
+   - **计数器示例**：`import { useState } from 'react';` 后 `const [count, setCount] = useState(0);`，渲染时显示点击次数。
+   - **Todo List 应用**：展示了如何用展开语法 `[...todos]`、`map()`、`filter()` 以**不可变方式**更新数组状态；以及表单输入 `onChange` 绑定。
+   - **井字棋（Tic-Tac-Toe）**：`useState(null)` 初始化状态替换原先的 prop。
+
+核心要点总结：
+- `useState` 接受一个初始值，返回 `[当前状态, 更新函数]`。
+- 更新函数传入新值；更新数组/对象时应保持不可变，用展开/映射/过滤而非直接修改。
+- 必须从 `'react'` 中 `import { useState }` 导入。
+
+两条 MCP 工具调用均已成功执行并返回真实远程文档数据。用量本次真实用量：输入 9692 / 输出 582 tokens · 未定价（设置 → 用量可填单价）完成任务完成
