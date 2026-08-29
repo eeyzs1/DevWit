@@ -120,7 +120,8 @@ class Supervisor:
             raise RuntimeError(
                 "planning/workitem-source.yaml missing or invalid — cannot dispatch"
             )
-        return load_source(src_cfg)
+        # P2#12: pass project_root so adapters resolve relative paths without cwd.
+        return load_source(src_cfg, project_root=self.project_root)
 
     # ---- stop condition 评估 ----
 

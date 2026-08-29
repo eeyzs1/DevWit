@@ -80,12 +80,13 @@ def determine_current_stage(product_state: dict, advancements: dict) -> str:
     has_tests = product_state.get("tests", {}).get("has_tests", False)
     total_tests = product_state.get("tests", {}).get("total_tests", 0)
 
+    # FIXED (was: else -> "Solid" even for an empty product): stage must be
+    # derived from FACTS, and the default for weak evidence is Basic.
+    if files_with_content > 10 and total_tests > 10:
+        return "Advanced"
     if files_with_content > 5 and has_tests and total_tests > 5:
         return "Solid"
-    elif files_with_content > 10 and total_tests > 10:
-        return "Advanced"
-    else:
-        return "Solid"
+    return "Basic"
 
 
 def propose_innovations(product_state: dict, advancements: dict, current_stage: str) -> list:
@@ -222,10 +223,11 @@ def detect_doc_staleness(project_root: Path) -> list:
 
 
 def propose_doc_refresh(stale_docs: list) -> list:
-    """把 stale docs 转成 doc_refresh 提案。"""
+    """把 stale docs 转成 doc_refresh 提案（带 file: 证据引用或 assumption 标记）。"""
     proposals = []
     for i, sd in enumerate(stale_docs, 1):
         age_str = f"{sd['age_days']} days" if sd["age_days"] is not None else "unknown"
+        doc_exists = sd.get("reason") != "doc file missing"
         proposals.append({
             "id": f"DOC-REFRESH-{i:03d}",
             "name": f"Refresh stale doc: {sd['doc_name']}",
@@ -244,9 +246,95 @@ def propose_doc_refresh(stale_docs: list) -> list:
             "doc_path": sd["path"],
             "doc_name": sd["doc_name"],
             "proposal_type": sd["proposal_type"],
+            "evidence_refs": [f"file:{sd['doc_name']}"] if doc_exists else [],
+            "assumption": not doc_exists,
         })
     return proposals
 
+
+
+# ============================================================================
+# Contract-driven innovation (WP4): proposals come from the INNOVATE prompt
+# contract (evolution/innovation-proposals.yaml), NOT from dumping a canned YAML
+# list. The engine validates schema + evidence traceability, fail-closed.
+# ============================================================================
+
+PROPOSALS_FILE = "evolution/innovation-proposals.yaml"
+ALLOWED_EFFORT = {"low", "medium", "high"}
+ALLOWED_IMPACT = {"low", "medium", "high"}
+REQUIRED_FIELDS = ("id", "name", "description", "effort", "impact")
+
+
+def _load_events(project_root: Path) -> list:
+    log_file = project_root / "memory" / "event-log.yaml"
+    if not log_file.exists():
+        return []
+    with open(log_file, "r", encoding="utf-8") as f:
+        return (yaml.safe_load(f) or {}).get("events", []) or []
+
+
+def _resolve_ref(ref: str, project_root: Path, events: list) -> tuple:
+    """Return (ok, reason). file: must exist; event: must be in the log."""
+    if ref.startswith("file:"):
+        p = project_root / ref[len("file:"):]
+        return (p.exists(), f"file not found: {ref}")
+    if ref.startswith("event:"):
+        seq = ref[len("event:"):]
+        if seq.isdigit() and any(ev.get("seq") == int(seq) for ev in events):
+            return True, None
+        return False, f"no event with seq {seq} in memory/event-log.yaml"
+    if ref.startswith("artifact:"):
+        key = ref[len("artifact:"):]
+        if any(ev.get("type") == "artifact/spilled" and
+               (ev.get("payload") or {}).get("key") == key for ev in events):
+            return True, None
+        return False, f"no spilled artifact key {key!r}"
+    return False, f"unrecognized evidence_ref form: {ref!r}"
+
+
+def _validate_proposals(proposals: list, project_root: Path) -> list:
+    """Fail-closed validation. Returns a list of error strings ([] == OK)."""
+    errors = []
+    events = _load_events(project_root)
+    for i, p in enumerate(proposals):
+        path = f"proposals[{i}]"
+        if not isinstance(p, dict):
+            errors.append(f"{path}: not an object")
+            continue
+        for field in REQUIRED_FIELDS:
+            if not p.get(field):
+                errors.append(f"{path}: missing required field '{field}'")
+        if p.get("effort") not in ALLOWED_EFFORT:
+            errors.append(f"{path}: effort {p.get('effort')!r} not in {sorted(ALLOWED_EFFORT)}")
+        if p.get("impact") not in ALLOWED_IMPACT:
+            errors.append(f"{path}: impact {p.get('impact')!r} not in {sorted(ALLOWED_IMPACT)}")
+        refs = p.get("evidence_refs") or []
+        if not refs and not p.get("assumption"):
+            errors.append(f"{path}: proposal needs >=1 evidence_ref OR assumption: true")
+        for ref in refs:
+            ok, reason = _resolve_ref(ref, project_root, events)
+            if not ok:
+                errors.append(f"{path}: {reason}")
+    return errors
+
+
+def _load_contract_proposals(project_root: Path) -> tuple:
+    """Read evolution/innovation-proposals.yaml; return (proposals, error) or (None, reason)."""
+    f = project_root / PROPOSALS_FILE
+    if not f.exists():
+        return None, "absent"
+    try:
+        with open(f, "r", encoding="utf-8") as fh:
+            doc = yaml.safe_load(fh) or {}
+    except Exception as e:
+        return None, f"unparsable: {e}"
+    proposals = doc.get("proposals") or []
+    if not isinstance(proposals, list):
+        return None, "'proposals' is not a list"
+    errors = _validate_proposals(proposals, project_root)
+    if errors:
+        return None, "; ".join(errors)
+    return proposals, None
 
 
 def run_innovation_cycle(project_root: Path, dry_run: bool = False) -> dict:
@@ -273,7 +361,23 @@ def run_innovation_cycle(project_root: Path, dry_run: bool = False) -> dict:
     print(f"Current stage: {current_stage}")
     print(f"Domain template: {template_name}")
 
-    proposals = propose_innovations(product_state, advancements, current_stage)
+    # WP4: proposals come ONLY from the INNOVATE prompt contract.
+    proposals, perr = _load_contract_proposals(project_root)
+    if proposals is None:
+        print("\nℹ️  No innovation-proposals.yaml (or it is invalid).")
+        if perr != "absent":
+            print(f"   INVALID: {perr}")
+        print("   Run the INNOVATE prompt contract "
+              "(meta/prompt-contracts/innovate/instructions.md) to produce "
+              f"{PROPOSALS_FILE}. domain-advancements*.yaml is an EXAMPLE BANK, "
+              "not the source of truth.")
+        return {"status": "no_proposals_contract", "proposals": []}
+    print(f"\nContract proposals: {len(proposals)} (validated, evidence traceable)")
+
+    # Approval tiering (WP4): high-effort or security proposals need approval.
+    for p in proposals:
+        p["requires_approval"] = (p.get("effort") == "high" or
+                                  p.get("category") == "security")
 
     # Doc staleness check (v2.6+)：与 product innovation 并行
     # 注意：doc_refresh 不受 all_met 限制——即使 AC 未全完成，文档也可能过时

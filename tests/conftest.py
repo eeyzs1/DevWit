@@ -19,13 +19,18 @@ def meta_root(tmp_path):
     root = tmp_path / "meta-harness"
     (root / "meta").mkdir(parents=True)
     (root / "scripts").mkdir()
+    (root / "memory").mkdir()
     (root / "hooks" / "pre-advance").mkdir(parents=True)
     shutil.copy2(HARNESS_ROOT / "meta" / "meta-orchestrator.py", root / "meta" / "meta-orchestrator.py")
     for script in ("state_fold.py", "brief_gen.py", "log_invariant.py",
-                   "compact_context.py", "spill.py", "events.py", "interpret.py"):
+                   "compact_context.py", "spill.py", "events.py", "interpret.py",
+                   "validate_contract.py"):
         shutil.copy2(HARNESS_ROOT / "scripts" / script, root / "scripts" / script)
-    shutil.copy2(HARNESS_ROOT / "hooks" / "pre-advance" / "10-validate-harness.py",
-                 root / "hooks" / "pre-advance" / "10-validate-harness.py")
+    for hook in (HARNESS_ROOT / "hooks" / "pre-advance").glob("*.py"):
+        shutil.copy2(hook, root / "hooks" / "pre-advance" / hook.name)
+    # prompt contracts (validated by the 20-deepen-gate hook)
+    shutil.copytree(HARNESS_ROOT / "meta" / "prompt-contracts",
+                    root / "meta" / "prompt-contracts")
     return root
 
 

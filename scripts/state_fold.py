@@ -31,11 +31,13 @@ completed_phases, phase_history, verified_criteria, errors, rounds,
 consecutive_blocked, updated_at. Everything else is event-backed.
 
 Usage:
-    python scripts/state-fold.py --log <path> --fold          # print projection
-    python scripts/state-fold.py --log <path> --dump          # print events
+    python scripts/state_fold.py --log <path> --fold          # print projection
+    python scripts/state_fold.py --log <path> --dump          # print events
+    python scripts/state_fold.py --log <path> --compact 200   # checkpoint-compact
 """
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -62,12 +64,14 @@ SCALAR_KEYS = {
 }
 
 EVENT_TYPES = {
-    "seed/import", "phase/start", "phase/advance", "phase/refused",
+    "seed/import", "checkpoint", "phase/start", "phase/advance", "phase/refused",
     "phase/force", "phase/interrupted", "criteria/locked",
     "criterion/verified", "meta/set", "guard/check", "pipeline/block",
     "error/recorded", "mistake/recorded",
     "compaction/start", "compaction/summary", "compaction/end",
     "artifact/spilled",
+    # WP1 evidence ledger: real command results, never self-reports.
+    "verify/run", "test/run", "audit/round",
 }
 
 # After this many consecutive refusals with the same code the pipeline blocks.
@@ -81,7 +85,7 @@ def _now_iso() -> str:
 
 def _default_state() -> dict:
     return {
-        "pipeline_version": "3.0.0",
+        "pipeline_version": "3.1.0",
         "current_phase": PIPELINE_PHASES[0],
         "phase_order": list(PIPELINE_PHASES),
         "completed_phases": [],
@@ -94,6 +98,7 @@ def _default_state() -> dict:
         "acceptance_criteria": [],
         "verified_criteria": [],
         "errors": [],
+        "evidence": [],
         "revision": 0,
         "stateVersion": 0,
         "blocked_code": None,
@@ -107,6 +112,52 @@ def _default_state() -> dict:
 
 
 # ---------------------------------------------------------------- load/save
+
+def _event_hash(prev_hash: str, ev: dict) -> str:
+    """SHA-256 over prev_hash + canonical JSON of the event (minus 'hash')."""
+    canonical = json.dumps({k: v for k, v in ev.items() if k != "hash"},
+                           sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256((prev_hash + canonical).encode("utf-8")).hexdigest()
+
+
+def chain_events(events: list) -> list:
+    """Re-chain every event with prev_hash/hash (P2#12 hash-chain integrity).
+
+    Idempotent: strips any existing hashes, then chains from the first event.
+    """
+    prev = ""
+    chained = []
+    for ev in events:
+        ev = dict(ev)
+        ev.pop("hash", None)
+        ev["prev_hash"] = prev
+        ev["hash"] = _event_hash(prev, ev)
+        prev = ev["hash"]
+        chained.append(ev)
+    return chained
+
+
+def verify_chain(events: list) -> list:
+    """Verify the hash chain; returns the 1-based indexes of broken events.
+
+    Legacy logs without hashes are skipped ([]). A mixed log (some hashed,
+    some not) is treated as broken at the first missing hash.
+    """
+    broken = []
+    prev = ""
+    expect_hash = False
+    for i, ev in enumerate(events, start=1):
+        if "hash" not in ev:
+            if expect_hash:
+                broken.append(i)
+            continue
+        expect_hash = True
+        recomputed = _event_hash(ev.get("prev_hash", ""), ev)
+        if ev["hash"] != recomputed or ev.get("prev_hash", "") != prev:
+            broken.append(i)
+        prev = ev["hash"]
+    return broken
+
 
 def load_events(log_path) -> list:
     """Load events, validating version and contiguous seq. Fail-closed."""
@@ -137,10 +188,10 @@ def load_events(log_path) -> list:
 
 
 def save_events(log_path, events: list) -> None:
-    """Write events atomically (temp file + os.replace)."""
+    """Write events atomically (temp file + os.replace), hash-chained."""
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    doc = {"version": LOG_VERSION, "events": events}
+    doc = {"version": LOG_VERSION, "events": chain_events(events)}
     fd, tmp = tempfile.mkstemp(dir=str(log_path.parent), prefix=".event-log-", suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
@@ -202,6 +253,15 @@ def fold(events: list, defaults: dict = None) -> dict:
         payload = ev.get("payload", {})
         ts = ev.get("ts")
         if typ == "seed/import":
+            snapshot = payload.get("snapshot") or {}
+            merged = deepcopy(state)
+            merged.update({k: v for k, v in snapshot.items()
+                           if k in _default_state() or k in ("status",)})
+            state = merged
+        elif typ == "checkpoint":
+            # P2#9: checkpoint compaction — the folded state persisted as a
+            # first event; the tail replays after it. Same semantics as
+            # seed/import (state-carrying, whole-value).
             snapshot = payload.get("snapshot") or {}
             merged = deepcopy(state)
             merged.update({k: v for k, v in snapshot.items()
@@ -316,6 +376,17 @@ def fold(events: list, defaults: dict = None) -> dict:
                 "bytes": payload.get("bytes"),
                 "retrievalHint": payload.get("retrievalHint", ""),
             }
+        elif typ in ("verify/run", "test/run", "audit/round"):
+            # WP1 evidence ledger: real command results recorded as events.
+            state.setdefault("evidence", []).append({
+                "seq": ev["seq"], "ts": ts, "kind": typ.split("/")[0],
+                "name": payload.get("name") or payload.get("command") or typ,
+                "command": payload.get("command"),
+                "exit": payload.get("exit"),
+                "passed": bool(payload.get("passed", payload.get("exit") == 0)),
+                "summary": payload.get("summary", ""),
+                "payload": {k: v for k, v in payload.items() if k not in ("name", "command", "exit", "passed", "summary")},
+            })
         state["updated_at"] = ts
 
     # ---- derived fields (pure functions of the log) ----
@@ -383,6 +454,36 @@ def write_projection(state: dict, state_path) -> None:
         raise
 
 
+def compact_log(log_path, keep_last: int = 200) -> int:
+    """Checkpoint-based compaction (P2#9): bound the log's growth.
+
+    Folds the whole log, persists the folded state as a `checkpoint` first
+    event, then keeps the checkpoint + the last keep_last events. The fold is
+    unchanged for any observer (state is identical); evidence entries survive
+    inside the checkpoint snapshot, so named verify:/test:/audit: refs keep
+    resolving. NOTE: old `event:<seq>` references to compacted events become
+    invalid — documented tradeoff of bounding the log.
+
+    Returns the new log length, or 0 when no compaction was needed.
+    """
+    log_path = Path(log_path)
+    events = load_events(log_path)
+    if len(events) <= keep_last:
+        return 0
+    state = fold(events)
+    tail = events[-keep_last:]
+    new_events = [{
+        "seq": 1, "ts": _now_iso(), "type": "checkpoint",
+        "phase": None, "payload": {"snapshot": state},
+    }]
+    for i, ev in enumerate(tail, start=2):
+        ev = dict(ev)
+        ev["seq"] = i
+        new_events.append(ev)
+    save_events(log_path, new_events)
+    return len(new_events)
+
+
 # ---------------------------------------------------------------- CLI
 
 def main():
@@ -392,9 +493,16 @@ def main():
     parser.add_argument("--dump", action="store_true", help="print the raw events")
     parser.add_argument("--append", default=None, metavar="JSON",
                         help="append one event given as JSON {type, phase?, payload?}")
+    parser.add_argument("--compact", type=int, default=0, metavar="KEEP_LAST",
+                        help="checkpoint-compact the log keeping the last N events (P2#9)")
     args = parser.parse_args()
 
     log_path = Path(args.log)
+    if args.compact:
+        new_len = compact_log(log_path, keep_last=args.compact)
+        print(f"compacted: {len(load_events(log_path)) if new_len else 'no-op'} events "
+              f"(keep_last={args.compact})")
+        return
     if args.append:
         ev = json.loads(args.append)
         rev = append_events(log_path, [ev])

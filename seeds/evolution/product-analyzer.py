@@ -111,7 +111,12 @@ def analyze_product_state(project_root: Path) -> dict:
     completed = state.get("progress", {}).get("completed_criteria", [])
     total_criteria = task.get("acceptance_criteria", [])
 
+    # P0#1 completion oracle: "are we done" must be backed by LEDGER EVIDENCE,
+    # never by the self-reported completed_criteria alone.
+    evidence = _load_evidence(project_root)
+
     return {
+        "analysis_kind": "fact",  # MECHANICAL FACTS, not conclusions (WP4)
         "project_root": str(project_root),
         "task_name": task.get("name", "unknown"),
         "domain": task.get("domain", "unknown"),
@@ -124,8 +129,34 @@ def analyze_product_state(project_root: Path) -> dict:
             "completed": len(completed),
             "completion_rate": len(completed) / len(total_criteria) if total_criteria else 0,
         },
-        "all_criteria_met": len(completed) >= len(total_criteria) and len(total_criteria) > 0,
+        "evidence_basis": evidence,
+        # All criteria recorded AND real passing verify/test/audit evidence exists.
+        "all_criteria_met": (len(completed) >= len(total_criteria) and len(total_criteria) > 0
+                             and evidence["has_passing_evidence"]),
     }
+
+
+def _load_evidence(project_root: Path) -> dict:
+    """Fold memory/event-log.yaml into an evidence-basis fact.
+
+    A hand-written session-state.yaml claiming completion is NOT enough: only
+    real verify/test/audit records with passed=true count.
+    """
+    log_file = project_root / "memory" / "event-log.yaml"
+    kinds = set()
+    if log_file.exists():
+        try:
+            with open(log_file, "r", encoding="utf-8") as f:
+                events = (yaml.safe_load(f) or {}).get("events", []) or []
+            for ev in events:
+                if ev.get("type") in ("verify/run", "test/run", "audit/round"):
+                    payload = ev.get("payload") or {}
+                    passed = payload.get("passed", payload.get("exit") == 0)
+                    if passed:
+                        kinds.add(ev["type"].split("/")[0])
+        except Exception:
+            pass
+    return {"has_passing_evidence": bool(kinds), "kinds": sorted(kinds)}
 
 
 def main():

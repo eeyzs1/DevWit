@@ -405,12 +405,89 @@ def write_task_file(task: dict, output_path: Path) -> None:
         yaml.dump(task, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
 
+# ---------------------------------------------------------------- deepen (WP7)
+# The DEEPEN prompt contract produces memory/deepen-corrections.yaml; this
+# function validates it (schema + domain whitelist + non-empty criteria) and
+# merges it over the baseline task.yaml. Script guarantees structure; the LLM
+# step (that wrote the corrections) guarantees understanding.
+
+KNOWN_DOMAINS = {"web_app", "api_service", "automation", "data_pipeline", "content_system"}
+KNOWN_SCALES = {"personal", "team", "organization", "public"}
+DEEPEN_FIELDS = ("domain", "scale", "goal", "quality_attributes",
+                 "acceptance_criteria", "assumptions", "unknowns")
+
+
+def apply_deepen(task: dict, corrections: dict, output_path: Path = None) -> dict:
+    import validate_contract as vc
+    errors = []
+    schema_path = Path(__file__).resolve().parent.parent / "meta" / "prompt-contracts" / "deepen" / "schema.yaml"
+    if not schema_path.exists():
+        errors.append("deepen schema not found (meta/prompt-contracts/deepen/schema.yaml)")
+    else:
+        try:
+            vc.validate_value(corrections, vc.load_schema(schema_path), "corrections", errors)
+        except ValueError as e:
+            errors.append(str(e))
+
+    domain = str(corrections.get("domain", "")).replace("-", "_").strip().lower()
+    if domain not in KNOWN_DOMAINS:
+        errors.append(f"domain {corrections.get('domain')!r} not in {sorted(KNOWN_DOMAINS)}")
+    if "scale" in corrections and corrections["scale"] not in KNOWN_SCALES:
+        errors.append(f"scale {corrections.get('scale')!r} not in {sorted(KNOWN_SCALES)}")
+    ac = corrections.get("acceptance_criteria")
+    if ac is not None and (not isinstance(ac, list) or not ac or
+                           not all(isinstance(c, str) and c.strip() for c in ac)):
+        errors.append("acceptance_criteria must be a non-empty list of non-empty strings")
+
+    if errors:
+        print("DEEPEN FAIL:", file=sys.stderr)
+        for e in errors:
+            print(f"  - {e}", file=sys.stderr)
+        return None
+
+    task["domain"] = domain
+    for field in DEEPEN_FIELDS:
+        if field == "domain":
+            continue
+        if field in corrections and corrections[field] is not None:
+            task[field] = corrections[field]
+
+    if output_path is not None:
+        write_task_file(task, output_path)
+        print(f"Deepened task written to: {output_path}")
+        print(f"  Domain: {task['domain']} | Scale: {task.get('scale')} | "
+              f"Criteria: {len(task.get('acceptance_criteria', []))}")
+    return task
+
+
 def main():
     parser = argparse.ArgumentParser(description="Meta-Harness Interpreter")
     parser.add_argument("--intent", default=None, help="Raw intent string")
     parser.add_argument("--intent-file", default=None, help="File containing raw intent")
     parser.add_argument("--output", default=None, help="Output task definition file (YAML)")
+    parser.add_argument("--deepen", default=None, metavar="CORRECTIONS",
+                        help="Apply a DEEPEN-contract corrections file (WP7)")
+    parser.add_argument("--task", default=None, help="task.yaml to deepen (with --deepen)")
     args = parser.parse_args()
+
+    if args.deepen:
+        if not args.task:
+            print("ERROR: --deepen requires --task <task.yaml>")
+            sys.exit(1)
+        task_path = Path(args.task)
+        if not task_path.exists():
+            print(f"ERROR: Task file not found: {task_path}")
+            sys.exit(1)
+        with open(task_path, "r", encoding="utf-8") as f:
+            task = yaml.safe_load(f) or {}
+        corrections_path = Path(args.deepen)
+        if not corrections_path.exists():
+            print(f"ERROR: Corrections file not found: {corrections_path}")
+            sys.exit(1)
+        with open(corrections_path, "r", encoding="utf-8") as f:
+            corrections = yaml.safe_load(f) or {}
+        result = apply_deepen(task, corrections, Path(args.output) if args.output else task_path)
+        sys.exit(0 if result is not None else 1)
 
     if args.intent:
         intent = args.intent

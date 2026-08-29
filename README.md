@@ -115,7 +115,7 @@ python orchestrator.py --innovate
 python scripts/quality-score.py
 ```
 
-**管道控制（v3.0，事件日志驱动）：**
+**管道控制（v3.1，事件日志驱动）：**
 ```bash
 # 初始化 / 解释意图（锁定验收标准）
 python meta/meta-orchestrator.py --status
@@ -272,29 +272,27 @@ Harness 是围绕 AI 代理构建的**约束+工具+验证**系统。就像赛�
 - 变异率永远不超过 30%（否则系统陷入混乱）
 - 所有变异必须可逆（保留上一版基因组）
 
-### 推陈出新：创新引擎
+### 推陈出新：创新引擎（v3.1：契约驱动，诚实标注）
 
-系统最独特的能力——**不只是完成需求，而是超越需求**。
-
-当所有验收标准满足后，创新引擎会自动启动：
+当所有验收标准满足后，创新引擎启动。**它不再"自动发现"创新**——创新提案由
+执行管道的 agent 按 INNOVATE 提示词契约（`prompt-contracts/innovate/`）产出，
+引擎负责校验（schema + 证据溯源，fail-closed）、分级（🔒/🟢）与记录：
 
 ```
-需求满足 → 产品状态分析 → 领域进阶匹配 → 创新提案 → 优先级排序 → 人工确认
+需求满足 → 产品机械事实（product-analyzer，kind: fact）
+        → INNOVATE 契约提案（每条可溯源或显式标注 assumption）
+        → 引擎校验 + 审批分级 → 人工确认（高危）→ 记录 evolution/innovation-log.yaml
 ```
 
-**四阶段进阶模型：**
+**四阶段进阶模型（阶段判定基于机械事实，不再有"空产品=Solid"的 bug）：**
 
-| 阶段 | 含义 | 说明 |
+| 阶段 | 判定依据（事实） | 说明 |
 |------|------|------|
-| **Basic** | 满足需求 | 核心功能实现，基本测试通过 |
-| **Solid** | 生产可用 | 错误处理、加载状态、输入校验、分页、通知 |
-| **Advanced** | 竞品水准 | 离线支持、暗色模式、快捷键、搜索过滤、审计追踪 |
-| **Excellent** | 市场领先 | 实时协作、无障碍访问、国际化、性能监控 |
+| **Basic** | 满足需求但证据不足 | 核心功能实现 |
+| **Solid** | >5 个有内容文件 + 有测试 | 生产可用 |
+| **Advanced** | >10 个文件 + >10 个测试 | 竞品水准 |
 
-创新引擎根据当前产品所处的阶段，自动提出下一阶段的创新建议。例如：
-
-- Web 应用在 Basic 阶段完成后，会建议添加错误边界、加载状态、输入校验等 Solid 阶段特性
-- API 服务在 Solid 阶段完成后，会建议添加游标分页、Webhook 通知、缓存层等 Advanced 阶段特性
+`domain-advancements.yaml` 是**示例库**（参考方向/措辞），不是提案的真相源。
 
 **安全机制：**
 - 高工作量或安全相关的创新需要人工确认（🔒 NEEDS APPROVAL）
@@ -330,6 +328,27 @@ Node/Cordis 运行时，全部以 Python + YAML + Markdown 实现）：
 3. **门禁带回归测试**：`tests/test_state_fold.py`、`test_orchestrator.py`、
    `test_compose.py`、`test_events.py`、`test_integration.py` 每个门禁都有
    "删掉门禁必红"的回归测试。
+
+---
+
+## 脚本可信度矩阵（诚实标注）
+
+**脚本不会假装语义判断；语义判断走显式提示词契约（`meta/prompt-contracts/`），
+脚本只做机械且真实的事。** 分三档：
+
+| 档位 | 含义 | 覆盖 |
+|---|---|---|
+| 🟢 **mechanical**（可靠） | 确定性算法，测试可证，不做语义判断 | 事件日志/投影/不变量、编排器、scaffold、compose、DAG 环检测、拓扑排序、快照/回滚、契约校验器 `validate_contract.py` |
+| 🟡 **heuristic**（启发式） | 正则/词频扫描，能抓明显违规，可误报可绕过 | `interpret.py` 基线分类、`guard.py --check` 计划文本、`anti-mock-check.py`、`quality-gate.py`、fitness 计算 |
+| 🔵 **prompt-contract**（语义，LLM 承担） | 脚本出脚手架/做校验，判断由执行管道的 agent 按契约完成 | JUDGE 裁决、AUDIT 审计、INNOVATE 提案、DEEPEN 深化、PLAN-REVIEW、EVOLVE 提案 |
+
+**关键约定（v3.1）**：
+- `judge.py` 的 PROVEN 必须基于**真实执行的 verify/test 记录**（证据账本）——
+  手写状态文件不再算证据；无证据 = `INSUFFICIENT_EVIDENCE`。
+- 创新引擎不再从预写清单自动"提出创新"：`domain-advancements.yaml` 是**示例库**，
+  提案必须来自 INNOVATE 契约且每条可溯源或显式标注 `assumption`。
+- `guard.py --scan` 对**真实工作树**跑反 mock/质量扫描，是代码质量的机械门禁；
+  `--check` 的计划文本检查是启发式辅助。
 
 ---
 

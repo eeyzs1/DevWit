@@ -111,6 +111,18 @@ def check(log_path: Path, state_path: Path = None, brief_path: Path = None) -> l
                          f"{starts} compaction/start but only {ends} compaction/end "
                          f"-- previous summarization crashed mid-way"))
 
+    # -- checkpoint must be the first event (P2#9: compaction structure)
+    if events and events[0].get("type") == "checkpoint" and events[0].get("seq") != 1:
+        failures.append(("INVARIANT_CHECKPOINT_POSITION",
+                         "checkpoint event must be seq 1"))
+
+    # -- hash chain integrity (P2#12): tampered events must fail
+    broken = state_fold.verify_chain(events)
+    if broken:
+        failures.append(("INVARIANT_LOG_CHAIN",
+                         f"hash chain broken at event(s) {broken[:5]} "
+                         f"-- the log was tampered or corrupted"))
+
     return failures
 
 

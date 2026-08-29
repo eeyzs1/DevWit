@@ -167,7 +167,37 @@ def verify_layer(project_dir: Path, layer: str, requirements: dict) -> dict:
     return result
 
 
-def verify_project(project_dir: Path) -> dict:
+def run_enabled_checks(project_dir: Path) -> dict:
+    """P1#6: actually RUN the generated project's checks (self-check, quality
+    gate, anti-mock) instead of only checking they exist. A non-zero exit is a
+    verification failure (verify the world, not the file list)."""
+    import subprocess
+    results = {"runs": [], "failed": False}
+    candidates = [
+        ("verification/self-check.py", ["--project-root", str(project_dir)]),
+        ("verification/anti-mock-check.py", ["--project-root", str(project_dir)]),
+        ("verification/quality-gate.py", ["--check"]),
+    ]
+    for rel, args in candidates:
+        script = project_dir / rel
+        if not script.exists():
+            continue
+        try:
+            proc = subprocess.run([sys.executable, str(script)] + args,
+                                  capture_output=True, text=True, cwd=str(project_dir),
+                                  encoding="utf-8", errors="replace")
+        except Exception as exc:
+            results["runs"].append({"check": rel, "exit": -1, "error": str(exc)})
+            results["failed"] = True
+            continue
+        results["runs"].append({"check": rel, "exit": proc.returncode,
+                                "tail": (proc.stdout or "")[-200:]})
+        if proc.returncode != 0:
+            results["failed"] = True
+    return results
+
+
+def verify_project(project_dir: Path, run_checks: bool = False) -> dict:
     if not project_dir.exists():
         print(f"ERROR: Project directory does not exist: {project_dir}")
         sys.exit(1)
@@ -185,6 +215,14 @@ def verify_project(project_dir: Path) -> dict:
 
     if not all(results["root_files"].values()):
         results["overall_passed"] = False
+
+    # P1#6: really run the generated project's checks when requested.
+    results["check_runs"] = []
+    if run_checks:
+        runs = run_enabled_checks(project_dir)
+        results["check_runs"] = runs["runs"]
+        if runs["failed"]:
+            results["overall_passed"] = False
 
     return results
 
@@ -234,13 +272,23 @@ def print_results(results: dict) -> None:
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python scripts/verify-generation.py <generated-project-dir>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Verify a generated harness project (7+2 layers)")
+    parser.add_argument("project_dir", help="Generated project directory")
+    parser.add_argument("--run-checks", action="store_true",
+                        help="Actually run self-check/anti-mock/quality gates (P1#6)")
+    args = parser.parse_args()
 
-    project_dir = Path(sys.argv[1])
-    results = verify_project(project_dir)
+    project_dir = Path(args.project_dir)
+    results = verify_project(project_dir, run_checks=args.run_checks)
     print_results(results)
+
+    if results.get("check_runs"):
+        print("\n--- Enabled Check Runs ---")
+        for run in results["check_runs"]:
+            status = "✅" if run["exit"] == 0 else "❌"
+            print(f"  {status} {run['check']} (exit {run['exit']})")
+            if run.get("tail"):
+                print(f"      {run['tail'][:150]}")
 
     if not results["overall_passed"]:
         sys.exit(1)

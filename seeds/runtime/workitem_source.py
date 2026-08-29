@@ -124,13 +124,16 @@ class WorkitemSource(ABC):
 # Factory：supervisor.py 通过此函数加载 adapter
 # ============================================================================
 
-def load_source(config: dict):
+def load_source(config: dict, project_root=None):
     """根据 config 加载具体 adapter 实例。
 
     config 结构（来自 planning/workitem-source.yaml）：
         adapter: yunxiao           # 模块名（runtime/sources/yunxiao_source.py）
         class_name: YunxiaoSource  # 类名
         # ...其他 adapter 特定配置
+
+    project_root（可选）：传入后将作为 config["project_root"] 注入实例，
+    让 adapter 能解析相对路径而不依赖 cwd（P2#12 鲁棒性修复）。
 
     Returns:
         WorkitemSource 子类实例
@@ -147,6 +150,8 @@ def load_source(config: dict):
             "workitem-source.yaml must declare 'adapter' (module name in "
             "runtime/sources/) and 'class_name'"
         )
+    if project_root is not None:
+        config = {**config, "project_root": str(project_root)}
 
     # adapter 模块路径约定：runtime/sources/<adapter>_source.py
     module_path = f"runtime.sources.{adapter_name}_source"

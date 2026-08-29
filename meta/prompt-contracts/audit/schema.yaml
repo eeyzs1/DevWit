@@ -1,0 +1,28 @@
+version: 1
+required: [rounds, commands, criteria]
+properties:
+  rounds:
+    type: integer
+  passed:
+    type: boolean
+  commands:
+    type: array
+    items:
+      type: object
+      required: [command, exit]
+      properties:
+        command: {type: string}
+        exit: {type: integer}
+  criteria:
+    type: array
+    items:
+      type: object
+      required: [criterion, verdict]
+      properties:
+        criterion: {type: string}
+        verdict:
+          type: string
+          enum: [pass, fail, trust_prior]
+  gaps:
+    type: array
+    items: {type: string}

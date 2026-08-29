@@ -52,6 +52,8 @@ SESSION_STATE = PROJECT_ROOT / "memory" / "session-state.yaml"
 GEN_EVENT_TYPES = {
     "seed/import", "project/init", "criterion/completed",
     "guard/check", "error/recorded", "mistake/recorded",
+    # WP1 evidence ledger: real command results, never self-reports.
+    "verify/run", "test/run", "audit/round",
 }
 
 
@@ -72,6 +74,24 @@ def _load_events() -> list:
     return events
 
 
+def _chain_events(events: list) -> list:
+    """P2#12 hash-chain integrity: prev_hash + sha256 over the event."""
+    import hashlib
+    import json
+    prev = ""
+    chained = []
+    for ev in events:
+        ev = dict(ev)
+        ev.pop("hash", None)
+        canonical = json.dumps({k: v for k, v in ev.items() if k != "hash"},
+                               sort_keys=True, ensure_ascii=False, default=str)
+        ev["prev_hash"] = prev
+        ev["hash"] = hashlib.sha256((prev + canonical).encode("utf-8")).hexdigest()
+        prev = ev["hash"]
+        chained.append(ev)
+    return chained
+
+
 def _append_events(new_events: list) -> None:
     events = _load_events()
     base = len(events)
@@ -83,7 +103,7 @@ def _append_events(new_events: list) -> None:
                        "payload": ev.get("payload", {})})
     EVENT_LOG.parent.mkdir(parents=True, exist_ok=True)
     with open(EVENT_LOG, "w", encoding="utf-8") as f:
-        yaml.dump({"version": 1, "events": events}, f,
+        yaml.dump({"version": 1, "events": _chain_events(events)}, f,
                   default_flow_style=False, allow_unicode=True, sort_keys=False)
 
 
@@ -117,6 +137,16 @@ def _fold(events: list) -> dict:
             state["errors"].append(payload.get("message", ""))
         elif typ == "mistake/recorded":
             state["errors"].append(f"[mistake] {payload.get('message', '')}")
+        elif typ in ("verify/run", "test/run", "audit/round"):
+            # WP1 evidence ledger: real command results accumulated in the fold.
+            state.setdefault("evidence", []).append({
+                "seq": ev["seq"], "ts": ts, "kind": typ.split("/")[0],
+                "name": payload.get("name") or payload.get("command") or typ,
+                "command": payload.get("command"),
+                "exit": payload.get("exit"),
+                "passed": bool(payload.get("passed", payload.get("exit") == 0)),
+                "summary": payload.get("summary", ""),
+            })
         state["updated_at"] = ts
     return state
 
@@ -333,12 +363,27 @@ def run_verification() -> dict:
         print(f"\n--- {rid} ---")
         proc = run_script(script, args_builder(PROJECT_ROOT))
         print(proc.stdout)
+        if proc.stderr:
+            print(proc.stderr[-500:])
+        # WP1: record the REAL result into the evidence ledger (never a
+        # self-report). judge/audit read this, not the printed text.
+        try:
+            _append_events([{
+                "type": "verify/run",
+                "payload": {"name": rid, "command": " ".join(proc.args or []),
+                            "exit": proc.returncode,
+                            "passed": proc.returncode == 0,
+                            "summary": (proc.stdout or "").strip()[-200:]},
+            }])
+        except Exception as e:
+            print(f"⚠️  evidence record failed (contained): {e}")
         if proc.returncode != 0:
             all_passed = False
-            if proc.stderr:
-                print(proc.stderr[-500:])
         else:
             print(f"✅ {rid} passed")
+
+    # WP1: if a test runner is declared, run it and record test/run evidence.
+    _run_declared_tests()
 
     print(f"\n{'='*60}")
     if all_passed:
@@ -350,6 +395,58 @@ def run_verification() -> dict:
     print(f"{'='*60}")
 
     return {"passed": all_passed}
+
+
+def _locked_test_command() -> str:
+    """Read the test command LOCKED at generation time (P0#2).
+
+    Source of truth: harness-profile.yaml verification.command. task.yaml's
+    verification field is IGNORED at runtime (it could be edited post-hoc to
+    turn the test command into a tautology). Falls back to project probes.
+    """
+    profile_file = PROJECT_ROOT / "harness-profile.yaml"
+    if profile_file.exists():
+        with open(profile_file, "r", encoding="utf-8") as f:
+            profile = yaml.safe_load(f) or {}
+        cmd = ((profile.get("verification") or {}) or {}).get("command")
+        if cmd:
+            return str(cmd)
+    for probe, cmd in (("pyproject.toml", "python -m pytest -q"),
+                       ("pytest.ini", "python -m pytest -q"),
+                       ("package.json", "npm test")):
+        if (PROJECT_ROOT / probe).exists():
+            return cmd
+    return None
+
+
+def _run_declared_tests() -> None:
+    """Run the LOCKED test command and record test/run evidence.
+
+    No locked command -> no test evidence (fail-closed: a criterion can never
+    be PROVEN on test evidence that does not exist)."""
+    cmd = _locked_test_command()
+    if not cmd:
+        return
+    print(f"\n--- Tests: {cmd} ---")
+    try:
+        import shlex
+        cmd_parts = shlex.split(cmd)  # P1#5: no shell=True
+        proc = subprocess.run(cmd_parts, cwd=str(PROJECT_ROOT),
+                              capture_output=True, text=True, encoding="utf-8",
+                              errors="replace")
+    except Exception as e:
+        proc = None
+        print(f"⚠️  could not run tests: {e}")
+    _append_events([{
+        "type": "test/run",
+        "payload": {"name": "tests", "command": str(cmd), "exit": proc.returncode if proc else -1,
+                    "passed": bool(proc and proc.returncode == 0),
+                    "summary": ((proc.stdout or "")[-300:] + (proc.stderr or "")[-200:]) if proc else str(e)},
+    }])
+    if proc:
+        print(proc.stdout[-400:] if proc.stdout else "")
+        print(proc.stderr[-200:] if proc.stderr else "")
+    print(f"✅ Tests {'PASSED' if (proc and proc.returncode == 0) else 'FAILED'} (recorded as test/run evidence)")
 
 
 def mark_complete(criterion_text: str) -> dict:

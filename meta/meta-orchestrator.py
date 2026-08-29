@@ -134,7 +134,10 @@ PHASE: INTERPRET -- Intent -> Structured Task
    - Domain classification
 5. Confirm with user before proceeding (this is the only mandatory human gate)
 6. Lock criteria: python meta/meta-orchestrator.py --save-acceptance-criteria "<criteria>"
-7. When confirmed, run: python meta/meta-orchestrator.py --advance
+7. DEEPEN (enforced by hooks/pre-advance/20-deepen-gate.py): write
+   memory/deepen-corrections.yaml per meta/prompt-contracts/deepen/, then:
+   python scripts/interpret.py --deepen memory/deepen-corrections.yaml --task task.yaml
+8. When confirmed and deepened, run: python meta/meta-orchestrator.py --advance
 """,
     "GENERATE": """
 PHASE: GENERATE -- Task -> Executable Harness Project (v2 LLM-driven flow)
@@ -207,7 +210,8 @@ PHASE_SCRIPTS = {
     },
     "PROVE": {
         "script": "scripts/verify-generation.py",
-        "args": lambda state: [state.get("generated_project_dir") or "."],
+        "args": lambda state: [state.get("generated_project_dir") or ".",
+                               "--run-checks"],  # P1#6: really run the checks
     },
     "JUDGE": {
         "script": "scripts/judge.py",
@@ -767,6 +771,17 @@ def compact_context() -> int:
     return proc.returncode
 
 
+def compact_log(keep_last: int) -> int:
+    """P2#9: checkpoint-compact the event log to bound its growth, then refresh
+    projections at the new watermark."""
+    new_len = state_fold.compact_log(LOG_FILE, keep_last=keep_last)
+    if new_len:
+        state = fold(load_events(LOG_FILE))
+        _refresh(state)
+    print(f"log compacted (keep_last={keep_last}, len={new_len or 'no-op'})")
+    return 0
+
+
 def reset_pipeline() -> dict:
     for p in (LOG_FILE, STATE_FILE, BRIEF_FILE):
         if p.exists():
@@ -833,6 +848,8 @@ def main():
                         help="Run scripts/log_invariant.py (fail-closed checks)")
     parser.add_argument("--compact", action="store_true",
                         help="Regenerate the brief as a lock-bracketed compaction (WP7)")
+    parser.add_argument("--compact-log", type=int, default=0, metavar="KEEP_LAST",
+                        help="Checkpoint-compact the event log keeping the last N events (P2#9)")
     args = parser.parse_args()
 
     if args.reset:
@@ -900,6 +917,9 @@ def main():
 
     if args.compact:
         sys.exit(compact_context())
+
+    if args.compact_log:
+        sys.exit(compact_log(args.compact_log))
 
     if args.events:
         show_events()

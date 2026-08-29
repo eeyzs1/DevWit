@@ -63,3 +63,44 @@ Agents need to understand context to make consistent decisions.
 - Alternatives: Passive mistake-driven only; manual optimization; genetic algorithm without meta-evolution
 - Why: Passive feedback is reactive. Evolution is proactive. Meta-evolution ensures the optimization process itself improves over time, preventing stagnation.
 - Consequences: More complex system. Risk of destabilizing mutations. Mitigated by safety constraints (no removing verification, no removing evolution, mutation rate cap, reversibility).
+
+### ADR-007: Evidence Ledger + Prompt Contracts (scripts do mechanical, LLM does semantic)
+- Date: 2026-08-29
+- Context: Reviews showed scripts pretending to do semantic judgment (judge trusted
+  state files, innovation engine counted files) and prompt steps without contracts
+  (auditor-engine was advisory prose).
+- Decision: Split every capability by "can it be decided mechanically":
+  - Mechanically decidable → scripts that REALLY execute (run tests, scan diffs,
+    fold logs, validate schemas) — never read self-reports.
+  - Needs semantic understanding → explicit prompt contracts
+    (`meta/prompt-contracts/<step>/{instructions.md, schema.yaml}`) whose outputs
+    are schema-validated and whose `evidence_refs` must be traceable to the
+    event log / artifacts / files (fail-closed).
+- Why: The framework's own GENERATE phase (scaffold → LLM fill → validate) was
+  the only correct hybrid; this ADR generalizes it to JUDGE / AUDIT / INNOVATE /
+  DEEPEN / PLAN-REVIEW / EVOLVE.
+- Consequences: `completed_criteria` is advisory only; completion requires ledger
+  evidence. Every semantic step has a mechanical consumer that can reject it.
+
+### ADR-008: Design boundaries — deliberately NOT "TODO" (closed)
+- Date: 2026-08-29
+- Context: Review rounds kept surfacing the same residual items. These are
+  DESIGN BOUNDARIES, not defects. They are closed here so the framework does
+  not enter an infinite self-optimization loop.
+- Decisions:
+  1. **Hash chain trust model**: the YAML event log is hash-chained
+     (`INVARIANT_LOG_CHAIN` detects tampering/corruption), but it does NOT stop
+     a live malicious writer — anyone who can write the log can write a valid
+     hash chain. Local-log trust assumption, same as any agent framework.
+  2. **`file:` evidence refs prove existence, not correctness**: semantic
+     correctness is covered by the AUDIT contract (re-run) + LLM judgment; a
+     mechanical "content is correct" check would just be another fake-semantic
+     heuristic.
+  3. **Checkpoint compaction invalidates old `event:<seq>` refs**: bounded logs
+     are worth more than preserving references to compacted events; named
+     `verify:/test:/audit:/artifact:` refs survive in the checkpoint snapshot.
+  4. **Heuristic scanners are honest, not fixed**: anti-mock/quality/guard
+     regexes can be bypassed or false-positive; they are labeled heuristic and
+     are NOT the authority — the AUDIT re-run and the ledger are.
+- Consequence: These items are archived here; reopen only if a concrete defect
+  (not a hypothetical) demonstrates one of them is wrong.

@@ -1,0 +1,28 @@
+version: 1
+required: [verdict, criteria]
+properties:
+  verdict:
+    type: string
+    enum: [PROVEN, NOT_PROVEN, INSUFFICIENT_EVIDENCE]
+  project:
+    type: string
+  criteria:
+    type: array
+    items:
+      type: object
+      required: [criterion, verdict]
+      properties:
+        criterion:
+          type: string
+          minLength: 1
+        verdict:
+          type: string
+          enum: [PROVEN, NOT_PROVEN, INSUFFICIENT_EVIDENCE]
+        evidence_refs:
+          type: array
+          items: {type: string}
+        confidence:
+          type: string
+          enum: [high, medium, low]
+        rationale:
+          type: string

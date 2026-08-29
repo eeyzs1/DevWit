@@ -1,0 +1,26 @@
+version: 1
+required: [proposals]
+properties:
+  proposals:
+    type: array
+    items:
+      type: object
+      required: [id, name, description, effort, impact]
+      properties:
+        id:
+          type: string
+          minLength: 1
+        name: {type: string}
+        description: {type: string}
+        category: {type: string}
+        effort:
+          type: string
+          enum: [low, medium, high]
+        impact:
+          type: string
+          enum: [low, medium, high]
+        evidence_refs:
+          type: array
+          items: {type: string}
+        assumption:
+          type: boolean

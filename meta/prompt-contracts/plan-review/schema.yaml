@@ -1,0 +1,12 @@
+version: 1
+required: [verdict]
+properties:
+  verdict:
+    type: string
+    enum: [APPROVED, CONCERNS]
+  concerns:
+    type: array
+    items: {type: string}
+  evidence_refs:
+    type: array
+    items: {type: string}

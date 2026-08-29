@@ -147,10 +147,28 @@ def record_mistake_events(project_root: Path, mistakes: list) -> None:
                             "code": "meta-mistake"},
             })
         with open(log_file, "w", encoding="utf-8") as f:
-            yaml.dump({"version": 1, "events": events}, f,
+            yaml.dump({"version": 1, "events": _chain_events(events)}, f,
                       default_flow_style=False, allow_unicode=True, sort_keys=False)
     except Exception as e:
         print(f"WARN: could not record mistake/recorded events: {e}", file=sys.stderr)
+
+
+def _chain_events(events: list) -> list:
+    """P2#12 hash-chain integrity (kept in sync with orchestrator.py)."""
+    import hashlib
+    import json
+    prev = ""
+    chained = []
+    for ev in events:
+        ev = dict(ev)
+        ev.pop("hash", None)
+        canonical = json.dumps({k: v for k, v in ev.items() if k != "hash"},
+                               sort_keys=True, ensure_ascii=False, default=str)
+        ev["prev_hash"] = prev
+        ev["hash"] = hashlib.sha256((prev + canonical).encode("utf-8")).hexdigest()
+        prev = ev["hash"]
+        chained.append(ev)
+    return chained
 
 
 def main():

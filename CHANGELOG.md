@@ -4,6 +4,115 @@ All notable changes to Meta-Harness are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/), adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [3.1.0] — 2026-08-29
+
+### Added — "verify the world, not the self-report" (script vs prompt hybrid)
+
+- **Evidence ledger**: new event types `verify/run`, `test/run`, `audit/round`
+  fold into `state.evidence`; generated-project `orchestrator.py --verify` now
+  REALLY runs enabled checks and records stdout/exit codes as events; new
+  `verification/run-tests.py` runs declared tests and records `test/run`
+  evidence (fail-closed: no test command = no test evidence).
+- **Prompt Contract Registry**: `meta/prompt-contracts/<step>/{instructions.md,
+  schema.yaml}` for judge/audit/innovate/deepen/plan-review/evolve +
+  `scripts/validate_contract.py` (subset schema validator + evidence-ref
+  traceability; `verdict: PROVEN` cross-field rule requires >=1 traceable ref).
+  Contracts are copied into generated projects by scaffold.
+- **JUDGE hybrid**: `--run-verify` is now the default and must really execute;
+  PROVEN requires ledger evidence (verify/test/audit) or a contract-validated
+  `judgment-report.yaml` with traceable refs; `completed_criteria` alone is no
+  longer evidence. Zero-code + hand-written state now yields
+  INSUFFICIENT_EVIDENCE (regression-tested).
+- **AUDIT wiring**: `memory/audit-report.yaml` (schema-validated, zero-gap)
+  counts as additional evidence in judge; absent = "no audit evidence".
+- **INNOVATE hybrid**: `product-analyzer.py` emits `analysis_kind: fact`;
+  `determine_current_stage` bug fixed (empty product = Basic, not Solid);
+  `innovation-engine.py` is now contract-driven — it validates
+  `evolution/innovation-proposals.yaml` (schema + file/event refs or
+  `assumption: true`) instead of dumping canned YAML; approval tiering + logging
+  kept; `domain-advancements*.yaml` demoted to example bank.
+- **GUARD --scan**: scans the REAL working tree with anti-mock + quality gates
+  and BLOCKs on hits (the plan-text `--check` regex stays as advisory).
+- **INTERPRET --deepen**: applies schema-validated corrections
+  (`meta/prompt-contracts/deepen/`) over the baseline task.yaml (domain
+  whitelist + non-empty criteria; fixes keyword-classifier misclassification).
+- **EVOLVE --proposals**: validates structured mutation proposals (schema +
+  evidence_refs) and runs them through the existing approval/snapshot/rollback
+  flow.
+- **Tests**: `tests/test_evidence_contract.py`, `tests/test_honesty.py`
+  (judge Demo-1, innovation empty-product, guard --scan, deepen, evolve
+  proposals) — every new gate ships a regression test that fails without it.
+
+### Fixed (second review pass, 2026-08-28)
+
+- **P0#1 completion oracle**: `product-analyzer.all_criteria_met` and
+  `evolve` fitness `verified_count` now require REAL passing ledger evidence —
+  hand-written `completed_criteria` alone no longer opens the innovation gate
+  or rewards fitness (regression-tested both ways).
+- **P0#2 locked test command**: the test command is captured at GENERATION time
+  into `harness-profile.yaml`; `orchestrator.py --verify` and `run-tests.py`
+  read ONLY the locked value, ignoring post-hoc `task.yaml` edits — a fake
+  `verification.command` can no longer produce `test/run` evidence.
+- **P0#3 tightened evidence refs**: `event:<seq>` refs are accepted ONLY for
+  evidence events (`verify/run`/`test/run`/`audit/round`/`artifact/spilled`);
+  citing an `error/recorded` or other event as evidence is rejected.
+- **P1#4** `judge.py --no-verify` is forbidden under `MH_STRICT`/`CI`.
+- **P1#5** removed `shell=True`: declared test commands run via `shlex.split`
+  without a shell.
+- **P1#6** `verify-generation.py --run-checks` actually runs the generated
+  project's self-check/anti-mock/quality gates; wired into the PROVE phase.
+- **P2#8** validate-harness notes that hash-based slot enrichment proves the
+  slot CHANGED, not that the content is CORRECT.
+- **P2#9** checkpoint compaction: `--compact-log N` (and
+  `scripts/state_fold.py --compact N`) bounds the log with a `checkpoint` event
+  (seq 1) + tail; fold output is identical and named evidence refs survive.
+- **P2#11** version strings unified to 3.1.0.
+- **P2#13** contract schemas support `additionalProperties: false`.
+
+### Fixed (third review pass, 2026-08-29: runtime verification + log integrity)
+
+- **Runtime layer independently verified**: new `tests/test_runtime_layer.py`
+  drives the real seeds through their library APIs — event stream
+  append/verify/tamper-detection, leaf protocol task/result validation, workitem
+  source adapter load+claim, leaf task preparation, supervisor status + dispatch
+  bookkeeping. The layer works; it is no longer an unverified black box.
+- **P2#12a `load_source(config, project_root)`**: adapters now receive
+  `config["project_root"]` (injected by supervisor) so they resolve relative
+  paths without depending on cwd — found by the runtime verification.
+- **P2#12b hash chain on the YAML event logs**: `state_fold.save_events` and
+  every seed appender (`seeds/orchestrator.py`, `run-tests.py`,
+  `mistake-to-constraint.py`) chain events with `prev_hash`/`hash`; `log_invariant`
+  verifies the chain (`INVARIANT_LOG_CHAIN`); the meta pipeline's
+  `--check-invariants` and the generated projects' logs are now tamper-evident
+  (legacy unchained logs are skipped, not failed).
+
+### Fixed (fourth pass, 2026-08-29: close the loop)
+
+- **B DEEPEN gate**: new `hooks/pre-advance/20-deepen-gate.py` — advancing from
+  INTERPRET requires a schema-valid `memory/deepen-corrections.yaml` (the DEEPEN
+  contract). "First principles" interpretation is now mechanically enforced, not
+  voluntary. Deepen schema tightened: `domain` is an enum of the five known
+  domains, `acceptance_criteria` has `minItems: 1`; `validate_contract` gained
+  `minItems`/`maxItems` support.
+- **A runtime git ops verified**: `test_runtime_layer.py` now covers a real git
+  worktree acquire → commit → rebase onto an advanced main → release with prune,
+  plus `rebase_sync` local fallback. The last "unverified" path is closed.
+- **C CI**: `.github/workflows/ci.yml` runs pytest + a py_compile gate on
+  Python 3.10/3.11/3.12 for every push/PR.
+- **D docs**: AGENTS.md title + README pipeline section bumped to v3.1;
+  `state_fold.py` usage fixed.
+- **ADR-007/ADR-008** in `memory/decisions.md`: the script/prompt split is
+  recorded as architecture; the four design boundaries (hash-chain trust model,
+  `file:` existence semantics, checkpoint ref invalidation, heuristic scanners)
+  are explicitly CLOSED as boundaries, not TODO items.
+
+### Changed
+- `seeds/orchestrator.py` `--verify` records `verify/run` evidence per check and
+  runs declared tests (`_run_declared_tests`); `show_status` persists the
+  derived projection so guard.py can read it.
+- README/META: "脚本可信度矩阵" (mechanical/heuristic/prompt-contract) added;
+  "推陈出新"/"产品分析"/"证据评估" wording downgraded to honest claims.
+
 ## [3.0.0] — 2026-08-28
 
 ### Added — DSH-inspired core concepts (event log, invariants, goals, hooks)

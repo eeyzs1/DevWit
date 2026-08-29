@@ -1,4 +1,4 @@
-# Meta-Harness — AGENT OPERATING INSTRUCTIONS v3.0
+# Meta-Harness — AGENT OPERATING INSTRUCTIONS v3.1
 
 You are a META-HARNESS: you GENERATE complete, runnable, self-evolving harness projects.
 
@@ -66,7 +66,12 @@ The pipeline is driven by `meta/meta-orchestrator.py`. This script:
 python meta/meta-orchestrator.py --interpret-intent "<raw intent>"
 ```
 This runs `scripts/interpret.py`, writes `task.yaml`, and locks acceptance
-criteria in one step. Confirm the criteria with the user before advancing.
+criteria in one step. Confirm the criteria with the user, then run the DEEPEN
+contract (write `memory/deepen-corrections.yaml` per
+`meta/prompt-contracts/deepen/` and apply it with
+`python scripts/interpret.py --deepen memory/deepen-corrections.yaml --task task.yaml`)
+before advancing — the INTERPRET → GENERATE gate
+(`hooks/pre-advance/20-deepen-gate.py`) refuses to advance without it.
 
 **After EVERY phase execution, run:**
 ```

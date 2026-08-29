@@ -19,6 +19,7 @@ Usage:
 import argparse
 import json
 import re
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -445,6 +446,73 @@ def compliance_report() -> None:
     print("=" * 70)
 
 
+# ---------------------------------------------------------------- scan (WP6)
+# "Verify the world, not the plan text": --scan runs the real anti-mock and
+# quality scanners over the actual working tree. The plan-text regex check
+# stays but is advisory for code-quality concerns; scan results are the
+# mechanical BLOCKED authority.
+
+def run_scan(target: Path) -> dict:
+    """Run anti-mock + quality scans on the target directory.
+
+    Returns {verdict: PASS|BLOCKED, checks: [...]}. A non-zero scanner exit
+    BLOCKs; missing scanners are reported, not silently skipped.
+    """
+    checks = []
+    blocked = False
+
+    anti_mock = PROJECT_ROOT / "verification" / "anti-mock-check.py"
+    if anti_mock.exists():
+        proc = subprocess.run([sys.executable, str(anti_mock), "--project-root", str(target)],
+                              capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", cwd=str(PROJECT_ROOT))
+        ok = proc.returncode == 0
+        checks.append({"check": "anti-mock-check", "passed": ok,
+                       "output": (proc.stdout or "")[-800:]})
+        if not ok:
+            blocked = True
+    else:
+        checks.append({"check": "anti-mock-check", "passed": False,
+                       "output": "scanner missing"})
+        blocked = True
+
+    quality = PROJECT_ROOT / "verification" / "quality-gate.py"
+    if quality.exists():
+        proc = subprocess.run([sys.executable, str(quality), "--check"],
+                              capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", cwd=str(target))
+        ok = proc.returncode == 0
+        checks.append({"check": "quality-gate", "passed": ok,
+                       "output": (proc.stdout or "")[-800:]})
+        if not ok:
+            blocked = True
+    else:
+        checks.append({"check": "quality-gate", "passed": False,
+                       "output": "scanner missing"})
+        blocked = True
+
+    return {"verdict": "BLOCKED" if blocked else "PASS", "checks": checks}
+
+
+def print_scan_result(result: dict, target: Path) -> None:
+    print("\n" + "=" * 70)
+    print("GUARD SCAN — real working tree (anti-mock + quality)")
+    print("=" * 70)
+    print(f"Target: {target}")
+    print(f"Verdict: {result['verdict']}")
+    for c in result["checks"]:
+        status = "✅" if c["passed"] else "❌"
+        print(f"\n  {status} {c['check']}")
+        if c["output"]:
+            print(f"    {c['output'][:400]}")
+    print("=" * 70)
+    if result["verdict"] == "PASS":
+        print("✅ SCAN PASSED — no blockers in the working tree")
+    else:
+        print("🛑 SCAN BLOCKED — fix the violations above before proceeding")
+    print("=" * 70)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Pre-Action Guard — Validates AI actions against constraints")
     parser.add_argument("--check", default=None, help="Description of what you plan to do")
@@ -454,7 +522,15 @@ def main():
                         help="Evaluate the plan against this sandbox mode (WP9)")
     parser.add_argument("--permission-current", action="store_true",
                         help="Show the resolved permission mode and derived preset")
+    parser.add_argument("--scan", nargs="?", const=".", default=None, metavar="DIR",
+                        help="Scan the real working tree (default .) with anti-mock + quality")
     args = parser.parse_args()
+
+    if args.scan is not None:
+        target = (PROJECT_ROOT / args.scan).resolve()
+        result = run_scan(target)
+        print_scan_result(result, target)
+        sys.exit(0 if result["verdict"] == "PASS" else 1)
 
     if args.permission_current:
         permission_current()

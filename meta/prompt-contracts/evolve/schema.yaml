@@ -1,0 +1,17 @@
+version: 1
+required: [mutations]
+properties:
+  mutations:
+    type: array
+    items:
+      type: object
+      required: [type, target, rationale, evidence_refs]
+      properties:
+        type:
+          type: string
+          enum: [ADD_CONSTRAINT, STRENGTHEN_CONSTRAINT, WEAKEN_CONSTRAINT]
+        target: {type: string}
+        rationale: {type: string}
+        evidence_refs:
+          type: array
+          items: {type: string}

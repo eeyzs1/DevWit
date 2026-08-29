@@ -42,3 +42,6 @@ Every hook receives one JSON object in the `MH_CONTEXT` environment variable
 
 - `pre-advance/10-validate-harness.py` — the GENERATE -> FACTORY gate
   (runs `scripts/validate-harness.py` on the generated project). Do not delete.
+- `pre-advance/20-deepen-gate.py` — the INTERPRET -> GENERATE gate (B):
+  advancing from INTERPRET requires `memory/deepen-corrections.yaml` that
+  satisfies the DEEPEN contract schema. Do not delete.

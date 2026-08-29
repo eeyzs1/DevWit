@@ -316,6 +316,12 @@ def scaffold(task: dict, output_dir: Path) -> None:
     if seams_src.exists():
         shutil.copytree(seams_src, output_dir / "seams", dirs_exist_ok=True)
 
+    # 复制 prompt contracts（WP2/WP4）：语义步骤的契约（instructions + schema）
+    # 供生成项目内的 agent 与引擎共同使用（judge/audit/innovate/deepen 等）
+    contracts_src = SEEDS_DIR.parent / "meta" / "prompt-contracts"
+    if contracts_src.exists():
+        shutil.copytree(contracts_src, output_dir / "prompt-contracts", dirs_exist_ok=True)
+
     # 复制 planning 的 leaf-protocol / executor-engine 等通用文档
     for doc in ("leaf-protocol.md", "executor-engine.md", "planner-engine.md",
                 "phase-spec-template.md", "protocol-template.md"):
@@ -448,13 +454,25 @@ python runtime/event_stream.py verify --project-root .
     write_composition_manifest(output_dir, copied_universal, slot_manifest)
 
     # 7. 写 harness-profile.yaml（运行时契约）
+    # P0#2: 测试命令在 GENERATION 时锁定（来自 task.yaml 的 verification.command，
+    # 若无则由模板/探测默认），运行时 orchestrator/run-tests 只读这里，不再读
+    # task.yaml——防止 agent 事后把测试命令改成恒真命令冒充证据。
+    locked_test_command = None
+    v_cfg = task.get("verification") or {}
+    if isinstance(v_cfg, dict) and v_cfg.get("command"):
+        locked_test_command = str(v_cfg["command"])
+    elif isinstance(v_cfg, str):
+        locked_test_command = v_cfg
     hp = {
         "version": 1,
         "generated_at": datetime.now().isoformat(),
         "tier": profile["tier"],
         "factors": {k: profile[k] for k in ("scope", "criticality", "novelty", "coupling")},
         "generation_mode": "scaffold+llm",
-        "note": "Structure scaffolded by script; content authored by LLM per harness-scaffold.yaml.",
+        "verification": {"command": locked_test_command},
+        "note": ("Structure scaffolded by script; content authored by LLM per "
+                 "harness-scaffold.yaml. verification.command is LOCKED at "
+                 "generation time (P0#2); edit harness-profile.yaml to change it."),
     }
     with open(output_dir / "harness-profile.yaml", "w", encoding="utf-8") as f:
         yaml.dump(hp, f, default_flow_style=False, allow_unicode=True, sort_keys=False)

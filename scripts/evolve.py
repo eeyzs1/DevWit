@@ -156,13 +156,35 @@ def collect_evidence(project_root: Path) -> dict:
             except (yaml.YAMLError, OSError):
                 pass
 
+        # P0#1 completion oracle: completed_criteria is ADVISORY only; without
+        # passing verify/test evidence in the ledger it counts as 0 for fitness.
+        has_evidence = _has_passing_ledger_evidence(project_root)
         evidence["pipeline_state"] = {
             "force_jumps": failed_verifications,
-            "verified_count": completed_count,
+            "verified_count": completed_count if has_evidence else 0,
             "criteria_count": criteria_total,
+            "has_passing_evidence": has_evidence,
         }
 
     return evidence
+
+
+def _has_passing_ledger_evidence(project_root: Path) -> bool:
+    """True when the evidence ledger contains passing verify/test/audit records."""
+    log_file = project_root / "memory" / "event-log.yaml"
+    if not log_file.exists():
+        return False
+    try:
+        with open(log_file, "r", encoding="utf-8") as f:
+            events = (yaml.safe_load(f) or {}).get("events", []) or []
+    except (yaml.YAMLError, OSError):
+        return False
+    for ev in events:
+        if ev.get("type") in ("verify/run", "test/run", "audit/round"):
+            payload = ev.get("payload") or {}
+            if payload.get("passed", payload.get("exit") == 0):
+                return True
+    return False
 
 
 def measure_fitness(genome: dict, evidence: dict) -> float:
@@ -529,6 +551,148 @@ def run_evolution(project_root: Path, trigger: str = "periodic", dry_run: bool =
             "mutations_applied": len(applied), "pending_approval": len(pending)}
 
 
+def run_proposals(project_root: Path, proposals_file: Path,
+                  dry_run: bool = False, apply_needs_approval: bool = False) -> dict:
+    """WP8: apply STRUCTURED mutation proposals from the EVOLVE prompt contract.
+
+    The agent proposes (type/target/rationale/evidence_refs); this function
+    validates the schema + evidence traceability, then runs the SAME approval /
+    snapshot / rollback flow as run_evolution. The script never invents
+    mutations; it only executes and records.
+    """
+    import validate_contract as vc
+
+    print(f"\n{'='*60}")
+    print(f"EVOLUTION — Contract proposals: {proposals_file}")
+    print(f"{'='*60}")
+
+    if not proposals_file.exists():
+        print(f"ERROR: proposals file not found: {proposals_file}", file=sys.stderr)
+        sys.exit(1)
+    try:
+        doc = yaml.safe_load(proposals_file.read_text(encoding="utf-8")) or {}
+    except Exception as e:
+        print(f"ERROR: proposals file unparsable: {e}", file=sys.stderr)
+        sys.exit(1)
+    raw = doc.get("mutations") or []
+    if not isinstance(raw, list):
+        print("ERROR: 'mutations' is not a list", file=sys.stderr)
+        sys.exit(1)
+
+    # Schema + traceability (fail-closed).
+    schema_path = Path(__file__).resolve().parent.parent / "meta" / "prompt-contracts" / "evolve" / "schema.yaml"
+    errors = []
+    try:
+        vc.validate_value(doc, vc.load_schema(schema_path), "output", errors)
+    except ValueError as e:
+        errors.append(str(e))
+    log_file = project_root / "memory" / "event-log.yaml"
+    evidence = {}
+    if log_file.exists():
+        with open(log_file, "r", encoding="utf-8") as f:
+            evidence = vc.collect_evidence((yaml.safe_load(f) or {}).get("events", []) or [])
+    refs = []
+    def walk(node):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k == "evidence_refs":
+                    refs.extend(v if isinstance(v, list) else [v])
+                else:
+                    walk(v)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+    walk(doc)
+    vc.check_refs(refs, evidence, project_root, errors)
+    if errors:
+        print("PROPOSALS FAIL:", file=sys.stderr)
+        for e in errors:
+            print(f"  - {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Normalize to the internal mutation shape.
+    mutations = []
+    for i, m in enumerate(raw):
+        mutations.append({
+            "type": m["type"], "target": m["target"],
+            "description": m.get("rationale", m["type"]),
+            "evidence": m.get("rationale", m["type"]),
+            "evidence_refs": list(m.get("evidence_refs", [])),
+            "expected_outcome": "structured proposal (EVOLVE contract)",
+            "approval": classify_approval(m),
+        })
+
+    genome = load_genome(project_root)
+    evidence_data = collect_evidence(project_root)
+    fitness = measure_fitness(genome, evidence_data)
+    print(f"Current fitness: {fitness}")
+
+    snapshot = None
+    if not dry_run:
+        snapshot = snapshot_genome(project_root, genome, reason="proposals")
+
+    applied = []
+    pending = []
+    for mutation in mutations:
+        approval = mutation["approval"]
+        print(f"\n  Mutation: {mutation['type']} — {mutation['description']} [{approval}]")
+        print(f"  Evidence refs: {mutation.get('evidence_refs', [])}")
+        if approval == "NEEDS_APPROVAL" and not apply_needs_approval:
+            print("  🔒 NEEDS APPROVAL — pending")
+            pending.append({**mutation, "status": "pending_approval"})
+            continue
+        if not check_safety(mutation, genome):
+            continue
+        if dry_run:
+            print("  🔄 DRY RUN — would apply")
+            applied.append({**mutation, "status": "dry_run"})
+            continue
+        new_genome = apply_mutation(genome, mutation)
+        new_fitness = measure_fitness(new_genome, evidence_data)
+        if new_fitness >= fitness:
+            print(f"  ✅ ACCEPTED — fitness: {fitness} → {new_fitness}")
+            genome = new_genome
+            fitness = new_fitness
+            applied.append({**mutation, "status": "accepted", "fitness_delta": new_fitness - fitness})
+        else:
+            print(f"  ❌ REJECTED — fitness would decrease")
+            applied.append({**mutation, "status": "rejected"})
+
+    if not dry_run and applied:
+        genome.setdefault("generations", []).append({
+            "version": genome.get("version", 1),
+            "timestamp": datetime.now().isoformat(),
+            "snapshot": str(snapshot) if snapshot else None,
+            "mutations": [f"{m['type']}:{m.get('description', '')[:40]}" for m in applied
+                          if m.get("status") == "accepted"],
+        })
+        genome["version"] = genome.get("version", 1) + 1
+        save_genome(project_root, genome)
+        log = load_evolution_log(project_root)
+        for mutation in applied:
+            entry = {
+                "timestamp": datetime.now().isoformat(),
+                "trigger": "contract-proposals",
+                "type": mutation["type"],
+                "description": mutation["description"],
+                "evidence": mutation["evidence"],
+                "evidence_refs": mutation.get("evidence_refs", []),
+                "approval": mutation.get("approval", "AUTO"),
+                "status": mutation["status"],
+                "fitness_after": fitness,
+            }
+            if mutation.get("status") == "accepted":
+                entry["snapshot"] = str(snapshot) if snapshot else None
+                entry["rollback"] = f"python scripts/evolve.py --project-root {project_root} --rollback"
+            log["mutations"].append(entry)
+        save_evolution_log(project_root, log)
+
+    print(f"\n{'='*60}")
+    print(f"Proposals complete — Applied: {len(applied)}, Pending approval: {len(pending)}")
+    print(f"{'='*60}")
+    return {"mutations_applied": len(applied), "pending_approval": len(pending)}
+
+
 def main():
     parser = argparse.ArgumentParser(description="Evolution Engine")
     parser.add_argument("--project-root", default=".", help="Project root directory")
@@ -541,6 +705,8 @@ def main():
                         help="Restore the latest genome snapshot and log the rollback")
     parser.add_argument("--list-snapshots", action="store_true",
                         help="List available genome snapshots")
+    parser.add_argument("--proposals", default=None, metavar="FILE",
+                        help="Apply structured mutation proposals (EVOLVE contract, WP8)")
     args = parser.parse_args()
 
     project_root = Path(args.project_root).resolve()
@@ -556,6 +722,10 @@ def main():
 
     if args.rollback:
         sys.exit(rollback(project_root))
+
+    if args.proposals:
+        run_proposals(project_root, Path(args.proposals), args.dry_run, args.apply_needs_approval)
+        return
 
     run_evolution(project_root, args.trigger, args.dry_run, args.apply_needs_approval)
 

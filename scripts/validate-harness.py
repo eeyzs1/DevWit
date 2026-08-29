@@ -162,6 +162,9 @@ def validate(harness_dir: Path) -> tuple:
             report.append(e)
             errors.append(e)
     report.append(f"  Enriched: {enriched}/{len(slots)} slots")
+    report.append("  NOTE: hash-based enrichment proves the slot CHANGED, not "
+                  "that the content is CORRECT — semantic quality is the LLM "
+                  "author's responsibility (P2#8).")
     report.append("")
 
     # 4. 可追溯：acceptance_criteria 应在某 verification slot 出现

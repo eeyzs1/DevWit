@@ -52,13 +52,20 @@ Runs BEFORE marking any task complete. Enforces config-vs-hardcode, error handli
 ### anti-mock-check.py — Mock Detection Engine
 Runs during verification. Scans source for mock patterns (`Mock*`, `Fake*`, `Stub*`, `Dummy*`, simulated returns, placeholder data). Returns PASS or FAIL with file paths and line numbers.
 
-## Innovation Engine: 推陈出新
+## Innovation Engine: 推陈出新 (v3.1: contract-driven)
 
-After all acceptance criteria are met, the innovation engine activates:
+After all acceptance criteria are met, the innovation engine activates. It is
+CONTRACT-DRIVEN: proposals come from the INNOVATE prompt contract
+(`meta/prompt-contracts/innovate/`), not from dumping a canned YAML list.
 
-1. **Product State Analyzer** scans `src/` for implemented features, endpoints, models, tests
-2. **Domain Advancement Patterns** define four stages per domain: Basic → Solid → Advanced → Excellent
-3. **Innovation Engine** proposes next-stage innovations, prioritized by impact/effort
+1. **Product State Analyzer** emits MECHANICAL FACTS (`analysis_kind: fact`):
+   file/endpoint/model/test counts — facts, not conclusions
+2. **Stage** is derived from facts (empty product = Basic; no more "empty→Solid" bug)
+3. **Innovation Engine** validates the contract proposals (schema + evidence
+   traceability, fail-closed; each proposal needs a fact/event ref or explicit
+   `assumption: true`), applies approval tiering, and records to
+   `evolution/innovation-log.yaml`. `domain-advancements.yaml` is an EXAMPLE
+   BANK, not the source of truth
 4. High-effort or security innovations require human approval
 
 ## Four-Stage Advancement Model
