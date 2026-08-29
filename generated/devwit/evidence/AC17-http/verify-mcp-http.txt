@@ -1,0 +1,6 @@
+远程 MCP（Streamable HTTP）验证：
+1. 设置页 MCP 分区：UI 表单选择「远程（Streamable HTTP）」+ URL，状态徽标 连接中→就绪 + 「工具 1 个」（initialize/tools/list 经 IPC→McpManager→McpHttpClient→http 端点全链路真实）。
+2. 工具全名 mcp__e2ehttp__write_marker 暴露给 Agent。
+3. 授权门：agent 请求 mcp__e2ehttp__write_marker → 活动流授权行含工具全名（截图 02），允许后真实 tools/call 经 http 到达服务器，MARKER_FILE 落盘 mcp-http-proof-1（截图 03，真实副作用证据）。
+4. 删除服务器 → mcp.list() 清空（http 连接关闭）。
+断言通过 8 项，失败 0 项。

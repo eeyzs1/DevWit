@@ -1,6 +1,6 @@
 {
   "steps": [
-    "本地 SSE 端点就绪 http://127.0.0.1:56504",
+    "本地 SSE 端点就绪 http://127.0.0.1:60630",
     "应用启动（默认中文）",
     "打开文件夹 → 文件树渲染",
     "UI 表单新增 MCP 服务器（真实 node 子进程 + fake-mcp-server）",
@@ -14,7 +14,7 @@
   ],
   "assertions": [
     "设置页导航缺少 MCP 分区: 通用模型编辑器模式MCP",
-    "MCP 分区标题缺失: MCP 服务器（stdio · 修改热生效）",
+    "MCP 分区标题缺失: MCP 服务器（stdio / http · 修改热生效）",
     "服务器未达到就绪状态（stdio 握手/tools/list 失败）",
     "工具计数应为 3（实际: 3）",
     "工具全名前缀化缺失 mcp__e2e__write_marker",

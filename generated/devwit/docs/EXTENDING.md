@@ -25,19 +25,37 @@
 - 上下文策略键（`contextPolicy`）：`system_prompt` `tool_definitions` `file_fragment` `git_status` `terminal_output` `selection` `conversation_history` `codebase_match` `diagnostics` `workflow` `custom`。
 
 ### 1.2 MCP 服务器
-- 入口：设置页 → MCP 服务器；配置存 settings（`McpServerConfig`，见 `packages/contracts/src/index.ts`）：
+- 入口：设置页 → MCP 服务器；配置存 settings（`McpServerConfig`，见 `packages/contracts/src/index.ts`）。
+- 两种 `transport`（缺省 `"stdio"`，向后兼容）：
+
+  **stdio（本地子进程）**
   ```json
   {
     "id": "my-server",
     "name": "我的工具",
+    "transport": "stdio",
     "command": "npx",
     "args": ["-y", "my-mcp-server"],
     "env": { "API_TOKEN": "..." },
     "enabled": true
   }
   ```
-- 工具暴露给模型的全名：`mcp__<serverId>__<toolName>`；**所有 MCP 工具一律需授权**（默认最严）。
-- 配置热同步：增删/启停即刻反映到下一轮请求，无需重启。
+
+  **http（远程 Streamable HTTP，revision 2026-07-28）**
+  ```json
+  {
+    "id": "remote-server",
+    "name": "云端工具",
+    "transport": "http",
+    "url": "https://mcp.example.com/mcp",
+    "headers": { "X-Api-Key": "..." },
+    "enabled": true
+  }
+  ```
+  - http 为单端点 POST（`Accept: application/json, text/event-stream`），响应可为单个 JSON 或请求级 SSE 流；客户端自动发送 `MCP-Protocol-Version` / `Mcp-Method` / `Mcp-Name`（非 ASCII 名 base64 哨兵）。
+  - `headers` 为附加请求头（如 `Authorization: Bearer …`）。敏感凭据建议经凭证库引用：`auth: { "credentialRef": "<credentials id>" }`，运行时以 `Authorization: Bearer <token>` 注入。
+  - stdio 与 http 共用同一工具暴露与授权路径：工具以 `mcp__<serverId>__<toolName>` 全名提供给 Agent，**所有 MCP 工具一律需授权**（默认最严）。
+  - 配置热同步：增删/启停/换 URL 即刻反映到下一轮请求，无需重启（重启指纹含 transport/command/args/env/url/headers）。
 
 ---
 
@@ -168,6 +186,7 @@ const disposeSection = runtime.modeScope.register(
 - **运行时插件加载器**：目前无；L3 扩展需构建。若要做，建议形态：声明式 manifest + 受限沙箱 + IPC 白名单（可参考 harness 侧的 `seams/` 与权限 v2 模型）。
 - **插件 SDK 包**：独立 npm 包（导出全部扩展接口 + 类型）尚未拆分。
 - **IPC 开放面**：第三方代码访问渲染端/主进程的稳定 API 清单未成文。
+- **MCP 高级特性（本期范围外）**：`resources`/`prompts` 面向模型暴露；legacy HTTP+SSE（2024-11-05）与旧 `Mcp-Session-Id` 会话的完整协商；SSE 进度（notifications/progress）在 UI 的展示；MRTR 采样/elicitation/roots 扩展。当前实现聚焦 `tools`，`transport` 已就绪。
 
 ---
 

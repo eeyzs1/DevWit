@@ -1,0 +1,25 @@
+{
+  "steps": [
+    "本地 Streamable HTTP MCP 服务器就绪 http://127.0.0.1:60528/mcp",
+    "本地 SSE 端点就绪 http://127.0.0.1:60529",
+    "应用启动（默认中文）",
+    "打开文件夹 → 文件树渲染",
+    "UI 表单新增 http 服务器（http 传输 + URL）",
+    "状态徽标 就绪 + 工具 1 个（http initialize/tools/list 全链路真实）",
+    "凭证写入 + provider 注册 + agent 模式热绑定模型",
+    "agent 请求 mcp__e2ehttp__write_marker → 授权门拦截（活动流授权行）",
+    "授权允许 → MCP 工具经 http 真实调用 → MARKER_FILE 落盘",
+    "删除服务器 → 列表清空"
+  ],
+  "assertions": [
+    "远程服务器未达到就绪状态（http initialize/tools/list 失败）",
+    "工具计数应为 1（实际: 1）",
+    "工具全名前缀化缺失 mcp__e2ehttp__write_marker",
+    "服务器配置 transport 应为 http",
+    "列表行徽标/计数缺失: 就绪E2E HTTP Server · 工具 1 个删除",
+    "授权行应含 MCP 工具全名: 授权mcp__e2ehttp__write_marker：调用 MCP 工具: mcp__e2ehttp__write_marker {\"text\":\"mcp-http-proof-1\"}允许本会话允许拒绝",
+    "MARKER_FILE 未含 mcp-http-proof-1（远程 http 工具未真实执行）",
+    "活动流缺少 MCP 工具成功行"
+  ],
+  "failures": []
+}

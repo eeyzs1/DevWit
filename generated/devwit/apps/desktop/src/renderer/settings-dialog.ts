@@ -1545,55 +1545,84 @@ function renderMcp(content: HTMLElement, deps: SettingsDialogDeps, onMcpSink: (s
   const form = el("div", "dw-form");
   const idInput = fieldInput("text", "");
   const nameInput = fieldInput("text", "");
+  const transportInput = el("select", "dw-input") as HTMLSelectElement;
+  transportInput.appendChild(el("option", undefined, t("mcp.transport.stdio"))).value = "stdio";
+  transportInput.appendChild(el("option", undefined, t("mcp.transport.http"))).value = "http";
+  const commandLabel = el("label", undefined, t("mcp.command"));
   const commandInput = fieldInput("text", "");
   commandInput.placeholder = t("mcp.command.placeholder");
+  const argsLabel = el("label", undefined, t("mcp.args"));
   const argsInput = fieldInput("text", "");
   argsInput.placeholder = t("mcp.args.placeholder");
+  const envLabel = el("label", undefined, t("mcp.env"));
   const envInput = el("textarea", "dw-textarea") as HTMLTextAreaElement;
   envInput.rows = 3;
+  const urlLabel = el("label", undefined, t("mcp.url"));
+  const urlInput = fieldInput("text", "");
+  urlInput.placeholder = t("mcp.url.placeholder");
+  const headersLabel = el("label", undefined, t("mcp.headers"));
+  const headersInput = el("textarea", "dw-textarea") as HTMLTextAreaElement;
+  headersInput.rows = 3;
   const enabledInput = fieldInput("checkbox", "");
   enabledInput.checked = true;
   const enabledLabel = el("label");
   enabledLabel.append(enabledInput, document.createTextNode(t("mcp.enabled")));
   const errorBox = el("div", "dw-form-error");
+  // stdio 组（command/args/env）与 http 组（url/headers）按 transport 互斥显示
+  const stdioFields = [commandLabel, commandInput, argsLabel, argsInput, envLabel, envInput];
+  const httpFields = [urlLabel, urlInput, headersLabel, headersInput];
   form.append(
     el("label", undefined, t("common.id")),
     idInput,
     el("label", undefined, t("mcp.name")),
     nameInput,
-    el("label", undefined, t("mcp.command")),
-    commandInput,
-    el("label", undefined, t("mcp.args")),
-    argsInput,
-    el("label", undefined, t("mcp.env")),
-    envInput,
+    el("label", undefined, t("mcp.transport")),
+    transportInput,
+    ...stdioFields,
+    ...httpFields,
     enabledLabel,
     errorBox
   );
   content.appendChild(form);
 
+  function syncTransportVisibility(): void {
+    const http = transportInput.value === "http";
+    for (const field of stdioFields) field.style.display = http ? "none" : "";
+    for (const field of httpFields) field.style.display = http ? "" : "none";
+  }
+
   function fillForm(view: McpServerView): void {
     idInput.value = view.config.id;
     idInput.disabled = true;
     nameInput.value = view.config.name;
-    commandInput.value = view.config.command;
-    argsInput.value = view.config.args.join(" ");
+    transportInput.value = view.config.transport ?? "stdio";
+    commandInput.value = view.config.command ?? "";
+    argsInput.value = (view.config.args ?? []).join(" ");
+    urlInput.value = view.config.url ?? "";
     envInput.value = Object.entries(view.config.env ?? {})
+      .map(([key, value]) => `${key}=${value}`)
+      .join("\n");
+    headersInput.value = Object.entries(view.config.headers ?? {})
       .map(([key, value]) => `${key}=${value}`)
       .join("\n");
     enabledInput.checked = view.config.enabled;
     errorBox.textContent = "";
+    syncTransportVisibility();
   }
 
   function newForm(): void {
     idInput.value = `mcp-${Date.now().toString(36)}`;
     idInput.disabled = false;
     nameInput.value = "";
+    transportInput.value = "stdio";
     commandInput.value = "";
     argsInput.value = "";
+    urlInput.value = "";
     envInput.value = "";
+    headersInput.value = "";
     enabledInput.checked = true;
     errorBox.textContent = "";
+    syncTransportVisibility();
   }
 
   async function renderList(): Promise<void> {
@@ -1630,14 +1659,16 @@ function renderMcp(content: HTMLElement, deps: SettingsDialogDeps, onMcpSink: (s
   actions.append(newBtn, saveBtn);
   content.appendChild(actions);
 
+  transportInput.addEventListener("change", () => syncTransportVisibility());
+
   newBtn.addEventListener("click", newForm);
   saveBtn.addEventListener("click", () => {
     void (async () => {
       errorBox.textContent = "";
       const id = idInput.value.trim();
       const name = nameInput.value.trim();
-      const command = commandInput.value.trim();
-      if (id === "" || name === "" || command === "") {
+      const transport = transportInput.value === "http" ? "http" : "stdio";
+      if (id === "" || name === "") {
         errorBox.textContent = t("mcp.required");
         return;
       }
@@ -1645,26 +1676,60 @@ function renderMcp(content: HTMLElement, deps: SettingsDialogDeps, onMcpSink: (s
         errorBox.textContent = t("mcp.idPattern");
         return;
       }
-      const env: Record<string, string> = {};
-      const lines = envInput.value.split("\n");
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]?.trim() ?? "";
-        if (line === "") continue;
-        const sep = line.indexOf("=");
-        if (sep <= 0) {
-          errorBox.textContent = t("mcp.env.invalid", { n: i + 1 });
+      let config: McpServerConfig;
+      if (transport === "http") {
+        const url = urlInput.value.trim();
+        if (url === "") {
+          errorBox.textContent = t("mcp.requiredHttp");
           return;
         }
-        env[line.slice(0, sep).trim()] = line.slice(sep + 1).trim();
+        const headers: Record<string, string> = {};
+        const hlines = headersInput.value.split("\n");
+        for (let i = 0; i < hlines.length; i++) {
+          const line = hlines[i]?.trim() ?? "";
+          if (line === "") continue;
+          const sep = line.indexOf("=");
+          if (sep <= 0) {
+            errorBox.textContent = t("mcp.headers.invalid", { n: i + 1 });
+            return;
+          }
+          headers[line.slice(0, sep).trim()] = line.slice(sep + 1).trim();
+        }
+        config = {
+          id,
+          name,
+          transport,
+          url,
+          ...(Object.keys(headers).length > 0 ? { headers } : {}),
+          enabled: enabledInput.checked,
+        };
+      } else {
+        const command = commandInput.value.trim();
+        if (command === "") {
+          errorBox.textContent = t("mcp.required");
+          return;
+        }
+        const env: Record<string, string> = {};
+        const lines = envInput.value.split("\n");
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i]?.trim() ?? "";
+          if (line === "") continue;
+          const sep = line.indexOf("=");
+          if (sep <= 0) {
+            errorBox.textContent = t("mcp.env.invalid", { n: i + 1 });
+            return;
+          }
+          env[line.slice(0, sep).trim()] = line.slice(sep + 1).trim();
+        }
+        config = {
+          id,
+          name,
+          command,
+          args: argsInput.value.split(/\s+/).filter((arg) => arg !== ""),
+          ...(Object.keys(env).length > 0 ? { env } : {}),
+          enabled: enabledInput.checked,
+        };
       }
-      const config: McpServerConfig = {
-        id,
-        name,
-        command,
-        args: argsInput.value.split(/\s+/).filter((arg) => arg !== ""),
-        ...(Object.keys(env).length > 0 ? { env } : {}),
-        enabled: enabledInput.checked,
-      };
       await api.mcp.upsert(config);
       await renderList();
       errorBox.textContent = t("mcp.saved");
