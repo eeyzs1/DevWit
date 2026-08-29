@@ -1,0 +1,19 @@
+{
+  "count": 14,
+  "fullNames": [
+    "mcp__fs__read_file",
+    "mcp__fs__read_text_file",
+    "mcp__fs__read_media_file",
+    "mcp__fs__read_multiple_files",
+    "mcp__fs__write_file",
+    "mcp__fs__edit_file",
+    "mcp__fs__create_directory",
+    "mcp__fs__list_directory",
+    "mcp__fs__list_directory_with_sizes",
+    "mcp__fs__directory_tree",
+    "mcp__fs__move_file",
+    "mcp__fs__search_files",
+    "mcp__fs__get_file_info",
+    "mcp__fs__list_allowed_directories"
+  ]
+}

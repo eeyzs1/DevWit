@@ -1,0 +1,6 @@
+实机演示（真实 DeepSeek + 真实 filesystem MCP）：
+1. 配置真实 DeepSeek provider（env 注入密钥，不落盘）；配置真实 filesystem MCP（stdio/npx），就绪 14 个工具（含 mcp__fs__write_file）。
+2. 设置页 MCP 分区展示「就绪 + 工具」（截图 01）。
+3. 指挥台 Agent 任务让真实 DeepSeek 调用某个 MCP 工具；授权门出现 mcp__fs__*（截图 02），允许（本会话）后真实 tools/call 经 stdio 到达 MCP server。
+4. MCP 真实写入 real-mcp-proof.txt=hello from real deepseek via mcp 1787986…（截图 03）；活动流含 MCP 工具成功行。
+断言通过 9 项，失败 0 项。

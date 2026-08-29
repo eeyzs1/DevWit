@@ -1,0 +1,29 @@
+{
+  "steps": [
+    "应用启动（真实 DeepSeek 配置）",
+    "打开文件夹 → 文件树渲染",
+    "真实 DeepSeek provider 已注册（密钥经 env，未打印）",
+    "已配置真实 filesystem MCP（stdio，npx）",
+    "filesystem MCP 就绪：14 个工具（含 mcp__fs__write_file）",
+    "设置页 MCP 分区：服务器「就绪」+ 工具（截图 01）",
+    "agent 模式热绑定到真实 DeepSeek",
+    "已提交 Agent 任务：调用 MCP write_file → real-mcp-proof.txt",
+    "授权门拦截 MCP 工具：授权mcp__fs__write_file：调用 MCP 工具: mcp__fs__write_file {\"path\":\"real-mcp-proof.txt\",\"content（截图 02）",
+    "已允许（本会话）→ MCP 工具经 stdio 真实调用",
+    "Agent 任务完成",
+    "工具成功行 + 落盘证据（截图 03）",
+    "Agent 最终总结已记录"
+  ],
+  "assertions": [
+    "filesystem MCP 未达成就绪（npx 握手/tools/list 失败）",
+    "MCP 传输应为 stdio",
+    "filesystem MCP 应暴露 mcp__fs__write_file（实际 mcp__fs__read_file, mcp__fs__read_text_file, mcp__fs__read_media_file, mcp__fs__read_multiple_files, mcp__fs__write_file, mcp__fs__edit_file）",
+    "filesystem MCP 工具数应 >= 10（实际 14）",
+    "授权行应含 MCP 工具全名（mcp__fs__*）: 授权mcp__fs__write_file：调用 MCP 工具: mcp__fs__write_file {\"path\":\"real-mcp-proof.txt\",\"content\":\"hello from real deepseek via mcp 1787986918651\"}允许本会话允许拒绝",
+    "Agent 任务未在限时内完成（可能被额外授权门阻塞）",
+    "real-mcp-proof.txt 未落盘（MCP write_file 未真实执行）",
+    "落盘内容不符: hello from real deepseek via mcp 1787986918651",
+    "活动流缺少 MCP 工具成功行"
+  ],
+  "failures": []
+}
