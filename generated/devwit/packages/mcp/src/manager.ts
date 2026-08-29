@@ -17,6 +17,8 @@ import type {
   ToolResult,
 } from "@devwit/contracts";
 import { McpStdioClient } from "./client.js";
+import { McpHttpClient } from "./http-client.js";
+import type { McpTransport } from "./transport.js";
 
 /** 配置校验：id 只允许安全字符（要拼进工具全名与错误消息，防注入/解析歧义）。 */
 export const MCP_ID_PATTERN = /^[\w-]+$/;
@@ -28,16 +30,33 @@ export function validateMcpServerConfig(config: McpServerConfig): void {
     throw new Error("mcp server id must match /^[\\w-]+$/");
   }
   if (typeof config.name !== "string" || config.name.trim() === "") throw new Error("mcp server name must not be empty");
-  if (typeof config.command !== "string" || config.command.trim() === "") throw new Error("mcp server command must not be empty");
-  if (!Array.isArray(config.args) || config.args.some((arg) => typeof arg !== "string")) {
-    throw new Error("mcp server args must be an array of strings");
-  }
-  if (config.env !== undefined) {
-    if (typeof config.env !== "object" || config.env === null || Array.isArray(config.env)) {
-      throw new Error("mcp server env must be an object");
+  const transport = config.transport ?? "stdio";
+  if (transport !== "stdio" && transport !== "http") throw new Error(`mcp server transport must be stdio|http (got ${transport})`);
+  if (transport === "http") {
+    if (typeof config.url !== "string" || config.url.trim() === "") throw new Error("mcp server url must not be empty (http transport)");
+    let parsed: URL;
+    try { parsed = new URL(config.url); } catch { throw new Error("mcp server url must be a valid http(s) URL"); }
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") throw new Error("mcp server url must use http(s)");
+    if (config.command !== undefined || config.args !== undefined) throw new Error("http transport must not set command/args");
+    if (config.headers !== undefined) {
+      if (typeof config.headers !== "object" || config.headers === null || Array.isArray(config.headers)) throw new Error("mcp server headers must be an object");
+      for (const [k, v] of Object.entries(config.headers)) if (typeof v !== "string") throw new Error(`mcp server headers.${k} must be a string`);
     }
-    for (const [key, value] of Object.entries(config.env)) {
-      if (typeof value !== "string") throw new Error(`mcp server env.${key} must be a string`);
+  } else {
+    // stdio
+    if (typeof config.command !== "string" || config.command.trim() === "") throw new Error("mcp server command must not be empty");
+    if (!Array.isArray(config.args)) throw new Error("mcp server args must be an array");
+    if (config.args.some((arg) => typeof arg !== "string")) {
+      throw new Error("mcp server args must be an array of strings");
+    }
+    if (config.url !== undefined || config.headers !== undefined) throw new Error("stdio transport must not set url/headers");
+    if (config.env !== undefined) {
+      if (typeof config.env !== "object" || config.env === null || Array.isArray(config.env)) {
+        throw new Error("mcp server env must be an object");
+      }
+      for (const [key, value] of Object.entries(config.env)) {
+        if (typeof value !== "string") throw new Error(`mcp server env.${key} must be a string`);
+      }
     }
   }
   if (typeof config.enabled !== "boolean") throw new Error("mcp server enabled must be a boolean");
@@ -46,7 +65,7 @@ export function validateMcpServerConfig(config: McpServerConfig): void {
 interface ServerEntry {
   config: McpServerConfig;
   state: McpServerState;
-  client: McpStdioClient | null;
+  client: McpTransport | null;
   /** 原始工具定义（服务器侧名字）。 */
   tools: ToolDefinition[];
   errorCode?: string;
@@ -54,9 +73,9 @@ interface ServerEntry {
   generation: number;
 }
 
-/** 重启指纹：仅 command/args/env 变更需要重启进程；name/enabled 变更不需要。 */
+/** 重启指纹：仅连接/命令相关变更需要重启进程；name/enabled 变更不需要。 */
 function fingerprint(config: McpServerConfig): string {
-  return JSON.stringify([config.command, config.args, config.env ?? {}]);
+  return JSON.stringify([config.transport ?? "stdio", config.command, config.args, config.env ?? {}, config.url, config.headers ?? {}, config.auth ?? {}]);
 }
 
 /** 工具全名拼装/解析（mcp__<serverId>__<toolName>；toolName 内可含 __）。 */
@@ -76,7 +95,11 @@ export class McpManager {
   private readonly entries = new Map<string, ServerEntry>();
   private readonly listeners = new Set<() => void>();
 
-  constructor(private readonly requestTimeoutMs = 30_000) {}
+  constructor(
+    private readonly requestTimeoutMs = 30_000,
+    /** http 传输：解析加密凭据为授权头（Authorization: Bearer <token>）。 */
+    private readonly resolveAuth?: (credentialRef: string) => Promise<string | undefined>
+  ) {}
 
   onDidChange(listener: () => void): () => void {
     this.listeners.add(listener);
@@ -188,7 +211,7 @@ export class McpManager {
         description: tool.description,
       }));
       const view: McpServerView = {
-        config: { ...entry.config, args: [...entry.config.args], ...(entry.config.env !== undefined ? { env: { ...entry.config.env } } : {}) },
+        config: { ...entry.config, args: [...(entry.config.args ?? [])], ...(entry.config.env !== undefined ? { env: { ...entry.config.env } } : {}) },
         state: entry.state,
         tools,
       };
@@ -216,7 +239,9 @@ export class McpManager {
     const generation = entry.generation;
     this.emitChange();
 
-    const client = new McpStdioClient(entry.config, this.requestTimeoutMs);
+    const client = (entry.config.transport ?? "stdio") === "http"
+      ? new McpHttpClient(entry.config, { requestTimeoutMs: this.requestTimeoutMs, resolveAuth: this.resolveAuth })
+      : new McpStdioClient(entry.config, this.requestTimeoutMs);
     entry.client = client;
     client.onExit = () => {
       // 进程意外退出（非停用/重启导致）：转 error 态，工具即刻下线

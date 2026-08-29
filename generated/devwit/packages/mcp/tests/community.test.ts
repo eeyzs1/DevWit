@@ -43,6 +43,18 @@ const VALID_SERVER_FILE = JSON.stringify({
   },
 });
 
+const HTTP_SERVER_FILE = JSON.stringify({
+  kind: "devwit-mcp-server",
+  version: 1,
+  server: {
+    name: "Remote",
+    transport: "http",
+    url: "https://remote.test/mcp",
+    headers: { "X-Api-Key": "k" },
+    enabled: true,
+  },
+});
+
 /** 假 fetch：按 URL 路由到固定响应，记录请求序列。 */
 function fakeFetch(routes: Record<string, { status: number; body: string }>): {
   fetchImpl: CommunityFetchLike;
@@ -162,6 +174,30 @@ describe("parseMcpServerFile（AC34 服务器文件信封校验）", () => {
       /DW_MCP_SERVER_INVALID_SCHEMA:.*enabled/
     );
   });
+
+  it("合法远程（http）服务器文件：transport/url/headers 解析", () => {
+    const file = parseMcpServerFile(HTTP_SERVER_FILE);
+    assert.equal(file.server.transport, "http");
+    assert.equal(file.server.url, "https://remote.test/mcp");
+    assert.deepEqual(file.server.headers, { "X-Api-Key": "k" });
+  });
+
+  it("http 负载缺 url → INVALID_SCHEMA；设置 command 也被拒（transport 互斥）", () => {
+    assert.throws(
+      () =>
+        parseMcpServerFile(
+          JSON.stringify({ kind: "devwit-mcp-server", version: 1, server: { name: "R", transport: "http", enabled: true } })
+        ),
+      /DW_MCP_SERVER_INVALID_SCHEMA:.*url/
+    );
+    assert.throws(
+      () =>
+        parseMcpServerFile(
+          JSON.stringify({ kind: "devwit-mcp-server", version: 1, server: { name: "R", transport: "http", url: "https://r/mcp", command: "npx", enabled: true } })
+        ),
+      /DW_MCP_SERVER_INVALID_SCHEMA:.*command/
+    );
+  });
 });
 
 describe("materializeMcpImport（AC34 落为本机配置）", () => {
@@ -184,6 +220,15 @@ describe("materializeMcpImport（AC34 落为本机配置）", () => {
     assert.equal(config.id, "mcp-a");
     assert.equal(config.env, undefined);
     assert.equal(config.enabled, false);
+  });
+
+  it("远程（http）负载透传：transport/url/headers 落为本机配置，command 不掺入", () => {
+    const config = materializeMcpImport(parseMcpServerFile(HTTP_SERVER_FILE), { existingIds: new Set(), makeId: () => "mcp-r" });
+    assert.equal(config.id, "mcp-r");
+    assert.equal(config.transport, "http");
+    assert.equal(config.url, "https://remote.test/mcp");
+    assert.deepEqual(config.headers, { "X-Api-Key": "k" });
+    assert.equal(config.command, undefined);
   });
 });
 

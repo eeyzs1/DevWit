@@ -833,16 +833,29 @@ export type UpdateStatusInfo =
 export const MCP_TOOL_PREFIX = "mcp__";
 
 /**
- * 一个 stdio MCP 服务器配置（存 settings 的 "mcpServers" 键，热更新）。
- * command/args 为本地可执行命令（如 npx -y @modelcontextprotocol/server-filesystem）。
+ * 一个 MCP 服务器配置（存 settings 的 "mcpServers" 键，热更新）。
+ *
+ * transport 缺省 "stdio"（本地子进程，command/args/env）；"http"（远程
+ * Streamable HTTP 端点，url + 可选 headers/auth，见 MCP 规范 transport）。
+ * 远端工具同样以 mcp__<serverId>__<tool> 暴露给模型，且调用前一律经授权门。
  */
 export interface McpServerConfig {
   id: string;
   name: string;
-  command: string;
-  args: string[];
-  /** 附加环境变量（并入子进程环境；API token 等经此传入）。 */
+  /** stdio | http（缺省 stdio，向后兼容）。 */
+  transport?: "stdio" | "http";
+  /** stdio：本地可执行命令（如 npx -y @modelcontextprotocol/server-filesystem）。 */
+  command?: string;
+  /** stdio：命令参数。 */
+  args?: string[];
+  /** stdio：附加环境变量（并入子进程环境；API token 等经此传入）。 */
   env?: Record<string, string>;
+  /** http：远程 MCP 端点（Streamable HTTP，单端点 POST）。 */
+  url?: string;
+  /** http：附加请求头（如 Authorization: Bearer …）。不落日志。 */
+  headers?: Record<string, string>;
+  /** http：可选——用加密凭据填充 Authorization 头（复用 credentials 存储）。 */
+  auth?: { credentialRef?: string };
   enabled: boolean;
 }
 

@@ -1,4 +1,7 @@
 export { MCP_PROTOCOL_VERSION, McpStdioClient } from "./client.js";
+export { HTTP_PROTOCOL_VERSION, McpHttpClient } from "./http-client.js";
+export type { HttpFetchLike } from "./http-client.js";
+export type { McpTransport } from "./transport.js";
 export {
   fetchCommunityMcpIndex,
   fetchCommunityMcpServer,

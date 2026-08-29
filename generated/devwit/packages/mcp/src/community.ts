@@ -97,13 +97,22 @@ export async function fetchCommunityMcpIndex(base: string, fetchImpl: CommunityF
   return parseMcpIndex(await fetchText(`${base}/index.json`, fetchImpl));
 }
 
-/** 社区服务器文件负载（无 id——id 由导入方生成）。 */
+/** 社区服务器文件负载（无 id——id 由导入方生成；transport 缺省 stdio）。 */
 export interface McpServerFilePayload {
   name: string;
-  command: string;
-  args: string[];
-  env?: Record<string, string>;
   enabled: boolean;
+  /** stdio | http（缺省 stdio）。 */
+  transport?: "stdio" | "http";
+  /** stdio：本地可执行命令。 */
+  command?: string;
+  /** stdio：命令参数。 */
+  args?: string[];
+  /** stdio：附加环境变量。 */
+  env?: Record<string, string>;
+  /** http：远程 Streamable HTTP 端点。 */
+  url?: string;
+  /** http：附加请求头。注意：敏感 auth 头/s 凭据不建议发布进社区文件（由本地编辑补）。 */
+  headers?: Record<string, string>;
 }
 
 export interface McpServerFile {
@@ -168,12 +177,16 @@ export function materializeMcpImport(file: McpServerFile, opts: MaterializeMcpIm
     id = `${makeId()}-${n}`;
   }
   const payload = file.server;
-  return {
+  const out: McpServerConfig = {
     id,
     name: payload.name,
-    command: payload.command,
-    args: [...payload.args],
-    ...(payload.env !== undefined ? { env: { ...payload.env } } : {}),
     enabled: payload.enabled,
+    ...(payload.transport !== undefined ? { transport: payload.transport } : {}),
+    ...(payload.command !== undefined ? { command: payload.command } : {}),
+    ...(payload.args !== undefined ? { args: [...payload.args] } : {}),
+    ...(payload.env !== undefined ? { env: { ...payload.env } } : {}),
+    ...(payload.url !== undefined ? { url: payload.url } : {}),
+    ...(payload.headers !== undefined ? { headers: { ...payload.headers } } : {}),
   };
+  return out;
 }

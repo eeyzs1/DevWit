@@ -81,11 +81,15 @@ export class McpStdioClient {
     if (this.proc !== null) throw new Error("DW_MCP_ALREADY_STARTED");
     let proc: ChildProcessWithoutNullStreams;
     try {
+      // stdio 传输：command/args 由 manager 保证存在（validate 强制），此处防御性守卫
+      const command = this.config.command;
+      if (typeof command !== "string" || command.trim() === "") throw new Error("DW_MCP_NO_COMMAND");
+      const args = this.config.args ?? [];
       // Windows 下裸命令（如 npx→npx.cmd、npm、python）无显式扩展名，需 shell 才能解析；
       // 显式 .exe/.cmd/.bat/.com（含完整路径）则直接 spawn（shell:false 更稳，防参数注入改义）。
       // 命令来自用户配置（可信）；shell:true 仅用于解析 .cmd 等 shim，非拼接用户输入。
-      const hasExplicitExt = /\.(exe|cmd|bat|com)$/i.test(this.config.command);
-      proc = spawn(this.config.command, this.config.args, {
+      const hasExplicitExt = /\.(exe|cmd|bat|com)$/i.test(command);
+      proc = spawn(command, args, {
         env: { ...process.env, ...this.config.env },
         stdio: ["pipe", "pipe", "pipe"],
         shell: process.platform === "win32" && !hasExplicitExt,

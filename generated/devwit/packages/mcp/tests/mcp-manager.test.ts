@@ -3,6 +3,7 @@
  * 工具聚合（全名前缀）、调用路由、停用/重启/删除与崩溃转 error 态。
  */
 import fs from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,6 +24,10 @@ function makeConfig(id: string, overrides: Partial<McpServerConfig> = {}): McpSe
   };
 }
 
+function makeHttpConfig(id: string, url: string, overrides: Partial<McpServerConfig> = {}): McpServerConfig {
+  return { id, name: `Server ${id}`, transport: "http", url, enabled: true, ...overrides };
+}
+
 /** 轮询等待 manager 状态满足条件（异步 start 完成）。 */
 async function waitFor(manager: McpManager, predicate: () => boolean, timeoutMs = 10_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -31,6 +36,49 @@ async function waitFor(manager: McpManager, predicate: () => boolean, timeoutMs 
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   throw new Error("waitFor 超时");
+}
+
+/** 起一个本地 Streamable HTTP MCP 服务器夹具（POST /mcp 单端点）。 */
+async function startHttpServer(tools: Array<{ name: string; description?: string; inputSchema?: Record<string, unknown> }> = [{ name: "echo", description: "echo", inputSchema: { type: "object", properties: { text: { type: "string" } } } }]) {
+  const server = http.createServer((req, res) => {
+    if (req.method !== "POST") {
+      res.writeHead(405, { "content-type": "application/json" });
+      res.end(JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "POST only" } }));
+      return;
+    }
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      const msg = JSON.parse(body) as { id?: number | string; method?: string };
+      const send = (obj: unknown) => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(obj));
+      };
+      switch (msg.method) {
+        case "initialize":
+          send({ jsonrpc: "2.0", id: msg.id, result: { protocolVersion: "2026-07-28", serverInfo: { name: "test", version: "1" }, capabilities: { tools: {} } } });
+          return;
+        case "tools/list":
+          send({ jsonrpc: "2.0", id: msg.id, result: { tools } });
+          return;
+        case "tools/call": {
+          const reqMsg = JSON.parse(body) as { params?: { arguments?: Record<string, unknown> } };
+          const text = `from-http:${String(reqMsg.params?.arguments?.text ?? "")}`;
+          send({ jsonrpc: "2.0", id: msg.id, result: { content: [{ type: "text", text }], isError: false } });
+          return;
+        }
+        default:
+          send({ jsonrpc: "2.0", id: msg.id, error: { code: -32601, message: "method not found" } });
+      }
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  const port = typeof address === "object" && address !== null ? address.port : 0;
+  return {
+    url: `http://127.0.0.1:${port}/mcp`,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
 }
 
 describe("McpManager（AC17）", () => {
@@ -151,5 +199,60 @@ describe("McpManager（AC17）", () => {
     expect(parseMcpToolFullName("mcp__s1__a__b")).toEqual({ serverId: "s1", toolName: "a__b" });
     expect(parseMcpToolFullName("read")).toBeNull();
     expect(parseMcpToolFullName("mcp____x")).toBeNull();
+  });
+
+  it("http transport 分派：connect → ready，工具聚合，callTool 走远程", async () => {
+    const { url, close } = await startHttpServer();
+    try {
+      const manager = new McpManager();
+      manager.syncConfigs([makeHttpConfig("remote", url)]);
+      await waitFor(manager, () => manager.listViews()[0]?.state === "ready");
+      expect(manager.listViews()[0]?.config.transport).toBe("http");
+      expect(manager.toolDefinitions().map((t) => t.name)).toEqual(["mcp__remote__echo"]);
+      const result = await manager.callTool({ id: "c", name: "mcp__remote__echo", args: { text: "x" } });
+      expect(result).toMatchObject({ ok: true, output: "from-http:x" });
+      await manager.dispose();
+    } finally {
+      await close();
+    }
+  });
+
+  it("http url 指纹变更触发重启（新 url 暴露新工具）", async () => {
+    const a = await startHttpServer([{ name: "tool_a", description: "a", inputSchema: {} }]);
+    const b = await startHttpServer([{ name: "tool_b", description: "b", inputSchema: {} }]);
+    try {
+      const manager = new McpManager();
+      manager.syncConfigs([makeHttpConfig("remote", a.url)]);
+      await waitFor(manager, () => manager.listViews()[0]?.state === "ready");
+      expect(manager.toolDefinitions().map((t) => t.name)).toEqual(["mcp__remote__tool_a"]);
+      manager.syncConfigs([makeHttpConfig("remote", b.url)]);
+      await waitFor(manager, () => manager.listViews()[0]?.state === "ready");
+      expect(manager.toolDefinitions().map((t) => t.name)).toEqual(["mcp__remote__tool_b"]);
+      await manager.dispose();
+    } finally {
+      await a.close();
+      await b.close();
+    }
+  });
+
+  it("http 服务器错误（500）→ error 态且带 DW_MCP_HTTP_STATUS 错误码", async () => {
+    // 起一个对任何请求都返回 500 的端点
+    const server = http.createServer((_req, res) => {
+      res.writeHead(500, { "content-type": "application/json" });
+      res.end("{}");
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    const port = typeof address === "object" && address !== null ? address.port : 0;
+    try {
+      const manager = new McpManager();
+      manager.syncConfigs([makeHttpConfig("remote", `http://127.0.0.1:${port}/mcp`)]);
+      await waitFor(manager, () => manager.listViews()[0]?.state === "error");
+      expect(manager.listViews()[0]?.errorCode).toContain("DW_MCP_HTTP_STATUS:500");
+      expect(manager.toolDefinitions()).toEqual([]);
+      await manager.dispose();
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 });
