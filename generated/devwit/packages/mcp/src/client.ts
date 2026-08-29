@@ -63,7 +63,9 @@ export class McpStdioClient {
 
   constructor(
     private readonly config: McpServerConfig,
-    private readonly requestTimeoutMs = 30_000
+    private readonly requestTimeoutMs = 30_000,
+    /** initialize 握手超时：npx 首次下载 MCP 包可能较慢，需比普通调用更宽。 */
+    private readonly handshakeTimeoutMs = 90_000
   ) {}
 
   get serverId(): string {
@@ -79,11 +81,14 @@ export class McpStdioClient {
     if (this.proc !== null) throw new Error("DW_MCP_ALREADY_STARTED");
     let proc: ChildProcessWithoutNullStreams;
     try {
+      // Windows 下裸命令（如 npx→npx.cmd、npm、python）无显式扩展名，需 shell 才能解析；
+      // 显式 .exe/.cmd/.bat/.com（含完整路径）则直接 spawn（shell:false 更稳，防参数注入改义）。
+      // 命令来自用户配置（可信）；shell:true 仅用于解析 .cmd 等 shim，非拼接用户输入。
+      const hasExplicitExt = /\.(exe|cmd|bat|com)$/i.test(this.config.command);
       proc = spawn(this.config.command, this.config.args, {
         env: { ...process.env, ...this.config.env },
         stdio: ["pipe", "pipe", "pipe"],
-        // Windows 下 .cmd/.bat（如 npx）需要 shell 才能解析；shell:false 对裸可执行更稳
-        shell: process.platform === "win32" && /\.(cmd|bat)$/i.test(this.config.command),
+        shell: process.platform === "win32" && !hasExplicitExt,
       });
     } catch (error) {
       throw new Error(`DW_MCP_SPAWN_FAILED:${error instanceof Error ? error.message : String(error)}`);
@@ -106,7 +111,7 @@ export class McpStdioClient {
         protocolVersion: MCP_PROTOCOL_VERSION,
         capabilities: {},
         clientInfo: CLIENT_INFO,
-      });
+      }, this.handshakeTimeoutMs);
       this.notify("notifications/initialized");
       const listResult = (await this.request("tools/list")) as { tools?: McpRawTool[] } | undefined;
       const rawTools = Array.isArray(listResult?.tools) ? listResult.tools : [];
@@ -164,7 +169,7 @@ export class McpStdioClient {
   // JSON-RPC 帧收发（换行分隔）
   // --------------------------------------------------------------------------
 
-  private request(method: string, params?: unknown): Promise<unknown> {
+  private request(method: string, params?: unknown, timeoutMs?: number): Promise<unknown> {
     const proc = this.proc;
     if (proc === null) return Promise.reject(new Error("DW_MCP_NOT_RUNNING"));
     const id = this.nextId;
@@ -174,7 +179,7 @@ export class McpStdioClient {
       const timer = setTimeout(() => {
         this.pending.delete(id);
         reject(new Error(`DW_MCP_TIMEOUT:${method}`));
-      }, this.requestTimeoutMs);
+      }, timeoutMs ?? this.requestTimeoutMs);
       this.pending.set(id, { method, resolve, reject, timer });
       proc.stdin.write(`${JSON.stringify(message)}\n`, "utf-8");
     });
