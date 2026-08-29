@@ -1,7 +1,7 @@
 {
   "count": 1,
   "transition": "http",
-  "url": "http://127.0.0.1:51171/mcp",
+  "url": "http://127.0.0.1:56947/mcp",
   "tools": [
     "mcp__remotehttp__write_marker"
   ]

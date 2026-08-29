@@ -558,6 +558,13 @@ body,
 .dw-act-tool-head.dw-act-tool-open .dw-act-tool-label {
   color: var(--dw-fg);
 }
+.dw-act-tool-meta {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--dw-fg-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 .dw-act-authorization {
   border-color: var(--dw-accent);

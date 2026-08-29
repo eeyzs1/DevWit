@@ -123,6 +123,26 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   /** AC15：上次退出的会话快照（无/损坏时为 null，按全新会话处理）。 */
   const savedSession = parseSessionSnapshot(await api.settings.get("session.state"));
 
+  // ---- MCP 服务器身份缓存：活动流展示「调用了哪个远程 MCP」（名称/传输/URL）----
+  const mcpServers = new Map<string, { name: string; transport: string; url?: string }>();
+  async function refreshMcpServers(): Promise<void> {
+    try {
+      const views = await api.mcp.list();
+      mcpServers.clear();
+      for (const view of views) {
+        mcpServers.set(view.config.id, {
+          name: view.config.name,
+          transport: view.config.transport ?? "stdio",
+          url: view.config.url,
+        });
+      }
+    } catch {
+      /* 静默：仅用于活动流展示，缺失不阻断 */
+    }
+  }
+  void refreshMcpServers();
+  api.mcp.onChanged(() => void refreshMcpServers());
+
   // ---- 布局骨架：header / main（两种形态之一）/ statusbar ----
   const header = el("div", "dw-header");
   const main = el("div", "dw-main");
@@ -3264,6 +3284,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     getController: () => taskCenter.activeController(),
     onProposalReview: (assistantText) => reviewProposal(assistantText),
     resolveModeName,
+    resolveMcpServer: (serverId) => mcpServers.get(serverId) ?? null,
   });
   const activityInputRow = el("div", "dw-chat-input");
   const activityTextarea = el("textarea", "dw-chat-textarea") as HTMLTextAreaElement;

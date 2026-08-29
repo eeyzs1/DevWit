@@ -22,7 +22,7 @@ import { t } from "@devwit/i18n";
 export type ChatItem =
   | { kind: "user"; text: string }
   | { kind: "assistant"; text: string; streaming: boolean }
-  | { kind: "tool"; summary: string; ok: boolean | null; detail?: string }
+  | { kind: "tool"; summary: string; ok: boolean | null; detail?: string; request?: string }
   | { kind: "authorization"; requestId: string; toolName: string; reason: string; decision: AuthorizationDecision | null; auto?: boolean }
   | { kind: "diagnostics"; count: number; firstLine: string }
   | { kind: "route"; routed: string; providerId: string; score: number; threshold: number }
@@ -328,9 +328,13 @@ export class ChatController {
         }
         break;
       }
-      case "tool_call":
-        this.items.push({ kind: "tool", summary: event.summary, ok: null });
+      case "tool_call": {
+        // 捕获工具调用请求参数（供活动流「请求」可见；结果在 tool_result 里补）
+        const tc = event.detail as { args?: unknown } | undefined;
+        const request = tc?.args !== undefined && typeof tc.args === "object" ? JSON.stringify(tc.args) : undefined;
+        this.items.push({ kind: "tool", summary: event.summary, ok: null, ...(request !== undefined ? { request } : {}) });
         break;
+      }
       case "tool_result": {
         const last = [...this.items].reverse().find((item) => item.kind === "tool" && item.ok === null);
         if (last?.kind === "tool") {

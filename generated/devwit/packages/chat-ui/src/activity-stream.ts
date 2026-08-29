@@ -15,6 +15,19 @@ export interface ActivityStreamOptions {
   onProposalReview?: (assistantText: string) => void;
   /** 模式 id → 当前语言显示名（错误文案本地化用，可选）。 */
   resolveModeName?: (modeId: string) => string;
+  /** MCP server id → 服务器身份（名称/传输/URL），用于活动流展示「调用了哪个远程 MCP」。 */
+  resolveMcpServer?: (serverId: string) => { name: string; transport: string; url?: string } | null;
+}
+
+/** 从工具全名解析 MCP server id（mcp__<id>__<tool>）；非 MCP 工具返回 null。 */
+function mcpServerId(fullName: string): string | null {
+  const m = /^mcp__([\w-]+)__/.exec(fullName);
+  return m !== null && m[1] !== undefined ? m[1] : null;
+}
+
+/** 传输 → 当前语言短标签（活动流展示用）。 */
+function transportLabel(transport: string): string {
+  return transport === "http" ? "远程/Streamable HTTP" : transport === "stdio" ? "本地/stdio" : transport;
 }
 
 export interface ActivityStreamHandle {
@@ -96,7 +109,7 @@ export function mountActivityStream(
         break;
       }
       case "tool": {
-        // 工具结果审计：状态图标 + 可展开的完整结果（成功输出/失败错误）。
+        // 工具结果审计：状态图标 + 可展开的请求/完整结果（成功输出/失败错误）。
         const state = item.ok === null ? t("act.tool.running") : item.ok ? t("act.tool.ok") : t("act.tool.failed");
         const head = document.createElement("div");
         head.className = "dw-act-tool-head";
@@ -109,10 +122,23 @@ export function mountActivityStream(
         label.textContent = `${item.summary}（${state}）`;
         head.appendChild(label);
         body.appendChild(head);
-        if (item.detail !== undefined && item.detail.length > 0) {
+        // 远程 MCP 服务器身份（名称/传输/URL）——让用户看到「调用了哪个远程 MCP」
+        const sid = mcpServerId(item.summary);
+        const mcp = sid !== null ? options.resolveMcpServer?.(sid) : undefined;
+        if (mcp !== undefined && mcp !== null) {
+          const meta = document.createElement("div");
+          meta.className = "dw-act-tool-meta";
+          meta.textContent = t("act.tool.mcp", { name: mcp.name, transport: transportLabel(mcp.transport), url: mcp.url ?? "—" });
+          body.appendChild(meta);
+        }
+        // 折叠区：请求 + 完整结果（审计透明，不默认刷屏）
+        const parts: string[] = [];
+        if (item.request !== undefined) parts.push(t("act.tool.request", { json: item.request }));
+        if (item.detail !== undefined && item.detail.length > 0) parts.push(t("act.tool.result", { text: item.detail }));
+        if (parts.length > 0) {
           const detail = document.createElement("pre");
           detail.className = "dw-act-tool-detail";
-          detail.textContent = item.detail;
+          detail.textContent = parts.join("\n");
           // 默认折叠；点击头部展开/收起完整结果（审计透明，不默认刷屏）
           const toggle = (): void => {
             detail.classList.toggle("dw-collapsed");

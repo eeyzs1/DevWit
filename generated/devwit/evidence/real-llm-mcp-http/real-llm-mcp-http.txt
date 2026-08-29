@@ -1,5 +1,5 @@
 实机演示（真实 DeepSeek + 远程 http 传输 MCP）：
-1. 启动 Streamable HTTP MCP 端点 http://127.0.0.1:51171/mcp；设置页以 transport=http + url 接入（★非 stdio★），就绪 1 个工具（含 mcp__remotehttp__write_marker）。
+1. 启动 Streamable HTTP MCP 端点 http://127.0.0.1:56947/mcp；设置页以 transport=http + url 接入（★非 stdio★），就绪 1 个工具（含 mcp__remotehttp__write_marker）。
 2. 指挥台 Agent 任务让真实 DeepSeek 调用 http 远程 MCP 工具；授权门出现 mcp__remotehttp__write_marker（截图 02），允许（本会话）后真实 tools/call 经 http 到达服务器。
 3. http 传输证明：服务器共收到收到的 POST 请求头（含 MCP-Protocol-Version / Mcp-Method / Mcp-Name 必需头），证明走的是 http 传输而非 stdio 子进程。
 4. MCP 真实写入 proof-marker.txt；活动流含 MCP 工具成功行 + DeepSeek 中文确认（截图 03）。

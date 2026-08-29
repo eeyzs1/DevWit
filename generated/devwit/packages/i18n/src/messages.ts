@@ -584,6 +584,9 @@ const zhCN = {
   "act.tool.running": "执行中…",
   "act.tool.ok": "成功",
   "act.tool.failed": "失败/被拒",
+  "act.tool.mcp": "远程 MCP：{name} · {transport} · {url}",
+  "act.tool.request": "请求：{json}",
+  "act.tool.result": "结果：{text}",
   "act.empty": "创建或选择一个任务后，这里实时展示 Agent 的执行轨迹。",
   // ---- 多 Agent 编排（AC20）----
   "act.plan": "计划",
@@ -1255,6 +1258,9 @@ const enUS: Messages = {
   "act.tool.running": "Running…",
   "act.tool.ok": "OK",
   "act.tool.failed": "Failed/denied",
+  "act.tool.mcp": "Remote MCP: {name} · {transport} · {url}",
+  "act.tool.request": "Request: {json}",
+  "act.tool.result": "Result: {text}",
   "act.empty": "Create or select a task to see the Agent's execution trace live here.",
   // ---- Multi-agent orchestration (AC20) ----
   "act.plan": "Plan",
