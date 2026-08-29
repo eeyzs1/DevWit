@@ -135,6 +135,11 @@ distribution/       分发基建（winget 清单 / Homebrew cask / 社区模式�
 docs/screenshots/   README 真实界面截图
 ```
 
+## 扩展开发
+
+想为 DevWit 增加能力（自定义模式、MCP 工具、社区模式发布、代码级扩展）？
+见 [docs/EXTENDING.md](docs/EXTENDING.md)——四层级扩展模型 + 模式文件格式 + 全部扩展接口与装配点。
+
 ## 快速开始
 
 ```powershell
