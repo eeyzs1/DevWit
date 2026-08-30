@@ -36,7 +36,7 @@ DevWit 是一款自研的 AI 原生桌面 IDE：融合 VSCode 的编辑器能力
 >
 > 这不是病毒——安装包由公开 [GitHub Actions](https://github.com/eeyzs1/DevWit/actions) 构建，源码与产物均可核对。给仓库一个 Star 有助于我们申请免费签名，去掉这层摩擦。
 
-winget（microsoft/winget-pkgs#407506 已合并上线；0.5.0 更新 PR #422497 待审批，v0.6.0 更新将随后提交）：
+winget（microsoft/winget-pkgs#407506、#422497、#425984 已先后合并，最新 v0.6.0 已上线）：
 
 ```powershell
 winget install eeyzs1.DevWit
