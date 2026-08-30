@@ -57,4 +57,4 @@ Product Hunt and other review comments are also treated as feedback — maintain
 
 ## Code of conduct
 
-Be respectful. Assume good faith. No harassment, spam, or malware PRs. Maintainers may close off-topic or abusive threads.
+Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). Be respectful, assume good faith. No harassment, spam, or malware PRs. Maintainers may close off-topic or abusive threads.
