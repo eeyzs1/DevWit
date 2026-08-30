@@ -91,5 +91,9 @@ winget 全版本线覆盖，然后是更多语言的 LSP 支持。
 如果你在有合规/审计需求的团队，或者只是想知道自己的 AI 工具在干什么——
 真心欢迎反馈。
 
-**链接**：[GitHub](https://github.com/eeyzs1/DevWit) ·
+## ⭐ 一个免费的请求
+
+开源项目从 0 到 1 的 star 是最难的，也是最有价值的——它决定了项目能否被更多人看见、能否申请免费代码签名（去掉 Windows 的 SmartScreen 拦截）。如果你觉得这个方向对，**花一秒在 GitHub 上点个 Star**，是对这个项目最大的支持。
+
+**链接**：[GitHub](https://github.com/eeyzs1/DevWit)（点 ⭐ Star）·
 [下载 v0.6.0](https://github.com/eeyzs1/DevWit/releases/latest)

@@ -4,8 +4,10 @@
 
 [![Release](https://img.shields.io/github/v/release/eeyzs1/DevWit)](https://github.com/eeyzs1/DevWit/releases)
 [![Downloads](https://img.shields.io/github/downloads/eeyzs1/DevWit/total)](https://github.com/eeyzs1/DevWit/releases)
-[![Stars](https://img.shields.io/github/stars/eeyzs1/DevWit)](https://github.com/eeyzs1/DevWit/stargazers)
+[![Stars](https://img.shields.io/github/stars/eeyzs1/DevWit?style=social&label=Star)](https://github.com/eeyzs1/DevWit/stargazers)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+> **⭐ If DevWit helps you, please hit the Star button** — the 0→1 star matters enormously for an open-source project: it's our only public signal to get a free code-signing cert (removing the Windows SmartScreen warning), get community visibility, and keep the project alive. One star costs you nothing but decides a lot for us. Thank you!
 
 DevWit is a self-built AI-native desktop IDE. It combines VSCode-grade editing, Cursor-style conversational coding, Claude Code-style agent execution, and a pi-agent-inspired minimal context design that avoids long-context bloat — delivering an efficient, transparent, and auditable AI development experience.
 
@@ -23,11 +25,11 @@ Built for: teams with compliance/audit needs, developers who want to know exactl
 
 ## Download & Install
 
-**Latest v0.6.0 · Free software · MIT license** (all build artifacts on the [Releases](https://github.com/eeyzs1/DevWit/releases) page)
+**Latest v0.7.0 · Free software · MIT license** (all build artifacts on the [Releases](https://github.com/eeyzs1/DevWit/releases) page)
 
 ### Windows (x64)
 
-Direct download: [DevWit.Setup.0.6.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.6.0/DevWit.Setup.0.6.0.exe) (NSIS installer, custom install directory, supports `/S` silent install).
+Direct download: [DevWit.Setup.0.7.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.7.0/DevWit.Setup.0.7.0.exe) (NSIS installer, custom install directory, supports `/S` silent install).
 
 > **SmartScreen / “Windows protected your PC”**: Windows builds are not code-signed yet (open-source / free; SignPath needs some stars before we can re-apply). If SmartScreen blocks the installer:
 > 1. Click **More info**
@@ -36,7 +38,7 @@ Direct download: [DevWit.Setup.0.6.0.exe](https://github.com/eeyzs1/DevWit/relea
 >
 > This is not malware — builds come from public [GitHub Actions](https://github.com/eeyzs1/DevWit/actions). A GitHub Star helps us get free signing and remove this friction.
 
-winget (merged via microsoft/winget-pkgs#407506; v0.5.0 update PR [#422497](https://github.com/microsoft/winget-pkgs/pull/422497) submitted, v0.6.0 update will follow):
+winget (merged via microsoft/winget-pkgs#407506 / #422497 / #425984; latest v0.6.0 live, v0.7.0 update coming):
 
 ```powershell
 winget install eeyzs1.DevWit
@@ -51,12 +53,12 @@ brew install --cask eeyzs1/tap/devwit
 xattr -dr com.apple.quarantine /Applications/DevWit.app   # unsigned distribution; de-quarantine once
 ```
 
-Or download directly: [DevWit-0.6.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.6.0/DevWit-0.6.0-arm64.dmg) (no Intel Mac build yet).
+Or download directly: [DevWit-0.7.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.7.0/DevWit-0.7.0-arm64.dmg) (no Intel Mac build yet).
 
 ### Linux (x64)
 
-- AppImage (in-app auto-update): [DevWit-0.6.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.6.0/DevWit-0.6.0.AppImage) — `chmod +x` and run
-- Debian/Ubuntu: [devwit_0.6.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.6.0/devwit_0.6.0_amd64.deb) — install with `sudo dpkg -i`
+- AppImage (in-app auto-update): [DevWit-0.7.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.7.0/DevWit-0.7.0.AppImage) — `chmod +x` and run
+- Debian/Ubuntu: [devwit_0.7.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.7.0/devwit_0.7.0_amd64.deb) — install with `sudo dpkg -i`
 
 ### Auto-Update
 

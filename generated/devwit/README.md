@@ -4,8 +4,10 @@
 
 [![版本](https://img.shields.io/github/v/release/eeyzs1/DevWit?label=%E7%89%88%E6%9C%AC)](https://github.com/eeyzs1/DevWit/releases)
 [![累计下载](https://img.shields.io/github/downloads/eeyzs1/DevWit/total?label=%E4%B8%8B%E8%BD%BD%E9%87%8F)](https://github.com/eeyzs1/DevWit/releases)
-[![Stars](https://img.shields.io/github/stars/eeyzs1/DevWit)](https://github.com/eeyzs1/DevWit/stargazers)
+[![Stars](https://img.shields.io/github/stars/eeyzs1/DevWit?style=social&label=Star)](https://github.com/eeyzs1/DevWit/stargazers)
 [![协议: MIT](https://img.shields.io/badge/%E5%8D%8F%E8%AE%AE-MIT-green)](LICENSE)
+
+> **⭐ 如果 DevWit 对你有帮助，点一下右上角的 Star** —— 0→1 的 star 对开源项目意义重大：它是我们申请免费代码签名（去掉 Windows SmartScreen 拦截）、被社区推荐、被更多人看见的唯一公信号。你的一个 Star 是免费的，但对项目是决定性的。谢谢！
 
 DevWit 是一款自研的 AI 原生桌面 IDE：融合 VSCode 的编辑器能力、Cursor 的对话式编程、Claude Code 的 Agent 任务执行与 pi agent 的简洁上下文设计，避免长上下文膨胀，提供高效、透明、可审计的 AI 开发体验。
 
@@ -23,11 +25,11 @@ DevWit 是一款自研的 AI 原生桌面 IDE：融合 VSCode 的编辑器能力
 
 ## 下载安装
 
-**最新版本 v0.6.0 · 免费软件 · MIT 协议**（全部构建产物见 [Releases](https://github.com/eeyzs1/DevWit/releases)）
+**最新版本 v0.7.0 · 免费软件 · MIT 协议**（全部构建产物见 [Releases](https://github.com/eeyzs1/DevWit/releases)）
 
 ### Windows（x64）
 
-直接下载：[DevWit.Setup.0.6.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.6.0/DevWit.Setup.0.6.0.exe)（NSIS 安装包，可选安装目录，支持 `/S` 静默安装）。
+直接下载：[DevWit.Setup.0.7.0.exe](https://github.com/eeyzs1/DevWit/releases/download/v0.7.0/DevWit.Setup.0.7.0.exe)（NSIS 安装包，可选安装目录，支持 `/S` 静默安装）。
 
 > **SmartScreen /「Windows 已保护你的电脑」**：当前 Windows 构建尚未代码签名（免费开源，SignPath 需仓库有一定 Star 后才能申请）。若弹出蓝屏拦截：
 > 1. 点 **更多信息**
@@ -36,7 +38,7 @@ DevWit 是一款自研的 AI 原生桌面 IDE：融合 VSCode 的编辑器能力
 >
 > 这不是病毒——安装包由公开 [GitHub Actions](https://github.com/eeyzs1/DevWit/actions) 构建，源码与产物均可核对。给仓库一个 Star 有助于我们申请免费签名，去掉这层摩擦。
 
-winget（microsoft/winget-pkgs#407506、#422497、#425984 已先后合并，最新 v0.6.0 已上线）：
+winget（microsoft/winget-pkgs#407506、#422497、#425984 已先后合并，最新 v0.6.0 已上线；v0.7.0 更新待提交）：
 
 ```powershell
 winget install eeyzs1.DevWit
@@ -51,12 +53,12 @@ brew install --cask eeyzs1/tap/devwit
 xattr -dr com.apple.quarantine /Applications/DevWit.app   # 未签名分发，首次运行前去一次隔离
 ```
 
-或直接下载：[DevWit-0.6.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.6.0/DevWit-0.6.0-arm64.dmg)（Intel Mac 暂无构建）。
+或直接下载：[DevWit-0.7.0-arm64.dmg](https://github.com/eeyzs1/DevWit/releases/download/v0.7.0/DevWit-0.7.0-arm64.dmg)（Intel Mac 暂无构建）。
 
 ### Linux（x64）
 
-- AppImage（支持应用内自动更新）：[DevWit-0.6.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.6.0/DevWit-0.6.0.AppImage)，下载后 `chmod +x` 直接运行
-- Debian/Ubuntu：[devwit_0.6.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.6.0/devwit_0.6.0_amd64.deb)，`sudo dpkg -i` 安装
+- AppImage（支持应用内自动更新）：[DevWit-0.7.0.AppImage](https://github.com/eeyzs1/DevWit/releases/download/v0.7.0/DevWit-0.7.0.AppImage)，下载后 `chmod +x` 直接运行
+- Debian/Ubuntu：[devwit_0.7.0_amd64.deb](https://github.com/eeyzs1/DevWit/releases/download/v0.7.0/devwit_0.7.0_amd64.deb)，`sudo dpkg -i` 安装
 
 ### 自动更新
 
