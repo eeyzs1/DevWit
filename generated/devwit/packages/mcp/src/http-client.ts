@@ -39,9 +39,6 @@ export interface HttpFetchLike {
 function isSse(contentType: string): boolean {
   return contentType.toLowerCase().includes("text/event-stream");
 }
-function isJson(contentType: string): boolean {
-  return contentType.toLowerCase().includes("application/json");
-}
 
 /** 头值安全编码：可见 ASCII 直接用，否则 base64 哨兵（Mcp-Name / Mcp-Param-*）。 */
 function encodeHeaderValue(value: string): string {

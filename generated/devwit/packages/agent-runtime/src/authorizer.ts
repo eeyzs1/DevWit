@@ -101,7 +101,7 @@ export class Authorizer {
       // B-WU3 fail-closed：answerer 抛错/非规范返回 → unavailable（拿不到裁决就不放行）
       try {
         decision = await this.handler(request);
-      } catch (error) {
+      } catch {
         decision = "unavailable";
       }
     } else {

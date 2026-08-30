@@ -1,5 +1,4 @@
 import type { AgentTraceEvent, AgentTraceEventType } from "@devwit/contracts";
-import { historyFromTrace } from "./session-log.js";
 
 /** 兼容再导出（B-WU1）：投影算法已迁至 session-log.deriveMessages。 */
 export { historyFromTrace, deriveMessages, assertModelVisibleLogged, freezeEvents, assertAppendOnly } from "./session-log.js";

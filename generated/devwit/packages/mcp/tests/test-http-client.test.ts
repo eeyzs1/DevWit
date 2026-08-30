@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { HttpFetchLike } from "../src/http-client.js";
 import { McpHttpClient } from "../src/http-client.js";
-import type { ToolDefinition, ToolResult } from "@devwit/contracts";
 
 type RouteResp = { status?: number; contentType?: string; body?: unknown; raw?: string; sse?: string };
 type Route = RouteResp | ((req: { id: number; method: string; proto?: string; mcpMethod?: string }) => RouteResp);
 
 /** 构造一个 mock fetch：按请求 body 的 method 路由到 routes，记录每次请求。 */
-function makeFetch(routes: Record<string, Route>, auth?: Record<string, string>) {
+function makeFetch(routes: Record<string, Route>) {
   const calls: Array<{ method: string; mcpMethod?: string; mcpName?: string; proto?: string; auth?: string; headers: Record<string, string> }> = [];
   const fetchImpl: HttpFetchLike = async (_url, init) => {
     const req = JSON.parse(init?.body ?? "{}") as { method?: string; id?: number };

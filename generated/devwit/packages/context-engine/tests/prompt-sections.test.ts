@@ -4,7 +4,6 @@ import { ContextEngine } from "../src/context-engine.js";
 import {
   FIRST_PARTY_SECTION_ORDER,
   PromptSectionRegistry,
-  type PromptSection,
 } from "../src/prompt-sections.js";
 
 const TOOLS: ToolDefinition[] = [

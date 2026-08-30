@@ -16,7 +16,7 @@
  */
 
 import type { AgentTraceEvent, AgentRunInput, ChatMessage } from "@devwit/contracts";
-import { AgentLoop, type AgentLoopDeps } from "./agent-loop.js";
+import type { AgentLoop } from "./agent-loop.js";
 
 /** 接缝输入：一次 run 所需的最小上下文（外部后端在此之上自行组提示）。 */
 export interface AgentBackendInput {
