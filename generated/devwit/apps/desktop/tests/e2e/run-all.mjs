@@ -42,7 +42,7 @@ function runOne(name) {
     }, PER_SCRIPT_TIMEOUT_MS);
     let tail = "";
     const feed = (chunk) => {
-      tail = (tail + chunk.toString()).slice(-400);
+      tail = (tail + chunk.toString()).slice(-1500);
     };
     child.stdout.on("data", feed);
     child.stderr.on("data", feed);

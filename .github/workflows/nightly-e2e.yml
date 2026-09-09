@@ -48,6 +48,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Pack (dir package for verify-pack-lsp)
+        run: npm run pack
+
       - name: Run full E2E battery
         run: npm run test:e2e-all
 

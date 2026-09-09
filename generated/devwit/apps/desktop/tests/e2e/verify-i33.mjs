@@ -139,13 +139,16 @@ try {
   // ---- 2. 切调试页签 → 启动调试 → 断点命中停第 3 行 ----
   await page.click(".dw-left-tabs >> text=调试");
   await page.click(".dw-debug-toolbar >> text=启动调试");
+  // 停止状态先到「已暂停」、file:line 定位随 stopped 事件补齐——慢速 CI runner
+  // 上两帧存在可观测间隔（夜跑首战实证：本地恒同步、CI 偶发先无定位），
+  // 故等待完整形态「已暂停…main.js:3」而非两段式断言
   const stopped = await pollUntil(async () => {
     const text = await page.textContent(".dw-status-debug");
-    return text?.includes("已暂停") ? text : null;
+    return text !== null && text.includes("已暂停") && text.includes("main.js") && text.includes(":3")
+      ? text
+      : null;
   }, 30_000);
-  assert(stopped !== null, `状态栏应进入「已暂停」（实际: ${JSON.stringify(await page.textContent(".dw-status-debug"))}）`);
-  assert(stopped?.includes("main.js") === true && stopped.includes(":3") === true,
-    `停止位置应为 main.js:3（实际: ${JSON.stringify(stopped)}）`);
+  assert(stopped !== null, `状态栏应进入「已暂停：…main.js:3」（实际: ${JSON.stringify(await page.textContent(".dw-status-debug"))}）`);
   await page.screenshot({ path: path.join(OUT, "01-stopped-at-breakpoint.png") });
   step("启动调试 → 真实 js-debug 断点命中停 main.js:3（截图 01）");
 
