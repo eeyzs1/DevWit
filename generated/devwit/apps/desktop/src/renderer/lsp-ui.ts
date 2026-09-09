@@ -21,17 +21,7 @@ import type {
 import type { TextDocument } from "@devwit/editor-core";
 import type { EditorView } from "@devwit/editor-render";
 import { t } from "@devwit/i18n";
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className?: string,
-  text?: string
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (className !== undefined) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
+import { el } from "./dom.js";
 
 /** 模块视角的活动文件（结构子集——宿主 OpenFile 满足此形状即可）。 */
 export interface LspOpenFileView {

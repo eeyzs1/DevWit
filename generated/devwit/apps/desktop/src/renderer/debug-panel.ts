@@ -19,17 +19,7 @@ import type {
 import type { EditorView } from "@devwit/editor-render";
 import type { BreakpointKind } from "@devwit/editor-render";
 import { t } from "@devwit/i18n";
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className?: string,
-  text?: string
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (className !== undefined) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
+import { el } from "./dom.js";
 
 export interface DebugPanelDeps {
   api: DevwitApi;

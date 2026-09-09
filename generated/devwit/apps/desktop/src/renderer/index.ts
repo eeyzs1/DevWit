@@ -28,6 +28,7 @@ import { mountSearchPanel } from "./search-panel.js";
 import { mountLspUi } from "./lsp-ui.js";
 import { mountGitPanel } from "./git-panel.js";
 import { mountDebugPanel } from "./debug-panel.js";
+import { el } from "./dom.js";
 import { openEditorSetupDialog } from "./editor-setup-dialog.js";
 import { openOnboardingWizard } from "./onboarding-wizard.js";
 import { maybeOpenContextTour } from "./context-tour.js";
@@ -85,17 +86,6 @@ function parseSessionSnapshot(raw: unknown): SessionStateSnapshot | null {
 interface OpenFile {
   path: string;
   doc: TextDocument;
-}
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className?: string,
-  text?: string
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (className !== undefined) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
 }
 
 async function bootstrap(api: DevwitApi): Promise<void> {
