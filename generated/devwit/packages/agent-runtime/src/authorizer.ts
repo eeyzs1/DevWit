@@ -7,6 +7,7 @@ import {
   type AuthorizationRequest,
   isAuthorizationGranted,
 } from "@devwit/contracts";
+import { normalizeCommand } from "./authorization-memory.js";
 
 /** 授权处理器：由调用方（如 apps 层经 IPC 弹窗）实现，返回用户裁决。 */
 export type AuthorizationHandler = (request: AuthorizationRequest) => Promise<AuthorizationDecision>;
@@ -27,12 +28,14 @@ export interface AuthorizationMemory {
 interface PendingAuthorization {
   request: AuthorizationRequest;
   resolve: (decision: AuthorizationOutcome) => void;
-}/** bash 参数中的命令串（空白归一化；缺失/空返回 null）。 */
+}/** bash 参数中的命令串（空白归一化；缺失/空返回 null）。
+ * 归一化与持久白名单共享 normalizeCommand 单一实现（🟡修复 v0.7.9：
+ * 双实现漂移会使会话放行与白名单语义静默分叉）。 */
 function commandOfArgs(args?: Record<string, unknown>): string | null {
   if (args === undefined) return null;
   const raw = args["command"];
   if (typeof raw !== "string") return null;
-  const normalized = raw.trim().replace(/\s+/g, " ");
+  const normalized = normalizeCommand(raw);
   return normalized === "" ? null : normalized;
 }
 

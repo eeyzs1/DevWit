@@ -99,6 +99,10 @@ export class RegexMatchService {
       const onError = (): void => finish(null);
       worker.on("message", onMessage);
       worker.on("error", onError);
+      // worker 无 error 事件的主动退出（如 OOM/process.exit）：非零码且未决 → 失败
+      worker.on("exit", (code) => {
+        if (!settled && code !== 0) finish(null);
+      });
       worker.postMessage({ id: 1, op: "match-lines", lines, source, flags });
     });
   }

@@ -1,33 +1,33 @@
 {
-  "id": "manifest-a6dc0a5a-f3c2-446f-b420-5fe28a0840f2",
-  "timestamp": "2026-07-27T19:44:03.743Z",
-  "sessionId": "session-1785181442382",
+  "id": "manifest-8cf920b7-2865-44c5-b3f0-4e413276e0eb",
+  "timestamp": "2026-09-09T12:41:22.839Z",
+  "sessionId": "session-1788957681362",
   "modeId": "chat",
   "providerId": "p-i29",
   "model": "i29-model",
   "items": [
     {
-      "id": "item-959add96-a218-456d-8a04-e94af6aed877",
+      "id": "item-d13b6353-7a05-47c9-b530-81fa4770ed5d",
       "type": "system_prompt",
       "label": "系统提示",
       "enabled": true,
-      "tokens": 65,
-      "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。",
+      "tokens": 94,
+      "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。你有 read/grep/find/ls 只读工具，可查看工作区文件帮助回答；此模式不能修改文件或执行命令，如需改动，请建议用户切到 Agent 模式。",
       "source": "mode",
       "counting": "exact"
     },
     {
-      "id": "item-1e4cb93e-bc83-43a2-96c6-8f821c06f402",
+      "id": "item-40c46d0a-a6b1-4761-9a1b-5f5caf4c0200",
       "type": "tool_definitions",
-      "label": "工具定义（0 个）",
+      "label": "工具定义（8 个）",
       "enabled": true,
-      "tokens": 1,
-      "content": "[]",
+      "tokens": 601,
+      "content": "[{\"name\":\"read\",\"description\":\"读取工作区内文件内容；可用 start_line/end_line 读取指定行区间（大文件分片阅读）\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"相对工作区根的路径\"},\"start_line\":{\"type\":\"number\",\"description\":\"起始行号（从 1 起，可选）\"},\"end_line\":{\"type\":\"number\",\"description\":\"结束行号（含，可选）\"}},\"required\":[\"path\"]}},{\"name\":\"grep\",\"description\":\"在工作区文件中按正则搜索，输出 文件:行号: 内容\",\"parameters\":{\"type\":\"object\",\"properties\":{\"pattern\":{\"type\":\"string\",\"description\":\"正则表达式\"},\"path\":{\"type\":\"string\",\"description\":\"起始目录（默认工作区根）\"},\"glob\":{\"type\":\"string\",\"description\":\"文件名通配过滤，如 *.ts\"},\"case_sensitive\":{\"type\":\"boolean\",\"description\":\"大小写敏感（默认 true）\"}},\"required\":[\"pattern\"]}},{\"name\":\"find\",\"description\":\"按文件名通配符（* / ?）查找文件与目录\",\"parameters\":{\"type\":\"object\",\"properties\":{\"pattern\":{\"type\":\"string\",\"description\":\"文件名通配符，如 *.ts\"},\"path\":{\"type\":\"string\",\"description\":\"起始目录（默认工作区根）\"}},\"required\":[\"pattern\"]}},{\"name\":\"ls\",\"description\":\"列出目录内容（目录名带 / 后缀）\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"目录路径（默认工作区根）\"}}}},{\"name\":\"git_status\",\"description\":\"查看 Git 工作区状态（git status --short）：改/删/暂存文件清单\",\"parameters\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"git_diff\",\"description\":\"查看 Git diff（未暂存默认；staged=true 看已暂存）。可按路径过滤\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"限定查看此路径的 diff（可选）\"},\"staged\":{\"type\":\"boolean\",\"description\":\"true 查看已暂存（--cached）变更；默认 false\"}}}},{\"name\":\"git_log\",\"description\":\"查看 Git 提交历史（一行为一条：hash + 主题）\",\"parameters\":{\"type\":\"object\",\"properties\":{\"limit\":{\"type\":\"number\",\"description\":\"最近几条提交（默认 20，上限 100）\"}}}},{\"name\":\"git_branch\",\"description\":\"列出 Git 本地分支（按最近提交时间倒序）\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}]",
       "source": "mode",
       "counting": "exact"
     },
     {
-      "id": "item-46024790-c529-4722-a6b9-36c83ede042f",
+      "id": "item-c9d0cb13-d0ad-4097-9a2b-e000585f2935",
       "type": "conversation_history",
       "label": "会话历史（1 条）",
       "enabled": true,
@@ -37,7 +37,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-0a52f6cd-a602-4bdf-81c3-96ef041ab609",
+      "id": "item-707dd6bb-fe98-40a1-8fc0-69c64a9f0e91",
       "type": "file_fragment",
       "label": "引用符号 add（src/calc.ts L1-4）",
       "enabled": true,
@@ -48,7 +48,7 @@
       "key": "symbol:6a8d95f4ab5cb110"
     },
     {
-      "id": "item-d883a2e8-e99f-47a5-823d-ffd8d756d1f1",
+      "id": "item-b375103c-916a-4ae8-bfb9-0e2c3083542c",
       "type": "file_fragment",
       "label": "引用符号 UserService（src/user.ts L1-5）",
       "enabled": true,
@@ -59,7 +59,7 @@
       "key": "symbol:fc21685d6372786c"
     },
     {
-      "id": "item-aa9e3026-6dd0-4d67-9293-6c91e8de95a7",
+      "id": "item-071daf9d-dfa5-4e07-8e79-d9b6e7fe5995",
       "type": "git_status",
       "label": "Git 状态",
       "enabled": false,
@@ -69,7 +69,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-963eaf54-a595-4aff-93ee-8a604b1c6702",
+      "id": "item-92f5c27f-e632-4b78-ab5a-e14d3465e012",
       "type": "codebase_match",
       "label": "代码库检索（索引未启用）",
       "enabled": false,
@@ -79,6 +79,14 @@
       "counting": "exact"
     }
   ],
-  "totalTokens": 135,
-  "systemPromptTokens": 65
+  "totalTokens": 764,
+  "systemPromptTokens": 94,
+  "framingTokens": 46,
+  "estimatedRequestTokens": 810,
+  "promptSections": [
+    {
+      "name": "mode",
+      "order": 0
+    }
+  ]
 }

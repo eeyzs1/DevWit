@@ -638,9 +638,9 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
     return empty;
   }
 
-  /** 仅当用户位于（或接近）底部时自动滚动——流式中用户上翻不被拽回。 */
-  function autoscrollIfNearBottom(): void {
-    const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 48;
+  /** 用户位于（或接近）底部时自动滚动——流式中用户上翻不被拽回。
+   * 采样由调用方在 DOM 变更前完成（预采样值传入），见 render 注释。 */
+  function autoscrollIfNearBottom(nearBottom: boolean): void {
     if (nearBottom) list.scrollTop = list.scrollHeight;
   }
 
@@ -669,6 +669,9 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
 
   function render(): void {
     const items = controller.listItems();
+    // 自动滚动采样在变更前（🟡修复）：用户本来就在底部时，新增高行（≥48px 的
+    // plan/tool/usage 行）若事后采样会被误判"不在底部"而中断流式跟随
+    const nearBottomBefore = list.scrollHeight - list.scrollTop - list.clientHeight < 48;
     const plan = planIncrementalRender(
       renderedRows.map((row) => row.item),
       renderedRows.map((row) => row.sig),
@@ -699,11 +702,13 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
       const row = renderedRows[index];
       const item = items[index]!;
       if (row === undefined) continue;
-      // 流式 assistant 纯文本更新：直接改 textContent，不重建节点（保持dw-streaming类）
-      if (item.kind === "assistant" && row.item.kind === "assistant") {
+      // 流式 delta 的纯文本增长：直接改 textContent，不重建节点（保持 dw-streaming 类）。
+      // 🔴修复（v0.7.9）：仅限「旧新都在流式中」——streaming true→false 的定稿必须
+      // 走 replaceWith 重建，否则 renderItem 依 !streaming 追加的「审查修改」按钮
+      // 永不出现（含代码块的流式提案无法发起 diff 审查；脚本化 E2E 因 usage 事件
+      // 插入走追加路径而对此盲区，真实流式必中）
+      if (item.kind === "assistant" && row.item.kind === "assistant" && item.streaming && row.item.streaming) {
         row.el.textContent = item.text;
-        if (item.streaming) row.el.classList.add("dw-streaming");
-        else row.el.classList.remove("dw-streaming");
       } else {
         const fresh = renderItem(item);
         row.el.replaceWith(fresh);
@@ -712,7 +717,7 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
       row.item = item;
       row.sig = chatItemSignature(item);
     }
-    autoscrollIfNearBottom();
+    autoscrollIfNearBottom(nearBottomBefore);
     refreshRunningState();
   }
 

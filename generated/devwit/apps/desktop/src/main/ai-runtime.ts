@@ -159,8 +159,8 @@ export class AiRuntime {
   private lastBudgetAlertExceeded = false;
   /** 对话会话元数据（AC37）：改名/删除标记 overlay。 */
   private readonly sessionMeta: SessionMetaStore;
-  /** v0.7.5：轨迹文件摘要缓存（mtime 失效；会话列表高频刷新只重读变更文件）。 */
-  private readonly traceSummaryCache = new Map<string, { mtimeMs: number; summary: TraceSessionInfo | null }>();
+  /** v0.7.5：轨迹文件摘要缓存（mtime+size 失效——同毫秒追加由 size 变化兜住）。 */
+  private readonly traceSummaryCache = new Map<string, { mtimeMs: number; size: number; summary: TraceSessionInfo | null }>();
   /**
    * B-WU4/B-WU6 接线（Fusion v3）：
    * - promptSections：会话引擎共享的系统提示段注册表——run 前按模式清空重装
@@ -857,22 +857,23 @@ export class AiRuntime {
    * 只重读有追加的文件；缓存条目随文件删除自然失联，超过上限整体清空防膨胀）。
    */
   private summarizeTraceFile(file: string): TraceSessionInfo | null {
-    let mtimeMs: number;
+    let stat: { mtimeMs: number; size: number };
     try {
-      mtimeMs = statSync(file).mtimeMs;
+      const s = statSync(file);
+      stat = { mtimeMs: s.mtimeMs, size: s.size };
     } catch {
       this.traceSummaryCache.delete(file);
       return null;
     }
     const cached = this.traceSummaryCache.get(file);
-    if (cached !== undefined && cached.mtimeMs === mtimeMs) {
+    if (cached !== undefined && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
       return cached.summary;
     }
     const summary = this.computeTraceSummary(file);
     if (this.traceSummaryCache.size > TRACE_SUMMARY_CACHE_LIMIT) {
       this.traceSummaryCache.clear();
     }
-    this.traceSummaryCache.set(file, { mtimeMs, summary });
+    this.traceSummaryCache.set(file, { mtimeMs: stat.mtimeMs, size: stat.size, summary });
     return summary;
   }
 

@@ -1,6 +1,6 @@
 {
   "steps": [
-    "本地端点就绪 http://127.0.0.1:62847/v1（脚本化 6 请求）",
+    "本地端点就绪 http://127.0.0.1:52792/v1（脚本化 6 请求）",
     "应用启动 + fixture 工作区打开",
     "keyless provider 注册 + agent 模式热绑定",
     "第 1 轮：授权行出现（学习计数 0→需询问）",
@@ -18,7 +18,7 @@
   "assertions": [
     "批准后命令应毕业进白名单（实际: [\"echo ac29>> i18-marker.txt\"]）",
     "第 3 轮不应有待裁决授权行（实际 0 个）",
-    "活动流缺少自动放行标记: 用户运行三轮 echo 标记路由本地路由未开启 → 模式绑定模型 p-i18助手工具bash 成功（成功）授权bash：执行命令: echo ac29>> i18-marker.txt已裁决：允许助手工具bash 成功（成功）授权bash：执行命令: echo ac29>> i18-marker.txt已裁决：允许助手工具bash 成功（成功）授权bash：执行命令: echo ac29>> i1",
+    "活动流缺少自动放行标记: 用户运行三轮 echo 标记路由本地路由未开启 → 模式绑定模型 p-i18助手工具✓bash 成功（成功）请求：{\"command\":\"echo ac29>> i18-marker.txt\"}\n结果：(无输出)授权bash：执行命令: echo ac29>> i18-marker.txt已裁决：允许助手工具✓bash 成功（成功）请求：{\"command\":\"echo ac29>> i18-ma",
     "marker 应为 3 行 ac29（实际 3 行: ac29|ac29|ac29）",
     "轨迹 authorization_request 应恰好 2 次（实际 2）",
     "轨迹 authorization_auto 应 1 次且 source=whitelist（实际 1）",
@@ -27,7 +27,7 @@
     "移除后应显示空态（实际: 白名单为空——批准的命令达到次数后会出现在这里。）",
     "任务二第 1 次批准不应毕业（实际: []）",
     "任务二批准后计数应为 1（实际: {\"echo ac29>> i18-marker.txt\":1}）",
-    "英文白名单分区缺失: LanguageFollow System中文EnglishApplies immediately and is persisted; no restart needed. Follow System: Chinese for Chinese systems, English otherwise.App updatesCheck for updatesCurrent version v0.3.0O"
+    "英文白名单分区缺失: LanguageFollow System中文EnglishApplies immediately and is persisted; no restart needed. Follow System: Chinese for Chinese systems, English otherwise.App updatesCheck for updatesCurrent version v0.7.8O"
   ],
   "failures": [],
   "fatal": null

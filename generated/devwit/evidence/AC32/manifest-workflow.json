@@ -1,13 +1,13 @@
 {
-  "id": "manifest-ac01d332-ddfc-4fdd-a629-3f6a5a2b0d06",
-  "timestamp": "2026-07-27T19:43:46.879Z",
-  "sessionId": "task-session-1785181426774-2",
+  "id": "manifest-d661a81e-87eb-4f14-8c9a-54e44188200c",
+  "timestamp": "2026-09-09T12:40:26.703Z",
+  "sessionId": "task-session-1788957626567-2",
   "modeId": "agent",
   "providerId": "p-i21",
   "model": "i21-model",
   "items": [
     {
-      "id": "item-0df66558-7d1c-4729-bd44-5665c93f27b3",
+      "id": "item-c2350de4-1ff7-4f6f-a333-afb6216d0a4c",
       "type": "system_prompt",
       "label": "系统提示",
       "enabled": true,
@@ -17,17 +17,17 @@
       "counting": "exact"
     },
     {
-      "id": "item-94de12d0-395a-4d65-bd15-f870625352fb",
+      "id": "item-be4c4ee2-0419-448c-9f2d-9c9ea2db5860",
       "type": "tool_definitions",
-      "label": "工具定义（7 个）",
+      "label": "工具定义（11 个）",
       "enabled": true,
-      "tokens": 963,
-      "content": "[\n  {\n    \"name\": \"read\",\n    \"description\": \"读取工作区内文件的全部内容\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"相对工作区根的路径\"\n        }\n      },\n      \"required\": [\n        \"path\"\n      ]\n    }\n  },\n  {\n    \"name\": \"write\",\n    \"description\": \"写入文件（覆盖式，自动创建父目录）。需用户授权\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"相对工作区根的路径\"\n        },\n        \"content\": {\n          \"type\": \"string\",\n          \"description\": \"完整文件内容\"\n        }\n      },\n      \"required\": [\n        \"path\",\n        \"content\"\n      ]\n    }\n  },\n  {\n    \"name\": \"edit\",\n    \"description\": \"对文件做精确的字符串替换（old_string 须唯一，除非 replace_all=true）。需用户授权\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"相对工作区根的路径\"\n        },\n        \"old_string\": {\n          \"type\": \"string\",\n          \"description\": \"被替换的原文（非空）\"\n        },\n        \"new_string\": {\n          \"type\": \"string\",\n          \"description\": \"替换后的文本（可为空串表示删除）\"\n        },\n        \"replace_all\": {\n          \"type\": \"boolean\",\n          \"description\": \"替换全部出现位置\"\n        }\n      },\n      \"required\": [\n        \"path\",\n        \"old_string\",\n        \"new_string\"\n      ]\n    }\n  },\n  {\n    \"name\": \"bash\",\n    \"description\": \"在工作区根目录执行 shell 命令并返回输出。需用户授权\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"command\": {\n          \"type\": \"string\",\n          \"description\": \"要执行的命令\"\n        },\n        \"timeout_ms\": {\n          \"type\": \"number\",\n          \"description\": \"超时毫秒数（可选）\"\n        }\n      },\n      \"required\": [\n        \"command\"\n      ]\n    }\n  },\n  {\n    \"name\": \"grep\",\n    \"description\": \"在工作区文件中按正则搜索，输出 文件:行号: 内容\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"pattern\": {\n          \"type\": \"string\",\n          \"description\": \"正则表达式\"\n        },\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"起始目录（默认工作区根）\"\n        },\n        \"glob\": {\n          \"type\": \"string\",\n          \"description\": \"文件名通配过滤，如 *.ts\"\n        },\n        \"case_sensitive\": {\n          \"type\": \"boolean\",\n          \"description\": \"大小写敏感（默认 true）\"\n        }\n      },\n      \"required\": [\n        \"pattern\"\n      ]\n    }\n  },\n  {\n    \"name\": \"find\",\n    \"description\": \"按文件名通配符（* / ?）查找文件与目录\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"pattern\": {\n          \"type\": \"string\",\n          \"description\": \"文件名通配符，如 *.ts\"\n        },\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"起始目录（默认工作区根）\"\n        }\n      },\n      \"required\": [\n        \"pattern\"\n      ]\n    }\n  },\n  {\n    \"name\": \"ls\",\n    \"description\": \"列出目录内容（目录名带 / 后缀）\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"目录路径（默认工作区根）\"\n        }\n      }\n    }\n  }\n]",
+      "tokens": 896,
+      "content": "[{\"name\":\"read\",\"description\":\"读取工作区内文件内容；可用 start_line/end_line 读取指定行区间（大文件分片阅读）\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"相对工作区根的路径\"},\"start_line\":{\"type\":\"number\",\"description\":\"起始行号（从 1 起，可选）\"},\"end_line\":{\"type\":\"number\",\"description\":\"结束行号（含，可选）\"}},\"required\":[\"path\"]}},{\"name\":\"write\",\"description\":\"写入文件（覆盖式，自动创建父目录）。需用户授权\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"相对工作区根的路径\"},\"content\":{\"type\":\"string\",\"description\":\"完整文件内容\"}},\"required\":[\"path\",\"content\"]}},{\"name\":\"edit\",\"description\":\"对文件做精确的字符串替换（old_string 须唯一，除非 replace_all=true）。需用户授权\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"相对工作区根的路径\"},\"old_string\":{\"type\":\"string\",\"description\":\"被替换的原文（非空）\"},\"new_string\":{\"type\":\"string\",\"description\":\"替换后的文本（可为空串表示删除）\"},\"replace_all\":{\"type\":\"boolean\",\"description\":\"替换全部出现位置\"}},\"required\":[\"path\",\"old_string\",\"new_string\"]}},{\"name\":\"bash\",\"description\":\"在工作区根目录执行 shell 命令并返回输出。需用户授权\",\"parameters\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\",\"description\":\"要执行的命令\"},\"timeout_ms\":{\"type\":\"number\",\"description\":\"超时毫秒数（可选）\"}},\"required\":[\"command\"]}},{\"name\":\"grep\",\"description\":\"在工作区文件中按正则搜索，输出 文件:行号: 内容\",\"parameters\":{\"type\":\"object\",\"properties\":{\"pattern\":{\"type\":\"string\",\"description\":\"正则表达式\"},\"path\":{\"type\":\"string\",\"description\":\"起始目录（默认工作区根）\"},\"glob\":{\"type\":\"string\",\"description\":\"文件名通配过滤，如 *.ts\"},\"case_sensitive\":{\"type\":\"boolean\",\"description\":\"大小写敏感（默认 true）\"}},\"required\":[\"pattern\"]}},{\"name\":\"find\",\"description\":\"按文件名通配符（* / ?）查找文件与目录\",\"parameters\":{\"type\":\"object\",\"properties\":{\"pattern\":{\"type\":\"string\",\"description\":\"文件名通配符，如 *.ts\"},\"path\":{\"type\":\"string\",\"description\":\"起始目录（默认工作区根）\"}},\"required\":[\"pattern\"]}},{\"name\":\"ls\",\"description\":\"列出目录内容（目录名带 / 后缀）\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"目录路径（默认工作区根）\"}}}},{\"name\":\"git_status\",\"description\":\"查看 Git 工作区状态（git status --short）：改/删/暂存文件清单\",\"parameters\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"git_diff\",\"description\":\"查看 Git diff（未暂存默认；staged=true 看已暂存）。可按路径过滤\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"限定查看此路径的 diff（可选）\"},\"staged\":{\"type\":\"boolean\",\"description\":\"true 查看已暂存（--cached）变更；默认 false\"}}}},{\"name\":\"git_log\",\"description\":\"查看 Git 提交历史（一行为一条：hash + 主题）\",\"parameters\":{\"type\":\"object\",\"properties\":{\"limit\":{\"type\":\"number\",\"description\":\"最近几条提交（默认 20，上限 100）\"}}}},{\"name\":\"git_branch\",\"description\":\"列出 Git 本地分支（按最近提交时间倒序）\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}]",
       "source": "mode",
       "counting": "exact"
     },
     {
-      "id": "item-15603854-81b7-412f-98fa-f5cdb05964d3",
+      "id": "item-01a18575-253e-4497-b8d8-474266f4c511",
       "type": "conversation_history",
       "label": "会话历史（1 条）",
       "enabled": true,
@@ -37,7 +37,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-60a33962-caa3-49d7-aa58-0b7f4bc47de9",
+      "id": "item-148aec1c-646b-4644-950c-a85c2bf1ae7e",
       "type": "git_status",
       "label": "Git 状态",
       "enabled": false,
@@ -47,7 +47,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-fb49f026-7103-40b1-a029-01f56206ef09",
+      "id": "item-409b6b99-cbf5-4a6b-9df9-cb04d4c12fcf",
       "type": "codebase_match",
       "label": "代码库检索（索引未启用）",
       "enabled": false,
@@ -57,7 +57,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-e8000339-0cdc-4609-84d5-68d21af38399",
+      "id": "item-d8955694-bf6d-4040-a459-c553058096d6",
       "type": "workflow",
       "label": "复用工作流（write）",
       "enabled": true,
@@ -68,6 +68,14 @@
       "key": "workflow:reuse"
     }
   ],
-  "totalTokens": 1111,
-  "systemPromptTokens": 86
+  "totalTokens": 1044,
+  "systemPromptTokens": 86,
+  "framingTokens": 22,
+  "estimatedRequestTokens": 1066,
+  "promptSections": [
+    {
+      "name": "mode",
+      "order": 0
+    }
+  ]
 }

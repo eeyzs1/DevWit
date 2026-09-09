@@ -4,11 +4,168 @@
     "messages": [
       {
         "role": "system",
-        "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。"
+        "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。你有 read/grep/find/ls 只读工具，可查看工作区文件帮助回答；此模式不能修改文件或执行命令，如需改动，请建议用户切到 Agent 模式。"
       },
       {
         "role": "user",
         "content": "总结一下今天的安排"
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "读取工作区内文件内容；可用 start_line/end_line 读取指定行区间（大文件分片阅读）",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "相对工作区根的路径"
+              },
+              "start_line": {
+                "type": "number",
+                "description": "起始行号（从 1 起，可选）"
+              },
+              "end_line": {
+                "type": "number",
+                "description": "结束行号（含，可选）"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "grep",
+          "description": "在工作区文件中按正则搜索，输出 文件:行号: 内容",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "正则表达式"
+              },
+              "path": {
+                "type": "string",
+                "description": "起始目录（默认工作区根）"
+              },
+              "glob": {
+                "type": "string",
+                "description": "文件名通配过滤，如 *.ts"
+              },
+              "case_sensitive": {
+                "type": "boolean",
+                "description": "大小写敏感（默认 true）"
+              }
+            },
+            "required": [
+              "pattern"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "find",
+          "description": "按文件名通配符（* / ?）查找文件与目录",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "文件名通配符，如 *.ts"
+              },
+              "path": {
+                "type": "string",
+                "description": "起始目录（默认工作区根）"
+              }
+            },
+            "required": [
+              "pattern"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ls",
+          "description": "列出目录内容（目录名带 / 后缀）",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "目录路径（默认工作区根）"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "git_status",
+          "description": "查看 Git 工作区状态（git status --short）：改/删/暂存文件清单",
+          "parameters": {
+            "type": "object",
+            "properties": {}
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "git_diff",
+          "description": "查看 Git diff（未暂存默认；staged=true 看已暂存）。可按路径过滤",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "限定查看此路径的 diff（可选）"
+              },
+              "staged": {
+                "type": "boolean",
+                "description": "true 查看已暂存（--cached）变更；默认 false"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "git_log",
+          "description": "查看 Git 提交历史（一行为一条：hash + 主题）",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": "number",
+                "description": "最近几条提交（默认 20，上限 100）"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "git_branch",
+          "description": "列出 Git 本地分支（按最近提交时间倒序）",
+          "parameters": {
+            "type": "object",
+            "properties": {}
+          }
+        }
       }
     ],
     "stream": true,
@@ -34,13 +191,21 @@
         "type": "function",
         "function": {
           "name": "read",
-          "description": "读取工作区内文件的全部内容",
+          "description": "读取工作区内文件内容；可用 start_line/end_line 读取指定行区间（大文件分片阅读）",
           "parameters": {
             "type": "object",
             "properties": {
               "path": {
                 "type": "string",
                 "description": "相对工作区根的路径"
+              },
+              "start_line": {
+                "type": "number",
+                "description": "起始行号（从 1 起，可选）"
+              },
+              "end_line": {
+                "type": "number",
+                "description": "结束行号（含，可选）"
               }
             },
             "required": [
@@ -196,6 +361,64 @@
                 "description": "目录路径（默认工作区根）"
               }
             }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "git_status",
+          "description": "查看 Git 工作区状态（git status --short）：改/删/暂存文件清单",
+          "parameters": {
+            "type": "object",
+            "properties": {}
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "git_diff",
+          "description": "查看 Git diff（未暂存默认；staged=true 看已暂存）。可按路径过滤",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "限定查看此路径的 diff（可选）"
+              },
+              "staged": {
+                "type": "boolean",
+                "description": "true 查看已暂存（--cached）变更；默认 false"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "git_log",
+          "description": "查看 Git 提交历史（一行为一条：hash + 主题）",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": "number",
+                "description": "最近几条提交（默认 20，上限 100）"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "git_branch",
+          "description": "列出 Git 本地分支（按最近提交时间倒序）",
+          "parameters": {
+            "type": "object",
+            "properties": {}
           }
         }
       }
@@ -234,7 +457,7 @@
       {
         "role": "tool",
         "tool_call_id": "call_i25_1",
-        "content": "错误: 用户拒绝授权，工具未执行"
+        "content": "错误: 授权未通过（deny），工具未执行"
       }
     ],
     "tools": [
@@ -242,13 +465,21 @@
         "type": "function",
         "function": {
           "name": "read",
-          "description": "读取工作区内文件的全部内容",
+          "description": "读取工作区内文件内容；可用 start_line/end_line 读取指定行区间（大文件分片阅读）",
           "parameters": {
             "type": "object",
             "properties": {
               "path": {
                 "type": "string",
                 "description": "相对工作区根的路径"
+              },
+              "start_line": {
+                "type": "number",
+                "description": "起始行号（从 1 起，可选）"
+              },
+              "end_line": {
+                "type": "number",
+                "description": "结束行号（含，可选）"
               }
             },
             "required": [
@@ -404,6 +635,64 @@
                 "description": "目录路径（默认工作区根）"
               }
             }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "git_status",
+          "description": "查看 Git 工作区状态（git status --short）：改/删/暂存文件清单",
+          "parameters": {
+            "type": "object",
+            "properties": {}
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "git_diff",
+          "description": "查看 Git diff（未暂存默认；staged=true 看已暂存）。可按路径过滤",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "限定查看此路径的 diff（可选）"
+              },
+              "staged": {
+                "type": "boolean",
+                "description": "true 查看已暂存（--cached）变更；默认 false"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "git_log",
+          "description": "查看 Git 提交历史（一行为一条：hash + 主题）",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": "number",
+                "description": "最近几条提交（默认 20，上限 100）"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "git_branch",
+          "description": "列出 Git 本地分支（按最近提交时间倒序）",
+          "parameters": {
+            "type": "object",
+            "properties": {}
           }
         }
       }

@@ -53,6 +53,10 @@ export function mountGitPanel(deps: GitPanelDeps): GitPanelHandle {
   let gitDiffTitleSpan: HTMLElement | null = null;
   let gitDiffFile: string | null = null;
   let branchDropdown: HTMLElement | null = null;
+  /** 分支下拉的外部点击关闭监听（关闭时解绑——🟡修复 v0.7.9：
+   * 原实现仅在"由它自己关闭"路径解绑，Escape/锚点二次点击/applyGitStatus
+   * 路径关闭后残留 no-op 监听器，每次开下拉累积一条 document capture 监听） */
+  let branchOutsideClick: ((ev: MouseEvent) => void) | null = null;
   let blameOverlay: HTMLElement | null = null;
   let blameActive = false;
 
@@ -389,10 +393,14 @@ export function mountGitPanel(deps: GitPanelDeps): GitPanelHandle {
   }
   blameBtn.addEventListener("click", () => void toggleBlame());
 
-  /** 关闭分支下拉弹层（v0.4.0 Git 分支管理）。 */
+  /** 关闭分支下拉弹层（v0.4.0 Git 分支管理）——统一解绑外部点击监听。 */
   function closeBranchDropdown(): void {
     branchDropdown?.remove();
     branchDropdown = null;
+    if (branchOutsideClick !== null) {
+      document.removeEventListener("mousedown", branchOutsideClick, true);
+      branchOutsideClick = null;
+    }
   }
 
   /**
@@ -470,15 +478,16 @@ export function mountGitPanel(deps: GitPanelDeps): GitPanelHandle {
     branchDropdown = popup;
     input.focus();
 
-    // 外部点击关闭（下一帧生效，避免吞掉当前点击事件）
+    // 外部点击关闭（下一帧生效，避免吞掉当前点击事件；关闭路径统一经
+    // closeBranchDropdown 解绑——含 Escape/锚点二次点击/applyGitStatus）
     window.setTimeout(() => {
       const onDown = (ev: MouseEvent): void => {
         if (branchDropdown === null) return;
         if (branchDropdown.contains(ev.target as Node)) return;
         if (anchor.contains(ev.target as Node)) return;
         closeBranchDropdown();
-        document.removeEventListener("mousedown", onDown, true);
       };
+      branchOutsideClick = onDown;
       document.addEventListener("mousedown", onDown, true);
     }, 0);
   }

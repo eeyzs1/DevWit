@@ -1,3 +1,4 @@
+import { setMaxListeners } from "node:events";
 import { ProviderHttpError } from "@devwit/contracts";
 
 /**
@@ -51,6 +52,16 @@ export async function fetchWithConnectTimeout(
     if (callerSignal.aborted) {
       controller.abort(callerSignal.reason);
     } else {
+      // 🟡修复（v0.7.9）：流式阶段的取消传播监听器在成功路径无法摘除（Response
+      // body 结束点不可观测）——长 agent run（单 signal 多次请求×重试）会越过
+      // 10 监听器阈值触发 MaxListenersExceededWarning。node:events 的
+      // setMaxListeners(target) 是官方针对 AbortSignal 复用的豁免 API；
+      // 累积上限受 run 生命周期约束（run 结束 signal 即不可达被 GC），非无界泄漏
+      try {
+        setMaxListeners(200, callerSignal as unknown as Parameters<typeof setMaxListeners>[1]);
+      } catch {
+        // 旧运行时无 target 重载：保持默认阈值（仅影响告警噪音）
+      }
       callerSignal.addEventListener("abort", onCallerAbort, { once: true });
     }
   }
