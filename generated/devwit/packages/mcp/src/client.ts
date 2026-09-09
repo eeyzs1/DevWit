@@ -15,6 +15,8 @@ export const MCP_PROTOCOL_VERSION = "2024-11-05";
 const CLIENT_INFO = { name: "devwit", version: "0.1.0" } as const;
 /** stderr 诊断保留长度（只留尾部，防打爆内存）。 */
 const STDERR_TAIL_CHARS = 2000;
+/** 单条 JSON-RPC 行缓冲上限（字符）：超限未闭合即判失控/恶意，fail-closed 断开。 */
+const MAX_STDOUT_LINE_CHARS = 1_000_000;
 
 interface JsonRpcRequest {
   jsonrpc: "2.0";
@@ -87,12 +89,22 @@ export class McpStdioClient {
       const args = this.config.args ?? [];
       // Windows 下裸命令（如 npx→npx.cmd、npm、python）无显式扩展名，需 shell 才能解析；
       // 显式 .exe/.cmd/.bat/.com（含完整路径）则直接 spawn（shell:false 更稳，防参数注入改义）。
-      // 命令来自用户配置（可信）；shell:true 仅用于解析 .cmd 等 shim，非拼接用户输入。
+      // 命令来自用户配置或社区导入（后者为远端内容，不可全信）：
+      // shell 路径下 fail-closed 拒绝含 cmd 元字符的参数——注入串报 DW_MCP_UNSAFE_ARG
+      // 而不是被 shell 解释执行（🟡供应链注入修复；合法参数如 --port 3000 不受影响）。
       const hasExplicitExt = /\.(exe|cmd|bat|com)$/i.test(command);
+      const needsShell = process.platform === "win32" && !hasExplicitExt;
+      if (needsShell) {
+        for (const arg of args) {
+          if (/[&|<>^"\r\n]/.test(arg)) {
+            throw new Error(`DW_MCP_UNSAFE_ARG:${arg.slice(0, 40)}`);
+          }
+        }
+      }
       proc = spawn(command, args, {
         env: { ...process.env, ...this.config.env },
         stdio: ["pipe", "pipe", "pipe"],
-        shell: process.platform === "win32" && !hasExplicitExt,
+        shell: needsShell,
       });
     } catch (error) {
       throw new Error(`DW_MCP_SPAWN_FAILED:${error instanceof Error ? error.message : String(error)}`);
@@ -200,7 +212,7 @@ export class McpStdioClient {
     this.stdoutBuffer += chunk.toString("utf-8");
     for (;;) {
       const newline = this.stdoutBuffer.indexOf("\n");
-      if (newline < 0) return;
+      if (newline < 0) break;
       const line = this.stdoutBuffer.slice(0, newline).trim();
       this.stdoutBuffer = this.stdoutBuffer.slice(newline + 1);
       if (line === "") continue;
@@ -220,6 +232,14 @@ export class McpStdioClient {
       } else {
         entry.resolve(message.result);
       }
+    }
+    // 单行缓冲上限（🟡资源修复）：换行提取后仍超限的不完整行 = 失控/恶意服务器
+    // 持续输出无换行数据——fail-closed 断开（拒绝全部挂起请求），防主进程内存无限膨胀
+    if (this.stdoutBuffer.length > MAX_STDOUT_LINE_CHARS) {
+      const proc = this.proc;
+      this.stdoutBuffer = "";
+      this.handleExit(null, "DW_MCP_LINE_TOO_LONG");
+      proc?.kill();
     }
   }
 

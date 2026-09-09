@@ -46,6 +46,13 @@ function createWindow(): void {
     }
   });
   void mainWindow.loadFile(path.join(here, "..", "renderer", "index.html"));
+  // 导航防护（Electron 安全清单）：渲染层一旦被攻破（如模型输出注入），不得借
+  // window.location / window.open 跳转远程页面——preload 桥会随导航挂到远程文档上。
+  // loadFile 等程序化导航不触发 will-navigate，不影响正常启动与 E2E。
+  mainWindow.webContents.on("will-navigate", (event) => {
+    event.preventDefault();
+  });
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   mainWindow.on("closed", () => {
     mainWindow = null;
   });

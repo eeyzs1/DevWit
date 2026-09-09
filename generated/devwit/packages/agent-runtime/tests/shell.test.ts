@@ -55,4 +55,24 @@ describe("createNodeEnvironment（真实 fs / child_process）", () => {
     expect(result.exitCode).toBe(0);
     expect(path.basename(result.stdout.trim())).toBe("workdir");
   });
+
+  it("execFile 无 shell：含元字符实参原样传递，不被解释拆分（注入回归）", async () => {
+    const argValue = "a & b | c; d";
+    const result = await env.execFile(
+      process.execPath,
+      ["-e", "console.log(JSON.stringify(process.argv[2]))", "sentinel", argValue],
+      { cwd: dir }
+    );
+    expect(result.exitCode).toBe(0);
+    // 实参必须是完整原串——若经 shell 解释，& | ; 会被拆分/报错而非回显
+    expect(JSON.parse(result.stdout.trim())).toBe(argValue);
+  });
+
+  it("execFile 退出码与非零传递；缺 file 启动失败归退出码 1 且 stderr 含原因", async () => {
+    const fine = await env.execFile(process.execPath, ["-e", "process.exit(7)"], { cwd: dir });
+    expect(fine.exitCode).toBe(7);
+    const missing = await env.execFile("devwit-no-such-binary-xyz", ["--version"], { cwd: dir });
+    expect(missing.exitCode).toBe(1);
+    expect(missing.stderr).toMatch(/devwit-no-such-binary-xyz/);
+  });
 });

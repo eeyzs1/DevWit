@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   clampScrollTop,
   columnForX,
+  columnForXChars,
   comparePositions,
   computeAutoIndent,
   computeAutoPair,
@@ -9,12 +10,16 @@ import {
   findMatchingBracket,
   indentLevelOf,
   isSelectionEmpty,
+  isWideCodePoint,
   maxScrollTop,
+  measureTextWidth,
   minimapLayout,
   normalizeSelection,
   outdentLine,
   visibleLineRange,
   xForColumn,
+  xForColumnChars,
+  type CharWidthFn,
   type Measurer,
 } from "../src/index.js";
 
@@ -611,5 +616,98 @@ describe("minimapLayout 缩略图布局", () => {
     // scrollTop=99999 → scrollRatio = 1
     const r = minimapLayout(99999, 400, 20, 100, 3, 200);
     expect(r.minimapScrollTop).toBe(100); // 100*3 - 200 = 100
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 逐字符宽度模型（v0.7.1：CJK/全角/emoji 正确渲染）
+// ---------------------------------------------------------------------------
+
+/** 测试用宽度函数：半角 1 格、全角 2 格（与 EditorView 的 widthOf 同构，1 格 = 10px）。 */
+const CELL = 10;
+const widthOfCell: CharWidthFn = (ch: string): number => {
+  const cp = ch.codePointAt(0) ?? 0;
+  if (cp >= 0xd800 && cp <= 0xdbff) return CELL * 2; // 高代理项：astral 整体
+  if (cp >= 0xdc00 && cp <= 0xdfff) return 0; // 低代理项：已计入
+  return (isWideCodePoint(cp) ? 2 : 1) * CELL;
+};
+
+describe("isWideCodePoint 宽度判定", () => {
+  it("半角：ASCII/拉丁/西里尔/希腊/半角片假名均 1 格", () => {
+    // 注意：あ（平假名）为全角，不在半角清单；ﾊ 为半角片假名（U+FF8A > 0xFF60）
+    for (const ch of ["a", "Z", "0", " ", "(", "$", "ﾊ", "｡", "А", "Ω", "\t"]) {
+      expect(isWideCodePoint(ch.codePointAt(0) ?? 0)).toBe(false);
+    }
+  });
+
+  it("全角：CJK 统一表意/扩展/韩文/假名/全角标点/全角形式均 2 格", () => {
+    const wide = ["中", "文", "編", "輯", "器", "𠀀", "한", "글", "あ", "ア", "，", "。", "「", "」", "Ａ", "１", "＋"];
+    for (const ch of wide) {
+      expect(isWideCodePoint(ch.codePointAt(0) ?? 0)).toBe(true);
+    }
+  });
+
+  it("astral emoji 区间判定（经代理对在宽度函数中整体计宽）", () => {
+    expect(isWideCodePoint(0x1f600)).toBe(true); // 😀
+    expect(isWideCodePoint(0x1f4bb)).toBe(true); // 💻
+    expect(isWideCodePoint(0x1f9ea)).toBe(true); // 🧪
+    expect(isWideCodePoint(0x20000)).toBe(true); // CJK 扩展 B
+  });
+});
+
+describe("measureTextWidth / xForColumnChars / columnForXChars", () => {
+  it("混排行宽：a中b = 1+2+1 = 4 格；纯中文 = 2×n 格", () => {
+    expect(measureTextWidth("a中b", widthOfCell)).toBe(40);
+    expect(measureTextWidth("中文编辑器", widthOfCell)).toBe(100);
+    expect(measureTextWidth("", widthOfCell)).toBe(0);
+  });
+
+  it("emoji 代理对整体计 2 格（高 2 + 低 0）", () => {
+    expect(measureTextWidth("😀", widthOfCell)).toBe(20);
+    expect(measureTextWidth("a😀b", widthOfCell)).toBe(40);
+  });
+
+  it("xForColumnChars：中文字符后光标 x = 前缀逐字符宽度（不再按 length 均分）", () => {
+    // "a中b"：col 0→0，1→10，2→30（中占 20），3→40
+    expect(xForColumnChars("a中b", 0, widthOfCell)).toBe(0);
+    expect(xForColumnChars("a中b", 1, widthOfCell)).toBe(10);
+    expect(xForColumnChars("a中b", 2, widthOfCell)).toBe(30);
+    expect(xForColumnChars("a中b", 3, widthOfCell)).toBe(40);
+    // 越界收敛到行宽
+    expect(xForColumnChars("a中b", 99, widthOfCell)).toBe(40);
+  });
+
+  it("columnForXChars：中点判定与 xForColumnChars 互逆（点击落点正确）", () => {
+    // 全范围往返：每个合法光标列的左边缘 x 映射回该列。
+    // 代理对内部的列（如 😀 的高低代理之间）不是合法插入点，跳过。
+    const line = "a中b😀c";
+    const validCols = [0, 1, 2, 3, 5, 6];
+    for (const col of validCols) {
+      const x = xForColumnChars(line, col, widthOfCell);
+      expect(columnForXChars(line, x, widthOfCell)).toBe(col);
+    }
+    // 中文字符内部中点：x=20（"a中" 前缀中点）落在 col 2
+    expect(columnForXChars("a中b", 20, widthOfCell)).toBe(2);
+    // x=14（"中"左半）落在 col 1；x=26（右半）落在 col 2
+    expect(columnForXChars("a中b", 14, widthOfCell)).toBe(1);
+    expect(columnForXChars("a中b", 26, widthOfCell)).toBe(2);
+  });
+
+  it("columnForXChars 边界：x<=0 返 0；超行尾返行尾列", () => {
+    expect(columnForXChars("a中b", 0, widthOfCell)).toBe(0);
+    expect(columnForXChars("a中b", -5, widthOfCell)).toBe(0);
+    expect(columnForXChars("a中b", 9999, widthOfCell)).toBe(3);
+    expect(columnForXChars("", 50, widthOfCell)).toBe(0);
+  });
+
+  it("纯 ASCII 行为与旧 length×charWidth 模型完全一致（零回归）", () => {
+    const ascii = "const hello = 1;";
+    const legacy: Measurer = (text) => text.length * CELL;
+    for (let col = 0; col <= ascii.length; col++) {
+      expect(xForColumnChars(ascii, col, widthOfCell)).toBe(xForColumn(ascii, col, legacy));
+    }
+    for (let x = 0; x <= ascii.length * CELL; x += 5) {
+      expect(columnForXChars(ascii, x, widthOfCell)).toBe(columnForX(ascii, x, legacy));
+    }
   });
 });

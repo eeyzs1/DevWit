@@ -8,7 +8,7 @@ import type {
   ToolParameterSchema,
 } from "@devwit/contracts";
 import { asNumber, asString, isRecord, parseJsonObject, safeParseJson } from "./guards.js";
-import { assertResponseOk, joinUrl } from "./http.js";
+import { assertResponseOk, fetchWithRetry, joinUrl } from "./http.js";
 import { parseSseStream } from "./sse.js";
 
 // ============================================================================
@@ -228,7 +228,7 @@ export class OpenAiCompatibleProvider implements LLMProvider {
     // keyless（迭代 13 / AC22：Ollama 等本地服务）：跳过凭证解析，不发 authorization 头
     const apiKey = this.config.keyless === true ? undefined : await this.credentials.resolve(this.config.credentialRef);
     const body = buildOpenAiRequest(this.config, messages, tools);
-    const response = await fetch(joinUrl(this.config.baseUrl, "/chat/completions"), {
+    const response = await fetchWithRetry(joinUrl(this.config.baseUrl, "/chat/completions"), {
       method: "POST",
       headers: {
         "content-type": "application/json",

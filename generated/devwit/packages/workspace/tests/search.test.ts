@@ -212,4 +212,31 @@ describe("searchInWorkspace", () => {
       expect(file.relativePath).not.toContain("\\");
     }
   });
+
+  it("符号链接文件不纳入搜索（防逃逸读取 root 外内容）", async () => {
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), "devwit-out-"));
+    try {
+      fs.writeFileSync(path.join(outside, "leak.ts"), "hello outside");
+      let linked = true;
+      try {
+        fs.symlinkSync(path.join(outside, "leak.ts"), path.join(root, "leak-link.ts"), "file");
+      } catch {
+        linked = false; // 平台不允许创建文件 symlink：跳过
+      }
+      const results = await searchInWorkspace(root, {
+        query: "hello",
+        isRegex: false,
+        caseSensitive: false,
+        wholeWord: false,
+      });
+      const paths = results.files.map((f) => f.relativePath);
+      expect(paths).toContain("src/a.ts");
+      if (linked) {
+        // leak-link.ts 指向 root 外——即使内容匹配也不得出现在结果里
+        expect(paths).not.toContain("leak-link.ts");
+      }
+    } finally {
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  });
 });

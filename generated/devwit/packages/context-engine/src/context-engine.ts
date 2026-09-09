@@ -216,8 +216,29 @@ export class ContextEngine {
         "conversation"
       ),
     ];
-    for (const source of this.sources) {
-      const collected = await source.collect(input);
+    // 并行收集全部源（源间无依赖——fs/git/RAG/embedding 延迟不再线性叠加），
+    // 结果按注册顺序拼接（manifest 条目顺序稳定，UI 呈现可预期）。
+    // 单源失败不阻断整轮请求（🔴可用性修复）：降级为占位项——活动文件被删/
+    // git 不可用/RAG 瞬时故障等只损失该源上下文，manifest 中以可见占位 +
+    // 原因保持透明（与附件源"单文件失败跳过"同口径）。
+    const collectedPerSource: ContextItem[][] = await Promise.all(
+      this.sources.map(async (source): Promise<ContextItem[]> => {
+        try {
+          return await source.collect(input);
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error);
+          return [
+            makeRawItem(
+              source.type,
+              `${source.type}（收集失败，已跳过）`,
+              `（上下文源 ${source.type} 本轮收集失败，未注入：${reason}）`,
+              source.type
+            ),
+          ];
+        }
+      })
+    );
+    for (const collected of collectedPerSource) {
       rawItems.push(...collected);
     }
 

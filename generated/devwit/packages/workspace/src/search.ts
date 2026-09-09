@@ -168,14 +168,15 @@ export async function searchInWorkspace(
   const rootAbs = path.resolve(rootPath);
 
   for (const abs of filePaths) {
-    // 跳过超大文件
+    // 跳过超大文件；lstat 不跟随符号链接——root 内指向外部的 symlink 文件
+    // 不纳入搜索（与文件树"不跟随 symlink"口径一致，防逃逸读取工作区外内容）
     let stat: fs.Stats;
     try {
-      stat = fs.statSync(abs);
+      stat = fs.lstatSync(abs);
     } catch {
       continue;
     }
-    if (!stat.isFile() || stat.size > MAX_SEARCH_FILE_BYTES) {
+    if (stat.isSymbolicLink() || !stat.isFile() || stat.size > MAX_SEARCH_FILE_BYTES) {
       continue;
     }
     let content: string;

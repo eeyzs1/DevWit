@@ -155,6 +155,84 @@ describe("resolveItemEnabled 优先级", () => {
   });
 });
 
+describe("单源失败不阻断整轮请求（🔴可用性修复回归）", () => {
+  it("源 collect 抛错（活动文件被删/git 不可用）：build 正常完成，占位项可见且含原因", async () => {
+    const engine = new ContextEngine({ sessionId: "s1" });
+    engine.registerSource({
+      type: "file_fragment",
+      async collect() {
+        throw new Error("ENOENT: active file vanished");
+      },
+    });
+    engine.registerSource(gitStatusSource(async () => "M a.ts"));
+    engine.setTypeEnabled("file_fragment", true);
+    engine.setTypeEnabled("git_status", true);
+
+    const { manifest, messages } = await engine.build(makeInput());
+    // 正常源照常注入
+    expect(messages.some((m) => m.role === "user" && m.content.includes("M a.ts"))).toBe(true);
+    // 失败源以占位项出现在 manifest（透明），原因可审计
+    const placeholder = manifest.items.find((item) => item.type === "file_fragment" && item.label.includes("收集失败"));
+    expect(placeholder).toBeDefined();
+    expect(placeholder?.content).toContain("ENOENT: active file vanished");
+    expect(placeholder?.tokens).toBeGreaterThan(0);
+  });
+
+  it("多源中首个失败不影响后续源收集", async () => {
+    const engine = new ContextEngine({ sessionId: "s1" });
+    const calls: string[] = [];
+    engine.registerSource({
+      type: "file_fragment",
+      async collect() {
+        calls.push("bad");
+        throw new Error("boom");
+      },
+    });
+    engine.registerSource({
+      type: "git_status",
+      async collect() {
+        calls.push("good");
+        return [];
+      },
+    });
+    await engine.build(makeInput());
+    expect(calls).toEqual(["bad", "good"]);
+  });
+
+  it("源并行收集（P2 修复回归）：后注册的源在先注册的源完成前即已启动", async () => {
+    const engine = new ContextEngine({ sessionId: "s1" });
+    let secondStarted = false;
+    // 源 A：挂起直到源 B 已启动（串行实现下 A 先完成、sawParallel=false；
+    // 并行实现下 B 立即启动 → sawParallel=true——判别发生在 A 完成时刻，防误判）
+    let sawParallel = false;
+    engine.registerSource({
+      type: "file_fragment",
+      async collect() {
+        await new Promise<void>((resolve) => {
+          const started = Date.now();
+          const tick = setInterval(() => {
+            if (secondStarted || Date.now() - started > 2000) {
+              clearInterval(tick);
+              sawParallel = secondStarted;
+              resolve();
+            }
+          }, 5);
+        });
+        return [];
+      },
+    });
+    engine.registerSource({
+      type: "git_status",
+      async collect() {
+        secondStarted = true;
+        return [];
+      },
+    });
+    await engine.build(makeInput());
+    expect(sawParallel).toBe(true);
+  });
+});
+
 describe("setItemOverride 逐项开关（AC19 codebase_match 单块剔除）", () => {
   /** 产出两个带稳定 key 的 codebase_match 项的测试源。 */
   function keyedSource() {

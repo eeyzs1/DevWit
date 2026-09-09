@@ -128,11 +128,14 @@ export class CredentialNotFoundError extends Error {
 export class ProviderHttpError extends Error {
   readonly status: number;
   readonly retryable: boolean;
-  constructor(status: number, body: string, retryable: boolean) {
+  /** 服务端 Retry-After（毫秒；缺省/非法为 undefined）。重试退避消费（http.ts）。 */
+  readonly retryAfterMs: number | undefined;
+  constructor(status: number, body: string, retryable: boolean, retryAfterMs?: number) {
     super(`Provider HTTP ${status}: ${body.slice(0, 300)}`);
     this.name = "ProviderHttpError";
     this.status = status;
     this.retryable = retryable;
+    this.retryAfterMs = retryAfterMs;
   }
 }
 

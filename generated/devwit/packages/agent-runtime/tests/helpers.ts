@@ -17,6 +17,13 @@ export class MemoryEnvironment implements ToolEnvironment {
     stderr: "",
     exitCode: 0,
   });
+  /** execFile 调用记录（git_* 等免授权只读工具的无 shell 通道）。 */
+  readonly execFileCalls: Array<{ file: string; args: string[]; cwd: string }> = [];
+  execFileHandler: (file: string, args: string[], options: ExecOptions) => Promise<ExecResult> = async () => ({
+    stdout: "",
+    stderr: "",
+    exitCode: 0,
+  });
 
   constructor(root: string, files: Record<string, string> = {}) {
     this.root = path.resolve(root);
@@ -66,6 +73,12 @@ export class MemoryEnvironment implements ToolEnvironment {
   async exec(command: string, options: ExecOptions): Promise<ExecResult> {
     this.execCalls.push({ command, cwd: options.cwd });
     return this.execHandler(command, options);
+  }
+
+  async execFile(file: string, args: readonly string[], options: ExecOptions): Promise<ExecResult> {
+    const recorded = [...args];
+    this.execFileCalls.push({ file, args: recorded, cwd: options.cwd });
+    return this.execFileHandler(file, recorded, options);
   }
 
   /** 按工作区相对路径读取（测试断言用）。 */

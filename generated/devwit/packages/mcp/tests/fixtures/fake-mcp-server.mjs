@@ -13,6 +13,13 @@ const MARKER_FILE = process.env.MARKER_FILE;
 
 process.stdout.write("fake-mcp-server boot log (non-json line, must be tolerated)\n");
 
+// 失控模式（FLOOD_STDOUT=1）：持续输出无换行巨量数据——单行缓冲上限 fail-closed 测试
+if (process.env.FLOOD_STDOUT === "1") {
+  process.stdout.write("x".repeat(2 * 1024 * 1024));
+  // 不退出，等待客户端按协议违规强杀
+  setInterval(() => {}, 60_000);
+}
+
 const TOOLS = [
   {
     name: "echo",

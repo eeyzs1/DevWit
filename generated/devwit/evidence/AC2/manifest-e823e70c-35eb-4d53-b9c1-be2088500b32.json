@@ -1,0 +1,78 @@
+{
+  "id": "manifest-e823e70c-35eb-4d53-b9c1-be2088500b32",
+  "timestamp": "2026-09-09T11:22:23.883Z",
+  "sessionId": "session-1788952942682",
+  "modeId": "chat",
+  "providerId": "e2e-local-a",
+  "model": "e2e-model-a",
+  "items": [
+    {
+      "id": "item-020afdce-04ba-4bf2-9d66-3bb43a502f3b",
+      "type": "system_prompt",
+      "label": "系统提示",
+      "enabled": true,
+      "tokens": 94,
+      "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。你有 read/grep/find/ls 只读工具，可查看工作区文件帮助回答；此模式不能修改文件或执行命令，如需改动，请建议用户切到 Agent 模式。",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-4f0bfb2a-dfd8-4e92-9d26-f8c310459987",
+      "type": "tool_definitions",
+      "label": "工具定义（8 个）",
+      "enabled": true,
+      "tokens": 927,
+      "content": "[\n  {\n    \"name\": \"read\",\n    \"description\": \"读取工作区内文件内容；可用 start_line/end_line 读取指定行区间（大文件分片阅读）\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"相对工作区根的路径\"\n        },\n        \"start_line\": {\n          \"type\": \"number\",\n          \"description\": \"起始行号（从 1 起，可选）\"\n        },\n        \"end_line\": {\n          \"type\": \"number\",\n          \"description\": \"结束行号（含，可选）\"\n        }\n      },\n      \"required\": [\n        \"path\"\n      ]\n    }\n  },\n  {\n    \"name\": \"grep\",\n    \"description\": \"在工作区文件中按正则搜索，输出 文件:行号: 内容\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"pattern\": {\n          \"type\": \"string\",\n          \"description\": \"正则表达式\"\n        },\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"起始目录（默认工作区根）\"\n        },\n        \"glob\": {\n          \"type\": \"string\",\n          \"description\": \"文件名通配过滤，如 *.ts\"\n        },\n        \"case_sensitive\": {\n          \"type\": \"boolean\",\n          \"description\": \"大小写敏感（默认 true）\"\n        }\n      },\n      \"required\": [\n        \"pattern\"\n      ]\n    }\n  },\n  {\n    \"name\": \"find\",\n    \"description\": \"按文件名通配符（* / ?）查找文件与目录\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"pattern\": {\n          \"type\": \"string\",\n          \"description\": \"文件名通配符，如 *.ts\"\n        },\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"起始目录（默认工作区根）\"\n        }\n      },\n      \"required\": [\n        \"pattern\"\n      ]\n    }\n  },\n  {\n    \"name\": \"ls\",\n    \"description\": \"列出目录内容（目录名带 / 后缀）\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"目录路径（默认工作区根）\"\n        }\n      }\n    }\n  },\n  {\n    \"name\": \"git_status\",\n    \"description\": \"查看 Git 工作区状态（git status --short）：改/删/暂存文件清单\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {}\n    }\n  },\n  {\n    \"name\": \"git_diff\",\n    \"description\": \"查看 Git diff（未暂存默认；staged=true 看已暂存）。可按路径过滤\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"限定查看此路径的 diff（可选）\"\n        },\n        \"staged\": {\n          \"type\": \"boolean\",\n          \"description\": \"true 查看已暂存（--cached）变更；默认 false\"\n        }\n      }\n    }\n  },\n  {\n    \"name\": \"git_log\",\n    \"description\": \"查看 Git 提交历史（一行为一条：hash + 主题）\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"limit\": {\n          \"type\": \"number\",\n          \"description\": \"最近几条提交（默认 20，上限 100）\"\n        }\n      }\n    }\n  },\n  {\n    \"name\": \"git_branch\",\n    \"description\": \"列出 Git 本地分支（按最近提交时间倒序）\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {}\n    }\n  }\n]",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-a8f90c5b-0710-4868-b129-08e18f9151fd",
+      "type": "conversation_history",
+      "label": "会话历史（3 条）",
+      "enabled": true,
+      "tokens": 45,
+      "content": "[user] 你好\n[assistant] 你好！我是 DevWit，简洁上下文的 AI 编程助手。\n[user] 请把 hello.txt 加一行",
+      "source": "conversation",
+      "counting": "exact"
+    },
+    {
+      "id": "item-44bdc8de-8f8d-416c-bc9b-cb543ebcd958",
+      "type": "file_fragment",
+      "label": "文件片段 hello.txt",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-TP0Mry\\hello.txt",
+      "counting": "exact"
+    },
+    {
+      "id": "item-00cc70dc-81ad-477e-a92d-974e2ce880d1",
+      "type": "git_status",
+      "label": "Git 状态",
+      "enabled": true,
+      "tokens": 8,
+      "content": "(非 git 仓库)",
+      "source": "git status",
+      "counting": "exact"
+    },
+    {
+      "id": "item-b1a21227-d6b8-4cba-9caf-807ec0a61393",
+      "type": "codebase_match",
+      "label": "代码库检索（索引未启用）",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "rag",
+      "counting": "exact"
+    }
+  ],
+  "totalTokens": 1074,
+  "systemPromptTokens": 94,
+  "promptSections": [
+    {
+      "name": "mode",
+      "order": 0
+    }
+  ]
+}

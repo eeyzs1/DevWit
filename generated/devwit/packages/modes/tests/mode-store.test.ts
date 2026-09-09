@@ -132,6 +132,57 @@ describe("热更新", () => {
     store.upsert(makeMode({ id: "x" }));
     expect(count).toBe(3);
   });
+
+  it("🟡修复回归：单个 listener 抛错不影响其余 listener 收到事件；全部送达后首个错误上抛", () => {
+    const store = new ModeStore();
+    const calls: string[] = [];
+    store.onDidChange(() => {
+      calls.push("bad");
+      throw new Error("listener-1 boom");
+    });
+    store.onDidChange(() => {
+      calls.push("good-1");
+    });
+    store.onDidChange(() => {
+      calls.push("good-2");
+    });
+    // 内存变更 + 三个 listener 全部送达，然后错误上抛（无半送达）
+    expect(() => store.upsert(makeMode())).toThrow(/listener-1 boom/);
+    expect(calls).toEqual(["bad", "good-1", "good-2"]);
+    // 状态确实已提交
+    expect(store.get("review")).toBeDefined();
+  });
+});
+
+describe("scope 清理（🟡泄漏修复回归）", () => {
+  it("delete 清理该模式全部作用域条目；同 id 重建不静默继承旧条目", () => {
+    const store = new ModeStore();
+    store.upsert(makeMode());
+    const off = store.scope.register("review", "prompt_section", "intro", "额外提示段");
+    expect(store.scope.sectionsOf("review")).toEqual(["额外提示段"]);
+
+    store.delete("review");
+    expect(store.scope.sectionsOf("review")).toEqual([]);
+    expect(store.scope.all()).toHaveLength(0);
+
+    // 同 id 重建：旧条目不复活（重复注册也不冲突）
+    store.upsert(makeMode());
+    expect(() => store.scope.register("review", "prompt_section", "intro", "新段")).not.toThrow();
+    off(); // 原注销函数对已清空条目无害
+    expect(store.scope.sectionsOf("review")).toEqual([]);
+  });
+
+  it("replaceAll 移除的用户模式 scope 一并清理；保留的模式 scope 不受影响", () => {
+    const store = new ModeStore();
+    store.upsert(makeMode({ id: "keep" }));
+    store.upsert(makeMode({ id: "drop" }));
+    store.scope.register("keep", "tool", "t1", { name: "keep-tool" });
+    store.scope.register("drop", "tool", "t2", { name: "drop-tool" });
+
+    store.replaceAll([makeMode({ id: "keep" })]);
+    expect(store.scope.toolsOf("drop")).toEqual([]);
+    expect(store.scope.toolsOf("keep")).toEqual([{ name: "keep-tool" }]);
+  });
 });
 
 describe("resolveModeContextPolicy", () => {

@@ -112,4 +112,11 @@ describe("McpStdioClient（AC17）", () => {
     expect(result.ok).toBe(false);
     expect(result.error).toBe("DW_MCP_NOT_READY");
   });
+
+  it("失控服务器（2MB 无换行输出）→ DW_MCP_LINE_TOO_LONG fail-closed 断开（🟡资源修复回归）", async () => {
+    const client = track(new McpStdioClient(makeConfig({ env: { FLOOD_STDOUT: "1" } })));
+    await expect(client.start()).rejects.toThrow(/DW_MCP_LINE_TOO_LONG/);
+    // 断开后进程已清理，可安全 close（不产生孤儿进程）
+    await client.close();
+  });
 });

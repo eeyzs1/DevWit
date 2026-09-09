@@ -90,6 +90,88 @@ export function columnForX(lineText: string, x: number, measure: Measurer): numb
   return lineText.length;
 }
 
+// ---------------------------------------------------------------------------
+// 逐字符宽度模型（v0.7.1：CJK/全角/emoji 正确渲染）
+// ---------------------------------------------------------------------------
+
+/** 每字符宽度函数：输入单个 UTF-16 code unit，返回像素宽度。 */
+export type CharWidthFn = (ch: string) => number;
+
+/**
+ * East Asian Wide/Fullwidth 判定（近似 EastAsianWidth W+F 的实用子集）。
+ * 覆盖：CJK 统一表意/扩展、韩文、假名、全角标点与全角形式、CJK 兼容、
+ * 常用 emoji 平面（ astral 区间经代理对在 widthOfChar 中按整体计宽）。
+ * 纯函数，node 下可直接测试。
+ */
+const WIDE_RANGES: ReadonlyArray<readonly [number, number]> = [
+  [0x1100, 0x115f], // Hangul Jamo
+  [0x2329, 0x232a], // 〈〉
+  [0x2e80, 0x303e], // CJK 部首补充..CJK 符号标点
+  [0x3041, 0x33ff], // 假名..CJK 笔画
+  [0x3400, 0x4dbf], // CJK 扩展 A
+  [0x4e00, 0x9fff], // CJK 统一表意
+  [0xa000, 0xa4cf], // 彝文
+  [0xa960, 0xa97f], // Hangul Jamo Extended-A
+  [0xac00, 0xd7a3], // 韩文音节
+  [0xf900, 0xfaff], // CJK 兼容表意
+  [0xfe10, 0xfe19], // 竖排形式
+  [0xfe30, 0xfe6f], // CJK 兼容形式
+  [0xff00, 0xff60], // 全角形式（全角 ASCII／标点）
+  [0xffe0, 0xffe6], // 全角符号
+  [0x16fe0, 0x16fe4], // Tangut 标记
+  [0x17000, 0x18aff], // Tangut
+  [0x1b000, 0x1b2ff], // 假名补充
+  [0x1f300, 0x1f64f], // emoji（杂项符号..表情）
+  [0x1f680, 0x1f6ff], // 交通与地图符号
+  [0x1f900, 0x1f9ff], // 补充符号与图形
+  [0x20000, 0x2fffd], // CJK 扩展 B..
+  [0x30000, 0x3fffd], // CJK 扩展 G..
+];
+
+export function isWideCodePoint(cp: number): boolean {
+  if (cp < 0x1100) return false; // ASCII/拉丁/西里尔等半角快速路径
+  for (const [lo, hi] of WIDE_RANGES) {
+    if (cp >= lo && cp <= hi) return true;
+    if (cp < lo) return false; // 区间按升序排列：越过即无命中
+  }
+  return false;
+}
+
+/** 列 → 像素 x（逐字符宽度单遍累计）：lineText 前 column 个字符的总宽。 */
+export function xForColumnChars(lineText: string, column: number, widthOf: CharWidthFn): number {
+  const col = Math.max(0, Math.min(Math.floor(column), lineText.length));
+  let x = 0;
+  for (let i = 0; i < col; i++) {
+    x += widthOf(lineText[i] ?? "");
+  }
+  return x;
+}
+
+/** 像素 x → 列（逐字符宽度单遍累计，中点判定语义与 columnForX 一致）。 */
+export function columnForXChars(lineText: string, x: number, widthOf: CharWidthFn): number {
+  if (x <= 0 || lineText.length === 0) {
+    return 0;
+  }
+  let prevWidth = 0;
+  for (let col = 1; col <= lineText.length; col++) {
+    const width = prevWidth + widthOf(lineText[col - 1] ?? "");
+    if (x < (prevWidth + width) / 2) {
+      return col - 1;
+    }
+    prevWidth = width;
+  }
+  return lineText.length;
+}
+
+/** 整段文本像素宽度（逐字符宽度单遍累计）。 */
+export function measureTextWidth(text: string, widthOf: CharWidthFn): number {
+  let x = 0;
+  for (let i = 0; i < text.length; i++) {
+    x += widthOf(text[i] ?? "");
+  }
+  return x;
+}
+
 /**
  * 行的缩进级别：前导空白按 tabSize 折算成列宽，再整除 tabSize 得级别数。
  * 空行/无缩进返回 0；tab 按下一档对齐（cols += tabSize - cols%tabSize）。

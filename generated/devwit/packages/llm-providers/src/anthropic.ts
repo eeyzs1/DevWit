@@ -8,7 +8,7 @@ import type {
   ToolParameterSchema,
 } from "@devwit/contracts";
 import { asNumber, asString, isRecord, parseJsonObject, safeParseJson } from "./guards.js";
-import { assertResponseOk, joinUrl } from "./http.js";
+import { assertResponseOk, fetchWithRetry, joinUrl } from "./http.js";
 import { parseSseStream } from "./sse.js";
 
 // ============================================================================
@@ -267,7 +267,7 @@ export class AnthropicProvider implements LLMProvider {
     if (!this.config.baseUrl) throw new Error("AnthropicProvider: ProviderConfig.baseUrl is empty");
     const apiKey = await this.credentials.resolve(this.config.credentialRef);
     const body = buildAnthropicRequest(this.config, messages, tools);
-    const response = await fetch(joinUrl(this.config.baseUrl, "/v1/messages"), {
+    const response = await fetchWithRetry(joinUrl(this.config.baseUrl, "/v1/messages"), {
       method: "POST",
       headers: {
         "content-type": "application/json",

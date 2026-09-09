@@ -1,6 +1,6 @@
 import type { CredentialResolver, Embedder, ProviderConfig } from "@devwit/contracts";
 import { asNumber, asString, isRecord, parseJsonObject } from "./guards.js";
-import { assertResponseOk, joinUrl } from "./http.js";
+import { assertResponseOk, fetchWithRetry, joinUrl } from "./http.js";
 
 /**
  * OpenAI 兼容 /v1/embeddings 客户端（迭代 10 / AC19）。
@@ -74,7 +74,7 @@ export class OpenAiCompatibleEmbedder implements Embedder {
     if (texts.length === 0) return [];
     // keyless（AC22：本地服务如 Ollama /v1/embeddings）跳过凭证解析与 authorization 头
     const apiKey = this.keyless ? undefined : await this.credentials.resolve(this.credentialRef);
-    const response = await fetch(joinUrl(this.baseUrl, "/embeddings"), {
+    const response = await fetchWithRetry(joinUrl(this.baseUrl, "/embeddings"), {
       method: "POST",
       headers: {
         "content-type": "application/json",

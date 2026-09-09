@@ -35,6 +35,10 @@ export interface DiffComputation {
   hunks: DiffHunk[];
   /** 是否存在任何变更（false = 提案与原文一致，无需审查）。 */
   hasChanges: boolean;
+  /** 原文是否以换行结尾（result() 无损还原尾换行用）。 */
+  originalEndsWithNewline: boolean;
+  /** 提案是否以换行结尾。 */
+  proposalEndsWithNewline: boolean;
 }
 
 /** 把 diff 的 value 拆成行（jsdiff 行级 value 以 \n 分隔，末行可能无 \n）。 */
@@ -83,30 +87,52 @@ export function computeDiff(original: string, proposal: string): DiffComputation
   }
   flushHunk();
 
-  return { segments, hunks, hasChanges: hunks.length > 0 };
+  return {
+    segments,
+    hunks,
+    hasChanges: hunks.length > 0,
+    originalEndsWithNewline: original.endsWith("\n"),
+    proposalEndsWithNewline: proposal.endsWith("\n"),
+  };
 }
 
 /**
  * 按各 hunk 的裁决合成最终文本。
  * accepted → 取 add 行；rejected/pending → 取 remove 行（未审不默认应用，安全侧）。
+ * 尾换行无损还原：追踪最后发出的行来自哪一侧（context/remove=原文，add=提案），
+ * 以该侧是否以 \n 结尾决定合成文本的尾换行——修复"接受 diff 后静默丢失文件末尾换行"。
  */
 export function applyDecisions(computation: DiffComputation): string {
   const out: string[] = [];
+  let emitted = false;
+  let tailFromProposal = false;
+  const track = (fromProposal: boolean): void => {
+    tailFromProposal = fromProposal;
+    emitted = true;
+  };
   for (const segment of computation.segments) {
     if (segment.kind === "context") {
-      out.push(...segment.lines);
+      if (segment.lines.length > 0) {
+        out.push(...segment.lines);
+        // 文档尾为 context 时两侧结尾一致（尾换行差异本身会构成 hunk），取原文侧即可
+        track(false);
+      }
       continue;
     }
     const hunk = segment.hunk;
     for (const line of hunk.lines) {
       if (line.kind === "add" && hunk.decision === "accepted") {
         out.push(line.text);
+        track(true);
       } else if (line.kind === "remove" && hunk.decision !== "accepted") {
         out.push(line.text);
+        track(false);
       }
     }
   }
-  return out.join("\n");
+  if (!emitted) return "";
+  const tailEndsWithNewline = tailFromProposal ? computation.proposalEndsWithNewline : computation.originalEndsWithNewline;
+  return out.join("\n") + (tailEndsWithNewline ? "\n" : "");
 }
 
 /**

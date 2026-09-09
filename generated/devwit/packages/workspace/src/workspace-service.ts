@@ -19,6 +19,8 @@ const WATCH_DEBOUNCE_MS = 100;
 
 export class WorkspaceService {
   private root: string | null = null;
+  /** root 的真实路径（符号链接解析后）——逃逸防护第二条防线的基准。 */
+  private rootReal: string | null = null;
   private watcher: fs.FSWatcher | null = null;
   private readonly listeners = new Set<WorkspaceChangeListener>();
   private readonly debounceTimers = new Map<string, NodeJS.Timeout>();
@@ -38,6 +40,7 @@ export class WorkspaceService {
     }
     this.closeWatcher();
     this.root = resolved;
+    this.rootReal = fs.realpathSync(resolved);
     return resolved;
   }
 
@@ -62,11 +65,15 @@ export class WorkspaceService {
   }
 
   /**
-   * 路径逃逸防护：相对 root 解析后的绝对路径必须等于 root 或位于其内部。
-   * 兼容 Windows 大小写不敏感盘符。
+   * 路径逃逸防护（双防线）：
+   * 1) 词法防线：相对 root 解析后的绝对路径必须等于 root 或位于其内部（兼容 Windows 大小写不敏感盘符）；
+   * 2) 符号链接防线：解析真实路径（fs.realpath）后必须仍位于 root 的真实路径内——
+   *    防止 root 内指向外部的 symlink/junction 借 readFile/writeFile 逃逸读写工作区外文件。
+   * 目标尚不存在（writeFile 新建）时回退到最近存在祖先的真实路径判定——
+   * 不存在的最终组件不可能本身是 symlink。
    */
   private resolveInsideRoot(filePath: string): string {
-    if (!this.root) {
+    if (!this.root || !this.rootReal) {
       throw new Error("No workspace root open");
     }
     const abs = path.resolve(this.root, filePath);
@@ -75,7 +82,27 @@ export class WorkspaceService {
     if (absNorm !== rootNorm && !absNorm.startsWith(rootNorm + path.sep)) {
       throw new Error(`Path escapes workspace root: ${filePath}`);
     }
+    const real = this.realpathOfNearestExisting(abs);
+    const rootRealNorm = this.rootReal.toLowerCase();
+    const realNorm = real.toLowerCase();
+    if (realNorm !== rootRealNorm && !realNorm.startsWith(rootRealNorm + path.sep)) {
+      throw new Error(`Path escapes workspace root via symlink: ${filePath}`);
+    }
     return abs;
+  }
+
+  /** 解析真实路径；目标不存在时逐级上溯到最近存在的祖先（到盘符仍无则原样返回）。 */
+  private realpathOfNearestExisting(p: string): string {
+    let current = p;
+    for (;;) {
+      try {
+        return fs.realpathSync(current);
+      } catch {
+        const parent = path.dirname(current);
+        if (parent === current) return p;
+        current = parent;
+      }
+    }
   }
 
   /** 订阅工作区变更事件，返回退订函数。 */
@@ -175,5 +202,6 @@ export class WorkspaceService {
     this.closeWatcher();
     this.listeners.clear();
     this.root = null;
+    this.rootReal = null;
   }
 }

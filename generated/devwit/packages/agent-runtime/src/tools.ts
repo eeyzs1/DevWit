@@ -27,7 +27,13 @@ export interface ToolEnvironment {
   readFile(path: string): Promise<string>;
   writeFile(path: string, content: string): Promise<void>;
   listDir(path: string): Promise<DirEntry[]>;
+  /** shell 执行（bash 工具——已过用户授权门，语义上就是要 shell）。 */
   exec(command: string, options: ExecOptions): Promise<ExecResult>;
+  /**
+   * 无 shell 执行（参数数组直达 argv）：供不经授权门的只读工具（git_*）使用，
+   * 杜绝 LLM 可控字符串经 shell 元字符（; | & 等）注入命令（注入回归：见 tools.test.ts）。
+   */
+  execFile(file: string, args: readonly string[], options: ExecOptions): Promise<ExecResult>;
 }
 
 export interface ToolContext {
@@ -223,11 +229,14 @@ const editHandler: ToolHandler = async (args, env, ctx) => {
 const bashHandler: ToolHandler = async (args, env, ctx) => {
   const command = requireString(args, "command");
   const timeoutMs = optionalNumber(args, "timeout_ms");
+  // timeout_ms 为 LLM 可控值：夹在 [1s, 10min]，防超大值无限占用执行环境
+  const clampedTimeout =
+    timeoutMs !== undefined ? Math.min(Math.max(Math.floor(timeoutMs), 1_000), 600_000) : undefined;
   let result: ExecResult;
   try {
     result = await env.exec(command, {
       cwd: ctx.workspaceRoot,
-      ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+      ...(clampedTimeout !== undefined ? { timeoutMs: clampedTimeout } : {}),
       ...(ctx.signal ? { signal: ctx.signal } : {}),
     });
   } catch (error) {
@@ -318,12 +327,15 @@ const lsHandler: ToolHandler = async (args, env, ctx) => {
 /**
  * Git 只读工具（git_*）：在 git 仓库内跑只读 git 命令并返回结果。
  * 只读免授权（AC4），与 bash 的"执行任意命令需授权"区分——git 只读不改变工作区。
+ * 安全：git_* 免授权直达执行，故必须经 execFile 参数数组（无 shell），
+ * 且一切 LLM 可控参数（如 git_diff 的 path）先经 resolveWithinRoot 白名单化——
+ * 二者缺一都会把"免授权只读"变成免授权命令注入面。
  * 工作区非 git 仓库时返回明确错误（引导打开 git 仓库或先 git init）。
  */
 async function runGit(cwd: string, env: ToolEnvironment, args: string[]): Promise<ToolResult> {
   let result: ExecResult;
   try {
-    result = await env.exec(`git ${args.join(" ")}`, { cwd });
+    result = await env.execFile("git", args, { cwd });
   } catch (error) {
     return fail(`git 执行失败: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -341,9 +353,14 @@ const gitStatusHandler: ToolHandler = async (_args, env, ctx) =>
 const gitDiffHandler: ToolHandler = async (args, env, ctx) => {
   const pathArg = optionalString(args, "path");
   const staged = optionalBoolean(args, "staged") ?? false;
-  const base = staged ? "--cached" : "";
-  const rest = pathArg !== undefined && pathArg.trim() !== "" ? " --" : "";
-  return runGit(ctx.workspaceRoot, env, ["diff", base, rest].filter((s) => s !== "").concat(pathArg !== undefined && pathArg.trim() !== "" ? [pathArg] : []));
+  // 安全：path 是 LLM 可控字符串，必须先经工作区白名单校验（拒绝 ../ 越界与
+  // 工作区外绝对路径），再作为单一 argv 元素传给 execFile（无 shell 解释）。
+  const safePath = pathArg !== undefined && pathArg.trim() !== "" ? resolveWithinRoot(ctx.workspaceRoot, pathArg) : undefined;
+  const gitArgs = staged ? ["diff", "--cached"] : ["diff"];
+  if (safePath !== undefined) {
+    gitArgs.push("--", safePath);
+  }
+  return runGit(ctx.workspaceRoot, env, gitArgs);
 };
 
 const gitLogHandler: ToolHandler = async (args, env, ctx) => {

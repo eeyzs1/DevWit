@@ -95,3 +95,43 @@ describe("DiffController 裁决合成", () => {
     expect(controller.result()).toBe(replacement);
   });
 });
+
+describe("尾换行无损还原（🔴修复回归）", () => {
+  it("原文以换行结尾：接受/拒绝/未裁决的合成结果均保留尾换行", () => {
+    const original = "line1\nline2\n";
+    const proposal = "line1\nLINE2\n";
+    const controller = new DiffController(original, proposal);
+    controller.accept(1);
+    expect(controller.result()).toBe("line1\nLINE2\n");
+    controller.reject(1);
+    expect(controller.result()).toBe(original);
+    const pending = new DiffController(original, proposal);
+    expect(pending.result()).toBe(original); // pending 安全侧
+  });
+
+  it("原文以换行结尾、接受的新内容不含尾换行：合成结果以提案侧为准（无尾换行）", () => {
+    const original = "a\n";
+    const proposal = "a\nb"; // 提案在尾部新增一行且无换行
+    const controller = new DiffController(original, proposal);
+    controller.acceptAll();
+    expect(controller.result()).toBe("a\nb");
+  });
+
+  it("原文无尾换行：合成结果不凭空添加尾换行", () => {
+    const original = "x\ny";
+    const proposal = "x\nY";
+    const controller = new DiffController(original, proposal);
+    controller.acceptAll();
+    expect(controller.result()).toBe("x\nY");
+    controller.rejectAll();
+    expect(controller.result()).toBe("x\ny");
+  });
+
+  it("中间 hunk 裁决不影响文档尾 context 的换行判定", () => {
+    const original = "h1\nh2\nh3\n";
+    const proposal = "H1\nh2\nh3\n";
+    const controller = new DiffController(original, proposal);
+    controller.accept(1);
+    expect(controller.result()).toBe("H1\nh2\nh3\n");
+  });
+});

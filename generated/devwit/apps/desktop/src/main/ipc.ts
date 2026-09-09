@@ -478,6 +478,11 @@ function modeExportFileName(name: string): string {
   return `${safe === "" ? "mode" : safe}.json`;
 }
 
+/** 社区索引/条目拉取 fetch（🟡修复：原先完全无超时——挂起的服务器会无限阻塞浏览/导入）。 */
+function fetchCommunityResource(url: string): Promise<Response> {
+  return fetch(url, { signal: AbortSignal.timeout(10_000) });
+}
+
 /**
  * AI 子系统注册（WU008-WU012 已接线）。
  * 生产路径：ai 为真实 AiRuntime，全部 handler 直连主进程组装链。
@@ -561,10 +566,10 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
     return mode;
   };
   // ---- 社区模式（迭代 16 / AC25）：索引仓库浏览 + 一键导入（校验/落库与文件导入同管线） ----
-  table[IPC.ModesCommunityList] = async () => fetchCommunityIndex(resolveModesIndexBase(), (url) => fetch(url));
+  table[IPC.ModesCommunityList] = async () => fetchCommunityIndex(resolveModesIndexBase(), fetchCommunityResource);
   table[IPC.ModesCommunityImport] = async (_e, file) => {
     if (services === undefined) throw new Error(AI_NOT_WIRED);
-    const parsed = await fetchCommunityMode(resolveModesIndexBase(), String(file), (url) => fetch(url));
+    const parsed = await fetchCommunityMode(resolveModesIndexBase(), String(file), fetchCommunityResource);
     const providerIds = new Set(readProviders(services.settings).map((provider) => provider.id));
     const existingIds = new Set(ai.listModes().map((mode) => mode.id));
     const mode = materializeImport(parsed, { existingIds, providerIds });
@@ -602,9 +607,9 @@ export function registerAiIpc(table: Record<string, IpcHandler>, ai?: AiRuntime,
   };
   // ---- 社区 MCP 服务器（迭代 25 / AC34）：与模式同一索引仓库的 mcpServers 段；
   // 导入 = 拉取条目文件 → 信封+配置同标准校验 → 新 id 落 settings（热同步启动进程） ----
-  table[IPC.McpCommunityList] = async () => fetchCommunityMcpIndex(resolveModesIndexBase(), (url) => fetch(url));
+  table[IPC.McpCommunityList] = async () => fetchCommunityMcpIndex(resolveModesIndexBase(), fetchCommunityResource);
   table[IPC.McpCommunityImport] = async (_e, file) => {
-    const parsed = await fetchCommunityMcpServer(resolveModesIndexBase(), String(file), (url) => fetch(url));
+    const parsed = await fetchCommunityMcpServer(resolveModesIndexBase(), String(file), fetchCommunityResource);
     const existingIds = new Set(ai.listMcpServers().map((view) => view.config.id));
     const config = materializeMcpImport(parsed, { existingIds });
     ai.upsertMcpServer(config);

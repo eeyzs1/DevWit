@@ -157,6 +157,8 @@ export class ModeStore {
     if (!existing) return false;
     if (existing.builtin) throw new Error(`builtin mode cannot be deleted: ${id}`);
     this.modes.delete(id);
+    // 同步清理该模式的作用域条目——防注册表残留泄漏与同 id 重建时静默继承旧条目
+    this.scope.clearForMode(id);
     this.emitChange();
     return true;
   }
@@ -168,7 +170,13 @@ export class ModeStore {
   replaceAll(modes: ModeDefinition[]): void {
     for (const mode of modes) validateModeDefinition(mode);
     for (const [id, mode] of this.modes) {
-      if (!mode.builtin) this.modes.delete(id);
+      if (!mode.builtin) {
+        this.modes.delete(id);
+        // 该用户模式若不在新列表中，其作用域条目一并清除（防泄漏/防旧能力复活）
+        if (!modes.some((m) => m.id === id)) {
+          this.scope.clearForMode(id);
+        }
+      }
     }
     for (const mode of modes) {
       const builtin = this.modes.get(mode.id)?.builtin ?? mode.builtin;
@@ -184,7 +192,24 @@ export class ModeStore {
     };
   }
 
+  /**
+   * 变更通知：逐 listener 隔离——单个 listener 抛错不影响其余 listener 收到事件
+   * （否则出现"内存已改、事件半送达"的半提交状态）；全部送达后首个错误向上抛出，
+   * 调用方能感知失败且不产生半送达。
+   */
   private emitChange(): void {
-    for (const listener of this.listeners) listener();
+    let firstError: unknown;
+    let failed = false;
+    for (const listener of this.listeners) {
+      try {
+        listener();
+      } catch (error) {
+        if (!failed) {
+          firstError = error;
+          failed = true;
+        }
+      }
+    }
+    if (failed) throw firstError;
   }
 }

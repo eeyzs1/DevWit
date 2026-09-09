@@ -1,4 +1,4 @@
-import { exec } from "node:child_process";
+import { exec, execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { ExecOptions, ExecResult, ToolEnvironment } from "./tools.js";
@@ -49,21 +49,42 @@ export function createNodeEnvironment(options: NodeEnvironmentOptions = {}): Too
             windowsHide: true,
             ...(execOptions.signal ? { signal: execOptions.signal } : {}),
           },
-          (error, stdout, stderr) => {
-            // error.code 为数字 = 进程真实退出码；否则为启动失败/超时/中止，
-            // 归为退出码 1 并把原因并入 stderr（保留 stdout，不丢现场）。
-            if (error && typeof error.code !== "number") {
-              resolve({
-                stdout,
-                stderr: stderr ? `${stderr}\n${error.message}` : error.message,
-                exitCode: 1,
-              });
-              return;
-            }
-            resolve({ stdout, stderr, exitCode: error ? error.code ?? 1 : 0 });
-          }
+          settle(resolve)
         );
       });
     },
+
+    execFile(file: string, args: readonly string[], execOptions: ExecOptions): Promise<ExecResult> {
+      return new Promise<ExecResult>((resolve) => {
+        execFile(
+          file,
+          [...args],
+          {
+            cwd: execOptions.cwd,
+            timeout: execOptions.timeoutMs ?? defaultTimeoutMs,
+            maxBuffer,
+            windowsHide: true,
+            ...(execOptions.signal ? { signal: execOptions.signal } : {}),
+          },
+          settle(resolve)
+        );
+      });
+    },
+  };
+}
+
+/** exec/execFile 回调统一收敛：非数字 error.code（启动失败/超时/中止）归退出码 1 并保留现场。 */
+function settle(resolve: (result: ExecResult) => void): (error: (Error & { code?: unknown }) | null, stdout: string, stderr: string) => void {
+  return (error, stdout, stderr) => {
+    if (error && typeof error.code !== "number") {
+      resolve({
+        stdout,
+        stderr: stderr ? `${stderr}\n${error.message}` : error.message,
+        exitCode: 1,
+      });
+      return;
+    }
+    const code = typeof error?.code === "number" ? error.code : 0;
+    resolve({ stdout, stderr, exitCode: error ? code : 0 });
   };
 }

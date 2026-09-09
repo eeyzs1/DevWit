@@ -51,6 +51,21 @@ export class ModeScopeRegistry {
     this.entries.delete(this.scopeKey(modeId, kind, key));
   }
 
+  /**
+   * 清空某模式的全部作用域条目（模式删除/水合移除时调用，防注册表残留泄漏）。
+   * 返回清除条数（0 = 本就为空，测试可断言）。
+   */
+  clearForMode(modeId: string): number {
+    let removed = 0;
+    for (const [scopeKey, entry] of this.entries) {
+      if (entry.modeId === modeId) {
+        this.entries.delete(scopeKey);
+        removed += 1;
+      }
+    }
+    return removed;
+  }
+
   /** 某模式某 kind 的全部条目（按注册顺序）。 */
   list<T = unknown>(modeId: string, kind: ModeScopeKind): ModeScopeEntry<T>[] {
     const out: ModeScopeEntry<T>[] = [];
