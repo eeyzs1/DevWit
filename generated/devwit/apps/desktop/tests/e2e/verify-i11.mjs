@@ -171,6 +171,7 @@ function launchElectron(cdpPort) {
 let browser = null;
 let electronProc = null;
 let fatal = null;
+let page = null; // 顶层作用域（catch 诊断转储需要访问）
 try {
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const baseUrl = `http://127.0.0.1:${server.address().port}`;
@@ -181,8 +182,9 @@ try {
   electronProc = proc;
   browser = await chromium.connectOverCDP(ws);
   const context = browser.contexts()[0];
-  let page = context.pages().find((p) => p.url().includes("index.html"));
-  if (!page) page = await context.waitForEvent("page", { timeout: 15_000 });
+  let p = context.pages().find((entry) => entry.url().includes("index.html"));
+  if (!p) p = await context.waitForEvent("page", { timeout: 15_000 });
+  page = p;
   await page.waitForSelector(".dw-header", { timeout: 30_000 });
   step("应用启动（默认中文）");
 
@@ -294,6 +296,20 @@ try {
   fatal = error instanceof Error ? error.message : String(error);
   report.failures.push(`fatal: ${fatal}`);
   console.error("[verify-i11] 失败:", fatal);
+  // 诊断转储（v0.7.10）：失败时抓页面事件流与当前消息 DOM，定位编排断点
+  try {
+    const dbg = await page.evaluate(() => ({
+      events: window.__i11Events ?? [],
+      messages: [...document.querySelectorAll(".dw-chat-list > *")].map((n) => ({
+        cls: n.className,
+        text: (n.textContent ?? "").slice(0, 120),
+      })),
+    }));
+    fs.writeFileSync(path.join(OUT, "debug-dump.json"), JSON.stringify(dbg, null, 2), "utf-8");
+    console.error(`[verify-i11] 诊断: events=${dbg.events.length} 条已转储 debug-dump.json`);
+  } catch (diagError) {
+    console.error("[verify-i11] 诊断失败:", diagError instanceof Error ? diagError.message : String(diagError));
+  }
 } finally {
   fs.writeFileSync(path.join(OUT, "verify-i11-report.json"), JSON.stringify(report, null, 2), "utf-8");
   fs.writeFileSync(

@@ -3,6 +3,22 @@
 所有显著变更记录于此。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本遵循 [语义化版本](https://semver.org/)。
 
+## [0.7.11] — 2026-08-30
+
+### Fixed
+- **编排子 Agent 丢失角色提示**（v0.7.0 引入，非本系列回归）：Fusion B-WU4
+  接线后 context-engine 在注册表存在时忽略 input.systemPrompt——子 Agent
+  的 WORKER_PROMPT_SUFFIX 被共享注册表静默吞掉，自 v0.7.0 起一直以裸
+  编排提示运行（无角色认知）。修复：input.systemPrompt 恒作为 mode 段
+  文本覆盖（同值无操作，恢复 Fusion 前优先级语义）
+  ——由不在 CI 的 verify-i11 扫尾发现（服务器分流日志实证 worker 锚点缺失）
+- verify-i5 的设置按钮选择器过时（迭代 32 在 header 插入 blameBtn 后
+  nth-5 变 blame，脚本静默失效）——修正为 nth-6
+
+### Added
+- winget 0.7.10 清单（SHA256 双源实证：GitHub API digest + 实际下载
+  哈希一致）；verify-i11 失败时事件流/消息 DOM 诊断转储
+
 ## [0.7.10] — 2026-08-30
 
 ### Changed

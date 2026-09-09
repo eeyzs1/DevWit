@@ -1,33 +1,33 @@
 {
-  "id": "manifest-f588ef77-8285-4dc4-8ab6-0e2c9f4b97ee",
-  "timestamp": "2026-07-27T19:43:21.538Z",
-  "sessionId": "session-1785181400455",
+  "id": "manifest-5b0b66e7-5e3d-45f0-87b2-f7d752d5c39b",
+  "timestamp": "2026-09-09T16:18:48.248Z",
+  "sessionId": "session-1788970727054",
   "modeId": "chat",
   "providerId": "i10-local",
   "model": "i10-model",
   "items": [
     {
-      "id": "item-112dacb2-e34e-4d7b-b1bd-66bde85f3fd7",
+      "id": "item-f48525b9-43e9-49a8-803a-2c27c7ffaeab",
       "type": "system_prompt",
       "label": "系统提示",
       "enabled": true,
-      "tokens": 65,
-      "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。此模式没有工具；如需查看文件或执行命令，请用户把内容贴进对话。",
+      "tokens": 94,
+      "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。你有 read/grep/find/ls 只读工具，可查看工作区文件帮助回答；此模式不能修改文件或执行命令，如需改动，请建议用户切到 Agent 模式。",
       "source": "mode",
       "counting": "exact"
     },
     {
-      "id": "item-c20a8118-98d2-46f2-8844-439148b53345",
+      "id": "item-5596ceba-bb06-406c-a128-e1a720e546a5",
       "type": "tool_definitions",
-      "label": "工具定义（0 个）",
+      "label": "工具定义（8 个）",
       "enabled": true,
-      "tokens": 1,
-      "content": "[]",
+      "tokens": 601,
+      "content": "[{\"name\":\"read\",\"description\":\"读取工作区内文件内容；可用 start_line/end_line 读取指定行区间（大文件分片阅读）\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"相对工作区根的路径\"},\"start_line\":{\"type\":\"number\",\"description\":\"起始行号（从 1 起，可选）\"},\"end_line\":{\"type\":\"number\",\"description\":\"结束行号（含，可选）\"}},\"required\":[\"path\"]}},{\"name\":\"grep\",\"description\":\"在工作区文件中按正则搜索，输出 文件:行号: 内容\",\"parameters\":{\"type\":\"object\",\"properties\":{\"pattern\":{\"type\":\"string\",\"description\":\"正则表达式\"},\"path\":{\"type\":\"string\",\"description\":\"起始目录（默认工作区根）\"},\"glob\":{\"type\":\"string\",\"description\":\"文件名通配过滤，如 *.ts\"},\"case_sensitive\":{\"type\":\"boolean\",\"description\":\"大小写敏感（默认 true）\"}},\"required\":[\"pattern\"]}},{\"name\":\"find\",\"description\":\"按文件名通配符（* / ?）查找文件与目录\",\"parameters\":{\"type\":\"object\",\"properties\":{\"pattern\":{\"type\":\"string\",\"description\":\"文件名通配符，如 *.ts\"},\"path\":{\"type\":\"string\",\"description\":\"起始目录（默认工作区根）\"}},\"required\":[\"pattern\"]}},{\"name\":\"ls\",\"description\":\"列出目录内容（目录名带 / 后缀）\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"目录路径（默认工作区根）\"}}}},{\"name\":\"git_status\",\"description\":\"查看 Git 工作区状态（git status --short）：改/删/暂存文件清单\",\"parameters\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"git_diff\",\"description\":\"查看 Git diff（未暂存默认；staged=true 看已暂存）。可按路径过滤\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"限定查看此路径的 diff（可选）\"},\"staged\":{\"type\":\"boolean\",\"description\":\"true 查看已暂存（--cached）变更；默认 false\"}}}},{\"name\":\"git_log\",\"description\":\"查看 Git 提交历史（一行为一条：hash + 主题）\",\"parameters\":{\"type\":\"object\",\"properties\":{\"limit\":{\"type\":\"number\",\"description\":\"最近几条提交（默认 20，上限 100）\"}}}},{\"name\":\"git_branch\",\"description\":\"列出 Git 本地分支（按最近提交时间倒序）\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}]",
       "source": "mode",
       "counting": "exact"
     },
     {
-      "id": "item-63dbdc4a-d009-46ac-929c-21c46eeff011",
+      "id": "item-d63c5d4f-f2ce-4a0b-93e4-17ec880e2ff1",
       "type": "conversation_history",
       "label": "会话历史（3 条）",
       "enabled": true,
@@ -37,7 +37,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-298e51b1-2699-4ef9-b7a0-fb53ae37e6dd",
+      "id": "item-01ebbc01-15fd-48ad-bac3-d34b4f39909e",
       "type": "git_status",
       "label": "Git 状态",
       "enabled": false,
@@ -47,7 +47,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-69b1f3b5-11f6-4ce4-8fd9-3d6e1cd8f3f2",
+      "id": "item-d490dbaa-9cdd-4b35-86fa-cb0932d96202",
       "type": "codebase_match",
       "label": "login.ts L1-4 · 0.632",
       "enabled": false,
@@ -59,7 +59,7 @@
       "score": 0.6324555320336759
     },
     {
-      "id": "item-989cf9db-fa13-4538-a3bf-8597b72941b7",
+      "id": "item-8b2b2165-5b2a-4334-9963-b4b01d314e40",
       "type": "codebase_match",
       "label": "button.ts L1-4 · 0.000",
       "enabled": true,
@@ -71,6 +71,14 @@
       "score": 0
     }
   ],
-  "totalTokens": 135,
-  "systemPromptTokens": 65
+  "totalTokens": 764,
+  "systemPromptTokens": 94,
+  "framingTokens": 33,
+  "estimatedRequestTokens": 797,
+  "promptSections": [
+    {
+      "name": "mode",
+      "order": 0
+    }
+  ]
 }

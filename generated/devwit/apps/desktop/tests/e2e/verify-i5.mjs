@@ -101,9 +101,11 @@ try {
   if (!page) page = await context.waitForEvent("page", { timeout: 15_000 });
   await page.waitForSelector(".dw-header", { timeout: 30_000 });
   // 定位全部语言无关（首启语言 = 跟随系统解析结果，中文/英文界面皆可能）：
-  // header 按钮顺序固定 形态/打开文件夹/保存/外部编辑器/设置；设置导航顺序 通用/模型/编辑器/模式
+  // header 按钮顺序固定 形态/打开文件夹/保存/外部编辑器/blame/设置
+  // （v0.7.10 修复：迭代 32 在设置前插入 blameBtn，本脚本按旧序取 nth-5 误点
+  //  blame 导致模态框超时——脚本不在 CI 中而静默失效；改取 nth-6 并注明依赖）
   const openFolderBtn = ".dw-header button:nth-of-type(2)";
-  const settingsBtn = ".dw-header button:nth-of-type(5)";
+  const settingsBtn = ".dw-header button:nth-of-type(6)";
   await page.click(openFolderBtn);
   await page.waitForSelector(".dw-tree-node", { timeout: 15_000 });
   step("应用启动（全新 userData：语言默认「跟随系统」）");

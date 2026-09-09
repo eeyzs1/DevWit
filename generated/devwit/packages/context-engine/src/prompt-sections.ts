@@ -11,6 +11,14 @@ export interface PromptSectionAssembleContext {
   modeId: string;
   providerId: string;
   model: string;
+  /**
+   * mode 段文本覆盖（v0.7.10 修复：Fusion B-WU4 后引擎忽略 input.systemPrompt，
+   * 编排子 Agent 的 WORKER_PROMPT_SUFFIX 静默丢失——子 Agent 从 v0.7.0 起一直
+   * 以裸编排提示运行）。调用方（context-engine.build）恒传 input.systemPrompt：
+   * 与主会话相同的 mode 提示时覆盖无操作（行为不变），子 Agent 的 worker
+   * 提示时恢复正确的角色文本。
+   */
+  modeTextOverride?: string;
 }
 
 export interface PromptSection {
@@ -32,7 +40,13 @@ export const FIRST_PARTY_SECTION_ORDER = {
   safety: 300,
 } as const;
 
+/** mode 段的注册名（ai-runtime.syncModeSections 使用；modeTextOverride 按此名匹配）。 */
+export const MODE_SECTION_NAME = "mode";
+
 function resolveText(section: PromptSection, ctx: PromptSectionAssembleContext): string {
+  if (ctx.modeTextOverride !== undefined && section.name === MODE_SECTION_NAME) {
+    return ctx.modeTextOverride;
+  }
   return typeof section.text === "function" ? section.text(ctx) : section.text;
 }
 

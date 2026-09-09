@@ -71,13 +71,38 @@ describe("PromptSectionRegistry（B-WU4 系统提示段注册表）", () => {
   });
 });
 
-describe("ContextEngine promptSections 集成（B-WU4）", () => {
-  it("注册表存在：系统提示为组装结果，manifest 记录段组成", async () => {
+describe("modeTextOverride（v0.7.10：input.systemPrompt 恒赢 mode 段）", () => {
+  it("编排子 Agent 场景：worker 提示（基座+后缀）完整进入系统提示", () => {
     const reg = new PromptSectionRegistry();
-    reg.register({ name: "mode", order: FIRST_PARTY_SECTION_ORDER.mode, text: "模式提示" });
+    reg.register({ name: "mode", order: FIRST_PARTY_SECTION_ORDER.mode, text: "编排协调者基座提示" });
+    reg.register({ name: "safety", order: FIRST_PARTY_SECTION_ORDER.safety, text: "安全约束" });
+    const assembled = reg.assemble({
+      modeId: "orchestrator",
+      providerId: "p",
+      model: "m",
+      modeTextOverride: "编排协调者基座提示\n\n你现在是多 Agent 编排中的一个子 Agent，只负责单个子任务。",
+    });
+    expect(assembled.text).toBe(
+      "编排协调者基座提示\n\n你现在是多 Agent 编排中的一个子 Agent，只负责单个子任务。\n\n安全约束",
+    );
+  });
+
+  it("未传覆盖：注册表文本照旧（直接调用 assemble 的既有消费者不受影响）", () => {
+    const reg = new PromptSectionRegistry();
+    reg.register({ name: "mode", order: 0, text: "注册表文本" });
+    expect(reg.assemble({ modeId: "a", providerId: "p", model: "m" }).text).toBe("注册表文本");
+  });
+});
+
+describe("ContextEngine promptSections 集成（B-WU4）", () => {
+  it("注册表存在：系统提示为组装结果（input.systemPrompt 恒为 mode 段文本——v0.7.10 修复），manifest 记录段组成", async () => {
+    const reg = new PromptSectionRegistry();
+    // 注册表 mode 段文本会被 input.systemPrompt 覆盖（调用方 AgentLoop 恒传
+    // mode.systemPrompt——同值时无操作；编排子 Agent 传 worker 提示时恢复角色文本）
+    reg.register({ name: "mode", order: FIRST_PARTY_SECTION_ORDER.mode, text: "注册表的旧文本" });
     reg.register({ name: "safety", order: FIRST_PARTY_SECTION_ORDER.safety, text: "安全约束" });
     const engine = new ContextEngine({ sessionId: "s1", promptSections: reg });
-    const out = await engine.build(makeInput("会被替代"));
+    const out = await engine.build(makeInput("模式提示"));
     const system = out.messages.find((m) => m.role === "system");
     expect(system?.content).toBe("模式提示\n\n安全约束");
     const manifest = engine.getLatestManifest() as ContextManifest;
@@ -97,11 +122,11 @@ describe("ContextEngine promptSections 集成（B-WU4）", () => {
 
   it("热生效：注册新段后下一次 build 立即包含", async () => {
     const reg = new PromptSectionRegistry();
-    reg.register({ name: "mode", order: 0, text: "模式提示" });
+    reg.register({ name: "mode", order: 0, text: "注册表文本（被 input 覆盖）" });
     const engine = new ContextEngine({ sessionId: "s1", promptSections: reg });
-    await engine.build(makeInput());
+    await engine.build(makeInput("模式提示"));
     reg.register({ name: "tools", order: FIRST_PARTY_SECTION_ORDER.tools, text: "工具纪律" });
-    const out = await engine.build(makeInput());
+    const out = await engine.build(makeInput("模式提示"));
     expect(out.messages.find((m) => m.role === "system")?.content).toBe("模式提示\n\n工具纪律");
   });
 });

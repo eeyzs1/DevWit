@@ -198,7 +198,10 @@ export class ContextEngine {
    * 产出 manifest 并落盘（每次请求一份，AC2/AR007）。
    */
   async build(input: ContextBuildInput): Promise<ContextBuild> {
-    // B-WU4：注册表存在时组装系统提示（段组成进 manifest 审计）；缺省用模式提示
+    // B-WU4：注册表存在时组装系统提示（段组成进 manifest 审计）；缺省用模式提示。
+    // v0.7.10 修复：input.systemPrompt 恒作为 mode 段文本覆盖传入——恢复 Fusion 前
+    // 语义（input 优先），修复编排子 Agent 的 WORKER_PROMPT_SUFFIX 被
+    // 共享注册表静默吞掉（子 Agent 自 v0.7.0 起以裸编排提示运行）。
     let systemPrompt = input.systemPrompt;
     let promptSectionsMeta: ContextManifest["promptSections"];
     if (this.promptSections !== undefined) {
@@ -206,6 +209,7 @@ export class ContextEngine {
         modeId: input.modeId,
         providerId: input.providerId,
         model: input.model,
+        ...(input.systemPrompt !== undefined ? { modeTextOverride: input.systemPrompt } : {}),
       });
       systemPrompt = assembled.text;
       promptSectionsMeta = assembled.sections;
