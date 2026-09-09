@@ -761,17 +761,19 @@ export class EditorView {
     // 降序应用（高 startOffset 先），保证未应用选区的偏移不失效
     const order = sels.map((_, i) => i).sort((a, b) => (sels[b]?.startOffset ?? 0) - (sels[a]?.startOffset ?? 0));
     const newOffsets = new Array<number>(sels.length);
-    for (const i of order) {
-      const sel = sels[i];
-      const result = results[i];
-      if (sel === undefined || result === undefined) continue;
-      this.doc.applyEdit({
-        offset: sel.startOffset,
-        length: sel.endOffset - sel.startOffset,
-        text: result.text,
-      });
-      newOffsets[i] = result.cursorOffset;
-    }
+    this.doc.transact(() => {
+      for (const i of order) {
+        const sel = sels[i];
+        const result = results[i];
+        if (sel === undefined || result === undefined) continue;
+        this.doc.applyEdit({
+          offset: sel.startOffset,
+          length: sel.endOffset - sel.startOffset,
+          text: result.text,
+        });
+        newOffsets[i] = result.cursorOffset;
+      }
+    });
     this.selections = this.selections.map((_, index) => {
       const pos = this.doc.positionAt(newOffsets[index] ?? 0);
       return { anchor: pos, active: pos };
@@ -807,10 +809,13 @@ export class EditorView {
     }
     const desc = [...sels].sort((a, b) => b.startOffset - a.startOffset);
     const newOffsets: number[] = new Array<number>(sels.length);
-    for (const sel of desc) {
-      this.doc.applyEdit({ offset: sel.startOffset, length: sel.endOffset - sel.startOffset, text });
-      newOffsets[sel.index] = sel.startOffset + text.length + (shiftByIndex[sel.index] ?? 0);
-    }
+    // 事务：多光标一次输入 = 一条 undo（单光标经 pushGroup 退化保持打字合并语义）
+    this.doc.transact(() => {
+      for (const sel of desc) {
+        this.doc.applyEdit({ offset: sel.startOffset, length: sel.endOffset - sel.startOffset, text });
+        newOffsets[sel.index] = sel.startOffset + text.length + (shiftByIndex[sel.index] ?? 0);
+      }
+    });
     this.selections = this.selections.map((_, index) => {
       const pos = this.doc.positionAt(newOffsets[index] ?? 0);
       return { anchor: pos, active: pos };
@@ -853,10 +858,13 @@ export class EditorView {
     }
     const desc = [...sels].sort((a, b) => b.startOffset - a.startOffset);
     const newOffsets: number[] = new Array<number>(sels.length);
-    for (const sel of desc) {
-      this.doc.applyEdit({ offset: sel.startOffset, length: sel.endOffset - sel.startOffset, text: sel.text });
-      newOffsets[sel.index] = sel.startOffset + sel.text.length + (shiftByIndex[sel.index] ?? 0);
-    }
+    // 事务：多光标 Enter = 一条 undo
+    this.doc.transact(() => {
+      for (const sel of desc) {
+        this.doc.applyEdit({ offset: sel.startOffset, length: sel.endOffset - sel.startOffset, text: sel.text });
+        newOffsets[sel.index] = sel.startOffset + sel.text.length + (shiftByIndex[sel.index] ?? 0);
+      }
+    });
     this.selections = this.selections.map((_, index) => {
       const pos = this.doc.positionAt(newOffsets[index] ?? 0);
       return { anchor: pos, active: pos };
@@ -931,9 +939,12 @@ export class EditorView {
       }
     }
     edits.sort((a, b) => b.offset - a.offset);
-    for (const edit of edits) {
-      this.doc.applyEdit(edit);
-    }
+    // 事务：整块缩进/注释切换 = 一条 undo（百行缩进不再按百次 Ctrl+Z）
+    this.doc.transact(() => {
+      for (const edit of edits) {
+        this.doc.applyEdit(edit);
+      }
+    });
     this.selections = [{
       anchor: { line: firstLine, character: 0 },
       active: { line: lastLine, character: this.lineText(lastLine).length },
@@ -1065,9 +1076,12 @@ export class EditorView {
       }
     }
     edits.sort((a, b) => b.offset - a.offset);
-    for (const edit of edits) {
-      this.doc.applyEdit(edit);
-    }
+    // 事务：整块缩进/注释切换 = 一条 undo（百行缩进不再按百次 Ctrl+Z）
+    this.doc.transact(() => {
+      for (const edit of edits) {
+        this.doc.applyEdit(edit);
+      }
+    });
     this.selections = [{
       anchor: { line: firstLine, character: 0 },
       active: { line: lastLine, character: this.lineText(lastLine).length },
@@ -1089,31 +1103,34 @@ export class EditorView {
     const offsets = this.selections.map((sel) => this.doc.offsetAt(sel.active));
     const desc = offsets.map((offset, index) => ({ offset, index })).sort((a, b) => b.offset - a.offset);
     const newOffsets: number[] = new Array<number>(offsets.length);
-    for (const { offset, index } of desc) {
-      if (offset === 0) {
-        newOffsets[index] = 0;
-        continue;
-      }
-      const fullText = this.doc.getText();
-      const end = offset;
-      let start = offset;
-      // 跳过前导空白
-      while (start > 0 && /\s/.test(fullText[start - 1] ?? "")) start--;
-      // 删除同类字符块
-      if (start > 0) {
-        const ch = fullText[start - 1] ?? "";
-        const isWord = /[\w]/.test(ch);
-        while (start > 0) {
-          const prev = fullText[start - 1] ?? "";
-          if (/[\w]/.test(prev) !== isWord) break;
-          if (/\s/.test(prev)) break;
-          start--;
+    // 事务：多光标一次删词 = 一条 undo
+    this.doc.transact(() => {
+      for (const { offset, index } of desc) {
+        if (offset === 0) {
+          newOffsets[index] = 0;
+          continue;
         }
+        const fullText = this.doc.getText();
+        const end = offset;
+        let start = offset;
+        // 跳过前导空白
+        while (start > 0 && /\s/.test(fullText[start - 1] ?? "")) start--;
+        // 删除同类字符块
+        if (start > 0) {
+          const ch = fullText[start - 1] ?? "";
+          const isWord = /[\w]/.test(ch);
+          while (start > 0) {
+            const prev = fullText[start - 1] ?? "";
+            if (/[\w]/.test(prev) !== isWord) break;
+            if (/\s/.test(prev)) break;
+            start--;
+          }
+        }
+        this.doc.applyEdit({ offset: start, length: end - start, text: "" });
+        const below = offsets.filter((o) => o > 0 && o < offset).length;
+        newOffsets[index] = start - below;
       }
-      this.doc.applyEdit({ offset: start, length: end - start, text: "" });
-      const below = offsets.filter((o) => o > 0 && o < offset).length;
-      newOffsets[index] = start - below;
-    }
+    });
     this.selections = this.selections.map((_, index) => {
       const pos = this.doc.positionAt(newOffsets[index] ?? 0);
       return { anchor: pos, active: pos };
@@ -1135,31 +1152,34 @@ export class EditorView {
     const offsets = this.selections.map((sel) => this.doc.offsetAt(sel.active));
     const desc = offsets.map((offset, index) => ({ offset, index })).sort((a, b) => b.offset - a.offset);
     const newOffsets: number[] = new Array<number>(offsets.length);
-    for (const { offset, index } of desc) {
-      if (offset >= total) {
-        newOffsets[index] = offset;
-        continue;
-      }
-      const fullText = this.doc.getText();
-      const start = offset;
-      let end = offset;
-      // 跳过前导空白
-      while (end < total && /\s/.test(fullText[end] ?? "")) end++;
-      // 删除同类字符块
-      if (end < total) {
-        const ch = fullText[end] ?? "";
-        const isWord = /[\w]/.test(ch);
-        while (end < total) {
-          const next = fullText[end] ?? "";
-          if (/[\w]/.test(next) !== isWord) break;
-          if (/\s/.test(next)) break;
-          end++;
+    // 事务：多光标一次删词 = 一条 undo
+    this.doc.transact(() => {
+      for (const { offset, index } of desc) {
+        if (offset >= total) {
+          newOffsets[index] = offset;
+          continue;
         }
+        const fullText = this.doc.getText();
+        const start = offset;
+        let end = offset;
+        // 跳过前导空白
+        while (end < total && /\s/.test(fullText[end] ?? "")) end++;
+        // 删除同类字符块
+        if (end < total) {
+          const ch = fullText[end] ?? "";
+          const isWord = /[\w]/.test(ch);
+          while (end < total) {
+            const next = fullText[end] ?? "";
+            if (/[\w]/.test(next) !== isWord) break;
+            if (/\s/.test(next)) break;
+            end++;
+          }
+        }
+        this.doc.applyEdit({ offset: start, length: end - start, text: "" });
+        const below = offsets.filter((o) => o > 0 && o < offset).length;
+        newOffsets[index] = start - below;
       }
-      this.doc.applyEdit({ offset: start, length: end - start, text: "" });
-      const below = offsets.filter((o) => o > 0 && o < offset).length;
-      newOffsets[index] = start - below;
-    }
+    });
     this.selections = this.selections.map((_, index) => {
       const pos = this.doc.positionAt(newOffsets[index] ?? 0);
       return { anchor: pos, active: pos };
@@ -1177,16 +1197,19 @@ export class EditorView {
     const offsets = this.selections.map((sel) => this.doc.offsetAt(sel.active));
     const desc = offsets.map((offset, index) => ({ offset, index })).sort((a, b) => b.offset - a.offset);
     const newOffsets: number[] = new Array<number>(offsets.length);
-    for (const { offset, index } of desc) {
-      if (offset > 0) {
-        this.doc.applyEdit({ offset: offset - 1, length: 1, text: "" });
-        // 最终偏移 = offset - 1 -（更低处实际删除的光标数）；降序应用保证低位偏移有效
-        const below = offsets.filter((o) => o > 0 && o < offset).length;
-        newOffsets[index] = offset - 1 - below;
-      } else {
-        newOffsets[index] = 0;
+    // 事务：多光标一次退格 = 一条 undo
+    this.doc.transact(() => {
+      for (const { offset, index } of desc) {
+        if (offset > 0) {
+          this.doc.applyEdit({ offset: offset - 1, length: 1, text: "" });
+          // 最终偏移 = offset - 1 -（更低处实际删除的光标数）；降序应用保证低位偏移有效
+          const below = offsets.filter((o) => o > 0 && o < offset).length;
+          newOffsets[index] = offset - 1 - below;
+        } else {
+          newOffsets[index] = 0;
+        }
       }
-    }
+    });
     this.selections = this.selections.map((_, index) => {
       const pos = this.doc.positionAt(newOffsets[index] ?? 0);
       return { anchor: pos, active: pos };
@@ -1205,13 +1228,16 @@ export class EditorView {
     const offsets = this.selections.map((sel) => this.doc.offsetAt(sel.active));
     const desc = offsets.map((offset, index) => ({ offset, index })).sort((a, b) => b.offset - a.offset);
     const newOffsets: number[] = new Array<number>(offsets.length);
-    for (const { offset, index } of desc) {
-      if (offset < total) {
-        this.doc.applyEdit({ offset, length: 1, text: "" });
+    // 事务：多光标一次 Delete = 一条 undo
+    this.doc.transact(() => {
+      for (const { offset, index } of desc) {
+        if (offset < total) {
+          this.doc.applyEdit({ offset, length: 1, text: "" });
+        }
+        const below = offsets.filter((o) => o < offset).length;
+        newOffsets[index] = offset - below;
       }
-      const below = offsets.filter((o) => o < offset).length;
-      newOffsets[index] = offset - below;
-    }
+    });
     this.selections = this.selections.map((_, index) => {
       const pos = this.doc.positionAt(newOffsets[index] ?? 0);
       return { anchor: pos, active: pos };

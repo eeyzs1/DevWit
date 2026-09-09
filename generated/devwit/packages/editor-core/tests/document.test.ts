@@ -151,3 +151,121 @@ describe("TextDocument undo/redo", () => {
     expect(doc.getLine(1)).toBe("X");
   });
 });
+
+describe("事务 undo（v0.7.2：一次逻辑操作 = 一条 undo）", () => {
+  it("事务内多次编辑合并为一条 undo，undo 一次整体回滚", () => {
+    const doc = TextDocument.fromString("");
+    doc.transact(() => {
+      doc.insert(0, "aaa"); // 光标 A
+      doc.insert(0, "bbb"); // 光标 B（更低偏移）
+      doc.insert(0, "ccc"); // 光标 C
+    });
+    expect(doc.getText()).toBe("cccbbbaaa");
+    expect(doc.undo()).toBe(true);
+    expect(doc.getText()).toBe("");
+  });
+
+  it("百行缩进场景：事务内 100 次编辑 = 1 条 undo；redo 恢复全部", () => {
+    const doc = TextDocument.fromString(Array.from({ length: 100 }, (_, i) => `line${i}`).join("\n"));
+    doc.transact(() => {
+      for (let line = 99; line >= 0; line--) {
+        const lineStart = doc.offsetAt({ line, character: 0 });
+        doc.insert(lineStart, "  ");
+      }
+    });
+    expect(doc.getLine(0)).toBe("  line0");
+    expect(doc.getLine(99)).toBe("  line99");
+    doc.undo();
+    expect(doc.getLine(0)).toBe("line0");
+    expect(doc.getLine(99)).toBe("line99");
+    doc.redo();
+    expect(doc.getLine(42)).toBe("  line42");
+  });
+
+  it("多光标连续打字：同结构组逐位合并（3 次击键 × 3 光标 = 1 条 undo）", () => {
+    const doc = TextDocument.fromString("a\nb\nc");
+    let cursors = [1, 3, 5]; // 各行行尾（降序应用：先 C 后 B 后 A，偏移互不影响）
+    for (const ch of "xyz") {
+      const [a, b, c] = cursors;
+      doc.transact(() => {
+        doc.insert(c!, ch); // 光标 C：c 行尾
+        doc.insert(b!, ch); // 光标 B：b 行尾
+        doc.insert(a!, ch); // 光标 A：a 行尾
+      });
+      // 每光标新位置 = 原位置 + 自身插入 1 + 前方光标插入数（降序应用后统一 +i+1）
+      cursors = cursors.map((offset, i) => offset + i + 1);
+    }
+    expect(doc.getText()).toBe("axyz\nbxyz\ncxyz");
+    doc.undo();
+    expect(doc.getText()).toBe("a\nb\nc");
+  });
+
+  it("事务组与后续普通编辑互不渗透：undo 顺序正确", () => {
+    const doc = TextDocument.fromString("base");
+    doc.transact(() => {
+      doc.insert(0, "[");
+      doc.insert(doc.length, "]");
+    });
+    typeText(doc, "tail");
+    expect(doc.getText()).toBe("[base]tail");
+    doc.undo(); // 撤 tail（普通合并条目）
+    expect(doc.getText()).toBe("[base]");
+    doc.undo(); // 撤整个事务组
+    expect(doc.getText()).toBe("base");
+    expect(doc.undo()).toBe(false);
+  });
+
+  it("事务内回调抛错也正确收口（已应用编辑成为一条 undo，不悬空）", () => {
+    const doc = TextDocument.fromString("x");
+    expect(() =>
+      doc.transact(() => {
+        doc.insert(0, "a");
+        doc.insert(0, "b");
+        throw new Error("boom");
+      })
+    ).toThrow(/boom/);
+    expect(doc.getText()).toBe("bax");
+    doc.undo();
+    expect(doc.getText()).toBe("x");
+  });
+
+  it("空事务不入栈；嵌套事务合并入最外层", () => {
+    const doc = TextDocument.fromString("");
+    doc.transact(() => {});
+    expect(doc.canUndo).toBe(false);
+    doc.beginTransaction();
+    doc.insert(0, "1");
+    doc.beginTransaction();
+    doc.insert(1, "2");
+    doc.endTransaction(); // 内层收口：不真正入栈
+    doc.endTransaction(); // 外层收口：一条 undo
+    expect(doc.getText()).toBe("12");
+    doc.undo();
+    expect(doc.getText()).toBe("");
+  });
+
+  it("事务内 change 事件仍逐编辑派发（增量语法解析依赖细粒度变更）", () => {
+    const doc = TextDocument.fromString("");
+    const events: DocumentChangeEvent[] = [];
+    const off = doc.onDidChange((e) => events.push(e));
+    doc.transact(() => {
+      doc.insert(0, "a");
+      doc.insert(1, "b");
+    });
+    off();
+    expect(events).toHaveLength(2);
+    expect(events[0]?.changes[0]?.insertedText).toBe("a");
+    expect(events[1]?.changes[0]?.insertedText).toBe("b");
+  });
+
+  it("单光标打字经事务包装后合并语义不变（pushGroup 单操作退化）", () => {
+    const doc = TextDocument.fromString("");
+    for (const ch of "hello") {
+      doc.transact(() => {
+        doc.insert(doc.length, ch);
+      });
+    }
+    doc.undo(); // 一次撤整个 hello——与无事务打字一致
+    expect(doc.getText()).toBe("");
+  });
+});

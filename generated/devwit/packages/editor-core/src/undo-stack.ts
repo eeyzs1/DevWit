@@ -54,6 +54,56 @@ export class UndoStack {
     }
   }
 
+  /**
+   * 事务组入栈（v0.7.2：一次逻辑操作 = 一条 undo）。
+   * - 单操作组：退化为常规 push——保持单光标打字的 coalescing 语义不变；
+   * - 多操作组：若栈顶为同长度组且逐位满足纯插入续写（多光标连续打字，
+   *   组内操作按应用序即降序偏移排列，位次跨击键稳定）→ 逐位合并为一条；
+   *   否则整组作为一条新记录（多行缩进/注释切换等多编辑逻辑操作）。
+   */
+  pushGroup(ops: EditOp[]): void {
+    this.redoEntries = [];
+    if (ops.length === 0) return;
+    if (ops.length === 1) {
+      this.push(ops[0]!);
+      return;
+    }
+    const top = this.undoEntries[this.undoEntries.length - 1];
+    if (top !== undefined && this.canCoalesceGroup(top, ops)) {
+      for (let i = 0; i < ops.length; i++) {
+        top[i] = this.merge(top[i]!, ops[i]!);
+      }
+      return;
+    }
+    this.undoEntries.push(ops.map((op) => ({ offset: op.offset, removedText: op.removedText, insertedText: op.insertedText })));
+    if (this.undoEntries.length > this.limit) {
+      this.undoEntries.shift();
+    }
+  }
+
+  /**
+   * 多光标组逐位续写判定。关键：两组 op 的 offset 处于不同历史坐标 frame——
+   * 栈顶组（旧 frame）op_i 的续写点 = offset + insertedText.length +（同组中
+   * 更低位 op 引入的净位移：它们应用在后、插入在前，会右移 op_i 的内容），
+   * 平移后才与下一组（新 frame）op_i.offset 可比。
+   */
+  private canCoalesceGroup(top: EditOp[], next: EditOp[]): boolean {
+    if (top.length !== next.length || top.length === 0) return false;
+    for (let i = 0; i < top.length; i++) {
+      const prev = top[i]!;
+      const op = next[i]!;
+      if (prev.removedText.length !== 0 || op.removedText.length !== 0) return false;
+      let shift = 0;
+      for (let j = i + 1; j < top.length; j++) {
+        shift += top[j]!.insertedText.length - top[j]!.removedText.length;
+      }
+      const continuation = prev.offset + prev.insertedText.length + shift;
+      if (op.offset !== continuation) return false;
+      if (endsWithWhitespace(prev.insertedText) || startsWithWhitespace(op.insertedText)) return false;
+    }
+    return true;
+  }
+
   /** 弹出最旧的未撤销记录并移交 redo 栈。 */
   popUndo(): EditOp[] | undefined {
     const entry = this.undoEntries.pop();

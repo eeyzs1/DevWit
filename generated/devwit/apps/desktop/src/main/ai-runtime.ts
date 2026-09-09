@@ -94,6 +94,9 @@ interface SessionState {
   modeId: string;
 }
 
+/** 内存会话表上限：超过按插入序淘汰最旧非运行中会话（轨迹在盘，可恢复）。 */
+const MAX_IN_MEMORY_SESSIONS = 32;
+
 export interface AiRuntimeDeps {
   settings: SettingsStore;
   workspace: WorkspaceService;
@@ -813,9 +816,10 @@ export class AiRuntime {
 
   /**
    * 历史会话轨迹摘要列表（迭代 27 / AC36，agent:trace-list IPC）：
-   * 扫描 traces/*.jsonl，逐文件解析事件构建摘要（首条用户消息为预览，
-   * hasError 与渲染端 isFailureTraceEvent 同规则）；按末事件时间倒序。
-   * 坏行/坏文件容忍跳过（审计目录不因单文件损坏整体不可用）。
+   * 扫描 traces/*.jsonl 按摘要所需解析（v0.7.2 性能治理：不再逐行 JSON.parse
+   * 全部事件——仅解析首行/末行/首条用户消息/失败候选行，行数直接计数；
+   * 会话列表随使用月增长，全量解析会使每次列表刷新读盘成本线性膨胀）。
+   * 按末事件时间倒序；坏行/坏文件容忍跳过。
    */
   listTraceSessions(): TraceSessionInfo[] {
     let files: string[] = [];
@@ -826,38 +830,80 @@ export class AiRuntime {
     }
     const out: TraceSessionInfo[] = [];
     for (const name of files) {
-      let raw: string;
-      try {
-        raw = readFileSync(path.join(this.tracesDir, name), "utf-8");
-      } catch {
-        continue;
-      }
-      const events: AgentTraceEvent[] = [];
-      for (const line of raw.split("\n")) {
-        const trimmed = line.trim();
-        if (trimmed === "") continue;
-        try {
-          const parsed = JSON.parse(trimmed) as AgentTraceEvent;
-          if (typeof parsed?.sessionId === "string" && typeof parsed?.timestamp === "string") {
-            events.push(parsed);
-          }
-        } catch {
-          // 单行损坏跳过
-        }
-      }
-      if (events.length === 0) continue;
-      const firstUser = events.find((event) => event.type === "user_message");
-      out.push({
-        sessionId: events[0]!.sessionId,
-        eventCount: events.length,
-        startedAt: events[0]!.timestamp,
-        lastAt: events[events.length - 1]!.timestamp,
-        preview: (firstUser ?? events[0]!).summary,
-        hasError: events.some((event) => isFailureTraceEvent(event)),
-      });
+      const summary = this.summarizeTraceFile(path.join(this.tracesDir, name));
+      if (summary !== null) out.push(summary);
     }
     out.sort((a, b) => b.lastAt.localeCompare(a.lastAt));
     return out;
+  }
+
+  /** 单个轨迹文件的摘要：行计数 + 选择性行解析（见 listTraceSessions 注释）。 */
+  private summarizeTraceFile(file: string): TraceSessionInfo | null {
+    let raw: string;
+    try {
+      raw = readFileSync(file, "utf-8");
+    } catch {
+      return null;
+    }
+    // 失败判定的候选行预过滤：仅这三种 type 可能构成 isFailureTraceEvent
+    const FAILURE_CANDIDATES = ['"type":"error"', '"type":"tool_result"', '"type":"authorization_decision"'];
+    let first: AgentTraceEvent | null = null;
+    let lastLineTrimmed: string | undefined;
+    let prevLineTrimmed: string | undefined;
+    let firstUserSummary: string | undefined;
+    let eventCount = 0;
+    let hasError = false;
+    for (const line of raw.split("\n")) {
+      const trimmed = line.trim();
+      if (trimmed === "") continue;
+      // 计数预检：结构合法行必含 sessionId/timestamp 字段标记（撕裂半行近似排除；
+      // 与旧实现的"仅合法事件计数"语义对齐，无需逐行 JSON.parse）
+      if (trimmed.includes('"sessionId"') && trimmed.includes('"timestamp"')) {
+        eventCount += 1;
+      }
+      // 首行：sessionId/startedAt
+      if (first === null) {
+        const parsed = this.parseTraceLine(trimmed);
+        if (parsed !== null) first = parsed;
+      }
+      // 首条用户消息：预览落点
+      if (firstUserSummary === undefined && trimmed.includes('"type":"user_message"')) {
+        const parsed = this.parseTraceLine(trimmed);
+        if (parsed !== null) firstUserSummary = parsed.summary;
+      }
+      // 失败候选：含 type 标记才解析判定
+      if (!hasError && FAILURE_CANDIDATES.some((marker) => trimmed.includes(marker))) {
+        const parsed = this.parseTraceLine(trimmed);
+        if (parsed !== null && isFailureTraceEvent(parsed)) hasError = true;
+      }
+      // 末事件：只记最后两行原文（末行可能是断电写坏的半行），循环外解析
+      prevLineTrimmed = lastLineTrimmed;
+      lastLineTrimmed = trimmed;
+    }
+    const last =
+      (lastLineTrimmed !== undefined ? this.parseTraceLine(lastLineTrimmed) : null) ??
+      (prevLineTrimmed !== undefined ? this.parseTraceLine(prevLineTrimmed) : null);
+    if (first === null || last === null) return null;
+    return {
+      sessionId: first.sessionId,
+      eventCount,
+      startedAt: first.timestamp,
+      lastAt: last.timestamp,
+      preview: firstUserSummary ?? first.summary,
+      hasError,
+    };
+  }
+
+  private parseTraceLine(trimmed: string): AgentTraceEvent | null {
+    try {
+      const parsed = JSON.parse(trimmed) as AgentTraceEvent;
+      if (typeof parsed?.sessionId === "string" && typeof parsed?.timestamp === "string") {
+        return parsed;
+      }
+    } catch {
+      // 单行损坏跳过
+    }
+    return null;
   }
 
   // --------------------------------------------------------------------------
@@ -1068,6 +1114,27 @@ export class AiRuntime {
   private ensureSession(sessionId: string, modeId: string): SessionState {
     const existing = this.sessions.get(sessionId);
     if (existing !== undefined) return existing;
+    const session = this.createSessionState(sessionId, modeId); // 内部完成 sessions.set
+    this.evictIdleSessions();
+    return session;
+  }
+
+  /**
+   * 内存会话表上限（v0.7.2 存储治理）：长期使用下任务会话只增不减，
+   * 每个会话持有 ContextEngine/trace 等重对象。超过上限按插入序淘汰最旧的
+   * 非运行中会话（轨迹已落盘，trace() 按需从磁盘恢复，续聊同 id 重建）。
+   */
+  private evictIdleSessions(): void {
+    if (this.sessions.size <= MAX_IN_MEMORY_SESSIONS) return;
+    for (const [id, session] of this.sessions) {
+      if (this.sessions.size <= MAX_IN_MEMORY_SESSIONS) break;
+      if (session.running) continue;
+      this.sessions.delete(id);
+    }
+  }
+
+  /** 组装新会话状态（引擎 + 轨迹 + 授权门 + 诊断），并注册会话级上下文源。 */
+  private createSessionState(sessionId: string, modeId: string): SessionState {
     const engine = this.createEngine(sessionId);
     for (const [type, enabled] of this.readContextOverrides()) {
       engine.setTypeEnabled(type, enabled);

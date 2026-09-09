@@ -336,6 +336,38 @@ describe("AiRuntime 会话轨迹扫描（迭代 27 / AC36）", () => {
     writeFileSync(path.join(tracesDir, "s-bad.jsonl"), "not-json\n", "utf-8");
     expect(runtime.listTraceSessions()).toEqual([]); // 文件无有效事件 → 跳过
   });
+
+  it("v0.7.2 内存会话表上限：超过 32 个会话按插入序淘汰最旧空闲会话，轨迹从磁盘恢复", async () => {
+    const scripts = Array.from({ length: 34 }, () => textThenDone("答"));
+    const provider = new ScriptedProvider(scripts);
+    const { runtime } = makeRuntime(provider);
+    for (let i = 0; i < 34; i++) {
+      await runtime.run({
+        sessionId: `session-cap-${String(i).padStart(2, "0")}`,
+        userText: `问题 ${i}`,
+        modeId: "chat",
+        providerId: "p-test",
+        workspaceRoot: tmpRoot,
+      });
+    }
+    // 内部会话表有界（测试直达内部状态，与 mcp-client.test 的 proc 访问同口径）
+    const table = (runtime as unknown as { sessions: Map<string, unknown> }).sessions;
+    expect(table.size).toBeLessThanOrEqual(32);
+    // 被淘汰的会话：trace() 从磁盘恢复（不因淘汰丢失），列表扫描齐全
+    expect(runtime.trace("session-cap-00").length).toBe(4);
+    expect(runtime.listChatSessions().length).toBe(34);
+    // 淘汰后继续用旧会话续跑：状态按需重建（磁盘历史仍是事实源）
+    const again = new ScriptedProvider([textThenDone("续跑")]);
+    const { runtime: runtimeAgain } = makeRuntime(again);
+    await runtimeAgain.run({
+      sessionId: "session-cap-00",
+      userText: "续问",
+      modeId: "chat",
+      providerId: "p-test",
+      workspaceRoot: tmpRoot,
+    });
+    expect(readTraceFile("session-cap-00").length).toBe(8);
+  });
 });
 
 describe("AiRuntime 对话会话管理（迭代 28 / AC37）", () => {

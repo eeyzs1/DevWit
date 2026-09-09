@@ -33,6 +33,10 @@ export class TextDocument {
   private readonly changeEmitter = new Emitter<DocumentChangeEvent>();
   private versionValue = 0;
   private savedVersion = 0;
+  /** 事务深度（>0 = 组编辑中）：applyEdit 的 undo 操作进事务缓冲而非 undo 栈。 */
+  private transactionDepth = 0;
+  /** 事务缓冲：endTransaction 时作为一条 undo 记录入栈。 */
+  private transactionOps: EditOp[] = [];
 
   private constructor(table: PieceTable) {
     this.table = table;
@@ -100,7 +104,14 @@ export class TextDocument {
     const end = Math.max(offset, Math.min(offset + edit.length, this.table.length));
     const removedText = this.table.getTextInRange(offset, end);
     this.table.replace(offset, end - offset, edit.text);
-    this.undoStack.push({ offset, removedText, insertedText: edit.text });
+    const op: EditOp = { offset, removedText, insertedText: edit.text };
+    if (this.transactionDepth > 0) {
+      // 事务中：编辑进事务缓冲，endTransaction 时合并为一条 undo（v0.7.2：
+      // 一次逻辑操作（多光标/多行缩进/注释切换）一条 undo，消除"百行缩进按百次 Ctrl+Z"）
+      this.transactionOps.push(op);
+    } else {
+      this.undoStack.push(op);
+    }
     this.publish([
       {
         offset,
@@ -109,6 +120,36 @@ export class TextDocument {
         insertedText: edit.text,
       },
     ]);
+  }
+
+  /**
+   * 开启事务：之后的 applyEdit 在 endTransaction 时合并为一条 undo 记录
+   * （组内逆序回滚）。嵌套调用合并入最外层。change 事件仍逐编辑派发
+   * （增量语法解析依赖细粒度变更）。
+   */
+  beginTransaction(): void {
+    this.transactionDepth += 1;
+  }
+
+  /** 结束事务：最外层收口时把缓冲的操作作为一条 undo 入栈。 */
+  endTransaction(): void {
+    if (this.transactionDepth === 0) return;
+    this.transactionDepth -= 1;
+    if (this.transactionDepth === 0 && this.transactionOps.length > 0) {
+      const ops = this.transactionOps;
+      this.transactionOps = [];
+      this.undoStack.pushGroup(ops);
+    }
+  }
+
+  /** 事务便捷形式：fn 抛错也保证收口（已应用的编辑不悬空在缓冲里）。 */
+  transact(fn: () => void): void {
+    this.beginTransaction();
+    try {
+      fn();
+    } finally {
+      this.endTransaction();
+    }
   }
 
   insert(offset: number, text: string): void {

@@ -196,6 +196,14 @@ export interface ContextManifest {
   totalTokens: number;
   systemPromptTokens: number;
   /**
+   * v0.7.2（token 审计校准）：组装帧开销——上下文消息的段标题/分隔符 +
+   * 历史消息的逐条 chat 包装（业界近似 4 token/条）。items 计数只覆盖内容本体，
+   * 真实请求 = totalTokens + framingTokens，两者分开呈现（透明：失真是多少一目了然）。
+   */
+  framingTokens?: number;
+  /** v0.7.2：真实请求的估算总量 = totalTokens + framingTokens（含帧开销）。 */
+  estimatedRequestTokens?: number;
+  /**
    * B-WU4（Fusion v3）：系统提示的段组成审计——各 PromptSection 的 name/order。
    * 仅在使用 PromptSectionRegistry 组装时存在；未用注册表时为 undefined（向后兼容）。
    */

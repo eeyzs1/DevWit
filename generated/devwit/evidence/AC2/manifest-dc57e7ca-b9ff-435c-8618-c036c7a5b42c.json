@@ -1,0 +1,80 @@
+{
+  "id": "manifest-dc57e7ca-b9ff-435c-8618-c036c7a5b42c",
+  "timestamp": "2026-09-09T11:45:03.049Z",
+  "sessionId": "session-1788954302315",
+  "modeId": "chat",
+  "providerId": "e2e-local-a",
+  "model": "e2e-model-a",
+  "items": [
+    {
+      "id": "item-b0ba99b2-94fd-449e-a580-593d8f3b332c",
+      "type": "system_prompt",
+      "label": "系统提示",
+      "enabled": true,
+      "tokens": 94,
+      "content": "你是 DevWit，一个简洁的 AI 编程助手。直接回答用户问题，不堆砌无关信息。你有 read/grep/find/ls 只读工具，可查看工作区文件帮助回答；此模式不能修改文件或执行命令，如需改动，请建议用户切到 Agent 模式。",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-6610ff34-ad66-4bbd-b0d7-c2cc06b3deb3",
+      "type": "tool_definitions",
+      "label": "工具定义（8 个）",
+      "enabled": true,
+      "tokens": 601,
+      "content": "[{\"name\":\"read\",\"description\":\"读取工作区内文件内容；可用 start_line/end_line 读取指定行区间（大文件分片阅读）\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"相对工作区根的路径\"},\"start_line\":{\"type\":\"number\",\"description\":\"起始行号（从 1 起，可选）\"},\"end_line\":{\"type\":\"number\",\"description\":\"结束行号（含，可选）\"}},\"required\":[\"path\"]}},{\"name\":\"grep\",\"description\":\"在工作区文件中按正则搜索，输出 文件:行号: 内容\",\"parameters\":{\"type\":\"object\",\"properties\":{\"pattern\":{\"type\":\"string\",\"description\":\"正则表达式\"},\"path\":{\"type\":\"string\",\"description\":\"起始目录（默认工作区根）\"},\"glob\":{\"type\":\"string\",\"description\":\"文件名通配过滤，如 *.ts\"},\"case_sensitive\":{\"type\":\"boolean\",\"description\":\"大小写敏感（默认 true）\"}},\"required\":[\"pattern\"]}},{\"name\":\"find\",\"description\":\"按文件名通配符（* / ?）查找文件与目录\",\"parameters\":{\"type\":\"object\",\"properties\":{\"pattern\":{\"type\":\"string\",\"description\":\"文件名通配符，如 *.ts\"},\"path\":{\"type\":\"string\",\"description\":\"起始目录（默认工作区根）\"}},\"required\":[\"pattern\"]}},{\"name\":\"ls\",\"description\":\"列出目录内容（目录名带 / 后缀）\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"目录路径（默认工作区根）\"}}}},{\"name\":\"git_status\",\"description\":\"查看 Git 工作区状态（git status --short）：改/删/暂存文件清单\",\"parameters\":{\"type\":\"object\",\"properties\":{}}},{\"name\":\"git_diff\",\"description\":\"查看 Git diff（未暂存默认；staged=true 看已暂存）。可按路径过滤\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"限定查看此路径的 diff（可选）\"},\"staged\":{\"type\":\"boolean\",\"description\":\"true 查看已暂存（--cached）变更；默认 false\"}}}},{\"name\":\"git_log\",\"description\":\"查看 Git 提交历史（一行为一条：hash + 主题）\",\"parameters\":{\"type\":\"object\",\"properties\":{\"limit\":{\"type\":\"number\",\"description\":\"最近几条提交（默认 20，上限 100）\"}}}},{\"name\":\"git_branch\",\"description\":\"列出 Git 本地分支（按最近提交时间倒序）\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}]",
+      "source": "mode",
+      "counting": "exact"
+    },
+    {
+      "id": "item-3696fb7d-addb-434f-814e-cb0f4dc8f00a",
+      "type": "conversation_history",
+      "label": "会话历史（1 条）",
+      "enabled": true,
+      "tokens": 5,
+      "content": "[user] 你好",
+      "source": "conversation",
+      "counting": "exact"
+    },
+    {
+      "id": "item-83267776-5efe-4d7b-a529-e7d8578a6b1e",
+      "type": "file_fragment",
+      "label": "文件片段 hello.txt",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-LsoBIC\\hello.txt",
+      "counting": "exact"
+    },
+    {
+      "id": "item-1861dcc4-16b2-4e09-9258-db5ebf3b3b3c",
+      "type": "git_status",
+      "label": "Git 状态",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "git status",
+      "counting": "exact"
+    },
+    {
+      "id": "item-04e3bdde-d4c2-4f9e-94f9-6dc08c4e516c",
+      "type": "codebase_match",
+      "label": "代码库检索（索引未启用）",
+      "enabled": false,
+      "tokens": 0,
+      "content": "",
+      "source": "rag",
+      "counting": "exact"
+    }
+  ],
+  "totalTokens": 700,
+  "systemPromptTokens": 94,
+  "framingTokens": 8,
+  "estimatedRequestTokens": 708,
+  "promptSections": [
+    {
+      "name": "mode",
+      "order": 0
+    }
+  ]
+}

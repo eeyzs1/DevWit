@@ -51,6 +51,13 @@ const INJECTED_AS_USER_CONTEXT: readonly ContextItemType[] = [
   "custom",
 ];
 
+/**
+ * 逐消息 chat 包装开销（v0.7.2 帧开销估算）：OpenAI 的 <|im_start|>role…<|im_end|>
+ * 包装与 Anthropic 的消息信封均约为 4 token/条——业界近似值，manifest 单列呈现
+ * （framingTokens），与内容计数分开，失真程度一目了然。
+ */
+const CHAT_MESSAGE_WRAPPER_TOKENS = 4;
+
 /** manifest 落盘端口：由 apps 层实现（写 evidence/AC2 等），引擎自身不碰 fs。 */
 export interface ManifestStore {
   save(manifest: ContextManifest): void | Promise<void>;
@@ -243,6 +250,9 @@ export class ContextEngine {
     }
 
     const counting: ContextItem["counting"] = this.counter.exact ? "exact" : "estimated";
+    // v0.7.2 校准：按模型选词典（GPT-4o+ 的 o200k_base vs 其余 cl100k_base）
+    const countFor = (text: string): number =>
+      this.counter.countForModel?.(input.model, text) ?? this.counter.count(text);
     const items: ContextItem[] = rawItems.map((item) => {
       const typeEnabled = resolveItemEnabled(item.type, this.userOverrides, input.contextPolicy);
       // 类型是总闸：类型关闭 → 恒不注入；类型开启时带 key 项可被逐项剔除（AC19）
@@ -251,12 +261,26 @@ export class ContextEngine {
       return {
         ...item,
         enabled,
-        tokens: enabled ? this.counter.count(item.content) : 0,
+        tokens: enabled ? countFor(item.content) : 0,
         content: enabled ? item.content : "",
         counting,
       };
     });
 
+    // v0.7.2 校准：帧开销 = 上下文消息段标题/分隔符 + 逐消息 chat 包装（业界近似 4 token/条）。
+    // items 计数只覆盖内容本体；真实请求 = totalTokens + framingTokens，分开呈现。
+    const enabledInjected = items.filter(
+      (item) => item.enabled && INJECTED_AS_USER_CONTEXT.includes(item.type) && item.content.length > 0
+    );
+    const headerText = enabledInjected.map((item) => `## ${item.label}\n`).join("\n\n");
+    const historyEnabled = isEnabled(items, "conversation_history");
+    const messageCount =
+      (items.some((item) => item.type === "system_prompt" && item.enabled) ? 1 : 0) +
+      (enabledInjected.length > 0 ? 1 : 0) +
+      (historyEnabled ? input.conversationHistory.length : 0);
+    const framingTokens = countFor(headerText) + CHAT_MESSAGE_WRAPPER_TOKENS * messageCount;
+
+    const totalTokens = items.reduce((sum, item) => sum + item.tokens, 0);
     const manifest: ContextManifest = {
       id: `manifest-${randomUUID()}`,
       timestamp: new Date().toISOString(),
@@ -265,10 +289,12 @@ export class ContextEngine {
       providerId: input.providerId,
       model: input.model,
       items,
-      totalTokens: items.reduce((sum, item) => sum + item.tokens, 0),
+      totalTokens,
       systemPromptTokens: items
         .filter((item) => item.type === "system_prompt" && item.enabled)
         .reduce((sum, item) => sum + item.tokens, 0),
+      framingTokens,
+      estimatedRequestTokens: totalTokens + framingTokens,
       ...(promptSectionsMeta !== undefined ? { promptSections: promptSectionsMeta } : {}),
     };
 
@@ -305,9 +331,9 @@ export function composeMessages(items: ContextItem[], conversationHistory: ChatM
 }
 
 function serializeToolDefinitions(tools: ToolDefinition[]): string {
+  // v0.7.2 校准：紧凑 JSON——provider 以结构化字段发送工具定义（无美化缩进），
+  // 2 空格缩进计数比线上形态虚高约 30%，审计数字失真。
   return JSON.stringify(
-    tools.map((tool) => ({ name: tool.name, description: tool.description, parameters: tool.parameters })),
-    null,
-    2
+    tools.map((tool) => ({ name: tool.name, description: tool.description, parameters: tool.parameters }))
   );
 }

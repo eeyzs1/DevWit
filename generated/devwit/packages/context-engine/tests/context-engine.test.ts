@@ -72,6 +72,28 @@ describe("ContextEngine.build（AR007 默认极简）", () => {
     expect(manifest.systemPromptTokens).toBeGreaterThan(0);
   });
 
+  it("v0.7.2 帧开销：framingTokens = 段标题计数 + 4×消息数；estimatedRequestTokens = 两项之和", async () => {
+    const engine = new ContextEngine({ sessionId: "s1" });
+    engine.registerSource(gitStatusSource(async () => "M a.ts"));
+    engine.setTypeEnabled("git_status", true);
+    engine.setTypeEnabled("conversation_history", true);
+    const { manifest } = await engine.build(makeInput());
+    // 消息数：system(1) + 上下文 user 消息(1) + 历史(1) = 3 → 包装开销 12
+    expect(manifest.framingTokens).toBe(new TiktokenCounter().count("## Git 状态\n") + 4 * 3);
+    expect(manifest.estimatedRequestTokens).toBe(manifest.totalTokens + (manifest.framingTokens ?? 0));
+    // 零注入源 + 历史默认关：仅 system 一条消息 → framing = 0 标题 + 4×1
+    const bare = new ContextEngine({ sessionId: "s1" });
+    const { manifest: bareManifest } = await bare.build(makeInput());
+    expect(bareManifest.framingTokens).toBe(4);
+  });
+
+  it("v0.7.2 工具定义紧凑序列化：无 2 空格缩进（计数不再虚高 ~30%）", async () => {
+    const engine = new ContextEngine({ sessionId: "s1" });
+    const { manifest } = await engine.build(makeInput());
+    const toolItem = manifest.items.find((item) => item.type === "tool_definitions");
+    expect(toolItem?.content).not.toContain('\n  "');
+  });
+
   it("每次 build 经 ManifestStore 落盘一份 manifest，latestManifest 可查询", async () => {
     const store = new MemoryManifestStore();
     const engine = new ContextEngine({ sessionId: "s1", manifestStore: store });

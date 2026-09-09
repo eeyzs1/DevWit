@@ -1,13 +1,13 @@
 {
-  "id": "manifest-db7e0bdb-3fa3-49f5-b80e-ed2bea712587",
-  "timestamp": "2026-09-09T11:22:25.303Z",
-  "sessionId": "session-1788952942682",
+  "id": "manifest-14212589-0e10-4400-ae87-e47d81c29cba",
+  "timestamp": "2026-09-09T11:45:04.859Z",
+  "sessionId": "session-1788954302315",
   "modeId": "e2e-mode",
   "providerId": "e2e-local-b",
   "model": "e2e-model-b",
   "items": [
     {
-      "id": "item-12055f49-6608-4fb0-b8e7-ced12a55d713",
+      "id": "item-e3626bee-c958-4674-9c77-53cbf51eb6a0",
       "type": "system_prompt",
       "label": "系统提示",
       "enabled": true,
@@ -17,17 +17,17 @@
       "counting": "exact"
     },
     {
-      "id": "item-3aabee48-e455-45af-a4cd-8f5a0dccc7c3",
+      "id": "item-cbec630d-ec9f-437f-a8d2-350278765c14",
       "type": "tool_definitions",
       "label": "工具定义（1 个）",
       "enabled": true,
-      "tokens": 178,
-      "content": "[\n  {\n    \"name\": \"read\",\n    \"description\": \"读取工作区内文件内容；可用 start_line/end_line 读取指定行区间（大文件分片阅读）\",\n    \"parameters\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"path\": {\n          \"type\": \"string\",\n          \"description\": \"相对工作区根的路径\"\n        },\n        \"start_line\": {\n          \"type\": \"number\",\n          \"description\": \"起始行号（从 1 起，可选）\"\n        },\n        \"end_line\": {\n          \"type\": \"number\",\n          \"description\": \"结束行号（含，可选）\"\n        }\n      },\n      \"required\": [\n        \"path\"\n      ]\n    }\n  }\n]",
+      "tokens": 118,
+      "content": "[{\"name\":\"read\",\"description\":\"读取工作区内文件内容；可用 start_line/end_line 读取指定行区间（大文件分片阅读）\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"相对工作区根的路径\"},\"start_line\":{\"type\":\"number\",\"description\":\"起始行号（从 1 起，可选）\"},\"end_line\":{\"type\":\"number\",\"description\":\"结束行号（含，可选）\"}},\"required\":[\"path\"]}}]",
       "source": "mode",
       "counting": "exact"
     },
     {
-      "id": "item-5bd87967-ecd3-491b-a228-3d64d38e1fa7",
+      "id": "item-a7ce5110-4a2d-46bb-89c7-3345aaac29ee",
       "type": "conversation_history",
       "label": "会话历史（11 条）",
       "enabled": true,
@@ -37,17 +37,17 @@
       "counting": "exact"
     },
     {
-      "id": "item-ee13125d-0e5d-4998-a427-94deb8207a31",
+      "id": "item-0d114200-db9c-4aaf-bc22-d947c478d08b",
       "type": "file_fragment",
       "label": "文件片段 hello.txt",
       "enabled": false,
       "tokens": 0,
       "content": "",
-      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-TP0Mry\\hello.txt",
+      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-LsoBIC\\hello.txt",
       "counting": "exact"
     },
     {
-      "id": "item-531474a0-1a91-4a58-aafc-a9eb8401282f",
+      "id": "item-55ebd5c0-bd44-429f-b609-9b1307b7070a",
       "type": "git_status",
       "label": "Git 状态",
       "enabled": true,
@@ -57,7 +57,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-9f8f4eb6-1120-4995-908e-1775eeb7331e",
+      "id": "item-35bee497-24c7-43a0-b95e-cd062006bbaa",
       "type": "codebase_match",
       "label": "代码库检索（索引未启用）",
       "enabled": false,
@@ -67,8 +67,10 @@
       "counting": "exact"
     }
   ],
-  "totalTokens": 351,
+  "totalTokens": 291,
   "systemPromptTokens": 20,
+  "framingTokens": 57,
+  "estimatedRequestTokens": 348,
   "promptSections": [
     {
       "name": "mode",
