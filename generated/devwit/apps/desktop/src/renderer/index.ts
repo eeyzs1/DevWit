@@ -5,7 +5,7 @@
  * 全部界面文案经 @devwit/i18n 词典渲染；启动时从 settings "ui.locale" 恢复语言，
  * 订阅 onDidChangeLocale 全量重写静态文案与动态列表（语言热生效）。
  */
-import type { DevwitApi, DebugBreakpoint, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitBlameLine, GitBranch, GitPanelStatus, GitStashEntry, LspCodeAction, LspCompletionItem, LspDefinitionTarget, LspDiagnosticItem, LspDocumentSymbol, LspSignatureHelp, LspStatusInfo, LspTextEdit, ModeDefinition, ProviderConfig, SearchResults, UpdateStatusInfo } from "@devwit/contracts";
+import type { DevwitApi, DebugBreakpoint, DebugScopeItem, DebugStackFrameItem, DebugStateInfo, DebugVariableItem, GitBlameLine, GitBranch, GitPanelStatus, GitStashEntry, ModeDefinition, ProviderConfig, UpdateStatusInfo } from "@devwit/contracts";
 import { displayModeName, localizeError, onDidChangeLocale, resolveSystemLocale, setLocale, t, ta, type Locale } from "@devwit/i18n";
 import { TextDocument } from "@devwit/editor-core";
 import { EditorView, normalizeSelection, type BreakpointKind } from "@devwit/editor-render";
@@ -25,6 +25,8 @@ import {
   type TaskInfo,
 } from "@devwit/chat-ui";
 import { openSettingsDialog, type SettingsDialogDeps } from "./settings-dialog.js";
+import { mountSearchPanel } from "./search-panel.js";
+import { mountLspUi } from "./lsp-ui.js";
 import { openEditorSetupDialog } from "./editor-setup-dialog.js";
 import { openOnboardingWizard } from "./onboarding-wizard.js";
 import { maybeOpenContextTour } from "./context-tour.js";
@@ -192,7 +194,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   debugTab.addEventListener("click", () => activateLeftTab("debug"));
   outlineTab.addEventListener("click", () => {
     activateLeftTab("outline");
-    void refreshOutline(); // 切到大纲即取最新（文件可能已变更）
+    void lspUi.refreshOutline(); // 切到大纲即取最新（文件可能已变更）
   });
 
   // 指挥台形态（AC9：任务列表 | Agent 活动流 | 工作区视图）
@@ -371,20 +373,19 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     if (openFile !== null && workspaceRoot !== "" && openFile.path !== filePath) {
       void api.lsp.didClose(relPathOf(openFile.path));
     }
-    hideCompletion();
+    lspUi.hideCompletion();
     setActiveDoc(target);
     syncEditorBreakpoints();
     if (workspaceRoot !== "") {
-      syncOpenFileToLsp();
-      applyEditorDiagnostics();
-      void refreshOutline();
+      lspUi.syncOpenFileToLsp();
+      lspUi.applyEditorDiagnostics();
+      void lspUi.refreshOutline();
     }
     sidebar.querySelectorAll(".dw-tree-node").forEach((node) => {
       node.classList.toggle("dw-tree-active", (node as HTMLElement).dataset["path"] === filePath);
     });
     editor.focus();
-  }
-  /** 关闭标签页。如果是活动文件，切换到相邻标签。 */
+  }  /** 关闭标签页。如果是活动文件，切换到相邻标签。 */
   async function closeFile(filePath: string): Promise<void> {
     const idx = openFiles.findIndex((f) => f.path === filePath);
     if (idx === -1) return;
@@ -397,13 +398,13 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     if (wasActive) {
       const next = openFiles[idx] ?? openFiles[idx - 1] ?? null;
       if (next !== null) {
-        hideCompletion();
+        lspUi.hideCompletion();
         setActiveDoc(next);
         syncEditorBreakpoints();
         if (workspaceRoot !== "") {
-          syncOpenFileToLsp();
-          applyEditorDiagnostics();
-          void refreshOutline();
+          lspUi.syncOpenFileToLsp();
+          lspUi.applyEditorDiagnostics();
+          void lspUi.refreshOutline();
         }
       } else {
         // 无标签页剩余：显示欢迎文档
@@ -429,7 +430,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     await api.workspace.write(openFile.path, openFile.doc.getText());
     openFile.doc.markSaved();
     refreshDirty();
-    void refreshOutline(); // 保存后刷新大纲（落盘后 tsserver 重新分析）
+    void lspUi.refreshOutline(); // 保存后刷新大纲（落盘后 tsserver 重新分析）
   }
   saveBtn.addEventListener("click", () => void saveActiveFile());
   window.addEventListener("keydown", (event) => {
@@ -440,7 +441,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     // Ctrl+Shift+F：切换跨文件搜索面板（v0.4.0）
     if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "f") {
       event.preventDefault();
-      toggleSearchPanel();
+      searchPanelHandle.toggle();
     }
   });
 
@@ -478,217 +479,38 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   const searchResults = el("div", "dw-search-results");
   searchPanel.append(searchRow, replaceRow, searchResults);
 
-  let searchPanelVisible = false;
-  let replaceRowVisible = false;
-  let searchCaseSensitive = false;
-  let searchRegex = false;
-  let searchWholeWord = false;
-  let lastSearchResults: SearchResults | null = null;
-
-  function toggleSearchPanel(): void {
-    searchPanelVisible = !searchPanelVisible;
-    searchPanel.style.display = searchPanelVisible ? "" : "none";
-    if (searchPanelVisible) {
-      searchInput.focus();
-    } else {
-      searchResults.textContent = "";
-      searchCount.textContent = "";
-      lastSearchResults = null;
-    }
-  }
-  searchCloseBtn.addEventListener("click", () => toggleSearchPanel());
-  caseBtn.addEventListener("click", () => {
-    searchCaseSensitive = !searchCaseSensitive;
-    caseBtn.classList.toggle("dw-search-opt-active", searchCaseSensitive);
-    void runSearch();
+  // v0.7.6：搜索面板逻辑抽取为 search-panel.ts 模块（DOM 仍在宿主装配，
+  // 状态/事件/搜索/替换/locale 由模块持有；行为零变化——E2E 回归锁定）
+  const refreshActiveFileDoc = async (path: string): Promise<void> => {
+    if (openFile === null || openFile.path !== path) return;
+    const refreshed = await api.workspace.read(openFile.path);
+    const newDoc = TextDocument.fromString(refreshed);
+    openFile.doc = newDoc;
+    editor.setDocument(newDoc);
+  };
+  const searchPanelHandle = mountSearchPanel({
+    api,
+    elements: {
+      panel: searchPanel,
+      input: searchInput,
+      results: searchResults,
+      count: searchCount,
+      caseBtn,
+      regexBtn,
+      wordBtn,
+      toggleReplaceBtn,
+      replaceRow,
+      replaceInput,
+      replaceAllBtn,
+      closeBtn: searchCloseBtn,
+    },
+    getWorkspaceRoot: () => workspaceRoot,
+    openFileByPath,
+    revealPosition: (position) => editor.revealPosition(position),
+    getActiveFilePath: () => openFile?.path ?? null,
+    onActiveFileRewritten: refreshActiveFileDoc,
+    showStatus,
   });
-  regexBtn.addEventListener("click", () => {
-    searchRegex = !searchRegex;
-    regexBtn.classList.toggle("dw-search-opt-active", searchRegex);
-    void runSearch();
-  });
-  wordBtn.addEventListener("click", () => {
-    searchWholeWord = !searchWholeWord;
-    wordBtn.classList.toggle("dw-search-opt-active", searchWholeWord);
-    void runSearch();
-  });
-  toggleReplaceBtn.addEventListener("click", () => {
-    replaceRowVisible = !replaceRowVisible;
-    replaceRow.style.display = replaceRowVisible ? "" : "none";
-    toggleReplaceBtn.classList.toggle("dw-search-opt-active", replaceRowVisible);
-  });
-
-  let searchDebounce: ReturnType<typeof setTimeout> | null = null;
-  searchInput.addEventListener("input", () => {
-    if (searchDebounce !== null) clearTimeout(searchDebounce);
-    searchDebounce = setTimeout(() => void runSearch(), 300);
-  });
-  searchInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (searchDebounce !== null) clearTimeout(searchDebounce);
-      void runSearch();
-    }
-    if (e.key === "Escape") {
-      e.preventDefault();
-      toggleSearchPanel();
-    }
-  });
-
-  async function runSearch(): Promise<void> {
-    const query = searchInput.value;
-    if (query === "") {
-      searchResults.textContent = "";
-      searchCount.textContent = "";
-      lastSearchResults = null;
-      return;
-    }
-    if (workspaceRoot === "") {
-      searchResults.textContent = "";
-      searchCount.textContent = t("search.noWorkspace");
-      lastSearchResults = null;
-      return;
-    }
-    try {
-      const results = await api.workspace.search(workspaceRoot, {
-        query,
-        isRegex: searchRegex,
-        caseSensitive: searchCaseSensitive,
-        wholeWord: searchWholeWord,
-      });
-      lastSearchResults = results;
-      renderSearchResults(results);
-    } catch (error) {
-      const raw = error instanceof Error ? error.message : String(error);
-      searchCount.textContent = /regex|regular|DW_SEARCH/i.test(raw) ? t("err.searchRegex") : localizeError(raw);
-      searchResults.textContent = "";
-      lastSearchResults = null;
-    }
-  }
-
-  function renderSearchResults(results: SearchResults): void {
-    searchResults.textContent = "";
-    searchCount.textContent =
-      results.files.length === 0
-        ? t("search.empty")
-        : t("search.results", { n: String(results.totalMatches), files: String(results.files.length) });
-    if (results.truncated) {
-      searchResults.appendChild(el("div", "dw-search-truncated", t("search.truncated")));
-    }
-    for (const file of results.files) {
-      const fileGroup = el("div", "dw-search-file");
-      const fileHeader = el("div", "dw-search-file-header");
-      fileHeader.appendChild(el("span", "dw-search-file-name", file.relativePath));
-      fileHeader.appendChild(el("span", "dw-search-file-count", String(file.matches.length)));
-      fileGroup.appendChild(fileHeader);
-      for (const match of file.matches) {
-        const matchEl = el("div", "dw-search-match");
-        matchEl.appendChild(el("span", "dw-search-match-line", String(match.line)));
-        const preview = el("span", "dw-search-match-preview");
-        const before = match.preview.slice(0, match.column - 1);
-        const matched = match.preview.slice(match.column - 1, match.endColumn - 1);
-        const after = match.preview.slice(match.endColumn - 1);
-        preview.textContent = before;
-        preview.appendChild(el("strong", "dw-search-match-hit", matched));
-        preview.appendChild(document.createTextNode(after));
-        matchEl.appendChild(preview);
-        matchEl.addEventListener("click", () => void jumpToMatch(file.absolutePath, match.line, match.column));
-        fileGroup.appendChild(matchEl);
-      }
-      searchResults.appendChild(fileGroup);
-    }
-  }
-
-  async function jumpToMatch(absPath: string, line: number, column: number): Promise<void> {
-    await openFileByPath(absPath);
-    editor.revealPosition({ line: line - 1, character: column - 1 });
-  }
-
-  /** 渲染端正则编译（与 workspace/search.ts 同口径）：字面量转义 + 全词 \b + 大小写 flag。 */
-  function compileRegexLocal(query: string, isRegex: boolean, caseSensitive: boolean, wholeWord: boolean): RegExp {
-    let source: string;
-    if (isRegex) {
-      source = query;
-    } else {
-      source = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    }
-    if (wholeWord) {
-      source = `\\b${source}\\b`;
-    }
-    return new RegExp(source, caseSensitive ? "g" : "gi");
-  }
-
-  replaceAllBtn.addEventListener("click", () => void replaceAll());
-
-  async function replaceAll(): Promise<void> {
-    if (lastSearchResults === null || lastSearchResults.files.length === 0) return;
-    const replacement = replaceInput.value;
-    const query = searchInput.value;
-    if (query === "") return;
-    let regex: RegExp;
-    try {
-      regex = compileRegexLocal(query, searchRegex, searchCaseSensitive, searchWholeWord);
-    } catch {
-      showStatus(t("err.searchRegex"));
-      return;
-    }
-    let totalReplaced = 0;
-    let filesTouched = 0;
-    const currentPath = openFile?.path ?? null;
-    let currentRefreshed = false;
-    for (const file of lastSearchResults.files) {
-      let content: string;
-      try {
-        content = await api.workspace.read(file.absolutePath);
-      } catch {
-        continue;
-      }
-      const lines = content.split(/\r?\n/);
-      const matchLines = new Set(file.matches.map((m) => m.line));
-      let changed = false;
-      for (let i = 0; i < lines.length; i++) {
-        if (!matchLines.has(i + 1)) continue;
-        regex.lastIndex = 0;
-        const original = lines[i] ?? "";
-        const replaced = original.replace(regex, replacement);
-        if (replaced !== original) {
-          lines[i] = replaced;
-          changed = true;
-        }
-      }
-      if (!changed) continue;
-      try {
-        await api.workspace.write(file.absolutePath, lines.join("\n"));
-        filesTouched++;
-        totalReplaced += file.matches.length;
-        if (file.absolutePath === currentPath && openFile !== null && !currentRefreshed) {
-          const refreshed = await api.workspace.read(openFile.path);
-          const newDoc = TextDocument.fromString(refreshed);
-          openFile.doc = newDoc;
-          editor.setDocument(newDoc);
-          currentRefreshed = true;
-        }
-      } catch {
-        // 写入失败跳过该文件
-      }
-    }
-    showStatus(t("search.replaced", { n: String(totalReplaced), files: String(filesTouched) }));
-    void runSearch();
-  }
-
-  function applySearchPanelLocale(): void {
-    searchInput.placeholder = t("search.placeholder");
-    replaceInput.placeholder = t("search.replacePlaceholder");
-    caseBtn.title = t("search.caseSensitive");
-    regexBtn.title = t("search.regex");
-    wordBtn.title = t("search.wholeWord");
-    toggleReplaceBtn.title = t("search.toggleReplace");
-    searchCloseBtn.title = t("search.close");
-    replaceAllBtn.textContent = t("search.replaceAll");
-    if (lastSearchResults !== null) {
-      renderSearchResults(lastSearchResults);
-    }
-  }
 
   // ---- 统一设置页（AC12）：通用 / 模型 / 编辑器 / 模式 ----
   /** 首次运行向导（迭代 18 / AC27）：设置页「重跑向导」与首启自动弹出共用入口。 */
@@ -778,18 +600,18 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     if (openFile !== null && workspaceRoot !== "") {
       void api.lsp.didClose(relPathOf(openFile.path));
     }
-    hideCompletion(); // 文件切换时关闭补全浮层
+    lspUi.hideCompletion(); // 文件切换时关闭补全浮层
     const file: OpenFile = { path: filePath, doc };
     openFiles.push(file);
     setActiveDoc(file);
     syncEditorBreakpoints(); // 断点红点随文件切换重挂（AC42）
     if (workspaceRoot !== "") {
-      syncOpenFileToLsp();
-      doc.onDidChange(scheduleLspSync);
-      doc.onDidChange(scheduleCompletion); // v0.4.0：输入触发自动补全
-      doc.onDidChange(scheduleOutlineRefresh); // v0.4.0：编辑触发大纲刷新
-      applyEditorDiagnostics(); // 该文件既有诊断立即上波浪线
-      void refreshOutline(); // 文件打开即取大纲（LSP 未就绪则空，ready 推送时补偿）
+      lspUi.syncOpenFileToLsp();
+      doc.onDidChange(() => lspUi.scheduleLspSync());
+      doc.onDidChange(() => lspUi.scheduleCompletion()); // v0.4.0：输入触发自动补全
+      doc.onDidChange(() => lspUi.scheduleOutlineRefresh()); // v0.4.0：编辑触发大纲刷新
+      lspUi.applyEditorDiagnostics(); // 该文件既有诊断立即上波浪线
+      void lspUi.refreshOutline(); // 文件打开即取大纲（LSP 未就绪则空，ready 推送时补偿）
     }
     sidebar.querySelectorAll(".dw-tree-node").forEach((node) => {
       node.classList.toggle("dw-tree-active", (node as HTMLElement).dataset["path"] === filePath);
@@ -798,906 +620,24 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   }
 
   // ---- LSP 代码智能（迭代 31 / AC40）：悬停 / Ctrl+Click 定义 / 实时诊断 ----
-  let lspStatus: LspStatusInfo = { state: "idle" };
-  let lspDiags: LspDiagnosticItem[] = [];
-
   /** 绝对路径 → 工作区相对路径（正斜杠；与 flattenTreeFiles 同一口径）。 */
   function relPathOf(absPath: string): string {
     return absPath.slice(workspaceRoot.length).replace(/^[/\\]+/, "").replace(/\\/g, "/");
   }
 
-  function renderLspStatus(): void {
-    if (lspStatus.state === "idle") {
-      statusLsp.textContent = "";
-      return;
-    }
-    if (lspStatus.state === "starting") {
-      statusLsp.textContent = t("lsp.status.starting");
-      return;
-    }
-    if (lspStatus.state === "error") {
-      statusLsp.textContent = t("lsp.status.error", { code: lspStatus.code });
-      return;
-    }
-    const errors = lspDiags.filter((d) => d.severity === "error").length;
-    const warnings = lspDiags.filter((d) => d.severity === "warning").length;
-    statusLsp.textContent = t("lsp.diag.count", { errors: String(errors), warnings: String(warnings) });
-  }
-
-  /** 当前文件波浪线（诊断推送与文件切换共用；只取当前文件的诊断）。 */
-  function applyEditorDiagnostics(): void {
-    if (openFile === null || workspaceRoot === "") {
-      editor.setDiagnostics([]);
-      return;
-    }
-    const rel = relPathOf(openFile.path);
-    editor.setDiagnostics(lspDiags.filter((d) => d.file === rel));
-  }
-
-  /** 活动文档同步给 tsserver（didOpen 全文；服务器未就绪时主进程丢弃，ready 推送时补偿重放）。 */
-  function syncOpenFileToLsp(): void {
-    if (openFile === null || workspaceRoot === "") return;
-    void api.lsp.didOpen(relPathOf(openFile.path), openFile.doc.getText());
-  }
-
-  // didChange 防抖 300ms（编辑器缓冲区即事实源，Full 同步语义，未保存内容参与分析）
-  let lspSyncTimer: number | undefined;
-  function scheduleLspSync(): void {
-    window.clearTimeout(lspSyncTimer);
-    lspSyncTimer = window.setTimeout(() => {
-      if (openFile !== null && workspaceRoot !== "") {
-        void api.lsp.didChange(relPathOf(openFile.path), openFile.doc.getText());
-      }
-    }, 300);
-  }
-
-  // 悬停浮层：鼠标驻留 500ms → IPC hover → DOM tooltip；移动/输入/点击/Esc/滚动关闭
-  const hoverTip = el("div", "dw-lsp-hover");
-  hoverTip.style.display = "none";
-  editorArea.appendChild(hoverTip);
-  let hoverTimer: number | undefined;
-  function hideHover(): void {
-    window.clearTimeout(hoverTimer);
-    hoverTip.style.display = "none";
-  }
-  async function showHoverAt(clientX: number, clientY: number): Promise<void> {
-    const current = openFile;
-    if (current === null || workspaceRoot === "" || lspStatus.state !== "ready") return;
-    const pos = editor.positionFromClientPoint(clientX, clientY);
-    const info = await api.lsp.hover(relPathOf(current.path), pos.line, pos.character);
-    // 驻留期间文件已切换 → 丢弃迟到响应
-    if (openFile !== current || info === null || info.text.trim() === "") return;
-    const areaRect = editorArea.getBoundingClientRect();
-    hoverTip.textContent = info.text;
-    hoverTip.style.left = `${clientX - areaRect.left + 14}px`;
-    hoverTip.style.top = `${clientY - areaRect.top + 18}px`;
-    hoverTip.style.display = "block";
-  }
-  canvas.addEventListener("mousemove", (ev) => {
-    hideHover(); // 任何移动先关闭旧浮层并重置驻留计时
-    if (openFile === null || lspStatus.state !== "ready") return;
-    const { clientX, clientY } = ev;
-    hoverTimer = window.setTimeout(() => void showHoverAt(clientX, clientY), 500);
-  });
-  canvas.addEventListener("mouseleave", hideHover);
-  canvas.addEventListener("mousedown", hideHover);
-  canvas.addEventListener("wheel", hideHover);
-  window.addEventListener("keydown", hideHover);
-
-  // Ctrl/Cmd+Click 跳转定义：同文件 revealPosition；跨文件打开后定位（0-based 行列直传）
-  editor.onDefinitionRequest = (pos) => {
-    const current = openFile;
-    if (current === null || workspaceRoot === "" || lspStatus.state !== "ready") return;
-    const currentRel = relPathOf(current.path);
-    void (async () => {
-      const targets = await api.lsp.definition(currentRel, pos.line, pos.character);
-      const target = targets[0];
-      if (target === undefined) return;
-      if (target.file === currentRel && openFile === current) {
-        editor.revealPosition({ line: target.line, character: target.character });
-      } else {
-        const abs = `${workspaceRoot.replace(/[/\\]+$/, "")}/${target.file}`;
-        await openFileByPath(abs);
-        editor.revealPosition({ line: target.line, character: target.character });
-      }
-    })();
-  };
-
-  // ---- LSP 自动补全（v0.4.0）：输入触发 → IPC completion → 浮层 → 键盘/鼠标选择 ----
-  const completionPopup = el("div", "dw-completion");
-  completionPopup.style.display = "none";
-  editorArea.appendChild(completionPopup);
-  let completionItems: LspCompletionItem[] = [];
-  let completionIndex = 0;
-  let completionVisible = false;
-  let completionTimer: number | undefined;
-  let completionToken = 0; // 竞态保护：迟到响应丢弃
-
-  function hideCompletion(): void {
-    window.clearTimeout(completionTimer);
-    completionPopup.style.display = "none";
-    completionVisible = false;
-    completionItems = [];
-    completionIndex = 0;
-  }
-
-  /** 当前光标位置的单词起始列（标识符字符 [a-zA-Z0-9_$] 回扫）。 */
-  function wordStartCharAt(line: number, character: number): number {
-    const text = openFile?.doc.getLine(line) ?? "";
-    let i = character;
-    while (i > 0 && /[a-zA-Z0-9_$]/.test(text[i - 1]!)) i--;
-    return i;
-  }
-
-  function renderCompletionPopup(): void {
-    if (completionItems.length === 0 || openFile === null) {
-      hideCompletion();
-      return;
-    }
-    const items = completionItems.slice(0, 50); // 上限 50 防巨列表
-    completionPopup.innerHTML = "";
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i]!;
-      const row = el("div", "dw-completion-item");
-      if (i === completionIndex) row.classList.add("dw-completion-active");
-      const label = el("span", "dw-completion-label");
-      label.textContent = item.label;
-      row.appendChild(label);
-      if (item.detail) {
-        const detail = el("span", "dw-completion-detail");
-        detail.textContent = item.detail;
-        row.appendChild(detail);
-      }
-      row.addEventListener("mousedown", (ev) => {
-        ev.preventDefault();
-        completionIndex = i;
-        applyCompletion();
-      });
-      completionPopup.appendChild(row);
-    }
-    // 定位浮层到光标下方
-    const sel = editor.getSelections().at(-1);
-    if (sel !== undefined) {
-      const pt = editor.clientPointForPosition(sel.active);
-      const areaRect = editorArea.getBoundingClientRect();
-      completionPopup.style.left = `${pt.x - areaRect.left}px`;
-      completionPopup.style.top = `${pt.y - areaRect.top + 18}px`;
-    }
-    completionPopup.style.display = "block";
-    completionVisible = true;
-  }
-
-  async function requestCompletion(): Promise<void> {
-    const current = openFile;
-    if (current === null || workspaceRoot === "" || lspStatus.state !== "ready") return;
-    const sel = editor.getSelections().at(-1);
-    if (sel === undefined) return;
-    const pos = sel.active;
-    const token = ++completionToken;
-    const items = await api.lsp.completion(relPathOf(current.path), pos.line, pos.character);
-    // 迟到响应丢弃（文件已切换或光标已移动）
-    if (completionToken !== token || openFile !== current) return;
-    const after = editor.getSelections().at(-1);
-    if (after === undefined || after.active.line !== pos.line || after.active.character !== pos.character) return;
-    completionItems = items;
-    completionIndex = 0;
-    renderCompletionPopup();
-  }
-
-  function scheduleCompletion(): void {
-    if (openFile === null || workspaceRoot === "" || lspStatus.state !== "ready") return;
-    window.clearTimeout(completionTimer);
-    completionTimer = window.setTimeout(() => void requestCompletion(), 250);
-  }
-
-  /** 应用选中的补全项：替换单词范围为 insertText（缺省 label）。 */
-  function applyCompletion(): void {
-    if (!completionVisible || completionItems.length === 0) return;
-    const item = completionItems[completionIndex];
-    if (item === undefined || openFile === null) return;
-    const sel = editor.getSelections().at(-1);
-    if (sel === undefined) return;
-    const pos = sel.active;
-    const startChar = wordStartCharAt(pos.line, pos.character);
-    const text = item.insertText ?? item.label;
-    const startOffset = openFile.doc.offsetAt({ line: pos.line, character: startChar });
-    const endOffset = openFile.doc.offsetAt({ line: pos.line, character: pos.character });
-    openFile.doc.applyEdit({ offset: startOffset, length: endOffset - startOffset, text });
-    const newPos = openFile.doc.positionAt(startOffset + text.length);
-    editor.revealPosition(newPos);
-    hideCompletion();
-  }
-
-  // 键盘导航：浮层可见时拦截 ArrowUp/Down/Enter/Tab/Esc（capture 阶段先于编辑器）
-  window.addEventListener("keydown", (ev) => {
-    if (!completionVisible) return;
-    const count = Math.min(completionItems.length, 50);
-    switch (ev.key) {
-      case "ArrowDown":
-        ev.preventDefault();
-        ev.stopPropagation();
-        completionIndex = (completionIndex + 1) % count;
-        renderCompletionPopup();
-        break;
-      case "ArrowUp":
-        ev.preventDefault();
-        ev.stopPropagation();
-        completionIndex = (completionIndex - 1 + count) % count;
-        renderCompletionPopup();
-        break;
-      case "Enter":
-      case "Tab":
-        ev.preventDefault();
-        ev.stopPropagation();
-        applyCompletion();
-        break;
-      case "Escape":
-        ev.preventDefault();
-        ev.stopPropagation();
-        hideCompletion();
-        break;
-    }
-  }, true);
-  canvas.addEventListener("mousedown", hideCompletion);
-
-  // ---- LSP 引用查找（v0.4.0）：Shift+F12 触发 → IPC references → 浮层列表 → 跳转 ----
-  const referencesPopup = el("div", "dw-references");
-  referencesPopup.style.display = "none";
-  editorArea.appendChild(referencesPopup);
-  let referencesItems: LspDefinitionTarget[] = [];
-  let referencesIndex = 0;
-  let referencesVisible = false;
-  let referencesToken = 0;
-
-  function hideReferences(): void {
-    referencesPopup.style.display = "none";
-    referencesVisible = false;
-    referencesItems = [];
-    referencesIndex = 0;
-  }
-
-  function positionReferencesPopup(): void {
-    const sel = editor.getSelections().at(-1);
-    if (sel !== undefined) {
-      const pt = editor.clientPointForPosition(sel.active);
-      const areaRect = editorArea.getBoundingClientRect();
-      referencesPopup.style.left = `${pt.x - areaRect.left}px`;
-      referencesPopup.style.top = `${pt.y - areaRect.top + 18}px`;
-    }
-  }
-
-  function renderReferencesPopup(): void {
-    if (referencesItems.length === 0 || openFile === null) {
-      hideReferences();
-      return;
-    }
-    const items = referencesItems.slice(0, 50);
-    referencesPopup.innerHTML = "";
-    const header = el("div", "dw-references-header");
-    header.textContent = t("lsp.references.count", { n: items.length });
-    referencesPopup.appendChild(header);
-    const currentRel = relPathOf(openFile.path);
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i]!;
-      const row = el("div", "dw-references-item");
-      if (i === referencesIndex) row.classList.add("dw-references-active");
-      const loc = el("span", "dw-references-loc");
-      loc.textContent = `${item.file}:${item.line + 1}:${item.character + 1}`;
-      row.appendChild(loc);
-      if (item.file === currentRel) {
-        const lineText = openFile.doc.getLine(item.line) ?? "";
-        const preview = el("span", "dw-references-preview");
-        preview.textContent = lineText.trim().slice(0, 60);
-        row.appendChild(preview);
-      }
-      row.addEventListener("mousedown", (ev) => {
-        ev.preventDefault();
-        referencesIndex = i;
-        applyReferences();
-      });
-      referencesPopup.appendChild(row);
-    }
-    positionReferencesPopup();
-    referencesPopup.style.display = "block";
-    referencesVisible = true;
-  }
-
-  async function requestReferences(): Promise<void> {
-    const current = openFile;
-    if (current === null || workspaceRoot === "" || lspStatus.state !== "ready") return;
-    const sel = editor.getSelections().at(-1);
-    if (sel === undefined) return;
-    const pos = sel.active;
-    const token = ++referencesToken;
-    const items = await api.lsp.references(relPathOf(current.path), pos.line, pos.character);
-    if (referencesToken !== token || openFile !== current) return;
-    if (items.length === 0) {
-      referencesPopup.innerHTML = "";
-      const empty = el("div", "dw-references-empty");
-      empty.textContent = t("lsp.references.empty");
-      referencesPopup.appendChild(empty);
-      positionReferencesPopup();
-      referencesPopup.style.display = "block";
-      referencesVisible = true;
-      window.setTimeout(hideReferences, 1500);
-      return;
-    }
-    referencesItems = items;
-    referencesIndex = 0;
-    renderReferencesPopup();
-  }
-
-  function applyReferences(): void {
-    if (!referencesVisible || referencesItems.length === 0) return;
-    const target = referencesItems[referencesIndex];
-    if (target === undefined) return;
-    const current = openFile;
-    const currentRel = current !== null ? relPathOf(current.path) : "";
-    hideReferences();
-    if (target.file === currentRel && current !== null) {
-      editor.revealPosition({ line: target.line, character: target.character });
-    } else {
-      const abs = `${workspaceRoot.replace(/[/\\]+$/, "")}/${target.file}`;
-      void openFileByPath(abs).then(() => {
-        editor.revealPosition({ line: target.line, character: target.character });
-      });
-    }
-  }
-
-  window.addEventListener("keydown", (ev) => {
-    if (ev.shiftKey && ev.key === "F12") {
-      ev.preventDefault();
-      ev.stopPropagation();
-      void requestReferences();
-      return;
-    }
-    if (!referencesVisible) return;
-    const count = Math.min(referencesItems.length, 50);
-    switch (ev.key) {
-      case "ArrowDown":
-        ev.preventDefault();
-        ev.stopPropagation();
-        referencesIndex = (referencesIndex + 1) % count;
-        renderReferencesPopup();
-        break;
-      case "ArrowUp":
-        ev.preventDefault();
-        ev.stopPropagation();
-        referencesIndex = (referencesIndex - 1 + count) % count;
-        renderReferencesPopup();
-        break;
-      case "Enter":
-        ev.preventDefault();
-        ev.stopPropagation();
-        applyReferences();
-        break;
-      case "Escape":
-        ev.preventDefault();
-        ev.stopPropagation();
-        hideReferences();
-        break;
-    }
-  }, true);
-  canvas.addEventListener("mousedown", hideReferences);
-
-  // ---- LSP 签名帮助（v0.4.0）：输入 ( 或 , 触发 → IPC signatureHelp → 浮层显示签名 + 当前参数高亮 ----
-  const signaturePopup = el("div", "dw-signature");
-  signaturePopup.style.display = "none";
-  editorArea.appendChild(signaturePopup);
-  let signatureVisible = false;
-  let signatureToken = 0;
-
-  function hideSignature(): void {
-    signaturePopup.style.display = "none";
-    signatureVisible = false;
-  }
-
-  function renderSignaturePopup(data: LspSignatureHelp): void {
-    const sig = data.signatures[data.activeSignature] ?? data.signatures[0];
-    if (sig === undefined) {
-      hideSignature();
-      return;
-    }
-    signaturePopup.innerHTML = "";
-    const label = el("div", "dw-signature-label");
-    const activeParam = sig.parameters[data.activeParameter];
-    if (activeParam !== undefined && activeParam.label.length > 0 && sig.label.includes(activeParam.label)) {
-      const idx = sig.label.indexOf(activeParam.label);
-      label.textContent = sig.label.slice(0, idx);
-      const bold = el("b", "dw-signature-active");
-      bold.textContent = activeParam.label;
-      label.appendChild(bold);
-      label.appendChild(document.createTextNode(sig.label.slice(idx + activeParam.label.length)));
-    } else {
-      label.textContent = sig.label;
-    }
-    signaturePopup.appendChild(label);
-    if (activeParam?.documentation) {
-      const doc = el("div", "dw-signature-doc");
-      doc.textContent = activeParam.documentation;
-      signaturePopup.appendChild(doc);
-    }
-    const sel = editor.getSelections().at(-1);
-    if (sel !== undefined) {
-      const pt = editor.clientPointForPosition(sel.active);
-      const areaRect = editorArea.getBoundingClientRect();
-      signaturePopup.style.left = `${pt.x - areaRect.left}px`;
-      signaturePopup.style.top = `${pt.y - areaRect.top + 18}px`;
-    }
-    signaturePopup.style.display = "block";
-    signatureVisible = true;
-  }
-
-  async function requestSignature(): Promise<void> {
-    const current = openFile;
-    if (current === null || workspaceRoot === "" || lspStatus.state !== "ready") return;
-    const sel = editor.getSelections().at(-1);
-    if (sel === undefined) return;
-    const pos = sel.active;
-    const token = ++signatureToken;
-    const data = await api.lsp.signatureHelp(relPathOf(current.path), pos.line, pos.character);
-    if (signatureToken !== token || openFile !== current) return;
-    if (data === null) {
-      hideSignature();
-      return;
-    }
-    renderSignaturePopup(data);
-  }
-
-  window.addEventListener("keydown", (ev) => {
-    if (ev.key === "(" || ev.key === ",") {
-      if (openFile !== null) window.setTimeout(() => void requestSignature(), 50);
-      return;
-    }
-    if (ev.key === ")") {
-      hideSignature();
-      return;
-    }
-    if (ev.key === "Escape" && signatureVisible) {
-      ev.preventDefault();
-      ev.stopPropagation();
-      hideSignature();
-    }
-  }, true);
-  canvas.addEventListener("mousedown", hideSignature);
-
-  // ---- LSP 符号重命名（v0.4.0）：F2 触发 → 输入框 → 调用 rename → 跨文件应用编辑 ----
-  const renameBox = el("div", "dw-rename");
-  renameBox.style.display = "none";
-  editorArea.appendChild(renameBox);
-  const renameInput = document.createElement("input");
-  renameInput.type = "text";
-  renameInput.className = "dw-rename-input";
-  renameInput.placeholder = "New name";
-  renameBox.appendChild(renameInput);
-  let renameVisible = false;
-  let renameToken = 0;
-
-  function hideRename(): void {
-    renameBox.style.display = "none";
-    renameVisible = false;
-    renameInput.value = "";
-  }
-
-  function showRenameBox(currentName: string): void {
-    renameInput.value = currentName;
-    const sel = editor.getSelections().at(-1);
-    if (sel !== undefined) {
-      const pt = editor.clientPointForPosition(sel.active);
-      const areaRect = editorArea.getBoundingClientRect();
-      renameBox.style.left = `${pt.x - areaRect.left}px`;
-      renameBox.style.top = `${pt.y - areaRect.top + 18}px`;
-    }
-    renameBox.style.display = "block";
-    renameVisible = true;
-    renameInput.focus();
-    renameInput.select();
-  }
-
-  async function applyRename(newName: string): Promise<void> {
-    const current = openFile;
-    if (current === null || workspaceRoot === "" || lspStatus.state !== "ready") return;
-    const sel = editor.getSelections().at(-1);
-    if (sel === undefined) return;
-    const pos = sel.active;
-    const token = ++renameToken;
-    const edits = await api.lsp.rename(relPathOf(current.path), pos.line, pos.character, newName);
-    if (renameToken !== token || openFile !== current) return;
-    hideRename();
-    if (edits.length === 0) return;
-
-    // 按 file 分组
-    const byFile = new Map<string, LspTextEdit[]>();
-    for (const edit of edits) {
-      const arr = byFile.get(edit.file) ?? [];
-      arr.push(edit);
-      byFile.set(edit.file, arr);
-    }
-
-    const currentRel = relPathOf(current.path);
-    const root = workspaceRoot.replace(/[/\\]+$/, "");
-
-    for (const [file, fileEdits] of byFile) {
-      if (file === currentRel) {
-        // 当前文件：用 applyEdit（按 offset 倒序，避免位置偏移）
-        const doc = current.doc;
-        const sorted = fileEdits.slice().sort((a, b) => {
-          const ao = doc.offsetAt({ line: a.startLine, character: a.startCharacter });
-          const bo = doc.offsetAt({ line: b.startLine, character: b.startCharacter });
-          return bo - ao;
-        });
-        for (const edit of sorted) {
-          const startOffset = doc.offsetAt({ line: edit.startLine, character: edit.startCharacter });
-          const endOffset = doc.offsetAt({ line: edit.endLine, character: edit.endCharacter });
-          doc.applyEdit({ offset: startOffset, length: endOffset - startOffset, text: edit.newText });
-        }
-      } else {
-        // 其他文件：read → 字符串编辑 → write（跨文件重构）
-        const abs = `${root}/${file}`;
-        try {
-          const content = await api.workspace.read(abs);
-          const lineStarts: number[] = [0];
-          for (let i = 0; i < content.length; i++) {
-            if (content[i] === "\n") lineStarts.push(i + 1);
-          }
-          const sorted = fileEdits.slice().sort((a, b) => {
-            const ao = (lineStarts[a.startLine] ?? 0) + a.startCharacter;
-            const bo = (lineStarts[b.startLine] ?? 0) + b.startCharacter;
-            return bo - ao;
-          });
-          let text = content;
-          for (const edit of sorted) {
-            const startOffset = (lineStarts[edit.startLine] ?? 0) + edit.startCharacter;
-            const endOffset = (lineStarts[edit.endLine] ?? 0) + edit.endCharacter;
-            text = text.slice(0, startOffset) + edit.newText + text.slice(endOffset);
-          }
-          await api.workspace.write(abs, text);
-        } catch {
-          // 读取/写入失败：跳过该文件（跨文件编辑容错）
-        }
-      }
-    }
-  }
-
-  window.addEventListener("keydown", (ev) => {
-    if (ev.key === "F2" && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
-      if (openFile === null || lspStatus.state !== "ready") return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      const sel = editor.getSelections().at(-1);
-      if (sel === undefined) return;
-      const pos = sel.active;
-      const lineText = openFile.doc.getLine(pos.line) ?? "";
-      let start = pos.character;
-      let end = pos.character;
-      while (start > 0 && /[\w$]/.test(lineText[start - 1] ?? "")) start--;
-      while (end < lineText.length && /[\w$]/.test(lineText[end] ?? "")) end++;
-      const currentName = lineText.slice(start, end);
-      if (currentName.length === 0) return;
-      showRenameBox(currentName);
-      return;
-    }
-    if (!renameVisible) return;
-    if (ev.key === "Enter") {
-      ev.preventDefault();
-      ev.stopPropagation();
-      const newName = renameInput.value.trim();
-      if (newName.length === 0) {
-        hideRename();
-        return;
-      }
-      void applyRename(newName);
-    } else if (ev.key === "Escape") {
-      ev.preventDefault();
-      ev.stopPropagation();
-      hideRename();
-    }
-  }, true);
-  canvas.addEventListener("mousedown", hideRename);
-
-  // ---- LSP 代码操作（v0.4.0）：Ctrl+. 触发 → 菜单浮层 → 选择 → 应用编辑 ----
-  const codeActionPopup = el("div", "dw-code-action");
-  codeActionPopup.style.display = "none";
-  editorArea.appendChild(codeActionPopup);
-  let codeActionItems: LspCodeAction[] = [];
-  let codeActionIndex = 0;
-  let codeActionVisible = false;
-  let codeActionToken = 0;
-
-  function hideCodeAction(): void {
-    codeActionPopup.style.display = "none";
-    codeActionVisible = false;
-    codeActionItems = [];
-    codeActionIndex = 0;
-  }
-
-  function renderCodeActionPopup(): void {
-    if (codeActionItems.length === 0 || openFile === null) {
-      hideCodeAction();
-      return;
-    }
-    codeActionPopup.innerHTML = "";
-    for (let i = 0; i < codeActionItems.length; i++) {
-      const item = codeActionItems[i]!;
-      const row = el("div", "dw-code-action-item");
-      if (i === codeActionIndex) row.classList.add("dw-code-action-active");
-      const title = el("span", "dw-code-action-title");
-      title.textContent = (item.isPreferred ? "★ " : "") + item.title;
-      row.appendChild(title);
-      if (item.kind) {
-        const kind = el("span", "dw-code-action-kind");
-        kind.textContent = item.kind;
-        row.appendChild(kind);
-      }
-      row.addEventListener("mousedown", (ev) => {
-        ev.preventDefault();
-        codeActionIndex = i;
-        void applyCodeAction();
-      });
-      codeActionPopup.appendChild(row);
-    }
-    const sel = editor.getSelections().at(-1);
-    if (sel !== undefined) {
-      const pt = editor.clientPointForPosition(sel.active);
-      const areaRect = editorArea.getBoundingClientRect();
-      codeActionPopup.style.left = `${pt.x - areaRect.left}px`;
-      codeActionPopup.style.top = `${pt.y - areaRect.top + 18}px`;
-    }
-    codeActionPopup.style.display = "block";
-    codeActionVisible = true;
-  }
-
-  async function applyCodeAction(): Promise<void> {
-    if (!codeActionVisible || codeActionItems.length === 0) return;
-    const action = codeActionItems[codeActionIndex];
-    if (action === undefined) return;
-    hideCodeAction();
-    if (action.edits.length === 0) return; // 仅 command，暂不支持执行
-
-    // 复用 rename 的跨文件编辑应用逻辑
-    const current = openFile;
-    if (current === null) return;
-    const byFile = new Map<string, LspTextEdit[]>();
-    for (const edit of action.edits) {
-      const arr = byFile.get(edit.file) ?? [];
-      arr.push(edit);
-      byFile.set(edit.file, arr);
-    }
-    const currentRel = relPathOf(current.path);
-    const root = workspaceRoot.replace(/[/\\]+$/, "");
-    for (const [file, fileEdits] of byFile) {
-      if (file === currentRel) {
-        const doc = current.doc;
-        const sorted = fileEdits.slice().sort((a, b) => {
-          const ao = doc.offsetAt({ line: a.startLine, character: a.startCharacter });
-          const bo = doc.offsetAt({ line: b.startLine, character: b.startCharacter });
-          return bo - ao;
-        });
-        for (const edit of sorted) {
-          const startOffset = doc.offsetAt({ line: edit.startLine, character: edit.startCharacter });
-          const endOffset = doc.offsetAt({ line: edit.endLine, character: edit.endCharacter });
-          doc.applyEdit({ offset: startOffset, length: endOffset - startOffset, text: edit.newText });
-        }
-      } else {
-        const abs = `${root}/${file}`;
-        try {
-          const content = await api.workspace.read(abs);
-          const lineStarts: number[] = [0];
-          for (let i = 0; i < content.length; i++) {
-            if (content[i] === "\n") lineStarts.push(i + 1);
-          }
-          const sorted = fileEdits.slice().sort((a, b) => {
-            const ao = (lineStarts[a.startLine] ?? 0) + a.startCharacter;
-            const bo = (lineStarts[b.startLine] ?? 0) + b.startCharacter;
-            return bo - ao;
-          });
-          let text = content;
-          for (const edit of sorted) {
-            const startOffset = (lineStarts[edit.startLine] ?? 0) + edit.startCharacter;
-            const endOffset = (lineStarts[edit.endLine] ?? 0) + edit.endCharacter;
-            text = text.slice(0, startOffset) + edit.newText + text.slice(endOffset);
-          }
-          await api.workspace.write(abs, text);
-        } catch {
-          // 跨文件编辑容错
-        }
-      }
-    }
-  }
-
-  async function requestCodeAction(): Promise<void> {
-    const current = openFile;
-    if (current === null || workspaceRoot === "" || lspStatus.state !== "ready") return;
-    const sel = editor.getSelections().at(-1);
-    if (sel === undefined) return;
-    const pos = sel.active;
-    const token = ++codeActionToken;
-    const actions = await api.lsp.codeAction(relPathOf(current.path), pos.line, pos.character, pos.line, pos.character);
-    if (codeActionToken !== token || openFile !== current) return;
-    if (actions.length === 0) {
-      hideCodeAction();
-      return;
-    }
-    codeActionItems = actions;
-    codeActionIndex = 0;
-    renderCodeActionPopup();
-  }
-
-  window.addEventListener("keydown", (ev) => {
-    if (ev.key === "." && ev.ctrlKey && !ev.shiftKey && !ev.metaKey && !ev.altKey) {
-      if (openFile === null || lspStatus.state !== "ready") return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      void requestCodeAction();
-      return;
-    }
-    if (!codeActionVisible) return;
-    switch (ev.key) {
-      case "ArrowDown":
-        ev.preventDefault();
-        ev.stopPropagation();
-        codeActionIndex = (codeActionIndex + 1) % codeActionItems.length;
-        renderCodeActionPopup();
-        break;
-      case "ArrowUp":
-        ev.preventDefault();
-        ev.stopPropagation();
-        codeActionIndex = (codeActionIndex - 1 + codeActionItems.length) % codeActionItems.length;
-        renderCodeActionPopup();
-        break;
-      case "Enter":
-        ev.preventDefault();
-        ev.stopPropagation();
-        void applyCodeAction();
-        break;
-      case "Escape":
-        ev.preventDefault();
-        ev.stopPropagation();
-        hideCodeAction();
-        break;
-    }
-  }, true);
-  canvas.addEventListener("mousedown", hideCodeAction);
-
-  // ---- LSP 文档大纲（v0.4.0）：textDocument/documentSymbol → 左栏树 → 点击跳转 ----
-  let outlineSymbols: LspDocumentSymbol[] = [];
-  let outlineToken = 0;
-  /** 展开状态以「line:character:kind」签名记录（同文件内符号位置稳定即可） */
-  const outlineCollapsed = new Set<string>();
-
-  function outlineKey(s: LspDocumentSymbol): string {
-    return `${s.line}:${s.character}:${s.kind}`;
-  }
-
-  /** 符号 kind → 图标字符（LSP SymbolKind 子集；缺省=•）。 */
-  function outlineIcon(kind: number): string {
-    switch (kind) {
-      case 2: return "⊙"; // Module
-      case 3: return "▣"; // Namespace
-      case 4: return "_pkg"; // Package
-      case 5: return "◯"; // Class
-      case 6: return "ƒ"; // Method
-      case 7: return "◇"; // Property
-      case 8: return "▪"; // Field
-      case 9: return "ctr"; // Constructor
-      case 10: return "Enum"; // Enum
-      case 11: return "I"; // Interface
-      case 12: return "λ"; // Function
-      case 13: return "var"; // Variable
-      case 14: return "K"; // Constant
-      case 15: return "S"; // String
-      case 16: return "#"; // Number
-      case 17: return "_BOOL"; // Boolean
-      case 18: return "[]"; // Array
-      case 19: return "{}"; // Object
-      case 23: return "struct"; // Struct
-      case 24: return "evt"; // Event
-      case 25: return "op"; // Operator
-      case 26: return "T"; // TypeParameter
-      default: return "•";
-    }
-  }
-
-  function renderOutlineTree(): void {
-    outlinePane.innerHTML = "";
-    if (outlineSymbols.length === 0) {
-      outlinePane.appendChild(el("div", "dw-sidebar-empty", t("outline.empty")));
-      return;
-    }
-    const root = el("div", "dw-outline-list");
-    const renderNode = (sym: LspDocumentSymbol, depth: number): void => {
-      const hasChildren = sym.children !== undefined && sym.children.length > 0;
-      const key = outlineKey(sym);
-      const collapsed = outlineCollapsed.has(key);
-      const row = el("div", "dw-outline-item");
-      row.style.paddingLeft = `${8 + depth * 14}px`;
-      if (hasChildren) {
-        const toggle = el("span", "dw-outline-toggle");
-        toggle.textContent = collapsed ? "▸" : "▾";
-        toggle.addEventListener("click", (ev) => {
-          ev.stopPropagation();
-          if (outlineCollapsed.has(key)) outlineCollapsed.delete(key);
-          else outlineCollapsed.add(key);
-          renderOutlineTree();
-        });
-        row.appendChild(toggle);
-      } else {
-        row.appendChild(el("span", "dw-outline-toggle dw-outline-toggle-leaf"));
-      }
-      const icon = el("span", "dw-outline-icon");
-      icon.textContent = outlineIcon(sym.kind);
-      row.appendChild(icon);
-      const name = el("span", "dw-outline-name");
-      if (sym.deprecated === true) name.classList.add("dw-outline-deprecated");
-      name.textContent = sym.name;
-      row.appendChild(name);
-      if (sym.detail !== undefined && sym.detail !== "") {
-        const detail = el("span", "dw-outline-detail");
-        detail.textContent = sym.detail;
-        row.appendChild(detail);
-      }
-      row.addEventListener("click", () => {
-        const current = openFile;
-        if (current === null) return;
-        editor.revealPosition({ line: sym.line, character: sym.character });
-        editor.focus();
-      });
-      root.appendChild(row);
-      if (hasChildren && !collapsed) {
-        for (const child of sym.children!) renderNode(child, depth + 1);
-      }
-    };
-    for (const sym of outlineSymbols) renderNode(sym, 0);
-    outlinePane.appendChild(root);
-  }
-
-  async function refreshOutline(): Promise<void> {
-    const current = openFile;
-    if (current === null || workspaceRoot === "" || lspStatus.state !== "ready") {
-      outlineSymbols = [];
-      renderOutlineTree();
-      return;
-    }
-    const token = ++outlineToken;
-    const symbols = await api.lsp.documentSymbols(relPathOf(current.path));
-    if (outlineToken !== token || openFile !== current) return;
-    outlineSymbols = symbols;
-    renderOutlineTree();
-  }
-
-  // 编辑防抖触发大纲刷新（与 didChange 同步节奏，避免输入时树闪烁）
-  let outlineRefreshTimer: number | undefined;
-  function scheduleOutlineRefresh(): void {
-    window.clearTimeout(outlineRefreshTimer);
-    outlineRefreshTimer = window.setTimeout(() => void refreshOutline(), 600);
-  }
-
-  renderOutlineTree(); // 启动即渲染空态占位（文件打开/LSP 就绪后填充）
-
-  api.lsp.onStatus((status) => {
-    const wasReady = lspStatus.state === "ready";
-    lspStatus = status;
-    renderLspStatus();
-    // 服务器后于文件打开才就绪：补偿重放 didOpen（未就绪期间的 didOpen 被主进程丢弃）
-    if (!wasReady && status.state === "ready") {
-      syncOpenFileToLsp();
-      void refreshOutline(); // 服务器就绪后立即取大纲
-    }
-  });
-  api.lsp.onDiagnostics((items) => {
-    lspDiags = items;
-    renderLspStatus();
-    applyEditorDiagnostics();
-  });
-  // 启动恢复（AC15 工作区恢复后主进程已启动 LSP）：主动拉一次当前态
-  void api.lsp.getStatus().then((status) => {
-    lspStatus = status;
-    renderLspStatus();
-  });
-  void api.lsp.diagnostics().then((items) => {
-    lspDiags = items;
-    renderLspStatus();
-    applyEditorDiagnostics();
+  // v0.7.6：LSP 代码智能 UI 集群抽取为 lsp-ui.ts 模块（悬停/补全/引用/签名/
+  // 重命名/代码操作/大纲/状态条/诊断/同步，行为零变化——E2E 回归锁定）
+  const lspUi = mountLspUi({
+    api,
+    editor,
+    canvas,
+    editorArea,
+    outlinePane,
+    statusLsp,
+    getWorkspaceRoot: () => workspaceRoot,
+    getOpenFile: () => openFile,
+    relPathOf,
+    openFileByPath,
   });
 
   // ---- Git 版本控制（迭代 32 / AC41）：面板 / 状态栏 / 只读 diff 视图 ----
@@ -3560,7 +2500,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     gitTab.textContent = t("tab.git");
     debugTab.textContent = t("tab.debug");
     outlineTab.textContent = t("tab.outline");
-    renderOutlineTree(); // 大纲空态文案随语言热生效
+    lspUi.renderOutlineTree(); // 大纲空态文案随语言热生效
     renderDebugStatus(); // 调试状态项随语言热生效
     renderDebugPanel();
     renderGitStatus();
@@ -3585,12 +2525,12 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     }
     renderUpdateBox();
     buildOnboarding();
-    renderLspStatus(); // LSP 状态项随语言热生效
+    lspUi.renderLspStatus(); // LSP 状态项随语言热生效
     // 欢迎文档仅在无打开文件时随语言重建（不触碰用户文件内容）
     if (openFile === null) {
       editor.setDocument(TextDocument.fromString(t("editor.welcome")));
     }
-    applySearchPanelLocale();
+    searchPanelHandle.applyLocale();
   }
   onDidChangeLocale(applyLocale);
   applyLocale();
