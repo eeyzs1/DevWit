@@ -382,7 +382,8 @@ export class AgentLoop {
     }
 
     // 授权门：内置写工具（write/edit/bash）与全部 MCP 工具（AC17）执行前必经裁决
-    if (this.authorizer.needsAuthorization(call.name)) {
+    // （bash 的会话级放行按命令精确匹配——needsAuthorization 需要完整 args）
+    if (this.authorizer.needsAuthorization(call.name, call.args)) {
       const reason = buildAuthorizationReason(call.name, call.args);
       if (this.authorizer.isAutoApproved(call.name, call.args)) {
         // AC29：命令白名单命中——不弹窗，但轨迹显式记录自动放行（审计可见）

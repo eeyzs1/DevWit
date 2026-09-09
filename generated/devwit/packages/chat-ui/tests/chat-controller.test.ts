@@ -157,12 +157,41 @@ describe("ChatController", () => {
     await controller.send("读文件");
     expect(controller.isRunning).toBe(true);
     fake.emit(event("s1", "tool_call", 'read({"path":"a.txt"})'));
-    fake.emit(event("s1", "tool_result", "read 成功"));
+    // 真实事件形状：agent-loop 的 tool_result 恒带结构化 detail.result（成败事实源）
+    fake.emit(event("s1", "tool_result", "read 成功", { result: { ok: true, output: "文件内容" } }));
     fake.emit(event("s1", "done", "任务完成"));
     const items = controller.listItems();
-    expect(items.find((item) => item.kind === "tool")).toMatchObject({ ok: true });
+    const tool = items.find((item) => item.kind === "tool");
+    expect(tool).toMatchObject({ ok: true });
+    if (tool?.kind === "tool") {
+      expect(tool.detail).toBe("文件内容");
+    }
     expect(items[items.length - 1]).toEqual({ kind: "done", text: "任务完成" });
     expect(controller.isRunning).toBe(false);
+    controller.dispose();
+  });
+
+  it("v0.7.4 成败信号结构化：输出文本含「失败」字样但 result.ok=true → 仍判成功（文案非事实源）", async () => {
+    const fake = new FakeDevwitApi();
+    const controller = new ChatController({ api: fake.api, sessionId: "s1", workspaceRoot: "C:\\repo", modeId: "agent" });
+    await controller.send("搜索失败关键字");
+    fake.emit(event("s1", "tool_call", 'grep({"pattern":"失败"})'));
+    fake.emit(event("s1", "tool_result", "grep 成功", { result: { ok: true, output: "a.ts:1: 测试失败用例" } }));
+    fake.emit(event("s1", "done", "完成"));
+    const tool = controller.listItems().find((item) => item.kind === "tool");
+    expect(tool).toMatchObject({ ok: true });
+    controller.dispose();
+  });
+
+  it("v0.7.4 结构化信号缺失（旧轨迹形状）→ ok 保持未知（null），不按文案猜测", async () => {
+    const fake = new FakeDevwitApi();
+    const controller = new ChatController({ api: fake.api, sessionId: "s1", workspaceRoot: "C:\\repo", modeId: "agent" });
+    await controller.send("读文件");
+    fake.emit(event("s1", "tool_call", 'read({"path":"a.txt"})'));
+    fake.emit(event("s1", "tool_result", "read 成功")); // 无 detail.result
+    fake.emit(event("s1", "done", "完成"));
+    const tool = controller.listItems().find((item) => item.kind === "tool");
+    expect(tool).toMatchObject({ ok: null });
     controller.dispose();
   });
 

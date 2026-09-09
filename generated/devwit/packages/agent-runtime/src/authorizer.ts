@@ -27,7 +27,16 @@ export interface AuthorizationMemory {
 interface PendingAuthorization {
   request: AuthorizationRequest;
   resolve: (decision: AuthorizationOutcome) => void;
-}/** 生成人类可读的授权理由（授权弹窗与轨迹共用）。 */
+}/** bash 参数中的命令串（空白归一化；缺失/空返回 null）。 */
+function commandOfArgs(args?: Record<string, unknown>): string | null {
+  if (args === undefined) return null;
+  const raw = args["command"];
+  if (typeof raw !== "string") return null;
+  const normalized = raw.trim().replace(/\s+/g, " ");
+  return normalized === "" ? null : normalized;
+}
+
+/** 生成人类可读的授权理由（授权弹窗与轨迹共用）。 */
 export function buildAuthorizationReason(toolName: string, args: Record<string, unknown>): string {
   const pathArg = typeof args["path"] === "string" ? args["path"] : undefined;
   const commandArg = typeof args["command"] === "string" ? args["command"] : undefined;
@@ -53,12 +62,19 @@ export function buildAuthorizationReason(toolName: string, args: Record<string, 
  * Authorizer：授权门（AC4）。
  * - AUTHORIZED_TOOLS（write/edit/bash）需授权；read/grep/find/ls 只读免授权；
  * - MCP 工具（mcp__ 前缀，迭代 8）一律需授权——外部服务器能力不可预知，默认最严；
- * - 裁决三态：allow（本次）/ allow_session（本会话内该工具免再问）/ deny；
+ * - 裁决三态：allow（本次）/ allow_session（本会话免再问）/ deny；
+ * - allow_session 粒度（v0.7.4 收窄）：bash = 命令级——仅放行与被批准命令
+ *   归一化后全串相等的调用（与白名单学习同语义："git status" 学会不代表
+ *   "git status -s" 免问）；write/edit/MCP = 工具级（原语义）。授权面从
+ *   「一次 allow_session(bash) = 本会话任意命令」收敛为「= 同一条命令」；
  * - 两种驱动方式：构造时注入 handler（直接裁决），或不注入时进入 pending
  *   队列由 decide(requestId, decision) 外部裁决（IPC 弹窗路径）。
  */
 export class Authorizer {
-  private readonly sessionAllowed = new Set<string>();
+  /** 工具级会话放行（write/edit/MCP）。 */
+  private readonly sessionAllowedTools = new Set<string>();
+  /** 命令级会话放行（bash：归一化后的完整命令串）。 */
+  private readonly sessionAllowedCommands = new Set<string>();
   private readonly pending = new Map<string, PendingAuthorization>();
   private readonly handler?: AuthorizationHandler;
   private readonly memory?: AuthorizationMemory;
@@ -68,10 +84,17 @@ export class Authorizer {
     if (memory !== undefined) this.memory = memory;
   }
 
-  /** 该工具此刻是否需要询问用户（会话级放行后免问）。 */
-  needsAuthorization(toolName: string): boolean {
-    if (this.sessionAllowed.has(toolName)) return false;
-    return AUTHORIZED_TOOLS.has(toolName) || toolName.startsWith(MCP_TOOL_PREFIX);
+  /** 该工具此刻是否需要询问用户（会话级放行后免问；bash 按命令精确匹配）。 */
+  needsAuthorization(toolName: string, args?: Record<string, unknown>): boolean {
+    if (AUTHORIZED_TOOLS.has(toolName) || toolName.startsWith(MCP_TOOL_PREFIX)) {
+      if (this.sessionAllowedTools.has(toolName)) return false;
+      if (toolName === "bash") {
+        const command = commandOfArgs(args);
+        if (command !== null && this.sessionAllowedCommands.has(command)) return false;
+      }
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -109,7 +132,17 @@ export class Authorizer {
         this.pending.set(request.id, { request, resolve });
       });
     }
-    if (decision === "allow_session") this.sessionAllowed.add(toolName);
+    if (decision === "allow_session") {
+      // v0.7.4 收窄：bash 按归一化命令放行（缺失命令串则不放行任何东西——
+      // fail-closed，且无 command 的 bash 本就无法通过参数校验）；
+      // 其余工具维持工具级放行
+      if (toolName === "bash") {
+        const command = commandOfArgs(args);
+        if (command !== null) this.sessionAllowedCommands.add(command);
+      } else {
+        this.sessionAllowedTools.add(toolName);
+      }
+    }
     // AC29：裁决完成回调授权记忆（学习层自行过滤 allow/deny/allow_session 语义）
     this.memory?.recordDecision(toolName, args, decision as AuthorizationDecision);
     return { request, decision };

@@ -339,11 +339,13 @@ export class ChatController {
         const last = [...this.items].reverse().find((item) => item.kind === "tool" && item.ok === null);
         if (last?.kind === "tool") {
           last.summary = event.summary;
-          last.ok = !event.summary.includes("失败") && !event.summary.includes("拒绝");
-          // 工具结果审计：捕获完整结构化结果（成功输出或失败错误），供活动流展开查看
+          // 工具结果审计：结构化 result.ok 是唯一成败事实源（agent-loop 的
+          // tool_result 事件恒带 detail.result.ok）；缺失时保持未知（null=…），
+          // 不再按 summary 文案子串猜测——文案与展示语言耦合且非权威信号
           const detail = event.detail as { result?: { ok?: unknown; output?: unknown; error?: unknown } } | undefined;
           const result = detail?.result;
-          if (detail !== undefined && result !== undefined) {
+          last.ok = typeof result?.ok === "boolean" ? result.ok : null;
+          if (result !== undefined) {
             const ok = result.ok === true;
             const output = typeof result.output === "string" ? result.output : "";
             const error = typeof result.error === "string" ? result.error : "";

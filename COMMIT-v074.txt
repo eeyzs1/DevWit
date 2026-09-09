@@ -1,0 +1,28 @@
+feat: v0.7.4 授权粒度收窄 + 搜索 ReDoS 修复 + 结构化成败信号
+
+授权安全（allow_session 粒度收窄）:
+- authorizer: bash 的 allow_session 从工具级放行收敛为命令级——仅放行与
+  被批准命令空白归一化后全串相等的调用（与白名单学习同语义）；
+  「一次 allow_session(git status) = 本会话任意命令」成为历史；
+  write/edit/MCP 维持工具级（原语义不变，测试锁定）
+- agent-loop: 授权门检查携带完整 args（bash 命令精确匹配需要）
+- 回归测试 4 条：同命令免问/前缀扩展不继承/多命令逐一放行/
+  命令缺失 fail-closed
+
+ReDoS 修复（主进程搜索）:
+- workspace: 新增 search-worker（worker 线程入口）与 searchInWorkspaceIsolated
+  （隔离包装：主线程先编译校验正则保持同步 SyntaxError 语义，执行移入
+  worker，10s 硬超时 terminate + DW_SEARCH_TIMEOUT）
+- ipc: WorkspaceSearch 改走隔离路径；构建链新增 build:searchworker
+  （独立 bundle 到 dist/main/search-worker.mjs）
+- 测试含真实灾难性回溯样本（(a+)+$ 对 28 个 a）——修复前会挂死测试进程，
+  现在被硬超时终止；挂死 fixture/产物缺失/结果一致性全覆盖
+
+正确性（结构化成败信号）:
+- chat-controller: tool_result 的成败判定改以结构化 detail.result.ok 为
+  唯一事实源（agent-loop 三处记录点恒携带）；缺失时保持未知（null=…）
+  而非按 summary 文案子串猜测——消灭与展示语言耦合的判定逻辑
+
+测试: 899/899（+11）；tsc/eslint/7 项自检/build（含 search-worker 产物）/
+E2E×3 全绿
+版本: 0.7.3 -> 0.7.4

@@ -75,6 +75,46 @@ describe("Authorizer（AC4 授权门）", () => {
   });
 });
 
+describe("allow_session 粒度收窄（v0.7.4：bash 命令级）", () => {
+  it("bash allow_session(\"git status\") → 同命令免问；不同命令（含前缀扩展）仍需授权", async () => {
+    const seen: AuthorizationRequest[] = [];
+    const authorizer = new Authorizer(async (request) => {
+      seen.push(request);
+      return "allow_session";
+    });
+    await authorizer.requestAuthorization("bash", { command: "git status" }, "执行命令: git status");
+    // 同命令（空白差异归一化后相等）免问
+    expect(authorizer.needsAuthorization("bash", { command: "git   status" })).toBe(false);
+    // 不同命令：前缀扩展不继承（与白名单学习同语义）
+    expect(authorizer.needsAuthorization("bash", { command: "git status -s" })).toBe(true);
+    expect(authorizer.needsAuthorization("bash", { command: "rm -rf /" })).toBe(true);
+    expect(seen).toHaveLength(1); // 后两者仅在真实请求时才询问——此处只探测状态
+  });
+
+  it("bash 不同命令各自 allow_session 后均免问（命令集合逐一放行）", async () => {
+    const decisions = ["allow_session", "allow_session"];
+    const authorizer = new Authorizer(async () => decisions.shift() ?? "deny");
+    await authorizer.requestAuthorization("bash", { command: "npm test" }, "r");
+    await authorizer.requestAuthorization("bash", { command: "git status" }, "r");
+    expect(authorizer.needsAuthorization("bash", { command: "npm test" })).toBe(false);
+    expect(authorizer.needsAuthorization("bash", { command: "git status" })).toBe(false);
+    expect(authorizer.needsAuthorization("bash", { command: "npm run build" })).toBe(true);
+  });
+
+  it("write 的 allow_session 维持工具级（写文件不按路径收窄——原语义不变）", async () => {
+    const authorizer = new Authorizer(async () => "allow_session");
+    await authorizer.requestAuthorization("write", { path: "a.txt" }, "r");
+    expect(authorizer.needsAuthorization("write", { path: "别的文件.txt" })).toBe(false);
+  });
+
+  it("bash 命令串缺失时的 allow_session 不放行任何东西（fail-closed）", async () => {
+    const authorizer = new Authorizer(async () => "allow_session");
+    await authorizer.requestAuthorization("bash", {}, "r");
+    expect(authorizer.needsAuthorization("bash", { command: "ls" })).toBe(true);
+    expect(authorizer.needsAuthorization("bash", {})).toBe(true);
+  });
+});
+
 describe("buildAuthorizationReason", () => {
   it("按工具生成人类可读理由", () => {
     expect(buildAuthorizationReason("write", { path: "src/a.ts" })).toBe("写入文件: src/a.ts");

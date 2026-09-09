@@ -9,3 +9,9 @@ export { GitService, parseBlamePorcelain, parsePorcelainZ } from "./git-service.
 export type { GitBlameLine, GitBranch, GitDiffTexts, GitExecFile, GitFileChange, GitLogEntry, GitPanelStatus, GitStashEntry } from "./git-service.js";
 export { compileSearchRegex, searchInWorkspace } from "./search.js";
 export type { SearchMatch, SearchOptions, SearchResultFile, SearchResults } from "./search.js";
+export {
+  DEFAULT_SEARCH_TIMEOUT_MS,
+  SearchTimeoutError,
+  SearchWorkerError,
+  searchInWorkspaceIsolated,
+} from "./search-isolated.js";

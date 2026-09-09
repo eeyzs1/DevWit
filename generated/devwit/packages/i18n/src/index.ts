@@ -138,6 +138,9 @@ export function localizeError(raw: string, opts?: LocalizeErrorOptions): string 
   if (mcpServerSchema !== null) return t("err.mcpServerSchema", { detail: (mcpServerSchema[1] ?? "").trim() });
   if (raw.includes("DW_SESSION_BUSY")) return t("chat.error.busy");
   if (raw.includes("DW_BUDGET_EXCEEDED")) return t("err.budgetExceeded");
+  const searchTimeout = /DW_SEARCH_TIMEOUT:(\d+)/.exec(raw);
+  if (searchTimeout !== null) return t("err.searchTimeout", { ms: searchTimeout[1] ?? "10000" });
+  if (raw.includes("DW_SEARCH_WORKER_FAILED")) return t("err.searchWorkerFailed");
   if (raw.includes("DW_EXTERNAL_EDITOR_NOT_CONFIGURED")) return t("err.externalNotConfigured");
   if (raw.includes("DW_EXTERNAL_EDITOR_TEMPLATE_EMPTY")) return t("err.templateEmpty");
   if (raw.includes("DW_EXTERNAL_EDITOR_MISSING_FILE_PLACEHOLDER")) return t("err.missingFilePlaceholder");

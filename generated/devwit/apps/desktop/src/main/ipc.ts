@@ -17,7 +17,7 @@ import { fetchCommunityMcpIndex, fetchCommunityMcpServer, materializeMcpImport }
 import type { SettingsStore } from "@devwit/settings";
 import type { TerminalService } from "@devwit/terminal";
 import type { WorkspaceService } from "@devwit/workspace";
-import { searchInWorkspace } from "@devwit/workspace";
+import { searchInWorkspaceIsolated } from "@devwit/workspace";
 import type { AiRuntime } from "./ai-runtime.js";
 import { openInExternalEditor } from "./external-editor.js";
 import { scaffoldSampleProject } from "./sample-project.js";
@@ -190,15 +190,22 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
   };
   table[IPC.WorkspaceSearch] = async (_e, root, options) => {
     // 跨文件搜索（v0.4.0）：主进程遍历文件树读取搜索，避免渲染端大量 IPC 往返
+    // v0.7.4：worker 线程隔离 + 10s 硬超时——灾难性回溯正则不再能挂死主进程
+    // （正则合法性在本线程编译校验，非法正则保持同步 SyntaxError 语义）
     const opts = (options ?? {}) as Record<string, unknown>;
-    return searchInWorkspace(String(root), {
-      query: typeof opts["query"] === "string" ? opts["query"] : "",
-      isRegex: opts["isRegex"] === true,
-      caseSensitive: opts["caseSensitive"] === true,
-      wholeWord: opts["wholeWord"] === true,
-      maxResultsPerFile: typeof opts["maxResultsPerFile"] === "number" ? opts["maxResultsPerFile"] : undefined,
-      maxFiles: typeof opts["maxFiles"] === "number" ? opts["maxFiles"] : undefined,
-    });
+    return searchInWorkspaceIsolated(
+      String(root),
+      {
+        query: typeof opts["query"] === "string" ? opts["query"] : "",
+        isRegex: opts["isRegex"] === true,
+        caseSensitive: opts["caseSensitive"] === true,
+        wholeWord: opts["wholeWord"] === true,
+        maxResultsPerFile: typeof opts["maxResultsPerFile"] === "number" ? opts["maxResultsPerFile"] : undefined,
+        maxFiles: typeof opts["maxFiles"] === "number" ? opts["maxFiles"] : undefined,
+      },
+      // 打包产物同目录（esbuild build:searchworker 独立 bundle）
+      new URL("./search-worker.mjs", import.meta.url)
+    );
   };
 
   // ---- terminal ----

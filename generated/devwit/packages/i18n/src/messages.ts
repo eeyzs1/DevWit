@@ -568,6 +568,8 @@ const zhCN = {
   "chat.error": "错误：{text}",
   "chat.error.busy": "会话进行中：请先等待完成或取消",
   "err.budgetExceeded": "成本预算已超限（已开启超限熔断）：新请求被拒绝。可在设置 → 通用 → 成本预算中调高阈值、清零用量或关闭熔断。",
+  "err.searchTimeout": "搜索超时（{ms}ms，已中止）——正则可能过于复杂或工作区过大，请简化查询",
+  "err.searchWorkerFailed": "搜索引擎异常退出，请重试；若持续出现请报告问题",
   "chat.empty.title": "主 Agent 会这样工作",
   "chat.empty.lines": [
     "1. 规划：理解你的意图后拆解为可执行步骤",
@@ -1250,6 +1252,8 @@ const enUS: Messages = {
   "chat.error": "Error: {text}",
   "chat.error.busy": "Session in progress: wait for completion or cancel first",
   "err.budgetExceeded": "Cost budget exceeded (enforce is on): new requests are refused. Raise the threshold, clear usage, or turn off enforcement in Settings → General → Cost budget.",
+  "err.searchTimeout": "Search timed out ({ms}ms, aborted) — the regex may be too complex or the workspace too large; simplify the query",
+  "err.searchWorkerFailed": "The search engine crashed; please retry and report if it persists",
   "chat.empty.title": "How the main Agent works",
   "chat.empty.lines": [
     "1. Plan: understands your intent and breaks it into executable steps",
