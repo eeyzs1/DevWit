@@ -161,6 +161,12 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
   let budgetSink: ((alert: UsageBudgetAlert) => void) | null = null;
   const unsubBudget = deps.api.usage.onBudgetAlert((alert) => budgetSink?.(alert));
 
+  // 凭证损坏告警订阅（v0.7.2 可见化）：标记键变化只刷新模型分区横幅
+  let credentialsSink: (() => void) | null = null;
+  const unsubSettings = deps.api.settings.onChanged((key) => {
+    if (key === "security.credentialsCorrupt") credentialsSink?.();
+  });
+
   function applyLocale(): void {
     title.textContent = t("settings.title");
     closeBtn.textContent = t("settings.close");
@@ -180,6 +186,7 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
     mcpSink = null;
     ragSink = null;
     budgetSink = null;
+    credentialsSink = null;
     switch (section) {
       case "general":
         renderGeneral(content, deps, (sink) => {
@@ -191,7 +198,9 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
         });
         break;
       case "providers":
-        renderProviders(content, deps);
+        renderProviders(content, deps, (sink) => {
+          credentialsSink = sink;
+        });
         break;
       case "editor":
         renderEditor(content, deps);
@@ -218,6 +227,7 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
     unsubMcp();
     unsubRag();
     unsubBudget();
+    unsubSettings();
     mask.remove();
   };
   closeBtn.addEventListener("click", close);
@@ -692,6 +702,15 @@ function renderGeneral(
     budgetPeriodSelect.appendChild(option);
   }
   budgetPeriodRow.appendChild(budgetPeriodSelect);
+  // v0.7.3 超限熔断开关：超阈值时主进程拒绝新 run（DW_BUDGET_EXCEEDED）；缺省关（仅告警）
+  const budgetEnforceRow = el("div", "dw-settings-update");
+  const budgetEnforceToggle = document.createElement("input");
+  budgetEnforceToggle.type = "checkbox";
+  budgetEnforceToggle.title = t("settings.usage.budget.enforceTitle");
+  budgetEnforceRow.append(
+    budgetEnforceToggle,
+    el("span", "dw-settings-update-status", t("settings.usage.budget.enforce"))
+  );
 
   // 状态卡：当前周期成本 vs 阈值（进度条 + 超限徽标）
   const budgetStatusBox = el("div", "dw-settings-whitelist");
@@ -729,7 +748,7 @@ function renderGeneral(
     if (record["enabled"] !== true || threshold === null || threshold < 0 || period === null) {
       return { enabled: false, threshold: 0, period: "day" }; // qg-allow: 预算未启用时的安全默认占位（D1），非真实阈值配置
     }
-    return { enabled: true, threshold, period };
+    return { enabled: true, threshold, period, ...(record["enforce"] === true ? { enforce: true } : {}) };
   };
 
   const saveBudget = async (): Promise<void> => {
@@ -739,6 +758,7 @@ function renderGeneral(
       enabled: budgetToggle.checked,
       threshold,
       period: budgetPeriodSelect.value as UsageBudgetConfig["period"],
+      ...(budgetEnforceToggle.checked ? { enforce: true } : {}),
     });
     await refreshBudgetStatus();
   };
@@ -749,6 +769,7 @@ function renderGeneral(
     budgetToggle.checked = config.enabled;
     budgetThresholdInput.value = String(config.threshold);
     budgetPeriodSelect.value = config.period;
+    budgetEnforceToggle.checked = config.enforce === true;
     if (!config.enabled) {
       budgetBar.style.width = "0%";
       budgetBar.classList.remove("dw-budget-bar-exceeded");
@@ -834,6 +855,7 @@ function renderGeneral(
   budgetToggle.addEventListener("change", () => void saveBudget());
   budgetThresholdInput.addEventListener("change", () => void saveBudget());
   budgetPeriodSelect.addEventListener("change", () => void saveBudget());
+  budgetEnforceToggle.addEventListener("change", () => void saveBudget());
   budgetExportCsv.addEventListener("click", () => void exportBudget("csv"));
   budgetExportJson.addEventListener("click", () => void exportBudget("json"));
   // D1 自动告警：主进程超限跃迁推送 → 状态卡即时刷新（对话框级单订阅经 sink 转发，重渲染不泄漏）
@@ -885,7 +907,7 @@ function renderGeneral(
     wfTitle, wfEnableRow, wfList, wfHint,
     usageTitle, usageSummaryBox, usageActions, usageHint,
     pricingTitle, pricingBox, pricingHint,
-    budgetTitle, budgetHint, budgetConfigRow, budgetThresholdRow, budgetPeriodRow,
+    budgetTitle, budgetHint, budgetConfigRow, budgetThresholdRow, budgetPeriodRow, budgetEnforceRow,
     budgetStatusBox, budgetTrendBox, budgetSessionBox, budgetExportRow, budgetActions,
     telemetryTitle, telemetryEnableRow, telemetryEndpointRow, telemetryHint);
 
@@ -904,9 +926,32 @@ function renderGeneral(
 // 模型：providers CRUD + 凭证加密写入（明文永不回显）
 // ============================================================================
 
-function renderProviders(content: HTMLElement, deps: SettingsDialogDeps): void {
+function renderProviders(content: HTMLElement, deps: SettingsDialogDeps, registerCorruptSink: (sink: () => void) => void): void {
   const { api } = deps;
   content.appendChild(el("h3", "dw-settings-subtitle", t("provider.title")));
+
+  // v0.7.2 凭证损坏告警横幅：主进程检测到 credentials.enc.json 损坏（已备份）
+  // 时持久化标记 security.credentialsCorrupt——不再静默清空用户的全部 API Key。
+  // 用户重新保存任一凭证后主进程清除标记（settings.onChanged 热刷新本横幅）。
+  const corruptBanner = el("div", "dw-form-error");
+  const refreshCorruptBanner = (): void => {
+    const marker = api.settings.get("security.credentialsCorrupt") as
+      | { backupFile?: unknown }
+      | null
+      | undefined;
+    if (marker !== null && marker !== undefined && typeof marker === "object") {
+      corruptBanner.textContent = t("provider.corruptWarning", {
+        backup: typeof marker.backupFile === "string" ? marker.backupFile : "credentials.enc.json.corrupt-*",
+      });
+      corruptBanner.style.display = "";
+    } else {
+      corruptBanner.style.display = "none";
+    }
+  };
+  refreshCorruptBanner();
+  registerCorruptSink(refreshCorruptBanner);
+  content.appendChild(corruptBanner);
+
   const list = el("div", "dw-modal-list");
   content.appendChild(list);
 

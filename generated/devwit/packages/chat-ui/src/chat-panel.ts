@@ -27,10 +27,52 @@ const SYMBOL_KIND_KEY: Record<SymbolKind, Parameters<typeof t>[0]> = {
 /** 符号候选查询防抖（@ 输入停顿后再发 IPC，避免逐键触发主进程全表评分）。 */
 const SYMBOL_QUERY_DEBOUNCE_MS = 120; // qg-allow: 交互防抖经验值，候选首屏由文件候选同步给出
 
+// ---------------------------------------------------------------------------
+// 增量渲染对账（v0.7.3：流式 delta 不再全量重建列表 DOM——长会话每 token
+// 重建全部消息节点导致卡顿；ChatItem 无稳定 id，但控制器对 item 对象原位
+// 变更（streaming 文本/授权裁决/工具结果），位置 + 引用 + 内容签名三元组
+// 足以做对账。纯函数，node 下可直接单测。
+// ---------------------------------------------------------------------------
+
+/** 渲染计划：结构断裂 → 全量重建；否则追加尾部新行 + 原位更新变化行。 */
+export type RenderPlan =
+  | { mode: "rebuild" }
+  | { mode: "incremental"; appendCount: number; updateIndexes: number[] };
+
+/**
+ * 对账判定：
+ * - 前缀引用稳定（已渲染位置的 item 对象引用与控制器列表一致）且长度不回退 → 增量；
+ * - 内容签名变化的既有行 → updateIndexes（原位替换/文本更新）；
+ * - 任何前缀引用错位（清空/换会话/重放）→ rebuild。
+ */
+export function planIncrementalRender(
+  prevItems: readonly ChatItem[],
+  prevSigs: readonly string[],
+  items: readonly ChatItem[],
+  signature: (item: ChatItem) => string
+): RenderPlan {
+  if (prevItems.length > items.length) return { mode: "rebuild" };
+  for (let i = 0; i < prevItems.length; i++) {
+    if (prevItems[i] !== items[i]) return { mode: "rebuild" };
+  }
+  const appendCount = items.length - prevItems.length;
+  const updateIndexes: number[] = [];
+  for (let i = 0; i < prevItems.length; i++) {
+    if (signature(items[i]!) !== (prevSigs[i] ?? "")) updateIndexes.push(i);
+  }
+  return { mode: "incremental", appendCount, updateIndexes };
+}
+
+/** 内容签名：item 为小 JSON 对象，序列化成本远低于重建 DOM 节点。 */
+export function chatItemSignature(item: ChatItem): string {
+  return JSON.stringify(item);
+}
+
 /**
  * chat-panel DOM 视图（WU012）：对话面板 + 模式/模型切换 + 授权裁决 + 流式渲染。
- * 只负责 DOM——全部状态在 ChatController；每次 onChange 全量重绘列表
- * （消息量为会话级，重绘成本可忽略；增量流式经 last-child 文本更新优化）。
+ * 只负责 DOM——全部状态在 ChatController。渲染为增量对账（v0.7.3）：
+ * 前缀引用稳定时仅追加新行 + 原位更新变化行（签名检测），流式 delta 不再
+ * 全量重建列表 DOM；结构断裂（清空/换会话/语言切换）回退全量重建。
  */
 export interface ChatPanelOptions {
   controller: ChatController;
@@ -577,29 +619,101 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
     return row;
   }
 
-  function render(): void {
-    list.textContent = "";
+  /** 已渲染行（与控制器 item 对象同引用；sig 为渲染时内容签名）。 */
+  const renderedRows: Array<{ item: ChatItem; el: HTMLElement; sig: string }> = [];
+  /** 空态元素（items 为空时挂载；语言切换时重建以刷新文案）。 */
+  let emptyEl = buildEmptyState();
+
+  /** 空态节点（文案随语言热重建——locale 变更走全量重建路径）。 */
+  function buildEmptyState(): HTMLElement {
+    const empty = document.createElement("div");
+    empty.className = "dw-chat-empty";
+    const title = document.createElement("div");
+    title.className = "dw-chat-empty-title";
+    title.textContent = t("chat.empty.title");
+    const lines = document.createElement("div");
+    lines.className = "dw-chat-empty-lines";
+    lines.textContent = ta("chat.empty.lines").join("\n");
+    empty.append(title, lines);
+    return empty;
+  }
+
+  /** 仅当用户位于（或接近）底部时自动滚动——流式中用户上翻不被拽回。 */
+  function autoscrollIfNearBottom(): void {
+    const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 48;
+    if (nearBottom) list.scrollTop = list.scrollHeight;
+  }
+
+  function fullRebuild(): void {
     const items = controller.listItems();
+    renderedRows.length = 0;
+    list.textContent = "";
     if (items.length === 0) {
-      // 对话空态（AC11）：说明主 Agent 行为，降低首次使用的不确定性
-      const empty = document.createElement("div");
-      empty.className = "dw-chat-empty";
-      const title = document.createElement("div");
-      title.className = "dw-chat-empty-title";
-      title.textContent = t("chat.empty.title");
-      const lines = document.createElement("div");
-      lines.className = "dw-chat-empty-lines";
-      lines.textContent = ta("chat.empty.lines").join("\n");
-      empty.append(title, lines);
-      list.appendChild(empty);
-    }
-    for (const item of items) {
-      list.appendChild(renderItem(item));
+      list.appendChild(emptyEl);
+    } else {
+      for (const item of items) {
+        const el = renderItem(item);
+        list.appendChild(el);
+        renderedRows.push({ item, el, sig: chatItemSignature(item) });
+      }
     }
     list.scrollTop = list.scrollHeight;
+    refreshRunningState();
+  }
+
+  function refreshRunningState(): void {
     sendBtn.style.display = controller.isRunning ? "none" : "";
     stopBtn.style.display = controller.isRunning ? "" : "none";
     textarea.disabled = controller.isRunning;
+  }
+
+  function render(): void {
+    const items = controller.listItems();
+    const plan = planIncrementalRender(
+      renderedRows.map((row) => row.item),
+      renderedRows.map((row) => row.sig),
+      items,
+      chatItemSignature
+    );
+    if (plan.mode === "rebuild") {
+      fullRebuild();
+      return;
+    }
+    // 空态挂载：items 为空且尚未挂载（初始挂载 / rebuild 后仍为空由 fullRebuild 处理）
+    if (items.length === 0 && renderedRows.length === 0 && emptyEl.parentElement !== list) {
+      list.appendChild(emptyEl);
+    }
+    // 空态进出：items 从 0 → N 摘除空态节点；N → 0 由 rebuild 路径处理（长度回退）
+    if (renderedRows.length === 0 && plan.appendCount > 0 && emptyEl.parentElement === list) {
+      list.removeChild(emptyEl);
+    }
+    // 追加尾部新行（流式 delta 的常态路径：append 1 或 0）
+    for (let i = renderedRows.length; i < items.length; i++) {
+      const item = items[i]!;
+      const el = renderItem(item);
+      list.appendChild(el);
+      renderedRows.push({ item, el, sig: chatItemSignature(item) });
+    }
+    // 原位更新变化行（streaming 文本增长/授权裁决/工具结果落定）
+    for (const index of plan.updateIndexes) {
+      const row = renderedRows[index];
+      const item = items[index]!;
+      if (row === undefined) continue;
+      // 流式 assistant 纯文本更新：直接改 textContent，不重建节点（保持dw-streaming类）
+      if (item.kind === "assistant" && row.item.kind === "assistant") {
+        row.el.textContent = item.text;
+        if (item.streaming) row.el.classList.add("dw-streaming");
+        else row.el.classList.remove("dw-streaming");
+      } else {
+        const fresh = renderItem(item);
+        row.el.replaceWith(fresh);
+        row.el = fresh;
+      }
+      row.item = item;
+      row.sig = chatItemSignature(item);
+    }
+    autoscrollIfNearBottom();
+    refreshRunningState();
   }
 
   function sendCurrent(): void {
@@ -683,11 +797,15 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
   });
 
   const unsubscribe = controller.onChange(render);
-  // 语言热生效（AC12）：静态文案重写 + 列表按新语言全量重绘
+  // 语言热生效（AC12）：静态文案重写 + 列表全量重建（本地化标签在 renderItem
+  // 时计算、不进内容签名——增量对账检测不到语言变化，必须显式全量）
   const unsubscribeLocale = onDidChangeLocale(() => {
     applyLocale();
     refreshSelectors();
-    render();
+    const fresh = buildEmptyState();
+    emptyEl.replaceWith(fresh);
+    emptyEl = fresh;
+    fullRebuild();
   });
   applyLocale();
   refreshSelectors();

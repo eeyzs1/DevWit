@@ -539,6 +539,15 @@ export class AiRuntime {
       // 错误码保持 ASCII：主进程 stderr 在 GBK 终端输出中文会乱码，文案由渲染端 localizeError 本地化
       throw new Error(`DW_MODE_NOT_FOUND:${input.modeId}`);
     }
+    // v0.7.3 可选熔断（enforce=true）：成本超限时拒绝新 run——不悄悄打断工作流的
+    // 保守默认下，这是用户显式选择的硬停；ASCII 错误码由渲染端 localizeError 本地化
+    const budgetGate = this.budgetConfig();
+    if (budgetGate.enabled && budgetGate.enforce === true) {
+      const alert = this.usageStore.checkBudget(budgetGate.threshold, budgetGate.period, new Date(), this.loadPricing());
+      if (alert.exceeded) {
+        throw new Error(`DW_BUDGET_EXCEEDED:${budgetGate.threshold};${budgetGate.period}`);
+      }
+    }
     // B-WU4/B-WU5：run 前按模式重装系统提示段（mode 提示 + 模式作用域 prompt_section 段）
     this.syncModeSections(mode);
     let fallbackProviderId = input.providerId ?? mode.providerId;
@@ -770,7 +779,7 @@ export class AiRuntime {
     if (record["enabled"] !== true || threshold === null || threshold < 0 || period === null) {
       return { enabled: false, threshold: 0, period: "day" }; // qg-allow: 预算未启用时的安全默认占位（D1），非真实阈值配置
     }
-    return { enabled: true, threshold, period };
+    return { enabled: true, threshold, period, ...(record["enforce"] === true ? { enforce: true } : {}) };
   }
 
   /**

@@ -112,3 +112,50 @@ describe("SettingsStore", () => {
     await expect(store2.resolve("persist")).resolves.toBe(SECRET);
   });
 });
+
+describe("凭证损坏可见化（v0.7.2）", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "devwit-settings-corrupt-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("凭据文件损坏：构造即备份原文件并持久化告警标记（不再静默清空）", () => {
+    fs.writeFileSync(path.join(dir, "credentials.enc.json"), "{corrupted!!", "utf-8");
+    const store = new SettingsStore(new NodeCryptoBackend(), dir);
+    const marker = store.get("security.credentialsCorrupt") as { backupFile: string; detectedAt: string };
+    expect(marker).toBeDefined();
+    expect(marker.backupFile).toMatch(/^credentials\.enc\.json\.corrupt-\d+$/);
+    expect(Number.isNaN(Date.parse(marker.detectedAt))).toBe(false);
+    // 原文件已改名备份、目录中存在备份文件
+    expect(fs.existsSync(path.join(dir, marker.backupFile))).toBe(true);
+    // 标记持久化：新实例（settings.json 已带标记）仍可见
+    const store2 = new SettingsStore(new NodeCryptoBackend(), dir);
+    expect(store2.get("security.credentialsCorrupt")).toBeDefined();
+  });
+
+  it("用户重新录入凭证后清除标记并触发变更事件（横幅热消失）", () => {
+    fs.writeFileSync(path.join(dir, "credentials.enc.json"), "{corrupted!!", "utf-8");
+    const store = new SettingsStore(new NodeCryptoBackend(), dir);
+    expect(store.get("security.credentialsCorrupt")).toBeDefined();
+    const events: Array<[string, unknown]> = [];
+    store.onChanged((key, value) => events.push([key, value]));
+    store.setCredential("openai/default", "openai", SECRET);
+    expect(store.get("security.credentialsCorrupt")).toBeUndefined();
+    expect(events).toContainEqual(["security.credentialsCorrupt", undefined]);
+    // 持久化清除：新实例不再看到标记
+    const store2 = new SettingsStore(new NodeCryptoBackend(), dir);
+    expect(store2.get("security.credentialsCorrupt")).toBeUndefined();
+  });
+
+  it("正常凭据文件不产生标记", () => {
+    const store = new SettingsStore(new NodeCryptoBackend(), dir);
+    store.setCredential("a", "p", SECRET);
+    const store2 = new SettingsStore(new NodeCryptoBackend(), dir);
+    expect(store2.get("security.credentialsCorrupt")).toBeUndefined();
+  });
+});

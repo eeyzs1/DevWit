@@ -137,6 +137,7 @@ export function localizeError(raw: string, opts?: LocalizeErrorOptions): string 
   const mcpServerSchema = /DW_MCP_SERVER_INVALID_SCHEMA:([^\n]*)/.exec(raw);
   if (mcpServerSchema !== null) return t("err.mcpServerSchema", { detail: (mcpServerSchema[1] ?? "").trim() });
   if (raw.includes("DW_SESSION_BUSY")) return t("chat.error.busy");
+  if (raw.includes("DW_BUDGET_EXCEEDED")) return t("err.budgetExceeded");
   if (raw.includes("DW_EXTERNAL_EDITOR_NOT_CONFIGURED")) return t("err.externalNotConfigured");
   if (raw.includes("DW_EXTERNAL_EDITOR_TEMPLATE_EMPTY")) return t("err.templateEmpty");
   if (raw.includes("DW_EXTERNAL_EDITOR_MISSING_FILE_PLACEHOLDER")) return t("err.missingFilePlaceholder");

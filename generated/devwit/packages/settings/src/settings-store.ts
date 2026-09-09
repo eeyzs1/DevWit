@@ -21,29 +21,42 @@ interface CredentialRecord {
 
 const SETTINGS_FILE = "settings.json";
 const CREDENTIALS_FILE = "credentials.enc.json";
+/** v0.7.2（凭证损坏可见化）：损坏事件标记键——设置页据此显示告警横幅。 */
+const CREDENTIALS_CORRUPT_KEY = "security.credentialsCorrupt";
 
-function readJsonObject(filePath: string): Record<string, unknown> {
+interface JsonObjectRead {
+  object: Record<string, unknown>;
+  /** 非 null = 文件损坏已备份为该文件名（凭据静默清空的可见化依据）。 */
+  corruptBackup: string | null;
+}
+
+function readJsonObjectEx(filePath: string): JsonObjectRead {
   let raw: string;
   try {
     raw = fs.readFileSync(filePath, "utf-8");
   } catch {
-    return {};
+    return { object: {}, corruptBackup: null };
   }
   try {
     const parsed: unknown = JSON.parse(raw);
     if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>;
+      return { object: parsed as Record<string, unknown>, corruptBackup: null };
     }
-    return {};
+    return { object: {}, corruptBackup: null };
   } catch {
-    // 损坏文件备份后按空处理，避免启动崩溃
+    // 损坏文件备份后按空处理，避免启动崩溃；备份名向上报告（可见化，不再静默）
+    const backup = `${path.basename(filePath)}.corrupt-${Date.now()}`;
     try {
-      fs.renameSync(filePath, `${filePath}.corrupt-${Date.now()}`);
+      fs.renameSync(filePath, path.join(path.dirname(filePath), backup));
     } catch {
-      // 备份失败忽略
+      // 备份失败忽略（标记仍写入，用户可从原文件名排查）
     }
-    return {};
+    return { object: {}, corruptBackup: backup };
   }
+}
+
+function readJsonObject(filePath: string): Record<string, unknown> {
+  return readJsonObjectEx(filePath).object;
 }
 
 function writeJsonAtomic(filePath: string, value: unknown): void {
@@ -66,7 +79,17 @@ export class SettingsStore implements CredentialResolver {
     this.settingsPath = path.join(storageDir, SETTINGS_FILE);
     this.credentialsPath = path.join(storageDir, CREDENTIALS_FILE);
     this.settings = readJsonObject(this.settingsPath);
-    this.credentials = readJsonObject(this.credentialsPath) as unknown as Record<string, CredentialRecord>;
+    const credentialsRead = readJsonObjectEx(this.credentialsPath);
+    this.credentials = credentialsRead.object as unknown as Record<string, CredentialRecord>;
+    // v0.7.2 可见化：凭据文件损坏（已被备份为 .corrupt-*）不再静默清空——
+    // 持久化事件标记，设置页显示告警；用户重新录入任一凭证（setCredential）后清除
+    if (credentialsRead.corruptBackup !== null) {
+      this.settings[CREDENTIALS_CORRUPT_KEY] = {
+        backupFile: credentialsRead.corruptBackup,
+        detectedAt: new Date().toISOString(),
+      };
+      writeJsonAtomic(this.settingsPath, this.settings);
+    }
   }
 
   /** 加密后端名（node-crypto / electron-safeStorage），用于诊断展示。 */
@@ -101,7 +124,15 @@ export class SettingsStore implements CredentialResolver {
   reload(): void {
     const prevSettings = this.settings;
     this.settings = readJsonObject(this.settingsPath);
-    this.credentials = readJsonObject(this.credentialsPath) as unknown as Record<string, CredentialRecord>;
+    const credentialsRead = readJsonObjectEx(this.credentialsPath);
+    this.credentials = credentialsRead.object as unknown as Record<string, CredentialRecord>;
+    if (credentialsRead.corruptBackup !== null) {
+      this.settings[CREDENTIALS_CORRUPT_KEY] = {
+        backupFile: credentialsRead.corruptBackup,
+        detectedAt: new Date().toISOString(),
+      };
+      writeJsonAtomic(this.settingsPath, this.settings);
+    }
     const keys = new Set([...Object.keys(prevSettings), ...Object.keys(this.settings)]);
     for (const key of keys) {
       const prev = prevSettings[key];
@@ -126,6 +157,12 @@ export class SettingsStore implements CredentialResolver {
       updatedAt: now
     };
     writeJsonAtomic(this.credentialsPath, this.credentials);
+    // 用户重新录入凭证 = 损坏事件已处置：清除告警标记（若存在）
+    if (CREDENTIALS_CORRUPT_KEY in this.settings) {
+      delete this.settings[CREDENTIALS_CORRUPT_KEY];
+      writeJsonAtomic(this.settingsPath, this.settings);
+      this.emitChange(CREDENTIALS_CORRUPT_KEY, undefined);
+    }
   }
 
   /** 解密读取凭证明文；ref 不存在抛 CredentialNotFoundError。 */

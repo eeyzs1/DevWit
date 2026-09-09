@@ -324,6 +324,8 @@ const zhCN = {
 
   // ---- 设置 · 模型 ----
   "provider.title": "模型设置（Anthropic / OpenAI 兼容）",
+  "provider.corruptWarning":
+    "凭据文件曾损坏，全部 API Key 可能已丢失（已备份为 {backup}）。请重新录入各模型的 API Key；重新保存任一凭证后本提示消失。",
   "provider.type": "类型",
   "provider.label": "显示名",
   "provider.baseUrl": "Base URL",
@@ -565,6 +567,7 @@ const zhCN = {
   "chat.decision.deny": "拒绝",
   "chat.error": "错误：{text}",
   "chat.error.busy": "会话进行中：请先等待完成或取消",
+  "err.budgetExceeded": "成本预算已超限（已开启超限熔断）：新请求被拒绝。可在设置 → 通用 → 成本预算中调高阈值、清零用量或关闭熔断。",
   "chat.empty.title": "主 Agent 会这样工作",
   "chat.empty.lines": [
     "1. 规划：理解你的意图后拆解为可执行步骤",
@@ -651,6 +654,8 @@ const zhCN = {
   "settings.usage.budget.threshold": "周期阈值",
   "settings.usage.budget.thresholdTitle": "周期成本阈值（与单价表同一货币单位）",
   "settings.usage.budget.period": "统计周期",
+  "settings.usage.budget.enforce": "超限熔断：拒绝新请求",
+  "settings.usage.budget.enforceTitle": "开启后成本超过阈值时拒绝发起新请求（已有告警不受影响）；缺省关闭仅告警",
   "settings.usage.budget.period.day": "今日",
   "settings.usage.budget.period.week": "近 7 天",
   "settings.usage.budget.period.month": "近 30 天",
@@ -1008,6 +1013,8 @@ const enUS: Messages = {
   "update.error": "Update check failed, please retry later ({code})",
 
   "provider.title": "Providers (Anthropic / OpenAI-compatible)",
+  "provider.corruptWarning":
+    "The credentials file was corrupted and all API keys may be lost (backed up as {backup}). Please re-enter each provider's API key; this notice clears once you save any credential again.",
   "provider.type": "Type",
   "provider.label": "Label",
   "provider.baseUrl": "Base URL",
@@ -1242,6 +1249,7 @@ const enUS: Messages = {
   "chat.decision.deny": "deny",
   "chat.error": "Error: {text}",
   "chat.error.busy": "Session in progress: wait for completion or cancel first",
+  "err.budgetExceeded": "Cost budget exceeded (enforce is on): new requests are refused. Raise the threshold, clear usage, or turn off enforcement in Settings → General → Cost budget.",
   "chat.empty.title": "How the main Agent works",
   "chat.empty.lines": [
     "1. Plan: understands your intent and breaks it into executable steps",
@@ -1327,6 +1335,8 @@ const enUS: Messages = {
   "settings.usage.budget.threshold": "Period threshold",
   "settings.usage.budget.thresholdTitle": "Period cost threshold (same currency unit as the pricing table)",
   "settings.usage.budget.period": "Period",
+  "settings.usage.budget.enforce": "Enforce: refuse new requests",
+  "settings.usage.budget.enforceTitle": "When on, new requests are refused once cost exceeds the threshold (alerts are unaffected); off by default (alert only)",
   "settings.usage.budget.period.day": "Today",
   "settings.usage.budget.period.week": "Last 7 days",
   "settings.usage.budget.period.month": "Last 30 days",

@@ -166,3 +166,41 @@ describe("AiRuntime 成本预算自动告警（D1）", () => {
     expect(alerts[0]!.current).toBeCloseTo(0.3, 6);
   });
 });
+
+describe("AiRuntime 成本预算可选熔断（v0.7.3 enforce）", () => {
+  it("enforce=true 且超限 → 新 run 被拒绝（DW_BUDGET_EXCEEDED），不产生任何 LLM 调用", async () => {
+    const provider = new ScriptedProvider([meteredRun()]);
+    const { runtime, settings } = makeRuntime(provider);
+    await settings.set("usage.pricing", PRICING);
+    // 先制造超限：阈值 0.1，一次 run 成本 0.15
+    await settings.set("usage.budget", { enabled: true, threshold: 0.1, period: "total" });
+    await runOnce(runtime, "s-1");
+    expect(provider.calls).toHaveLength(1);
+    // 开启熔断 → 第二次 run 直接拒绝
+    await settings.set("usage.budget", { enabled: true, threshold: 0.1, period: "total", enforce: true });
+    await expect(runOnce(runtime, "s-2")).rejects.toThrow(/DW_BUDGET_EXCEEDED:0\.1;total/);
+    expect(provider.calls).toHaveLength(1); // 未发生新的 LLM 请求
+  });
+
+  it("enforce 缺省（仅告警）→ 超限后 run 照常执行（保守默认：不悄悄打断工作流）", async () => {
+    const provider = new ScriptedProvider([meteredRun(), meteredRun()]);
+    const { runtime, settings } = makeRuntime(provider);
+    await settings.set("usage.pricing", PRICING);
+    await settings.set("usage.budget", { enabled: true, threshold: 0.1, period: "total" });
+    await runOnce(runtime, "s-1"); // 0.15 超限（告警一次）
+    await runOnce(runtime, "s-2"); // 仍超限但无 enforce → 正常执行
+    expect(provider.calls).toHaveLength(2);
+  });
+
+  it("enforce=true 但未超限 → run 正常；脏 enforce 值按缺省处理（不熔断）", async () => {
+    const provider = new ScriptedProvider([meteredRun(), meteredRun()]);
+    const { runtime, settings } = makeRuntime(provider);
+    await settings.set("usage.pricing", PRICING);
+    await settings.set("usage.budget", { enabled: true, threshold: 5.0, period: "total", enforce: true });
+    await runOnce(runtime, "s-1"); // 0.15 < 5.0 → 正常
+    expect(provider.calls).toHaveLength(1);
+    await settings.set("usage.budget", { enabled: true, threshold: 5.0, period: "total", enforce: "yes" });
+    await runOnce(runtime, "s-2"); // enforce 非 boolean → 缺省不熔断
+    expect(provider.calls).toHaveLength(2);
+  });
+});

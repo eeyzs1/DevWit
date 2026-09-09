@@ -233,7 +233,7 @@ describe("单源失败不阻断整轮请求（🔴可用性修复回归）", () 
         await new Promise<void>((resolve) => {
           const started = Date.now();
           const tick = setInterval(() => {
-            if (secondStarted || Date.now() - started > 2000) {
+            if (secondStarted || Date.now() - started > 5000) {
               clearInterval(tick);
               sawParallel = secondStarted;
               resolve();

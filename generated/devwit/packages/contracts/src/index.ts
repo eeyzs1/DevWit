@@ -551,6 +551,11 @@ export interface UsageBudgetConfig {
   enabled: boolean;
   threshold: number;
   period: "day" | "week" | "month" | "total";
+  /**
+   * v0.7.3（可选熔断）：true = 超限时拒绝发起新的 agent run（DW_BUDGET_EXCEEDED）；
+   * 缺省 false = 仅告警不拦截（保守默认——不因预算配置悄悄打断用户工作流）。
+   */
+  enforce?: boolean;
 }
 
 /** 导出格式（usage:export IPC 参数）。 */
