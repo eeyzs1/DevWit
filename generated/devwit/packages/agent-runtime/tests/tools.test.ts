@@ -264,6 +264,32 @@ describe("grep / find / ls", () => {
     expect(none.output).toMatch(/无匹配/);
   });
 
+  it("v0.7.5 隔离端口：注入 matchRegexLines 时正则执行走端口（逐行命中生效）", async () => {
+    const env = makeEnv(FILES);
+    const calls: Array<{ source: string; flags: string; lineCount: number }> = [];
+    env.matchRegexLines = async (lines, source, flags) => {
+      calls.push({ source, flags, lineCount: lines.length });
+      // 与进程内语义一致的真实匹配（走同一 RegExp）
+      const regex = new RegExp(source, flags);
+      return lines.map((line) => regex.test(line));
+    };
+    const result = await executeTool({ id: "t", name: "grep", args: { pattern: "alpha" } }, env, ctx);
+    expect(result.ok).toBe(true);
+    expect(result.output).toContain("src/a.ts:1: const alpha = 1;");
+    expect(result.output).toContain("src/b.md:1: alpha in markdown");
+    // 端口被真实调用（src/a.ts 2 行 + src/b.md 1 行 + README 1 行 = 至少一次调用）
+    expect(calls.length).toBeGreaterThanOrEqual(1);
+    expect(calls[0]).toMatchObject({ source: "alpha", flags: "" });
+  });
+
+  it("v0.7.5 隔离端口中止（null）：grep 返回工具失败而非挂死", async () => {
+    const env = makeEnv(FILES);
+    env.matchRegexLines = async () => null; // 超时/崩溃语义
+    const result = await executeTool({ id: "t", name: "grep", args: { pattern: "alpha" } }, env, ctx);
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/正则匹配超时/);
+  });
+
   it("find 按通配符匹配文件名，目录带 / 后缀", async () => {
     const env = makeEnv({ "src/a.ts": "1", "src/b.tsx": "2", "docs/c.md": "3" });
     const ts = await executeTool({ id: "t", name: "find", args: { pattern: "*.ts" } }, env, ctx);

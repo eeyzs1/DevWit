@@ -1104,13 +1104,15 @@ export class EditorView {
     const desc = offsets.map((offset, index) => ({ offset, index })).sort((a, b) => b.offset - a.offset);
     const newOffsets: number[] = new Array<number>(offsets.length);
     // 事务：多光标一次删词 = 一条 undo
+    // v0.7.5 性能：getText 提升到循环外——backward 词扫描只读光标左侧文本，
+    // 而降序应用下更高位光标的编辑不影响更低处内容（快照等价，O(文档) 而非 O(文档×光标)）
+    const fullText = this.doc.getText();
     this.doc.transact(() => {
       for (const { offset, index } of desc) {
         if (offset === 0) {
           newOffsets[index] = 0;
           continue;
         }
-        const fullText = this.doc.getText();
         const end = offset;
         let start = offset;
         // 跳过前导空白
@@ -1159,6 +1161,8 @@ export class EditorView {
           newOffsets[index] = offset;
           continue;
         }
+        // 注：forward 词扫描可能越过更高位光标已删除的区域——必须逐光标读最新
+        // 文本（与 deleteWordBackward 的快照提升不同，此处不可提升出循环）
         const fullText = this.doc.getText();
         const start = offset;
         let end = offset;

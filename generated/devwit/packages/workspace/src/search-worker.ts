@@ -1,5 +1,5 @@
 /**
- * 工作区搜索 worker 入口（v0.7.4：主进程 ReDoS 修复）。
+ * 工作区搜索 worker 入口（v0.7.4：主进程 ReDoS 修复；v0.7.5 增加 match-lines）。
  *
  * 搜索在 Electron 主进程执行，灾难性回溯正则可无限期挂死主进程（全部 IPC/
  * UI 事件停摆）。本 worker 把执行隔离到独立线程：超时由包装侧 terminate 兜底，
@@ -7,15 +7,37 @@
  *
  * 打包：本文件由根 build:searchworker 独立 bundle 为
  * apps/desktop/dist/main/search-worker.mjs（node ESM worker）。
- * 协议：{ id, root, options } → { id, ok: true, results } | { id, ok: false, error }
+ * 协议（请求 → 响应，按 id 关联）：
+ * - { id, root, options }                       → 搜索（v0.7.4，缺省 op）
+ *   → { id, ok: true, results } | { id, ok: false, error }
+ * - { id, op: "match-lines", lines, source, flags }（v0.7.5：agent grep 逐行匹配）
+ *   → { id, ok: true, matched: boolean[] } | { id, ok: false, error }
  */
 import { parentPort } from "node:worker_threads";
 import { searchInWorkspace, type SearchOptions } from "./search.js";
 
 const port = parentPort;
 if (port !== null) {
-  port.on("message", (message: { id: number; root: string; options: SearchOptions }) => {
-    void searchInWorkspace(message.root, message.options)
+  port.on("message", (message: {
+    id: number;
+    op?: "match-lines";
+    root?: string;
+    options?: SearchOptions;
+    lines?: string[];
+    source?: string;
+    flags?: string;
+  }) => {
+    if (message.op === "match-lines") {
+      try {
+        const regex = new RegExp(message.source ?? "", message.flags ?? "");
+        const matched = (message.lines ?? []).map((line) => regex.test(line));
+        port.postMessage({ id: message.id, ok: true, matched });
+      } catch (error) {
+        port.postMessage({ id: message.id, ok: false, error: error instanceof Error ? error.message : String(error) });
+      }
+      return;
+    }
+    void searchInWorkspace(message.root ?? "", message.options ?? { query: "", isRegex: false, caseSensitive: false, wholeWord: false })
       .then((results) => {
         port.postMessage({ id: message.id, ok: true, results });
       })

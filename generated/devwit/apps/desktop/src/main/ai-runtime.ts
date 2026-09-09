@@ -10,7 +10,7 @@
  * - 会话中切模型：AgentRunInput.providerId 覆盖模式绑定（AC5）。
  */
 import { promises as fs } from "node:fs";
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import type {
@@ -97,6 +97,9 @@ interface SessionState {
 /** 内存会话表上限：超过按插入序淘汰最旧非运行中会话（轨迹在盘，可恢复）。 */
 const MAX_IN_MEMORY_SESSIONS = 32;
 
+/** 轨迹摘要缓存上限（防长期运行膨胀；超限整体清空重建，量级足够覆盖日常会话数）。 */
+const TRACE_SUMMARY_CACHE_LIMIT = 500;
+
 export interface AiRuntimeDeps {
   settings: SettingsStore;
   workspace: WorkspaceService;
@@ -156,6 +159,8 @@ export class AiRuntime {
   private lastBudgetAlertExceeded = false;
   /** 对话会话元数据（AC37）：改名/删除标记 overlay。 */
   private readonly sessionMeta: SessionMetaStore;
+  /** v0.7.5：轨迹文件摘要缓存（mtime 失效；会话列表高频刷新只重读变更文件）。 */
+  private readonly traceSummaryCache = new Map<string, { mtimeMs: number; summary: TraceSessionInfo | null }>();
   /**
    * B-WU4/B-WU6 接线（Fusion v3）：
    * - promptSections：会话引擎共享的系统提示段注册表——run 前按模式清空重装
@@ -846,8 +851,33 @@ export class AiRuntime {
     return out;
   }
 
-  /** 单个轨迹文件的摘要：行计数 + 选择性行解析（见 listTraceSessions 注释）。 */
+  /**
+   * 单个轨迹文件的摘要：行计数 + 选择性地行解析（见 listTraceSessions 注释）。
+   * v0.7.5：mtime 缓存——未变更的文件直接复用上次摘要（会话列表高频刷新时
+   * 只重读有追加的文件；缓存条目随文件删除自然失联，超过上限整体清空防膨胀）。
+   */
   private summarizeTraceFile(file: string): TraceSessionInfo | null {
+    let mtimeMs: number;
+    try {
+      mtimeMs = statSync(file).mtimeMs;
+    } catch {
+      this.traceSummaryCache.delete(file);
+      return null;
+    }
+    const cached = this.traceSummaryCache.get(file);
+    if (cached !== undefined && cached.mtimeMs === mtimeMs) {
+      return cached.summary;
+    }
+    const summary = this.computeTraceSummary(file);
+    if (this.traceSummaryCache.size > TRACE_SUMMARY_CACHE_LIMIT) {
+      this.traceSummaryCache.clear();
+    }
+    this.traceSummaryCache.set(file, { mtimeMs, summary });
+    return summary;
+  }
+
+  /** 实际读取并计算摘要（缓存未命中路径）。 */
+  private computeTraceSummary(file: string): TraceSessionInfo | null {
     let raw: string;
     try {
       raw = readFileSync(file, "utf-8");

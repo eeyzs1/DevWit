@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, dialog, ipcMain, safeStorage } from "electron";
 import { SettingsStore } from "@devwit/settings";
+import { createNodeEnvironment } from "@devwit/agent-runtime";
 import { TerminalService } from "@devwit/terminal";
 import { buildFileTree, WorkspaceService } from "@devwit/workspace";
 import { AiRuntime } from "./ai-runtime.js";
@@ -15,6 +16,7 @@ import { DebugMainService } from "./debug-service.js";
 import { registerIpcHandlers } from "./ipc.js";
 import { GitMainService } from "./git-service.js";
 import { LspService } from "./lsp-service.js";
+import { RegexMatchService } from "./regex-matcher.js";
 import { SafeStorageBackend } from "./safe-storage-backend.js";
 import { TelemetryService } from "./telemetry.js";
 import { UpdateService } from "./updater.js";
@@ -29,6 +31,8 @@ let aiRuntime: AiRuntime | null = null;
 let telemetry: TelemetryService | null = null;
 let lspService: LspService | null = null;
 let debugService: DebugMainService | null = null;
+/** v0.7.5：grep 正则匹配 worker 服务（whenReady 内创建，will-quit 回收）。 */
+let regexMatcher: RegexMatchService | null = null;
 
 function createWindow(): void {
   // E2E 无窗化钩子：DEVWIT_E2E_OFFSCREEN=1 时把窗口移到屏幕外——保持 shown 状态
@@ -125,10 +129,19 @@ app.whenReady().then(() => {
   const updater = new UpdateService({ send, isPackaged: app.isPackaged, ...(fakeUpdate !== undefined ? { fakeSequence: fakeUpdate } : {}) });
 
   // AI 子系统（WU008-WU012 接线）：manifest 落盘 userData/manifests（AC2 审计产物）
+  // v0.7.5：grep 正则匹配经 worker 线程隔离（ReDoS 硬超时），env 注入端口
+  const matcher = new RegexMatchService();
+  regexMatcher = matcher;
+  const toolEnv = {
+    ...createNodeEnvironment(),
+    matchRegexLines: (lines: readonly string[], source: string, flags: string) =>
+      matcher.match(lines, source, flags),
+  };
   const ai = new AiRuntime({
     settings,
     workspace,
     send,
+    env: toolEnv,
     manifestsDir: path.join(app.getPath("userData"), "manifests"),
   });
   aiRuntime = ai;
@@ -235,4 +248,6 @@ app.on("will-quit", () => {
   if (debugService !== null) void debugService.shutdown();
   // AC39：退出前尽力 flush 残余遥测缓冲（不阻塞退出）
   telemetry?.stop();
+  // v0.7.5：回收正则匹配 worker（空闲回收之外的双保险）
+  regexMatcher?.dispose();
 });

@@ -337,6 +337,35 @@ describe("AiRuntime 会话轨迹扫描（迭代 27 / AC36）", () => {
     expect(runtime.listTraceSessions()).toEqual([]); // 文件无有效事件 → 跳过
   });
 
+  it("v0.7.5 摘要缓存：未变更文件复用同一摘要引用；文件追加后失效重算", async () => {
+    const provider = new ScriptedProvider([textThenDone("第一答"), textThenDone("第二答")]);
+    const { runtime } = makeRuntime(provider);
+    await runtime.run({
+      sessionId: "s-cache",
+      userText: "缓存测试",
+      modeId: "chat",
+      providerId: "p-test",
+      workspaceRoot: tmpRoot,
+    });
+    const first = runtime.listTraceSessions();
+    expect(first).toHaveLength(1);
+    // 未变更：缓存命中——返回同一对象引用（未重新读盘计算）
+    const second = runtime.listTraceSessions();
+    expect(second[0]).toBe(first[0]);
+    // 追加一轮（mtime 变化）：缓存失效，摘要重算（eventCount 增长）
+    await new Promise((resolve) => setTimeout(resolve, 10)); // 保证 mtime 变化可观测
+    await runtime.run({
+      sessionId: "s-cache",
+      userText: "第二轮",
+      modeId: "chat",
+      providerId: "p-test",
+      workspaceRoot: tmpRoot,
+    });
+    const third = runtime.listTraceSessions();
+    expect(third[0]).not.toBe(first[0]); // 新对象（重算）
+    expect(third[0]!.eventCount).toBe(first[0]!.eventCount + 4);
+  });
+
   it("v0.7.2 内存会话表上限：超过 32 个会话按插入序淘汰最旧空闲会话，轨迹从磁盘恢复", async () => {
     const scripts = Array.from({ length: 34 }, () => textThenDone("答"));
     const provider = new ScriptedProvider(scripts);

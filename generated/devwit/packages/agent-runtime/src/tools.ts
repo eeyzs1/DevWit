@@ -34,6 +34,13 @@ export interface ToolEnvironment {
    * 杜绝 LLM 可控字符串经 shell 元字符（; | & 等）注入命令（注入回归：见 tools.test.ts）。
    */
   execFile(file: string, args: readonly string[], options: ExecOptions): Promise<ExecResult>;
+  /**
+   * 正则批量匹配端口（v0.7.5：grep 的 ReDoS 隔离）：对一批行执行 regex.test，
+   * 返回逐行命中。缺省（未注入）= 进程内同步匹配（测试替身环境）；
+   * apps 层注入 worker 线程实现——灾难性回溯被硬超时终止，不再挂死主进程。
+   * 返回 null = 执行被中止（超时/worker 崩溃），调用方按工具失败处理。
+   */
+  matchRegexLines?(lines: readonly string[], source: string, flags: string): Promise<boolean[] | null>;
 }
 
 export interface ToolContext {
@@ -275,9 +282,21 @@ const grepHandler: ToolHandler = async (args, env, ctx) => {
       continue; // 二进制或不可读文件跳过
     }
     const lines = content.split("\n");
-    for (let i = 0; i < lines.length; i += 1) {
-      const line = lines[i];
-      if (line === undefined || !regex.test(line)) continue;
+    // v0.7.5 ReDoS 隔离：注入了 matchRegexLines（worker 线程）时正则执行
+    // 在 worker 中进行（硬超时兜底）；缺省回退进程内同步匹配（测试替身）
+    let hitLines: boolean[];
+    if (env.matchRegexLines !== undefined) {
+      const matched = await env.matchRegexLines(lines, pattern, caseSensitive ? "" : "i");
+      if (matched === null) {
+        return fail("正则匹配超时（已中止）——模式可能过于复杂，请简化");
+      }
+      hitLines = matched;
+    } else {
+      hitLines = lines.map((line) => line !== undefined && regex.test(line));
+    }
+    for (let i = 0; i < hitLines.length; i += 1) {
+      if (!hitLines[i]) continue;
+      const line = lines[i] ?? "";
       if (matches.length < MAX_GREP_MATCHES) {
         matches.push(`${displayPath(ctx.workspaceRoot, entry.path)}:${i + 1}: ${line}`);
       } else {
