@@ -1,0 +1,60 @@
+name: Nightly E2E Full
+
+# 全量 E2E 夜跑（v0.7.11：根治测试腐烂——verify-i11/i5 曾静默失效数月，
+# 掩护了一个真实产品缺陷「编排子 Agent 丢失角色提示」直到手动扫尾才发现）。
+# 主 CI 每次推送只跑 smoke；此工作流每晚把全部 verify-iN 套件跑一遍，
+# 任何一套失败次日即知，配合 run-all.mjs 的逐套汇总与失败末尾输出定位。
+
+on:
+  schedule:
+    - cron: "0 18 * * *" # UTC 18:00（北京 02:00，避开工作时段）
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-full:
+    name: Full E2E battery (all verify-iN)
+    runs-on: windows-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: generated/devwit
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: generated/devwit/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore Electron binary
+        shell: pwsh
+        run: |
+          $ver = (Get-Content node_modules/electron/package.json -Raw | ConvertFrom-Json).version
+          $zip = "$env:TEMP\electron-v$ver-win32-x64.zip"
+          curl.exe -sSL -o $zip "https://github.com/electron/electron/releases/download/v$ver/electron-v$ver-win32-x64.zip"
+          if ($LASTEXITCODE -ne 0) { Write-Error "electron zip 下载失败"; exit 1 }
+          Expand-Archive $zip -DestinationPath node_modules/electron/dist -Force
+          [System.IO.File]::WriteAllText("$PWD\node_modules\electron\path.txt", "electron.exe")
+          if (!(Test-Path node_modules/electron/dist/electron.exe)) { Write-Error "electron.exe 仍缺失"; exit 1 }
+          Write-Host "electron $ver 二进制就绪"
+
+      - name: Build
+        run: npm run build
+
+      - name: Run full E2E battery
+        run: npm run test:e2e-all
+
+      - name: Upload evidence (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-e2e-evidence
+          path: generated/devwit/evidence/
+          retention-days: 14

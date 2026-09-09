@@ -1,7 +1,7 @@
 {
   "steps": [
-    "本地 Streamable HTTP MCP 服务器就绪 http://127.0.0.1:60528/mcp",
-    "本地 SSE 端点就绪 http://127.0.0.1:60529",
+    "本地 Streamable HTTP MCP 服务器就绪 http://127.0.0.1:59869/mcp",
+    "本地 SSE 端点就绪 http://127.0.0.1:59870",
     "应用启动（默认中文）",
     "打开文件夹 → 文件树渲染",
     "UI 表单新增 http 服务器（http 传输 + URL）",

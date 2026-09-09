@@ -1,8 +1,8 @@
 [
   {
     "seq": 1,
-    "timestamp": "2026-09-09T16:33:16.744Z",
-    "sessionId": "task-session-1788971596742-1",
+    "timestamp": "2026-09-09T16:52:32.657Z",
+    "sessionId": "task-session-1788972752654-1",
     "type": "route",
     "summary": "route: local → p-local (score 0/30)",
     "detail": {
@@ -15,8 +15,8 @@
   },
   {
     "seq": 1,
-    "timestamp": "2026-09-09T16:33:17.222Z",
-    "sessionId": "task-session-1788971597221-2",
+    "timestamp": "2026-09-09T16:52:33.111Z",
+    "sessionId": "task-session-1788972753109-2",
     "type": "route",
     "summary": "route: complex → p-cloud (score 30/30)",
     "detail": {
@@ -32,8 +32,8 @@
   },
   {
     "seq": 1,
-    "timestamp": "2026-09-09T16:33:17.606Z",
-    "sessionId": "task-session-1788971597605-3",
+    "timestamp": "2026-09-09T16:52:33.503Z",
+    "sessionId": "task-session-1788972753502-3",
     "type": "route",
     "summary": "route: disabled → p-cloud (score 0/30)",
     "detail": {
@@ -46,8 +46,8 @@
   },
   {
     "seq": 1,
-    "timestamp": "2026-09-09T16:33:17.814Z",
-    "sessionId": "session-1788971596326",
+    "timestamp": "2026-09-09T16:52:33.817Z",
+    "sessionId": "session-1788972752256",
     "type": "route",
     "summary": "route: manual → p-cloud (score 0/30)",
     "detail": {

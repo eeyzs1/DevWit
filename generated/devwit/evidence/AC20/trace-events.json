@@ -1,8 +1,8 @@
 [
   {
     "seq": 1,
-    "timestamp": "2026-09-09T16:33:10.265Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.182Z",
+    "sessionId": "session-1788972729987",
     "type": "route",
     "summary": "route: manual → i11-local (score 40/30)",
     "detail": {
@@ -17,8 +17,8 @@
   },
   {
     "seq": 2,
-    "timestamp": "2026-09-09T16:33:10.266Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.183Z",
+    "sessionId": "session-1788972729987",
     "type": "user_message",
     "summary": "并行写入两个标记文件 alpha 和 beta",
     "detail": {
@@ -27,8 +27,8 @@
   },
   {
     "seq": 3,
-    "timestamp": "2026-09-09T16:33:10.369Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.310Z",
+    "sessionId": "session-1788972729987",
     "type": "plan",
     "summary": "分解为 2 个子任务",
     "detail": {
@@ -48,8 +48,8 @@
   },
   {
     "seq": 4,
-    "timestamp": "2026-09-09T16:33:10.370Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.311Z",
+    "sessionId": "session-1788972729987",
     "type": "subagent_start",
     "summary": "[S1] 写入甲标记",
     "detail": {
@@ -59,8 +59,8 @@
   },
   {
     "seq": 5,
-    "timestamp": "2026-09-09T16:33:10.371Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.312Z",
+    "sessionId": "session-1788972729987",
     "type": "user_message",
     "summary": "[S1] 把标记文本 alpha-done 写入文件 alpha-i11.txt（覆盖式）",
     "detail": {
@@ -71,8 +71,8 @@
   },
   {
     "seq": 6,
-    "timestamp": "2026-09-09T16:33:10.377Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.318Z",
+    "sessionId": "session-1788972729987",
     "type": "subagent_start",
     "summary": "[S2] 写入乙标记",
     "detail": {
@@ -82,8 +82,8 @@
   },
   {
     "seq": 7,
-    "timestamp": "2026-09-09T16:33:10.377Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.318Z",
+    "sessionId": "session-1788972729987",
     "type": "user_message",
     "summary": "[S2] 把标记文本 beta-done 写入文件 beta-i11.txt（覆盖式）",
     "detail": {
@@ -94,8 +94,8 @@
   },
   {
     "seq": 8,
-    "timestamp": "2026-09-09T16:33:10.685Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.647Z",
+    "sessionId": "session-1788972729987",
     "type": "assistant_message",
     "summary": "[S1] （发起 1 个工具调用）",
     "detail": {
@@ -116,8 +116,8 @@
   },
   {
     "seq": 9,
-    "timestamp": "2026-09-09T16:33:10.685Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.648Z",
+    "sessionId": "session-1788972729987",
     "type": "tool_call",
     "summary": "[S1] write({\"path\":\"alpha-i11.txt\",\"content\":\"alpha-done\\n\"})",
     "detail": {
@@ -132,12 +132,12 @@
   },
   {
     "seq": 10,
-    "timestamp": "2026-09-09T16:33:10.686Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.648Z",
+    "sessionId": "session-1788972729987",
     "type": "authorization_request",
     "summary": "[S1] write: 写入文件: alpha-i11.txt",
     "detail": {
-      "requestId": "auth-d5174e16-5599-4d77-a8b1-36a5fc606453",
+      "requestId": "auth-0c20d16c-120e-4ece-b8c2-2a23966fce7e",
       "toolName": "write",
       "args": {
         "path": "alpha-i11.txt",
@@ -150,12 +150,12 @@
   },
   {
     "seq": 11,
-    "timestamp": "2026-09-09T16:33:10.910Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.830Z",
+    "sessionId": "session-1788972729987",
     "type": "authorization_decision",
     "summary": "[S1] write → allow_session",
     "detail": {
-      "requestId": "auth-d5174e16-5599-4d77-a8b1-36a5fc606453",
+      "requestId": "auth-0c20d16c-120e-4ece-b8c2-2a23966fce7e",
       "decision": "allow_session",
       "subagentId": "S1",
       "subagentTitle": "写入甲标记"
@@ -163,8 +163,8 @@
   },
   {
     "seq": 12,
-    "timestamp": "2026-09-09T16:33:10.912Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.834Z",
+    "sessionId": "session-1788972729987",
     "type": "tool_result",
     "summary": "[S1] write 成功",
     "detail": {
@@ -178,8 +178,8 @@
   },
   {
     "seq": 13,
-    "timestamp": "2026-09-09T16:33:10.913Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.835Z",
+    "sessionId": "session-1788972729987",
     "type": "diagnostics",
     "summary": "[S1] 诊断：无问题",
     "detail": {
@@ -192,8 +192,8 @@
   },
   {
     "seq": 14,
-    "timestamp": "2026-09-09T16:33:11.055Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.975Z",
+    "sessionId": "session-1788972729987",
     "type": "assistant_message",
     "summary": "[S1] 子任务结论：标记已写入。",
     "detail": {
@@ -204,8 +204,8 @@
   },
   {
     "seq": 15,
-    "timestamp": "2026-09-09T16:33:11.055Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.976Z",
+    "sessionId": "session-1788972729987",
     "type": "usage",
     "summary": "[S1] usage: in 170 / out 30",
     "detail": {
@@ -219,8 +219,8 @@
   },
   {
     "seq": 16,
-    "timestamp": "2026-09-09T16:33:11.056Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.976Z",
+    "sessionId": "session-1788972729987",
     "type": "subagent_done",
     "summary": "[S1] 写入甲标记 → completed",
     "detail": {
@@ -233,8 +233,8 @@
   },
   {
     "seq": 17,
-    "timestamp": "2026-09-09T16:33:11.056Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.977Z",
+    "sessionId": "session-1788972729987",
     "type": "assistant_message",
     "summary": "[S2] （发起 1 个工具调用）",
     "detail": {
@@ -255,8 +255,8 @@
   },
   {
     "seq": 18,
-    "timestamp": "2026-09-09T16:33:11.057Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.977Z",
+    "sessionId": "session-1788972729987",
     "type": "tool_call",
     "summary": "[S2] write({\"path\":\"beta-i11.txt\",\"content\":\"beta-done\\n\"})",
     "detail": {
@@ -271,8 +271,8 @@
   },
   {
     "seq": 19,
-    "timestamp": "2026-09-09T16:33:11.059Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.979Z",
+    "sessionId": "session-1788972729987",
     "type": "tool_result",
     "summary": "[S2] write 成功",
     "detail": {
@@ -286,8 +286,8 @@
   },
   {
     "seq": 20,
-    "timestamp": "2026-09-09T16:33:11.060Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:10.979Z",
+    "sessionId": "session-1788972729987",
     "type": "diagnostics",
     "summary": "[S2] 诊断：无问题",
     "detail": {
@@ -300,8 +300,8 @@
   },
   {
     "seq": 21,
-    "timestamp": "2026-09-09T16:33:11.195Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:11.116Z",
+    "sessionId": "session-1788972729987",
     "type": "assistant_message",
     "summary": "[S2] 子任务结论：标记已写入。",
     "detail": {
@@ -312,8 +312,8 @@
   },
   {
     "seq": 22,
-    "timestamp": "2026-09-09T16:33:11.195Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:11.116Z",
+    "sessionId": "session-1788972729987",
     "type": "usage",
     "summary": "[S2] usage: in 170 / out 30",
     "detail": {
@@ -327,8 +327,8 @@
   },
   {
     "seq": 23,
-    "timestamp": "2026-09-09T16:33:11.195Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:11.116Z",
+    "sessionId": "session-1788972729987",
     "type": "subagent_done",
     "summary": "[S2] 写入乙标记 → completed",
     "detail": {
@@ -341,15 +341,15 @@
   },
   {
     "seq": 0,
-    "timestamp": "2026-09-09T16:33:11.198Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:11.118Z",
+    "sessionId": "session-1788972729987",
     "type": "assistant_delta",
     "summary": "综合结论：甲乙两个标记文件均已写入完成。"
   },
   {
     "seq": 24,
-    "timestamp": "2026-09-09T16:33:11.288Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:11.208Z",
+    "sessionId": "session-1788972729987",
     "type": "assistant_message",
     "summary": "综合结论：甲乙两个标记文件均已写入完成。",
     "detail": {
@@ -358,8 +358,8 @@
   },
   {
     "seq": 25,
-    "timestamp": "2026-09-09T16:33:11.289Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:11.209Z",
+    "sessionId": "session-1788972729987",
     "type": "usage",
     "summary": "usage: in 500 / out 100（含 Planner/子 Agent/综合）",
     "detail": {
@@ -371,8 +371,8 @@
   },
   {
     "seq": 26,
-    "timestamp": "2026-09-09T16:33:11.289Z",
-    "sessionId": "session-1788971590063",
+    "timestamp": "2026-09-09T16:52:11.209Z",
+    "sessionId": "session-1788972729987",
     "type": "done",
     "summary": "任务完成（2 个子任务）"
   }

@@ -27,6 +27,7 @@
     "dev": "npm run build && electron .",
     "test": "vitest run",
     "test:e2e": "node apps/desktop/tests/e2e/smoke.mjs",
+    "test:e2e-all": "node apps/desktop/tests/e2e/run-all.mjs",
     "test:e2e-cjk": "node apps/desktop/tests/e2e/verify-cjk.mjs",
     "test:e2e2": "node apps/desktop/tests/e2e/iteration2.mjs",
     "test:e2e4": "node apps/desktop/tests/e2e/verify-i4.mjs",

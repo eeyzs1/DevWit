@@ -16,6 +16,9 @@
   nth-5 变 blame，脚本静默失效）——修正为 nth-6
 
 ### Added
+- **E2E 全量夜跑 CI**（nightly-e2e.yml + run-all.mjs 跑批器）：全部
+  verify-iN 套件每晚回归，逐套汇总/单套超时看护/失败末尾输出定位——
+  根治「不在 CI 的测试静默腐烂」（本轮元教训的制度化）
 - winget 0.7.10 清单（SHA256 双源实证：GitHub API digest + 实际下载
   哈希一致）；verify-i11 失败时事件流/消息 DOM 诊断转储
 
