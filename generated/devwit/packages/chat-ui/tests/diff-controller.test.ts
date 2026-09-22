@@ -33,6 +33,42 @@ describe("computeDiff", () => {
   });
 });
 
+describe("v0.7.15 CRLF 修复（审查 C3）", () => {
+  it("CRLF 原文 × LF 提案：仅真实修改行成 hunk（不再整文件一个巨型 hunk）", () => {
+    const original = "one\r\ntwo\r\nthree";
+    const proposal = "one\nTWO\nthree";
+    const computation = computeDiff(original, proposal);
+    expect(computation.hunks).toHaveLength(1);
+    expect(computation.hunks[0]?.lines).toEqual([
+      { kind: "remove", text: "two" },
+      { kind: "add", text: "TWO" },
+    ]);
+    expect(computation.originalUsesCrlf).toBe(true);
+  });
+
+  it("CRLF 原文：接受后输出保持 CRLF（不产生 LF/CRLF 混排）", () => {
+    const original = "one\r\ntwo\r\nthree";
+    const proposal = "one\nTWO\nthree";
+    const controller = new DiffController(original, proposal);
+    controller.acceptAll();
+    expect(controller.result()).toBe("one\r\nTWO\r\nthree");
+  });
+
+  it("CRLF 原文：全拒绝输出与原文逐字节一致（行尾风格不被静默重写）", () => {
+    const original = "one\r\ntwo\r\nthree\r\n";
+    const proposal = "one\nTWO\nthree\n";
+    const controller = new DiffController(original, proposal);
+    controller.rejectAll();
+    expect(controller.result()).toBe(original);
+  });
+
+  it("LF 原文：输出维持 LF（不引入 CR）", () => {
+    const controller = new DiffController("a\nb\n", "a\nB\n");
+    controller.acceptAll();
+    expect(controller.result()).toBe("a\nB\n");
+  });
+});
+
 describe("DiffController 裁决合成", () => {
   const original = "one\ntwo\nthree\nfour\nfive\nsix\nseven\neight";
   const proposal = "one\nTWO\nthree\nfour\nfive\nsix\nSEVEN\neight";

@@ -6,7 +6,7 @@
  *   title（改名优先于首条用户消息预览）与 deleted（删除标记，列表过滤）；
  * - 文件损坏时按空表启动（元数据丢失最坏结果是改名失效，绝不阻断启动）。
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 export interface SessionMeta {
@@ -78,8 +78,13 @@ export class SessionMetaStore {
   }
 
   private writeAll(sessions: Record<string, SessionMeta>): void {
+    // v0.7.15 修复（审查 A8）：tmp+rename 原子写（与 settings-store 同口径）——
+    // 旧实现直接 writeFileSync 覆盖，崩溃/断电截断后 JSON.parse 失败按空表
+    // 启动，全部 deleted 标记丢失（若某次轨迹 rmSync 曾失败，已删会话复活）
     mkdirSync(path.dirname(this.file), { recursive: true });
     const payload: SessionMetaFile = { version: 1, sessions };
-    writeFileSync(this.file, `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
+    const tmp = `${this.file}.tmp-${process.pid}-${Date.now()}`;
+    writeFileSync(tmp, `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
+    renameSync(tmp, this.file);
   }
 }

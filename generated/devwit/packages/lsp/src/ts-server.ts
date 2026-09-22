@@ -276,6 +276,11 @@ export class TsLanguageServer {
       this.options.requestTimeoutMs ?? 30_000
     );
     client.onNotification = (method, params) => {
+      // v0.7.15 修复（审查 L15）：代际守卫——旧代服务器退出后 stdout 仍可能
+      // flush 迟到的 publishDiagnostics（data 事件可在 exit 之后到达），旧实现
+      // 会把旧代诊断写进新代 store（幻影诊断，新服务器不会纠正）。onExit 有
+      // 同款守卫（this.client === client），此处对齐。
+      if (this.client !== client) return;
       if (method === "textDocument/publishDiagnostics") {
         this.handleDiagnostics(params as LspPublishDiagnosticsParams);
       }

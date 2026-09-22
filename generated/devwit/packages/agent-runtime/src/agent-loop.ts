@@ -213,36 +213,54 @@ export class AgentLoop {
         return await this.finishRun({ finishReason: "max_iterations", finalText, iterations: iterations - 1, ...usagePart() });
       }
 
-      const build = await this.deps.engine.build({
-        modeId: this.deps.mode.id,
-        providerId: this.deps.provider.config.id,
-        model: this.deps.provider.config.model,
-        systemPrompt: this.deps.mode.systemPrompt,
-        // 内置工具（模式声明）+ 动态工具（MCP 等，按服务器当前状态热聚合）
-        tools: [...toolDefinitionsFor(this.deps.mode.tools), ...(this.deps.extraTools?.() ?? [])],
-        contextPolicy: {
-          ...this.deps.mode.contextPolicy,
-          conversation_history: true,
-          // AC28/AC38：本轮带 @附件/@符号 引用时强制打开 file_fragment 类型闸（显式引用；
-          // 用户全局逐项开关仍可压过——与 conversation_history 同层，保持 AC2 总闸语义）
-          ...((input.attachments !== undefined && input.attachments.length > 0) ||
-          (input.symbolRefs !== undefined && input.symbolRefs.length > 0)
-            ? { file_fragment: true }
-            : {}),
-        },
-        workspaceRoot: input.workspaceRoot,
-        ...(input.activeFile !== undefined ? { activeFile: input.activeFile } : {}),
-        ...(input.selection !== undefined ? { selection: input.selection } : {}),
-        ...(input.terminalTail !== undefined ? { terminalTail: input.terminalTail } : {}),
-        conversationHistory: transcript,
-        // AC19：用户意图原文作为 codebase_match 源的检索查询（恒定为本轮意图，
-        // 工具回填后的后续迭代仍按原始意图检索，保证注入代码块与任务相关）
-        query: input.userText,
-        // AC28：@文件引用（渲染端 chips 采集的工作区相对路径）→ attachment 源注入
-        ...(input.attachments !== undefined ? { attachments: input.attachments } : {}),
-        // AC38：@符号 引用（渲染端 chips 采集的符号 id）→ symbolRef 源解析注入
-        ...(input.symbolRefs !== undefined ? { symbolRefs: input.symbolRefs } : {}),
-      });
+      // v0.7.15 修复（审查 A6）：engine.build 失败（manifest 落盘 IO 错误等）旧
+      // 实现直接抛出——runResult 为 null，已流出的 usage 帧不落账本（与注释
+      // 「取消/出错路径同样记录已观测部分量」矛盾）。转 error 终态返回，
+      // 用量与错误轨迹一并保留。
+      let build;
+      try {
+        build = await this.deps.engine.build({
+          modeId: this.deps.mode.id,
+          providerId: this.deps.provider.config.id,
+          model: this.deps.provider.config.model,
+          systemPrompt: this.deps.mode.systemPrompt,
+          // 内置工具（模式声明）+ 动态工具（MCP 等，按服务器当前状态热聚合）
+          tools: [...toolDefinitionsFor(this.deps.mode.tools), ...(this.deps.extraTools?.() ?? [])],
+          contextPolicy: {
+            ...this.deps.mode.contextPolicy,
+            conversation_history: true,
+            // AC28/AC38：本轮带 @附件/@符号 引用时强制打开 file_fragment 类型闸（显式引用；
+            // 用户全局逐项开关仍可压过——与 conversation_history 同层，保持 AC2 总闸语义）
+            ...((input.attachments !== undefined && input.attachments.length > 0) ||
+            (input.symbolRefs !== undefined && input.symbolRefs.length > 0)
+              ? { file_fragment: true }
+              : {}),
+          },
+          workspaceRoot: input.workspaceRoot,
+          ...(input.activeFile !== undefined ? { activeFile: input.activeFile } : {}),
+          ...(input.selection !== undefined ? { selection: input.selection } : {}),
+          ...(input.terminalTail !== undefined ? { terminalTail: input.terminalTail } : {}),
+          conversationHistory: transcript,
+          // AC19：用户意图原文作为 codebase_match 源的检索查询（恒定为本轮意图，
+          // 工具回填后的后续迭代仍按原始意图检索，保证注入代码块与任务相关）
+          query: input.userText,
+          // AC28：@文件引用（渲染端 chips 采集的工作区相对路径）→ attachment 源注入
+          ...(input.attachments !== undefined ? { attachments: input.attachments } : {}),
+          // AC38：@符号 引用（渲染端 chips 采集的符号 id）→ symbolRef 源解析注入
+          ...(input.symbolRefs !== undefined ? { symbolRefs: input.symbolRefs } : {}),
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        recordUsage();
+        trace.record("error", `context build failed: ${message}`);
+        return await this.finishRun({
+          finishReason: "error",
+          finalText,
+          iterations,
+          errorMessage: `DW_CONTEXT_BUILD_FAILED:${message}`,
+          ...usagePart(),
+        });
+      }
 
       let assistantText = "";
       const toolCalls: ToolCall[] = [];
@@ -264,8 +282,11 @@ export class AgentLoop {
         if (decision !== undefined) {
           if (decision.kind === "reject") {
             const reason = decision.reason;
+            // v0.7.15 修复（审查 A5）：前几轮已观测的真实用量不随拒绝消失——
+            // 与取消/max_iterations/错误路径同口径 recordUsage + usagePart
+            recordUsage();
             trace.record("error", `pre-step 拒绝: ${reason}`);
-            return await this.finishRun({ finishReason: "error", finalText, iterations, errorMessage: reason });
+            return await this.finishRun({ finishReason: "error", finalText, iterations, errorMessage: reason, ...usagePart() });
           }
           if (decision.kind === "rewrite") {
             requestMessages = decision.messages;

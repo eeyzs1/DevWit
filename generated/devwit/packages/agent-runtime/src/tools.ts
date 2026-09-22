@@ -351,10 +351,12 @@ const lsHandler: ToolHandler = async (args, env, ctx) => {
  * 二者缺一都会把"免授权只读"变成免授权命令注入面。
  * 工作区非 git 仓库时返回明确错误（引导打开 git 仓库或先 git init）。
  */
-async function runGit(cwd: string, env: ToolEnvironment, args: string[]): Promise<ToolResult> {
+async function runGit(cwd: string, env: ToolEnvironment, args: string[], ctx?: ToolContext): Promise<ToolResult> {
   let result: ExecResult;
   try {
-    result = await env.execFile("git", args, { cwd });
+    // v0.7.15 修复（审查 A9）：透传取消信号——大仓库 git_log/diff 取消后
+    // 旧实现仍跑满默认超时（bash 路径已传，git_* 漏传）
+    result = await env.execFile("git", args, { cwd, ...(ctx?.signal ? { signal: ctx.signal } : {}) });
   } catch (error) {
     return fail(`git 执行失败: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -367,7 +369,7 @@ async function runGit(cwd: string, env: ToolEnvironment, args: string[]): Promis
 }
 
 const gitStatusHandler: ToolHandler = async (_args, env, ctx) =>
-  runGit(ctx.workspaceRoot, env, ["status", "--short"]);
+  runGit(ctx.workspaceRoot, env, ["status", "--short"], ctx);
 
 const gitDiffHandler: ToolHandler = async (args, env, ctx) => {
   const pathArg = optionalString(args, "path");
@@ -379,17 +381,17 @@ const gitDiffHandler: ToolHandler = async (args, env, ctx) => {
   if (safePath !== undefined) {
     gitArgs.push("--", safePath);
   }
-  return runGit(ctx.workspaceRoot, env, gitArgs);
+  return runGit(ctx.workspaceRoot, env, gitArgs, ctx);
 };
 
 const gitLogHandler: ToolHandler = async (args, env, ctx) => {
   const limit = optionalNumber(args, "limit") ?? 20;
   const safeLimit = Math.max(1, Math.min(100, Math.floor(limit)));
-  return runGit(ctx.workspaceRoot, env, ["log", `-${safeLimit}`, "--oneline", "--decorate"]);
+  return runGit(ctx.workspaceRoot, env, ["log", `-${safeLimit}`, "--oneline", "--decorate"], ctx);
 };
 
 const gitBranchHandler: ToolHandler = async (_args, env, ctx) =>
-  runGit(ctx.workspaceRoot, env, ["branch", "--list", "--sort=-committerdate"]);
+  runGit(ctx.workspaceRoot, env, ["branch", "--list", "--sort=-committerdate"], ctx);
 
 export const TOOL_HANDLERS: Readonly<Record<AgentToolName, ToolHandler>> = {
   read: readHandler,

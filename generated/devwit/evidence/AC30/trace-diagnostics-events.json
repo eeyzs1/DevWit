@@ -1,8 +1,8 @@
 [
   {
     "seq": 8,
-    "timestamp": "2026-09-22T06:10:42.773Z",
-    "sessionId": "task-session-1790057441830-1",
+    "timestamp": "2026-09-22T06:50:44.828Z",
+    "sessionId": "task-session-1790059843908-1",
     "type": "diagnostics",
     "summary": "诊断：1 个问题（src/broken.ts:1 起）",
     "detail": {
@@ -22,8 +22,8 @@
   },
   {
     "seq": 14,
-    "timestamp": "2026-09-22T06:10:43.732Z",
-    "sessionId": "task-session-1790057441830-1",
+    "timestamp": "2026-09-22T06:50:45.825Z",
+    "sessionId": "task-session-1790059843908-1",
     "type": "diagnostics",
     "summary": "诊断：无问题",
     "detail": {

@@ -105,7 +105,7 @@ describe("ModeStatsTracker.shouldRecommend（AC33 推荐门槛与比较）", () 
     expect(tracker.shouldRecommend("agent", "orphan")).toBe(true); // 当前无数据视为 0
   });
 
-  it("成功率持平也推荐（不差于当前即可）", () => {
+  it("成功率持平也推荐（不差于当前即可——AC33 原语义）", () => {
     const tracker = new ModeStatsTracker(
       makeStore([
         { modeId: "agent", runs: 3, successes: 3, lastRunAt: NOW.toISOString() },
@@ -113,5 +113,13 @@ describe("ModeStatsTracker.shouldRecommend（AC33 推荐门槛与比较）", () 
       ])
     );
     expect(tracker.shouldRecommend("agent", "chat")).toBe(true);
+  });
+
+  it("v0.7.15（审查 A12）：全失败候选（rate=0）不被推荐——即使当前无数据", () => {
+    const tracker = new ModeStatsTracker(
+      makeStore([{ modeId: "agent", runs: 5, successes: 0, lastRunAt: NOW.toISOString() }])
+    );
+    expect(tracker.shouldRecommend("agent", "orphan")).toBe(false); // 0>=0 退化被下限挡住
+    expect(tracker.shouldRecommend("agent", "chat")).toBe(false);
   });
 });

@@ -3,6 +3,67 @@
 所有显著变更记录于此。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本遵循 [语义化版本](https://semver.org/)。
 
+## [0.7.15] — 2026-10-02
+
+### Fixed
+- **三路对抗性审查修复第一批（18 项）**——agent 核心（ai-runtime +
+  agent-runtime）、chat-ui/context-engine、lsp/dap/workspace 三路审查共 40
+  项发现，本批修复高影响小改动 18 项，需设计项（并发编排/注册表隔离/
+  工具归属配对等）留下批：
+
+**功能全灭/数据损坏级**
+- **上下文面板「刷新/导出」按钮从未显示**（C1）：applyLocale 对 header 赋
+  textContent 会删除全部子节点——挂载即销毁按钮，manifest 导出功能 100%
+  不可达。标题改独立子节点
+- **attach 模式停止调试杀死用户进程**（L1，critical）：DapClient.close 硬编码
+  terminateDebuggee:true，attach 会话（用户自己的 --inspect 进程）点停止即被
+  终止——与类注释契约矛盾。close 增加参数，attach 传 false（仅 detach）
+- **CRLF 文件 diff 退化 + 混合换行符写回**（C3）：Windows 检出（CRLF）× LLM
+  提案（LF）每行都判不同——整文件一个巨型 hunk 逐块审查失效；部分接受后
+  写回 LF/CRLF 混排（git 整文件标红）。diffLines 加 stripTrailingCr（GNU
+  diff 同语义），合成时按原文行尾风格统一还原（全拒绝也逐字节一致）
+- **LSP stdin EPIPE 崩主进程**（L14）：服务器死亡后、exit 送达前的窗口内
+  写 stdin 触发无监听的 error 事件 → uncaughtException。一行修复
+
+**会话与运行时正确性**
+- **删除会话不清 pending 授权**（A1）：等待裁决的 run 永久挂起（pending
+  Promise 不监听 abort，会话删除后 authorize 恒 false）；且收尾事件把已删
+  轨迹文件重新写出来（「彻底删除」被破坏）。删除先 cancelPending；
+  persistTraceEvent 拒绝已删会话
+- **running=true 在 try/finally 之外**（A2）：route 轨迹的 send（窗口销毁
+  瞬间可抛）/工作流 settings 写入任一抛错 → 会话永久 DW_SESSION_BUSY 且
+  不被 LRU 逐出。running 置位后全部纳入 try/finally；onRecord send 吞错
+- **preStep 拒绝丢已累积 usage**（A5）+ **engine.build 抛错丢部分 usage**
+  （A6）：均改 error 终态返回并保留用量（与注释「出错也记录部分量」对齐）
+- **轨迹 seq 碰撞**（A7）：坏行恢复后 events.length+1 与盘上最大 seq 碰撞
+  （append-only 不变量破）——nextSeq 按历史最大 seq 续排
+- **sessions.json 非原子写**（A8）：崩溃截断丢全部 deleted 标记（已删会话
+  可复活）——tmp+rename 原子写（与 settings 同口径）
+- **git_\* 工具不传播取消**（A9）：大仓库 git_log/diff 取消后仍跑满超时
+  ——execFile 透传 signal
+- **全失败模式被推荐**（A12）：shouldRecommend 的 0>=0 退化——全失败候选
+  （rate=0）在当前无数据（?? 0）时被等号放过；加 candidateRate > 0 下限
+  （并列成功模式的「不差于即推荐」原语义保留，verify-i22 锁定）
+
+**LSP/DAP 加固**
+- **rootInitialized 无超时**（L2）：适配器对 attach 直接回错误时启动永久
+  悬挂在 starting——与 inspectorReady/companionReady 同口径 withTimeout
+- **socket 先死时适配器进程泄漏**（L4）：handleExit 置 null 不 kill，进程
+  引用永久丢失——通道侧死亡补杀
+- **LSP 服务器请求被当响应派发**（L13）：先判 method 再判 id；服务器请求
+  回 error 响应（不挂起服务器）
+- **close 最坏阻塞 33s**（L16）：shutdown 套用 30s 请求超时与注释矛盾——
+  单独 2s 超时
+- **旧代服务器迟到诊断污染新代**（L15）：onNotification 补代际守卫
+  （与 onExit 对齐）
+
+**渲染层**
+- **流中断的 assistant 项永久 streaming**（C5）：终态（done/error）前以已
+  累积文本收尾（streamError 路径无 assistant_message 定稿事件）
+
+### Changed
+- diff-controller 新增 originalUsesCrlf 字段（合成侧行尾还原依据，单测锁定）
+
 ## [0.7.14] — 2026-10-02
 
 ### Fixed

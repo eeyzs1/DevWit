@@ -261,10 +261,13 @@ export class DapClient {
   }
 
   /**
-   * 优雅关闭：disconnect 请求（terminateDebuggee，限时 1s）→ 强杀 → 等退出（3s 上限）→ 关通道。
+   * 优雅关闭：disconnect 请求（限时 1s）→ 强杀 → 等退出（3s 上限）→ 关通道。
    * TCP 服务器模式 disconnect 后进程不自退，强杀是主路径而非兜底。幂等。
+   * terminateDebuggee（默认 true，launch 语义）：false 时 attach 会话仅
+   * detach——不终止被调试的用户进程（v0.7.15 修复：旧实现硬编码 true，
+   * attach 模式点「停止调试」会把用户正在运行的进程杀掉）。
    */
-  async close(): Promise<void> {
+  async close(terminateDebuggee = true): Promise<void> {
     const proc = this.proc;
     if (proc === null) return;
     const exited = new Promise<void>((resolve) => {
@@ -273,7 +276,7 @@ export class DapClient {
     if (this.initialized) {
       // disconnect 限时 1s：适配器半死时不得拖延强杀
       await Promise.race([
-        this.request("disconnect", { terminateDebuggee: true }).catch(() => {}),
+        this.request("disconnect", { terminateDebuggee }).catch(() => {}),
         new Promise<void>((resolve) => setTimeout(resolve, 1000)),
       ]);
     }
@@ -381,8 +384,20 @@ export class DapClient {
 
   private handleExit(code: number | null, reason: string): void {
     if (this.proc === null && this.pending.size === 0) return;
+    // v0.7.15 修复（审查 L4）：通道先死（TCP 断开）而适配器进程未退时，旧实现
+    // 只置 null 不 kill——此后 close() 因 proc===null 直接返回，进程引用永久
+    // 丢失（每次泄漏一个 dapDebugServer）。先捕获再补杀。
+    const proc = this.proc;
     this.proc = null;
     this.initialized = false;
+    if (proc !== null && code === null) {
+      // 通道侧死亡（onDead 路径，无进程退出码）：进程可能仍活着，补杀兜底
+      try {
+        proc.kill();
+      } catch {
+        // 已退出：noop
+      }
+    }
     // 死因拼适配器 stderr 尾部（非 ASCII 剥离——IPC 错误串与主进程 stderr 禁中文）
     const tail = this.stderrTail
       .replace(/[^\x20-\x7E]/g, " ")

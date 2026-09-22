@@ -305,8 +305,7 @@ export class ChatController {
   private onAgentEvent(event: AgentTraceEvent): void {
     if (event.sessionId !== this.deps.sessionId) {
       return;
-    }
-    switch (event.type) {
+    }    switch (event.type) {
       case "assistant_delta": {
         const last = this.items[this.items.length - 1];
         if (last?.kind === "assistant" && last.streaming) {
@@ -479,10 +478,15 @@ export class ChatController {
         break;
       }
       case "error":
+        // v0.7.15 修复（审查 C5）：流中断（streamError 路径不记 assistant_message）
+        // 时，已流出的部分回复项永久带 streaming 指示——终态前先收尾（以已
+        // 累积文本定稿；下次 done/error 同样幂等收尾）
+        this.finalizeStreamingItem();
         this.items.push({ kind: "error", text: event.summary });
         this.running = false;
         break;
       case "done":
+        this.finalizeStreamingItem();
         this.items.push({ kind: "done", text: event.summary });
         this.running = false;
         break;
@@ -517,6 +521,16 @@ export class ChatController {
         break; // 本地已追加，轨迹回放时跳过
     }
     this.emit();
+  }
+
+  /** 终态（done/error）前收尾流式中的 assistant 项（v0.7.15 / 审查 C5）：
+   *  流中断路径没有 assistant_message 定稿事件——以已累积文本定稿，
+   *  消除永久 streaming 指示。 */
+  private finalizeStreamingItem(): void {
+    const last = this.items[this.items.length - 1];
+    if (last?.kind === "assistant" && last.streaming) {
+      last.streaming = false;
+    }
   }
 
   /** G2：按 settings 单价表异步补全本轮成本，刷新视图。 */

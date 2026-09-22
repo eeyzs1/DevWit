@@ -39,6 +39,8 @@ export interface DiffComputation {
   originalEndsWithNewline: boolean;
   /** 提案是否以换行结尾。 */
   proposalEndsWithNewline: boolean;
+  /** 原文是否为 CRLF 行尾（v0.7.15：合成时统一还原原文行尾风格，防混排）。 */
+  originalUsesCrlf: boolean;
 }
 
 /** 把 diff 的 value 拆成行（jsdiff 行级 value 以 \n 分隔，末行可能无 \n）。 */
@@ -52,7 +54,12 @@ function splitLines(value: string): string[] {
 
 /** 计算 original → proposal 的行级 diff，产出 context/hunk 段序列。 */
 export function computeDiff(original: string, proposal: string): DiffComputation {
-  const changes = diffLines(original, proposal);
+  // v0.7.15 修复（审查 C3）：Windows CRLF 原文 × LF 提案（LLM 输出惯例）曾导致
+  // 每行都判不同——整文件退化成一个巨型 hunk，逐块审查失效；部分接受后更会
+  // 写回 LF/CRLF 混排（git 整文件标红）。stripTrailingCr 比较时忽略行尾 CR
+  //（GNU diff --strip-trailing-cr 语义；jsdiff 实测 emit 值为 LF-only），
+  // 原文行尾风格记录在案，applyDecisions 统一还原。
+  const changes = diffLines(original, proposal, { stripTrailingCr: true });
   const segments: DiffSegment[] = [];
   const hunks: DiffHunk[] = [];
   let pendingLines: DiffLine[] = [];
@@ -93,6 +100,7 @@ export function computeDiff(original: string, proposal: string): DiffComputation
     hasChanges: hunks.length > 0,
     originalEndsWithNewline: original.endsWith("\n"),
     proposalEndsWithNewline: proposal.endsWith("\n"),
+    originalUsesCrlf: original.includes("\r\n"),
   };
 }
 
@@ -132,7 +140,10 @@ export function applyDecisions(computation: DiffComputation): string {
   }
   if (!emitted) return "";
   const tailEndsWithNewline = tailFromProposal ? computation.proposalEndsWithNewline : computation.originalEndsWithNewline;
-  return out.join("\n") + (tailEndsWithNewline ? "\n" : "");
+  const text = out.join("\n") + (tailEndsWithNewline ? "\n" : "");
+  // v0.7.15（审查 C3）：jsdiff stripTrailingCr 的 emit 值为 LF-only——原文为
+  // CRLF 时统一还原（连全拒绝场景也保持原文行尾风格，不发生静默换行符重写）
+  return computation.originalUsesCrlf ? text.replace(/\r?\n/g, "\r\n") : text;
 }
 
 /**

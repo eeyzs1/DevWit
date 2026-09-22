@@ -592,66 +592,71 @@ export class AiRuntime {
     session.abort = new AbortController();
     session.modeId = input.modeId;
 
-    // AC15：本轮之前的轨迹重建为对话历史（跨轮次/跨重启连续记忆）；
-    // 在 loop 记录本轮 user_message 之前快照，避免重复计入本轮输入。
-    const priorHistory = historyFromTrace(session.trace.list());
-    // AC31：路由决策落轨迹（先于 user_message——「这次请求为什么发给这个模型」是本轮起点）
-    session.trace.record(
-      "route",
-      `route: ${routeDecision.routed} → ${routeDecision.providerId} (score ${routeDecision.score}/${routeDecision.threshold})`,
-      routeDecision
-    );
-    // AC32：工作流记忆——相似成功工作流命中则注入建议项并落轨迹（建议非指令，授权语义不变）
-    session.workflow.current = null;
-    if (this.readWorkflowEnabled()) {
-      const hit = this.workflowMemory.match(input.userText);
-      if (hit !== null) {
-        // 先取计数再标记复用：store 经 settings 直读直写，markReused 会就地递增
-        // 同一对象引用（parseWorkflowTemplates 透传 settings 持有对象），后置读取会双计
-        const reuseCount = hit.template.reuseCount + 1;
-        this.workflowMemory.markReused(hit.template.id);
-        const reuse: WorkflowReuse = {
-          phase: "reuse",
-          templateId: hit.template.id,
-          intent: hit.template.intent,
-          tools: [...hit.template.tools],
-          shared: hit.shared,
-          reuseCount,
-        };
-        session.workflow.current = hit.template;
-        session.trace.record(
-          "workflow",
-          `workflow: reuse ${hit.template.id} (shared: ${hit.shared.join(", ")})`,
-          reuse
-        );
-        // AC33：模式自进化推荐——命中模板的学习模式与当前不同且统计上不差于当前时，
-        // 落 mode_recommend 事件（建议非自动切换，是否采纳由用户在对话/活动流一键决定）。
-        if (this.modeStats.shouldRecommend(hit.template.modeId, input.modeId)) {
-          const candidate = this.modeStats.list().find((item) => item.modeId === hit.template.modeId);
-          if (candidate !== undefined && candidate.runs > 0) {
-            const recommendation: ModeRecommendation = {
-              phase: "recommend",
-              modeId: candidate.modeId,
-              currentModeId: input.modeId,
-              reason: "workflow_hit",
-              intent: hit.template.intent,
-              successRate: candidate.successes / candidate.runs,
-              currentSuccessRate: this.modeStats.successRate(input.modeId),
-              runs: candidate.runs,
-            };
-            session.trace.record(
-              "mode_recommend",
-              `mode_recommend: ${candidate.modeId} (success ${candidate.successes}/${candidate.runs}) over ${input.modeId}`,
-              recommendation
-            );
+    let finishReason: AgentRunResult["finishReason"] | "thrown" = "thrown";
+    let runResult: AgentRunResult | null = null;
+    let runStartEvents = session.trace.list().length;
+    try {
+      // v0.7.15 修复（审查 A2）：running 置位后的全部路径纳入 try/finally——
+      // 旧实现 591→654 之间（route 轨迹的 onRecord send / 工作流 markReused 的
+      // settings 原子写）任一同步抛错都会跳过 finally：会话永久 DW_SESSION_BUSY
+      // 且不被 LRU 逐出，重启才解。
+      // AC15：本轮之前的轨迹重建为对话历史（跨轮次/跨重启连续记忆）；
+      // 在 loop 记录本轮 user_message 之前快照，避免重复计入本轮输入。
+      const priorHistory = historyFromTrace(session.trace.list());
+      // AC31：路由决策落轨迹（先于 user_message——「这次请求为什么发给这个模型」是本轮起点）
+      session.trace.record(
+        "route",
+        `route: ${routeDecision.routed} → ${routeDecision.providerId} (score ${routeDecision.score}/${routeDecision.threshold})`,
+        routeDecision
+      );
+      // AC32：工作流记忆——相似成功工作流命中则注入建议项并落轨迹（建议非指令，授权语义不变）
+      session.workflow.current = null;
+      if (this.readWorkflowEnabled()) {
+        const hit = this.workflowMemory.match(input.userText);
+        if (hit !== null) {
+          // 先取计数再标记复用：store 经 settings 直读直写，markReused 会就地递增
+          // 同一对象引用（parseWorkflowTemplates 透传 settings 持有对象），后置读取会双计
+          const reuseCount = hit.template.reuseCount + 1;
+          this.workflowMemory.markReused(hit.template.id);
+          const reuse: WorkflowReuse = {
+            phase: "reuse",
+            templateId: hit.template.id,
+            intent: hit.template.intent,
+            tools: [...hit.template.tools],
+            shared: hit.shared,
+            reuseCount,
+          };
+          session.workflow.current = hit.template;
+          session.trace.record(
+            "workflow",
+            `workflow: reuse ${hit.template.id} (shared: ${hit.shared.join(", ")})`,
+            reuse
+          );
+          // AC33：模式自进化推荐——命中模板的学习模式与当前不同且统计上不差于当前时，
+          // 落 mode_recommend 事件（建议非自动切换，是否采纳由用户在对话/活动流一键决定）。
+          if (this.modeStats.shouldRecommend(hit.template.modeId, input.modeId)) {
+            const candidate = this.modeStats.list().find((item) => item.modeId === hit.template.modeId);
+            if (candidate !== undefined && candidate.runs > 0) {
+              const recommendation: ModeRecommendation = {
+                phase: "recommend",
+                modeId: candidate.modeId,
+                currentModeId: input.modeId,
+                reason: "workflow_hit",
+                intent: hit.template.intent,
+                successRate: candidate.successes / candidate.runs,
+                currentSuccessRate: this.modeStats.successRate(input.modeId),
+                runs: candidate.runs,
+              };
+              session.trace.record(
+                "mode_recommend",
+                `mode_recommend: ${candidate.modeId} (success ${candidate.successes}/${candidate.runs}) over ${input.modeId}`,
+                recommendation
+              );
+            }
           }
         }
       }
-    }
-    const runStartEvents = session.trace.list().length;
-    let finishReason: AgentRunResult["finishReason"] | "thrown" = "thrown";
-    let runResult: AgentRunResult | null = null;
-    try {
+      runStartEvents = session.trace.list().length;
       if (mode.orchestrate === true) {
         // AC20 多 Agent 编排：Planner 分解 → 并行子 Agent（共享授权门）→ 综合
         const orchestrator = new AgentOrchestrator({
@@ -985,6 +990,11 @@ export class AiRuntime {
     if (!sessionId.startsWith("session-")) return;
     const session = this.sessions.get(sessionId);
     if (session !== undefined) {
+      // v0.7.15 修复（审查 A1）：先撤回挂起授权再 abort——pending 裁决 Promise
+      // 不监听 abort 信号，旧实现只 abort() 会让等待裁决的 run 永久挂起；且
+      // authorize() 在会话删除后恒 false，用户再也无法裁决。cancelPending 后
+      // loop 按 cancelled 收尾。
+      session.authorizer.cancelPending();
       session.abort.abort();
       this.sessions.delete(sessionId);
     }
@@ -1186,7 +1196,14 @@ export class AiRuntime {
     // AC15：先水合磁盘历史（重启后续跑同一会话），再订阅新事件实时落盘
     trace.loadPersisted(this.readPersistedTrace(sessionId));
     trace.onRecord((event) => {
-      this.deps.send(IPC.AgentEvent, event);
+      // v0.7.15 修复（审查 A2）：send 在窗口销毁瞬间可抛（?. 只防 null 不防
+      // destroyed 的 webContents）——吞掉投递错误，事件仍落盘，重启后回放；
+      // 不得让渲染端瞬态打断主进程的 run 收尾（旧实现会因此跳过 finally）
+      try {
+        this.deps.send(IPC.AgentEvent, event);
+      } catch {
+        // 渲染端不可达：noop
+      }
       this.persistTraceEvent(event);
     });
     const session: SessionState = {
@@ -1304,6 +1321,9 @@ export class AiRuntime {
   }
 
   private persistTraceEvent(event: AgentTraceEvent): void {
+    // v0.7.15 修复（审查 A1）：已删除会话不再追加——abort 后 loop 的收尾事件
+    // （含 tool_result 内容）会把用户已彻底删除的轨迹文件重新写出来（"复活"）
+    if (this.sessionMeta.isDeleted(event.sessionId)) return;
     try {
       mkdirSync(this.tracesDir, { recursive: true });
       appendFileSync(this.traceFile(event.sessionId), `${JSON.stringify(event)}\n`, "utf-8");

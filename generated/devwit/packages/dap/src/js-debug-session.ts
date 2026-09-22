@@ -202,6 +202,9 @@ export class JsDebugSession {
    * 若 reason=pause 即 entry pause，自动 continue（对用户透明，不上报 stopped 态）。
    */
   private pendingEntryResume = false;
+  /** 会话形态（v0.7.15）：launch=我们 spawn 的被调试进程（停止时杀掉）；
+   *  attach=用户自己的进程（停止时仅 detach，绝不终止）。 */
+  private sessionKind: "launch" | "attach" = "launch";
 
   /** 状态变化回调（主→渲染推送）。 */
   onState: ((state: DebugState) => void) | null = null;
@@ -228,6 +231,7 @@ export class JsDebugSession {
    */
   async start(program: string, breakpoints: Record<string, DebugBreakpoint[]>): Promise<void> {
     if (this.isActive) throw new Error("DW_DAP_ALREADY_ACTIVE");
+    this.sessionKind = "launch";
     this.setState({ state: "starting" });
     const timeout = this.options.requestTimeoutMs ?? 30_000;
 
@@ -304,7 +308,10 @@ export class JsDebugSession {
         ...(this.options.trace === true ? { trace: true } : {}),
       });
       rootAttach.catch(() => {}); // 拒绝统一在下方 await 处冒泡，防 unhandled rejection
-      await rootInitialized;
+      // v0.7.15 修复（审查 L2）：rootInitialized 无超时——适配器对 attach 直接
+      // 回错误而不发 initialized 时（端口被占等）永久悬挂在 starting。与
+      // inspectorReady/companionReady 同口径套 withTimeout。
+      await withTimeout(rootInitialized, Math.min(timeout, 10_000), "DW_DAP_ROOT_INIT_TIMEOUT");
       await root.request("configurationDone");
       await rootAttach;
 
@@ -341,6 +348,7 @@ export class JsDebugSession {
    */
   async attach(port: number, host: string, breakpoints: Record<string, DebugBreakpoint[]>): Promise<void> {
     if (this.isActive) throw new Error("DW_DAP_ALREADY_ACTIVE");
+    this.sessionKind = "attach";
     this.setState({ state: "starting" });
     const timeout = this.options.requestTimeoutMs ?? 30_000;
     const attachHost = host === "" ? "127.0.0.1" : host;
@@ -404,7 +412,8 @@ export class JsDebugSession {
         ...(this.options.trace === true ? { trace: true } : {}),
       });
       rootAttach.catch(() => {});
-      await rootInitialized;
+      // v0.7.15（审查 L2）：同 start——initialized 闸必须有超时兜底
+      await withTimeout(rootInitialized, Math.min(timeout, 10_000), "DW_DAP_ROOT_INIT_TIMEOUT");
       await root.request("configurationDone");
       await rootAttach;
 
@@ -584,17 +593,20 @@ export class JsDebugSession {
     this.client = null;
     this.rootClient = null;
     this.companionRequest = null;
+    // v0.7.15 修复（审查 L1）：attach 会话 disconnect 不带 terminateDebuggee——
+    // 生命周期由用户掌控（类注释契约），旧实现硬编码 true 会杀掉被附加的用户进程
+    const terminateDebuggee = this.sessionKind === "launch";
     if (companion !== null) {
       companion.onEvent = null;
       companion.onExit = null;
       companion.onReverseRequest = null;
-      await companion.close();
+      await companion.close(terminateDebuggee);
     }
     if (root !== null) {
       root.onEvent = null;
       root.onExit = null;
       root.onReverseRequest = null;
-      await root.close();
+      await root.close(terminateDebuggee);
     }
   }
 

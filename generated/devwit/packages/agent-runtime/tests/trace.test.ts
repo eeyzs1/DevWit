@@ -40,11 +40,32 @@ describe("AgentTrace.loadPersisted", () => {
     expect(trace.list().map((e) => e.type)).toEqual(["user_message", "assistant_message"]);
   });
 
-  it("水合后 record 的 seq 依 events.length 续排，保持单调", () => {
+  it("水合后 record 的 seq 依最大 seq 续排，保持单调", () => {
     const trace = new AgentTrace("s1");
-    trace.loadPersisted([event("user_message", "一"), event("assistant_message", "二")]);
+    // 显式 seq（模块级计数器跨测试递增，不可依赖其值）
+    trace.loadPersisted([
+      { ...event("user_message", "一"), seq: 1 },
+      { ...event("assistant_message", "二"), seq: 2 },
+    ]);
     const next = trace.record("done", "三");
     expect(next.seq).toBe(3);
+  });
+
+  it("v0.7.15（审查 A7）：坏行恢复后 nextSeq 按历史最大 seq 续排（不与盘上碰撞）", () => {
+    const trace = new AgentTrace("s1");
+    // 断电撕裂场景：盘上曾有 seq 1..5，其中 2 行损坏被跳过——内存长度 3
+    // 而最大 seq 5。旧实现 next = 3+1 = 4 与盘上 seq 4 碰撞；修复后续排 6。
+    trace.loadPersisted([
+      { ...event("user_message", "一"), seq: 1 },
+      { ...event("assistant_message", "三"), seq: 3 },
+      { ...event("done", "五"), seq: 5 },
+    ]);
+    expect(trace.length).toBe(3);
+    const next = trace.record("user_message", "新事件");
+    expect(next.seq).toBe(6);
+    // append-only 不变量：全量事件 seq 严格递增无重复
+    const seqs = trace.list().map((e) => e.seq);
+    expect(new Set(seqs).size).toBe(seqs.length);
   });
 });
 

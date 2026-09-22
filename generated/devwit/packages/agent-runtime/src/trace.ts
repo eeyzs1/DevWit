@@ -15,6 +15,10 @@ export class AgentTrace {
   readonly sessionId: string;
   private readonly events: AgentTraceEvent[] = [];
   private readonly listeners = new Set<(event: AgentTraceEvent) => void>();
+  /** 下一个 seq（v0.7.15：按历史最大 seq 续排，而非 events.length+1——坏行
+   *  恢复后内存长度 < 盘上最大 seq 时，新事件 seq 与盘上旧 seq 碰撞，
+   *  append-only 不变量破（重启后同 seq 双事件）。 */
+  private nextSeq = 1;
 
   constructor(sessionId: string) {
     this.sessionId = sessionId;
@@ -22,7 +26,7 @@ export class AgentTrace {
 
   record(type: AgentTraceEventType, summary: string, detail?: unknown): AgentTraceEvent {
     const event: AgentTraceEvent = {
-      seq: this.events.length + 1,
+      seq: this.nextSeq++,
       timestamp: new Date().toISOString(),
       sessionId: this.sessionId,
       type,
@@ -41,12 +45,13 @@ export class AgentTrace {
   /**
    * 载入磁盘持久化的事件（迭代 6 / AC15）：重启后水合历史轨迹。
    * 不触发 onRecord——这些是历史事件，不是新记录；seq 以事件自带值为准，
-   * 后续 record() 依 events.length 续排，保持单调。
+   * nextSeq 取历史最大 seq+1（损坏行被跳过时也保持单调、不与盘上碰撞）。
    */
   loadPersisted(events: AgentTraceEvent[]): void {
     for (const event of events) {
       if (typeof event?.seq !== "number" || typeof event?.type !== "string") continue;
       this.events.push(event);
+      if (event.seq >= this.nextSeq) this.nextSeq = event.seq + 1;
     }
   }
 

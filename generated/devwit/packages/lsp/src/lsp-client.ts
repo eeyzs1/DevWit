@@ -96,6 +96,13 @@ export class LspClient {
       // spawn 异步失败（ENOENT 等）：走退出路径，拒绝全部挂起
       this.handleExit(null, `DW_LSP_SPAWN_FAILED:${error.message}`);
     });
+    // v0.7.15 修复（审查 L14）：服务器死亡后、exit 事件送达前的窗口内，
+    // didChange/request 的 stdin 写入触发 EPIPE 'error' 事件——stdin 流从未
+    // 注册 error 监听会升级为 uncaughtException 崩掉 Electron 主进程。
+    // 吞掉写入错误：随后的 exit 路径统一走 handleExit 语义。
+    proc.stdin.on("error", () => {
+      // 服务器已不可写：等待 exit 事件统一收尾（不做双重清理）
+    });
     proc.stdout.on("data", (chunk: Buffer) => this.handleChunk(chunk));
     proc.stderr.on("data", (chunk: Buffer) => {
       this.stderrTail = (this.stderrTail + chunk.toString("utf-8")).slice(-STDERR_TAIL_CHARS);
@@ -160,10 +167,19 @@ export class LspClient {
     if (proc === null) return;
     try {
       if (this.initialized) {
-        await this.request("shutdown");
+        // v0.7.15 修复（审查 L16）：shutdown 套用 30s requestTimeout 使 close
+        // 最坏阻塞 30s+3s（与头部注释「3s 强杀兜底」矛盾；换工作区时
+        // openWorkspace 串行等待 close，卡顿最长 ~33s）。给 shutdown 单独
+        // 2s 超时（与 DapClient.close 同口径）——服务器不回就交给强杀。
+        await Promise.race([
+          this.request("shutdown"),
+          new Promise((_resolve, reject) => {
+            setTimeout(() => reject(new Error("DW_LSP_SHUTDOWN_TIMEOUT")), 2000);
+          }),
+        ]);
       }
     } catch {
-      // shutdown 失败不阻断关闭（服务器可能已半死）
+      // shutdown 失败/超时不阻断关闭（服务器可能已半死）
     }
     this.initialized = false;
     this.notify("exit");
@@ -221,6 +237,22 @@ export class LspClient {
   }
 
   private dispatch(message: JsonRpcResponseMessage): void {
+    // v0.7.15 修复（审查 L13）：先判 method 再判 id——带 method+id 的是
+    // 「服务器→客户端请求」，旧实现先命中 id 分支：与挂起的客户端请求撞号
+    // （双方 id 都从小整数自增）时会错误 resolve 他人请求，且该服务器请求
+    // 永远得不到应答（按 JSON-RPC 语义服务器端挂起）。响应不应携带 method。
+    if (typeof message.method === "string") {
+      if (typeof message.id === "number") {
+        // 服务器请求暂不支持：必须回 error 响应（不挂起服务器），并作为通知上抛
+        this.writeMessage({
+          jsonrpc: "2.0",
+          id: message.id,
+          error: { code: -32601, message: `Method not supported: ${message.method}` },
+        });
+      }
+      this.onNotification?.(message.method, message.params);
+      return;
+    }
     if (typeof message.id === "number") {
       const entry = this.pending.get(message.id);
       if (entry === undefined) return; // 超时后迟到的响应，丢弃
@@ -231,11 +263,6 @@ export class LspClient {
       } else {
         entry.resolve(message.result);
       }
-      return;
-    }
-    if (typeof message.method === "string") {
-      // 服务器通知（publishDiagnostics 等）；服务器→客户端请求暂不支持，直接忽略
-      this.onNotification?.(message.method, message.params);
     }
   }
 

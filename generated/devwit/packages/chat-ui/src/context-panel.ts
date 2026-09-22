@@ -48,6 +48,12 @@ export function mountContextPanel(container: HTMLElement, controller: ContextPan
 
   const header = document.createElement("div");
   header.className = "dw-context-header";
+  // v0.7.15 修复（审查 C1）：标题必须用独立子节点——旧实现 applyLocale 对
+  // header 赋 textContent 会删除其全部子节点，刷新/导出两个按钮在挂载首次
+  // applyLocale 即被销毁（功能 100% 不可达，语言切换同样）。
+  const titleText = document.createElement("span");
+  titleText.className = "dw-context-title";
+  header.appendChild(titleText);
   const refreshBtn = document.createElement("button");
   refreshBtn.className = "dw-btn dw-btn-small";
   refreshBtn.addEventListener("click", () => void controller.refresh());
@@ -68,7 +74,7 @@ export function mountContextPanel(container: HTMLElement, controller: ContextPan
 
   /** 静态文案随语言热更新（AC12）。 */
   function applyLocale(): void {
-    header.textContent = t("ctxpanel.title");
+    titleText.textContent = t("ctxpanel.title");
     refreshBtn.textContent = t("ctxpanel.refresh");
     exportBtn.textContent = t("ctxpanel.export");
   }

@@ -68,7 +68,10 @@ export class ModeStatsTracker {
 
   /**
    * 是否推荐 candidateMode 替代 currentMode：
-   * 候选定级数达标 且 候选成功率 >= 当前成功率（当前无数据视为 0）。
+   * 候选定级数达标 且 候选成功率不差于当前（当前无数据视为 0，AC33「不差于即推荐」）。
+   * v0.7.15 修复（审查 A12）：加 candidateRate > 0 下限——全失败候选（rate=0）
+   * 在当前无数据（?? 0）时曾被 0>=0 等号放过，「推荐一个 100% 失败的模式」；
+   * 并列的成功模式（如双方 100%）仍按原语义推荐（verify-i22 锁定）。
    */
   shouldRecommend(candidateMode: string, currentMode: string): boolean {
     if (candidateMode === currentMode) return false;
@@ -76,6 +79,6 @@ export class ModeStatsTracker {
     if (candidate === undefined || candidate.runs < MIN_RUNS_FOR_RECOMMEND) return false;
     const candidateRate = candidate.successes / candidate.runs;
     const currentRate = this.successRate(currentMode) ?? 0;
-    return candidateRate >= currentRate;
+    return candidateRate > 0 && candidateRate >= currentRate;
   }
 }
