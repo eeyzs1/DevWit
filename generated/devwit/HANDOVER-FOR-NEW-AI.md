@@ -205,6 +205,10 @@ generated/devwit/
 | 0.7.16 | 三路审查第二批 14 项（编排孤儿化/注册表污染/中文路径乱码/junction 逃逸） | `2908a51` |
 | 0.7.17 | 三路审查收尾 8 项（符号链接逃逸/编排失败样本/MCP 取消/预算可见化） | `bc3336a` |
 | 0.7.18 | GitService 调用串行化（index.lock 竞态根治） | `88397b5` |
+| 0.7.19 | 渲染面板四模块 16 项（diff 孤儿层/rename 回滚重构/搜索乱序/键盘劫持） | `7029983` |
+| 0.7.20 | rag/llm/settings 8 项（RAG 换模型静默失效/凭证解密可见化/SSE 空帧） | `b31da7d` |
+| 0.7.21 | editor-core/mcp/layout 7 项（点击拆代理对/MCP stdin 崩溃/UTF-8 跨块） | `d93107f` |
+| 0.7.22 | 第六轮扫尾（\r 行尾/activeAbort 竞态/piece-table 相邻片合并 26×提速） | `9b357aa` |
 
 ### 真实用户指标（2026-09-22）
 - GitHub stars/forks/watchers: 0/0/0（推广物料就绪待用户发）
@@ -322,9 +326,9 @@ npm run dev          # 启动验证核心功能
 ---
 
 **最后更新**: 2026-09-22
-**最新提交**: `88397b5` fix: v0.7.18 GitService 调用串行化 + v0.7.17 转正 Latest + winget PR #438830
-**测试基线**: 941 单测 / 86 测试文件 + E2E 全量 35 套（本地与 CI 双通道；nightly-e2e 每晚全量回归）
-**Latest**: https://github.com/eeyzs1/DevWit/releases/tag/v0.7.17（0.7.17 已转正；此前 Latest 卡在 v0.7.0）
-**winget**: 0.7.17 清单已提交 microsoft/winget-pkgs#438830（四文件含 zh-CN locale，SHA256 双源实证）
-**迭代方法论**: 对抗性代码审查（渲染层/编辑器内核/agent 核心/chat-ui/lsp/dap/workspace 分批）→ 逐项验证 → 修复 + 回归测试 → 全量验证（tsc/eslint/vitest/E2E）→ push（CI 绿）→ CHANGELOG 记录。四轮审查 66 项发现全部处置。**注意：本机 GBK 控制台下禁止用 PowerShell Get-Content/Set-Content 改非 ASCII 文件——用 Node（UTF-8 全程安全，曾有 README 编码事故）。**
+**最新提交**: `9b357aa` fix: v0.7.22 第六轮审查扫尾——\r 行尾/activeAbort 竞态/piece-table 相邻片合并
+**测试基线**: 952 单测 / 88 测试文件 + E2E 全量 35 套（本地与 CI 双通道；nightly-e2e 每晚全量回归）
+**Latest**: https://github.com/eeyzs1/DevWit/releases/tag/v0.7.20
+**winget**: 0.7.17 清单已提交 microsoft/winget-pkgs#438830（管线全绿待人工合并）；0.7.20 清单本地备好待续提
+**迭代方法论**: 对抗性代码审查（六轮：渲染层/编辑器视图/agent 核心/lsp-dap-workspace/面板/rag-llm-settings/piece-table-mcp-layout，共 117 项发现全部处置）→ 逐项验证 → 修复 + 回归测试 → 全量验证（tsc/eslint/vitest/E2E）→ push（CI 绿）→ CHANGELOG 记录。**注意：本机 GBK 控制台下禁止用 PowerShell Get-Content/Set-Content 改非 ASCII 文件——用 Node（UTF-8 全程安全，曾有 README 编码事故）。**
 

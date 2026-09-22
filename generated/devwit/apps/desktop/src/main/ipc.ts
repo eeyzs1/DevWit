@@ -169,18 +169,27 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     }
     return dir;
   };
+  // v0.7.23 修复（审查 R7-1，critical）：渲染层可控 root 的「重定根」面。
+  // 威胁模型（renderer/index.ts 自述）：渲染层可被模型输出注入攻破——旧实现
+  // Tree/Search/CreateSample 直接 openRoot(任意目录)，随后 Read/Write 的
+  // containment 全部相对新根 = 全盘读写。根状态只能经 dialog 通道变更；
+  // 其余通道要求 root 与当前已开根一致（词法），不一致拒绝。
+  const isCurrentRoot = (root: string): boolean => {
+    const current = workspace.rootPath;
+    return current !== null && root === current;
+  };
   table[IPC.WorkspaceCreateSample] = (_e, root) => {
     // D3 / v0.6.0：示例项目脚手架（覆盖语义；调用方已让用户选定目标目录）
+    if (!isCurrentRoot(String(root))) {
+      throw new Error("DW_WORKSPACE_ROOT_MISMATCH");
+    }
     return scaffoldSampleProject(String(root));
   };
   table[IPC.WorkspaceTree] = async (_e, root) => {
     const rootPath = String(root);
-    await workspace.openRoot(rootPath);
-    workspace.watch();
-    ai?.refreshRag();
-    ai?.refreshSymbols();
-    lsp?.openWorkspace(rootPath);
-    git?.openWorkspace(rootPath);
+    if (!isCurrentRoot(rootPath)) {
+      throw new Error("DW_WORKSPACE_ROOT_MISMATCH");
+    }
     return hooks.buildTree(rootPath);
   };
   table[IPC.WorkspaceRead] = (_e, filePath) => workspace.readFile(String(filePath));
@@ -192,6 +201,9 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     // 跨文件搜索（v0.4.0）：主进程遍历文件树读取搜索，避免渲染端大量 IPC 往返
     // v0.7.4：worker 线程隔离 + 10s 硬超时——灾难性回溯正则不再能挂死主进程
     // （正则合法性在本线程编译校验，非法正则保持同步 SyntaxError 语义）
+    if (!isCurrentRoot(String(root))) {
+      throw new Error("DW_WORKSPACE_ROOT_MISMATCH");
+    }
     const opts = (options ?? {}) as Record<string, unknown>;
     return searchInWorkspaceIsolated(
       String(root),
@@ -691,4 +703,24 @@ export function registerIpcHandlers(deps: RegisterIpcDeps): void {
   deps.services.settings.onChanged((key, value) => {
     deps.hooks.send(IPC.SettingsChanged, key, value);
   });
+  // v0.7.23（审查 R7-1）：AC15 启动恢复改由主进程一次性重建工作区根——
+  // 根状态只能经 dialog 通道或此启动路径变更（渲染端 Tree/Search/CreateSample
+  // 不再有 openRoot 能力）。残留风险（诚实记录）：被攻破的渲染层可事先把
+  // session.state.workspaceRoot 写为任意路径，下次启动时主进程会恢复该根——
+  // 需先前攻破 + 重启两个条件；即时重定根面已关闭，完整闭环需持久化签名。
+  void (async () => {
+    const saved = deps.services.settings.get("session.state") as { workspaceRoot?: unknown } | null;
+    const root = typeof saved?.workspaceRoot === "string" ? saved.workspaceRoot : "";
+    if (root === "") return;
+    try {
+      await deps.services.workspace.openRoot(root);
+      deps.services.workspace.watch();
+      deps.ai?.refreshRag();
+      deps.ai?.refreshSymbols();
+      deps.lsp?.openWorkspace(root);
+      deps.git?.openWorkspace(root);
+    } catch {
+      // 目录已被移动/删除：保持未开根，渲染端 enterWorkspace 将按 MISMATCH 降级
+    }
+  })();
 }

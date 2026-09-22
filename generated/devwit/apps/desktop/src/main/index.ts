@@ -62,6 +62,22 @@ function createWindow(): void {
   });
 }
 
+// v0.7.23 修复（审查 R7-4）：单实例锁——双开时两个主进程各自持有 SettingsStore
+// 内存态，tmp+rename 原子写互相覆盖（先写一方的设置变更丢失）、usage.jsonl
+// 双进程追加、MCP/LSP 子进程双份。第二实例直接退出并聚焦已有窗口。
+// （E2E 用 DEVWIT_USER_DATA_DIR 独立 userData，不与用户实例撞锁。）
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.exit(0);
+} else {
+  app.on("second-instance", () => {
+    if (mainWindow !== null) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
+
 app.whenReady().then(() => {
   // AR005：safeStorage 不可用时拒绝启动，绝不降级为明文存储
   if (!safeStorage.isEncryptionAvailable()) {
@@ -237,17 +253,37 @@ app.on("window-all-closed", () => {
   }
 });
 
-app.on("will-quit", () => {
+app.on("will-quit", (event) => {
+  // v0.7.23 修复（审查 R7-3）：异步清理必须真正完成后再退出——旧实现全部
+  // fire-and-forget，will-quit 同步返回后进程即退出：MCP 第 2..N 个 stdio
+  // server 的 kill、LSP 的 3s 强杀、DAP 的 debuggee.kill、遥测 flush 全部
+  // 不及执行（配置多服务器时孤儿进程驻留）。preventDefault + 等待全部清理
+  // （各 dispose 自带 3s 上限）后显式退出；重复进入时直接放行。
+  if (quitCleanupStarted) {
+    return;
+  }
+  quitCleanupStarted = true;
+  event.preventDefault();
   terminal?.disposeAll();
   workspace?.close();
-  // AC17：退出前停止全部 MCP 子进程，避免孤儿进程驻留
-  if (aiRuntime !== null) void aiRuntime.dispose();
-  // AC40：退出前 LSP shutdown 请求 → exit 通知 → 超时强杀（同 MCP 口径，零孤儿进程）
-  if (lspService !== null) void lspService.shutdown();
-  // AC42：退出前 DAP disconnect + 强杀 js-debug 服务器（零孤儿进程）
-  if (debugService !== null) void debugService.shutdown();
-  // AC39：退出前尽力 flush 残余遥测缓冲（不阻塞退出）
-  telemetry?.stop();
-  // v0.7.5：回收正则匹配 worker（空闲回收之外的双保险）
   regexMatcher?.dispose();
+  void (async () => {
+    const jobs: Array<Promise<unknown>> = [];
+    // AC17：退出前停止全部 MCP 子进程，避免孤儿进程驻留
+    if (aiRuntime !== null) jobs.push(aiRuntime.dispose());
+    // AC40：退出前 LSP shutdown 请求 → exit 通知 → 超时强杀（同 MCP 口径，零孤儿进程）
+    if (lspService !== null) jobs.push(lspService.shutdown());
+    // AC42：退出前 DAP disconnect + 强杀 js-debug 服务器（零孤儿进程）
+    if (debugService !== null) jobs.push(debugService.shutdown());
+    // AC39：退出前尽力 flush 残余遥测缓冲（5s 超时上限在 service 内）
+    if (telemetry !== null) jobs.push(telemetry.stop());
+    // 单项兜底 4s（dispose 内部各有 3s 上限，此处防未知挂起拖住退出）
+    await Promise.all(
+      jobs.map((job) => Promise.race([job, new Promise((resolve) => setTimeout(resolve, 4000))]))
+    );
+    app.exit(0);
+  })();
 });
+
+/** will-quit 清理已启动标记（防止 preventDefault 后二次进入重复清理）。 */
+let quitCleanupStarted = false;

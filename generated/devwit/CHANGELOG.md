@@ -3,6 +3,33 @@
 所有显著变更记录于此。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本遵循 [语义化版本](https://semver.org/)。
 
+## [0.7.23] — 2026-10-02
+
+### Fixed
+- **主进程剩余模块对抗性审查修复（第七轮，critical 2 + major 5）**：
+
+**Critical**
+- **渲染层可控 root「重定根」**（R7-1）：WorkspaceTree/Search/CreateSample
+  直接 openRoot(渲染层任意字符串)——被攻破的渲染层（威胁模型自述含模型
+  输出注入）可静默把根切到 C:\ 后经 Read/Write 全盘读写。根状态只能经
+  dialog 通道或主进程启动恢复路径变更；其余通道校验 root 与当前已开根
+  一致（DW_WORKSPACE_ROOT_MISMATCH）。AC15 启动恢复改由主进程读
+  session.state 一次性重建（残留风险诚实记录：先前攻破+重启的持久化
+  向量，完整闭环需持久化签名）
+- **containment 大小写归一化在敏感文件系统可绕过**（R7-2）：无条件
+  toLowerCase 使 Linux 上大小写变体路径逃逸 root——归一化仅
+  win32/darwin，Linux 精确比较
+
+**Major**
+- **will-quit 异步清理 fire-and-forget**（R7-3）：MCP 第 2..N 个 server
+  的 kill、LSP 3s 强杀、DAP debuggee.kill、遥测 flush 全部不及执行——
+  preventDefault + Promise.all 等待（单项 4s 兜底）后显式退出；
+  telemetry.stop() 改返回 Promise
+- **缺少单实例锁**（R7-4）：双开导致 SettingsStore 互相覆盖/子进程双份
+  ——requestSingleInstanceLock + second-instance 聚焦
+- **示例项目无确认覆盖既有文件**（R7-6）：误选已有项目目录时七个文件被
+  不可逆覆盖——写前备份到 .devwit-sample-backup/（保留原相对路径）
+
 ## [0.7.22] — 2026-10-02
 
 ### Fixed

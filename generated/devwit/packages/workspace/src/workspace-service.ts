@@ -17,6 +17,16 @@ export type WorkspaceChangeListener = (event: WorkspaceEvent) => void;
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const WATCH_DEBOUNCE_MS = 100;
 
+/**
+ * 文件系统路径比较归一（v0.7.23 / 审查 R7-2）：Windows（及 macOS 默认卷）
+ * 大小写不敏感——lower 后比较正确；Linux 大小写敏感——必须精确比较，
+ * 否则大小写变体路径可逃逸 containment。
+ */
+const normalizeForFsCompare: (p: string) => string =
+  process.platform === "win32" || process.platform === "darwin"
+    ? (p) => p.toLowerCase()
+    : (p) => p;
+
 export class WorkspaceService {
   private root: string | null = null;
   /** root 的真实路径（符号链接解析后）——逃逸防护第二条防线的基准。 */
@@ -77,21 +87,26 @@ export class WorkspaceService {
       throw new Error("No workspace root open");
     }
     const abs = path.resolve(this.root, filePath);
-    const rootNorm = this.root.toLowerCase();
-    const absNorm = abs.toLowerCase();
+    // v0.7.23 修复（审查 R7-2）：大小写归一仅用于大小写不敏感文件系统——
+    // 旧实现无条件 toLowerCase，Linux（ext4 等敏感卷）上大小写变体路径
+    // （如 root=/home/u/ws、目标 /home/u/WS/x）lower 后前缀匹配通过 →
+    // 读写逃逸到 root 外真实目录。敏感平台做精确比较。
+    const norm = normalizeForFsCompare;
+    const rootNorm = norm(this.root);
+    const absNorm = norm(abs);
     if (absNorm !== rootNorm && !absNorm.startsWith(rootNorm + path.sep)) {
       throw new Error(`Path escapes workspace root: ${filePath}`);
     }
     const real = this.realpathOfNearestExisting(abs);
-    const rootRealNorm = this.rootReal.toLowerCase();
-    const realNorm = real.toLowerCase();
+    const rootRealNorm = norm(this.rootReal);
+    const realNorm = norm(real);
     if (realNorm !== rootRealNorm && !realNorm.startsWith(rootRealNorm + path.sep)) {
       throw new Error(`Path escapes workspace root via symlink: ${filePath}`);
     }
     return abs;
   }
 
-  /** 解析真实路径；目标不存在时逐级上溯到最近存在的祖先（到盘符仍无则原样返回）。 */
+/** 解析真实路径；目标不存在时逐级上溯到最近存在的祖先（到盘符仍无则原样返回）。 */
   private realpathOfNearestExisting(p: string): string {
     let current = p;
     for (;;) {

@@ -152,10 +152,13 @@ export class TelemetryService {
     if (this.buffer.length >= BUFFER_FLUSH_AT) void this.flush();
   }
 
-  /** 退出前尽力 flush（void 调用，不阻塞 will-quit）。 */
-  stop(): void {
+  /**
+   * 退出前尽力 flush（v0.7.23 / 审查 R7-3+R7-11：返回 Promise 供 will-quit
+   * 等待——旧实现 void fire-and-forget，进程随即退出，残余缓冲从不送达）。
+   */
+  async stop(): Promise<void> {
     this.disarm();
-    void this.flush();
+    await this.flush();
   }
 
   /** 当前是否激活（开启即激活：端点留空走内建 PostHog，非空走自建端点）。 */

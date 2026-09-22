@@ -1,13 +1,13 @@
 [
   {
     "seq": 2,
-    "timestamp": "2026-09-22T12:22:06.728Z",
-    "sessionId": "task-session-1790079726725-2",
+    "timestamp": "2026-09-22T12:52:52.141Z",
+    "sessionId": "task-session-1790081572138-2",
     "type": "workflow",
-    "summary": "workflow: reuse wf-mucn90ym-1 (shared: login.ts, 输入, 入校, 校验)",
+    "summary": "workflow: reuse wf-mucockw4-1 (shared: login.ts, 输入, 入校, 校验)",
     "detail": {
       "phase": "reuse",
-      "templateId": "wf-mucn90ym-1",
+      "templateId": "wf-mucockw4-1",
       "intent": "为 login.ts 加输入校验",
       "tools": [
         "write"

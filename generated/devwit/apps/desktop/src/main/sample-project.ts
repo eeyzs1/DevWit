@@ -10,7 +10,7 @@
  * 模板文件以相对路径为键（固定字面量，无路径穿越面）；写文件为覆盖语义
  * （用户主动选择的目标目录，视为其意图所在）。
  */
-import { mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 /** 示例项目文件模板：相对路径 → 内容。 */
@@ -272,11 +272,28 @@ TypeScript（strict）+ 原生 DOM，零运行时依赖。
 `,
 };
 
-/** 写入示例项目到目标目录（覆盖语义），返回已创建的文件相对路径清单。 */
+/**
+ * 写入示例项目到目标目录（覆盖语义），返回已创建的文件相对路径清单。
+ * v0.7.23 修复（审查 R7-6）：目标文件已存在时先备份到 .devwit-sample-backup/
+ * ——用户误选已有项目目录时七个文件（package.json/tsconfig/README 等）被无
+ * 确认覆盖的不可逆数据丢失，现在可从备份找回。
+ */
 export function scaffoldSampleProject(root: string): Promise<string[]> {
   const created: string[] = [];
+  const backupDir = path.join(root, ".devwit-sample-backup");
+  let backed = false;
   for (const [relative, content] of Object.entries(TEMPLATE)) {
     const target = path.join(root, relative);
+    if (existsSync(target)) {
+      // 已存在：备份原文件（保留原相对路径结构），首次触发时建备份目录
+      if (!backed) {
+        mkdirSync(backupDir, { recursive: true });
+        backed = true;
+      }
+      const backupPath = path.join(backupDir, relative);
+      mkdirSync(path.dirname(backupPath), { recursive: true });
+      copyFileSync(target, backupPath);
+    }
     mkdirSync(path.dirname(target), { recursive: true });
     writeFileSync(target, content, "utf-8");
     created.push(relative);
