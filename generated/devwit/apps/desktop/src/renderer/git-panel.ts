@@ -43,6 +43,8 @@ export function mountGitPanel(deps: GitPanelDeps): GitPanelHandle {
   let gitDiffTitleSpan: HTMLElement | null = null;
   let gitDiffFile: string | null = null;
   let branchDropdown: HTMLElement | null = null;
+  /** 下拉打开中标记（v0.7.19 / P8：listBranches await 期间的重复点击忽略）。 */
+  let branchDropdownOpening = false;
   /** 分支下拉的外部点击关闭监听（关闭时解绑——🟡修复 v0.7.9：
    * 原实现仅在"由它自己关闭"路径解绑，Escape/锚点二次点击/applyGitStatus
    * 路径关闭后残留 no-op 监听器，每次开下拉累积一条 document capture 监听） */
@@ -94,11 +96,15 @@ export function mountGitPanel(deps: GitPanelDeps): GitPanelHandle {
   }
 
   /** stage/unstage 操作统一入口：失败本地化提示；成功由 git:changed 推送刷新面板。 */
-  async function doGitOp(op: () => Promise<void>): Promise<void> {
+  /** v0.7.19（审查 P11）：返回成功与否——调用方据此决定是否提示成功（旧实现
+   *  内部吞错后 .then 无条件执行，失败时错误与「已解决」提示同时出现）。 */
+  async function doGitOp(op: () => Promise<void>): Promise<boolean> {
     try {
       await op();
+      return true;
     } catch (error) {
       deps.showStatus(deps.toLocalError(error instanceof Error ? error.message : String(error)));
+      return false;
     }
   }
 
@@ -152,19 +158,25 @@ export function mountGitPanel(deps: GitPanelDeps): GitPanelHandle {
         oursBtn.title = t("git.conflict.ours");
         oursBtn.addEventListener("click", (event) => {
           event.stopPropagation();
-          void doGitOp(() => api.git.resolveConflict(item.path, "ours")).then(() => deps.showStatus(t("git.conflict.resolved")));
+          void doGitOp(() => api.git.resolveConflict(item.path, "ours")).then((ok) => {
+            if (ok) deps.showStatus(t("git.conflict.resolved"));
+          });
         });
         const theirsBtn = el("button", "dw-git-action dw-git-resolve", t("git.conflict.theirs"));
         theirsBtn.title = t("git.conflict.theirs");
         theirsBtn.addEventListener("click", (event) => {
           event.stopPropagation();
-          void doGitOp(() => api.git.resolveConflict(item.path, "theirs")).then(() => deps.showStatus(t("git.conflict.resolved")));
+          void doGitOp(() => api.git.resolveConflict(item.path, "theirs")).then((ok) => {
+            if (ok) deps.showStatus(t("git.conflict.resolved"));
+          });
         });
         const manualBtn = el("button", "dw-git-action dw-git-resolve", t("git.conflict.manual"));
         manualBtn.title = t("git.conflict.manual");
         manualBtn.addEventListener("click", (event) => {
           event.stopPropagation();
-          void doGitOp(() => api.git.resolveConflict(item.path, "manual")).then(() => deps.showStatus(t("git.conflict.resolved")));
+          void doGitOp(() => api.git.resolveConflict(item.path, "manual")).then((ok) => {
+            if (ok) deps.showStatus(t("git.conflict.resolved"));
+          });
         });
         row.append(badge, name, openBtn, oursBtn, theirsBtn, manualBtn);
         group.appendChild(row);
@@ -219,7 +231,9 @@ export function mountGitPanel(deps: GitPanelDeps): GitPanelHandle {
   async function doStashPush(): Promise<void> {
     try {
       await api.git.stashPush();
-      deps.showStatus(t("git.stash.push"));
+      // v0.7.19（审查 P12）：旧实现误用按钮文案 key（显示「暂存变更」按钮
+      // 文字而非成功确认）——补专用成功文案键
+      deps.showStatus(t("git.stash.pushed"));
     } catch (error) {
       deps.showStatus(deps.toLocalError(error instanceof Error ? error.message : String(error)));
     }
@@ -267,16 +281,27 @@ export function mountGitPanel(deps: GitPanelDeps): GitPanelHandle {
     }
   }
 
+  /** diff 覆盖层代数（v0.7.19 / 审查 P1）：并发 open 竞态守卫。 */
+  let gitDiffGeneration = 0;
+
   /** 只读 git diff 视图（HEAD ↔ 工作区）：复用 dw-diff 样式与 computeDiff 纯逻辑，无接受/拒绝语义。 */
   async function openGitDiff(relPath: string): Promise<void> {
     closeGitDiff();
+    // v0.7.19 修复（审查 P1）：close 后才 await——期间第二个 open 的 close 清
+    // 不掉未创建的第一个覆盖层，两次 resolve 各自 appendChild 产生孤儿层
+    //（不透明 inset:0 永久遮挡编辑器，关闭按钮只删当前引用）。await 返回后
+    // 按代数复验：已有更新的 open/close 则本次作废。
+    const generation = gitDiffGeneration;
     let texts: { original: string; modified: string };
     try {
       texts = await api.git.diff(relPath);
     } catch (error) {
-      deps.showStatus(deps.toLocalError(error instanceof Error ? error.message : String(error)));
+      if (generation === gitDiffGeneration) {
+        deps.showStatus(deps.toLocalError(error instanceof Error ? error.message : String(error)));
+      }
       return;
     }
+    if (generation !== gitDiffGeneration) return;
     const computation = computeDiff(texts.original, texts.modified);
     gitDiffFile = relPath;
     gitDiffOverlay = el("div", "dw-diff-overlay");
@@ -309,6 +334,7 @@ export function mountGitPanel(deps: GitPanelDeps): GitPanelHandle {
     editorArea.appendChild(gitDiffOverlay);
   }
   function closeGitDiff(): void {
+    gitDiffGeneration++; // 使在途的 openGitDiff 作废（v0.7.19 / P1）
     gitDiffOverlay?.remove();
     gitDiffOverlay = null;
     gitDiffTitleSpan = null;
@@ -403,18 +429,24 @@ export function mountGitPanel(deps: GitPanelDeps): GitPanelHandle {
       closeBranchDropdown();
       return;
     }
-    let branches: GitBranch[];
+    // v0.7.19 修复（审查 P8）：双开竞态——两次快速点击都在 await 前通过
+    // null 检查 → 双弹层（第一个成 fixed z-9000 孤儿）+ branchOutsideClick 被
+    // 覆盖致首个 document 捕获监听器泄漏。await 期间的重复点击直接忽略。
+    if (branchDropdownOpening) return;
+    branchDropdownOpening = true;
     try {
-      branches = await api.git.listBranches();
-    } catch (error) {
-      deps.showStatus(deps.toLocalError(error instanceof Error ? error.message : String(error)));
-      return;
-    }
-    if (branchDropdown !== null) {
-      closeBranchDropdown();
-      return;
-    }
-    const popup = el("div", "dw-branch-dropdown");
+      let branches: GitBranch[];
+      try {
+        branches = await api.git.listBranches();
+      } catch (error) {
+        deps.showStatus(deps.toLocalError(error instanceof Error ? error.message : String(error)));
+        return;
+      }
+      if (branchDropdown !== null) {
+        closeBranchDropdown();
+        return;
+      }
+      const popup = el("div", "dw-branch-dropdown");
     const rect = anchor.getBoundingClientRect();
     popup.style.left = `${rect.left}px`;
     popup.style.top = `${rect.bottom + 2}px`;
@@ -471,6 +503,9 @@ export function mountGitPanel(deps: GitPanelDeps): GitPanelHandle {
     // 外部点击关闭（下一帧生效，避免吞掉当前点击事件；关闭路径统一经
     // closeBranchDropdown 解绑——含 Escape/锚点二次点击/applyGitStatus）
     window.setTimeout(() => {
+      // v0.7.19（P8 次生）：注册窗口内弹层已被关闭（applyGitStatus 刷新等）
+      // 则不注册——旧实现残留 no-op 捕获监听器到下次关闭
+      if (branchDropdown !== popup) return;
       const onDown = (ev: MouseEvent): void => {
         if (branchDropdown === null) return;
         if (branchDropdown.contains(ev.target as Node)) return;
@@ -480,6 +515,9 @@ export function mountGitPanel(deps: GitPanelDeps): GitPanelHandle {
       branchOutsideClick = onDown;
       document.addEventListener("mousedown", onDown, true);
     }, 0);
+    } finally {
+      branchDropdownOpening = false;
+    }
   }
 
   async function checkoutBranch(name: string): Promise<void> {

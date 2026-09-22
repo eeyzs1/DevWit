@@ -135,6 +135,8 @@ export class EditorView {
   private foldedStarts: Set<number> = new Set();
   /** 折叠区域脏标记（v0.7.14：编辑后置脏，渲染前一次性重算 + 折叠态迁移）。 */
   private foldsDirty = false;
+  /** 上次折叠重算时的行数（v0.7.19 性能门控：仅结构性编辑才重算）。 */
+  private foldsLineCount = -1;
   /** Minimap 缩略图开关（v0.5.0：右侧缩略渲染 + 视口指示框 + 点击/拖拽滚动）。 */
   private minimapEnabled: boolean;
   /** Minimap 宽度（像素；默认 80）。 */
@@ -391,6 +393,7 @@ export class EditorView {
     );
     this.rebuildFoldRegionIndex();
     this.foldsDirty = false;
+    this.foldsLineCount = this.doc.lineCount;
     this.invalidateVisibleProjection();
     this.scheduleRender();
   }
@@ -1657,11 +1660,15 @@ export class EditorView {
   private onDocumentChanged(): void {
     // 行数可能变化：投影缓存失效（下一次消费时重建）
     this.invalidateVisibleProjection();
-    // v0.7.14 修复（E11）：编辑后折叠区域失同步——顶部插一行后所有 foldRegions
-    // 行号整体偏移，折叠标记画错行、隐藏区间失真（宿主除 setDocument 外无编辑
-    // 后重算调用，「集成方负责」契约在内部打字路径下不可维持）。标记脏并在
-    // 下次渲染前一次性重算（rAF 合并连击；O(行数) 不落在每击键上）。
-    this.foldsDirty = true;
+    // v0.7.16 修复（E11）+ v0.7.19 性能门控：仅结构性编辑（行数变化——
+    // Enter/删行/粘贴多行）才重算折叠区域。行内编辑不漂移行号，重算只会
+    // 更新被编辑行的缩进边界（既有陈旧性，非缺陷）——而全量重算是
+    // O(行数 × pieces)（实测 20k 行碎片化文档 167ms/次），落在每击键上
+    // 会造成大文件输入卡顿。
+    if (this.doc.lineCount !== this.foldsLineCount) {
+      this.foldsLineCount = this.doc.lineCount;
+      this.foldsDirty = true;
+    }
     this.clampSelections();
     this.clampScroll();
     this.scheduleRender();
@@ -1670,6 +1677,7 @@ export class EditorView {
   /** 编辑后重算折叠区域，并按折叠头行文本迁移用户折叠态（foldedStarts）。 */
   private refreshFoldsAfterEdit(): void {
     this.foldsDirty = false;
+    this.foldsLineCount = this.doc.lineCount;
     const headers = [...this.foldedStarts].sort((a, b) => a - b).map((line) => this.lineText(line));
     this.foldRegions = computeFoldRegions((line) => this.doc.getLine(line), this.doc.lineCount, this.tabSize);
     this.rebuildFoldRegionIndex();

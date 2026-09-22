@@ -53,6 +53,10 @@ export function mountDebugPanel(deps: DebugPanelDeps): DebugPanelHandle {
   // 存储=文件绝对路径 → (1-based 行号 → DebugBreakpoint)。
   const breakpoints = new Map<string, Map<number, DebugBreakpoint>>();
   let debugState: DebugStateInfo = { state: "idle" };
+  /** attach 端口输入持久值（v0.7.19 / P10）：非活动态每次 renderDebugPanel 重建
+   *  端口输入框——旧实现重置回默认 9229，用户改的端口在任意面板重渲染后丢失，
+   *  Attach 连到错误端口。 */
+  let attachPortValue = "9229";
   let debugFrames: DebugStackFrameItem[] = [];
   let debugScopes: DebugScopeItem[] = [];
   /** 变量树缓存：variablesReference → 已加载子项。 */
@@ -130,14 +134,17 @@ export function mountDebugPanel(deps: DebugPanelDeps): DebugPanelHandle {
       fileBps = new Map();
       breakpoints.set(path, fileBps);
     }
-    let bp = fileBps.get(line1);
-    if (bp === undefined) {
-      bp = { line: line1 };
+    // v0.7.19（审查 P9）：记录是否本次新建——用户取消编辑时回滚，
+    // 旧实现留下「幽灵断点」并在下次 startDebugging 全量下发生效
+    const existing = fileBps.get(line1);
+    const isNew = existing === undefined;
+    const bp: DebugBreakpoint = existing ?? { line: line1 };
+    if (isNew) {
       fileBps.set(line1, bp);
       syncEditorBreakpoints();
       renderDebugPanel();
     }
-    void openBreakpointEditor(path, line1, bp);
+    void openBreakpointEditor(path, line1, bp, isNew);
   };
 
   /**
@@ -157,9 +164,21 @@ export function mountDebugPanel(deps: DebugPanelDeps): DebugPanelHandle {
    * 三字段任一非空即视为对应增强类型；全清空保留为普通断点。
    * 对话框关闭后同步编辑器视觉 + 推送运行中会话。
    */
-  async function openBreakpointEditor(path: string, line1: number, bp: DebugBreakpoint): Promise<void> {
+  async function openBreakpointEditor(path: string, line1: number, bp: DebugBreakpoint, isNew = false): Promise<void> {
     const result = await promptBreakpointEdit(line1, bp);
-    if (result === null) return; // 用户取消
+    if (result === null) {
+      // 用户取消：回滚本次新建的断点（v0.7.19 / P9——旧实现保留幽灵断点）
+      if (isNew) {
+        const fileBps = breakpoints.get(path);
+        if (fileBps !== undefined) {
+          fileBps.delete(line1);
+          if (fileBps.size === 0) breakpoints.delete(path);
+        }
+        syncEditorBreakpoints();
+        renderDebugPanel();
+      }
+      return;
+    }
     if (result.hitCount === -1) {
       // 删除断点
       const fileBps = breakpoints.get(path);
@@ -552,8 +571,11 @@ export function mountDebugPanel(deps: DebugPanelDeps): DebugPanelHandle {
       portInput.placeholder = t("debug.attach.portPh");
       portInput.min = "1";
       portInput.max = "65535";
-      portInput.value = "9229";
+      portInput.value = attachPortValue; // v0.7.19（P10）：保留用户输入，不重置 9229
       portInput.title = t("debug.attach.portPh");
+      portInput.addEventListener("input", () => {
+        attachPortValue = portInput.value;
+      });
       portInput.addEventListener("keydown", (ev) => {
         if (ev.key === "Enter") {
           void attachDebugging(portInput.value);
@@ -692,7 +714,11 @@ export function mountDebugPanel(deps: DebugPanelDeps): DebugPanelHandle {
           row.appendChild(el("span", "dw-debug-bp-badge dw-debug-bp-badge-cond", t("debug.bp.condBadge")));
         }
         row.addEventListener("click", () => {
-          void deps.openFileByPath(file).then(() => editor.revealPosition({ line: line1 - 1, character: 0 }));
+          // v0.7.19（P18）：文件被外部删除等读失败不再 unhandled rejection
+          void deps
+            .openFileByPath(file)
+            .then(() => editor.revealPosition({ line: line1 - 1, character: 0 }))
+            .catch(() => undefined);
         });
         row.addEventListener("contextmenu", (ev) => {
           ev.preventDefault();

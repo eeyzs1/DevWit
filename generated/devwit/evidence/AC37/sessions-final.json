@@ -1,18 +1,18 @@
 {
   "sessions": [
     {
-      "sessionId": "session-1790063652230",
+      "sessionId": "session-1790065422629",
       "title": "给编辑器加行号",
-      "lastAt": "2026-09-22T07:54:12.461Z",
+      "lastAt": "2026-09-22T08:23:42.878Z",
       "eventCount": 4
     }
   ],
   "traceList": [
     {
-      "sessionId": "session-1790063652230",
+      "sessionId": "session-1790065422629",
       "eventCount": 4,
-      "startedAt": "2026-09-22T07:54:12.280Z",
-      "lastAt": "2026-09-22T07:54:12.461Z",
+      "startedAt": "2026-09-22T08:23:42.680Z",
+      "lastAt": "2026-09-22T08:23:42.878Z",
       "preview": "给编辑器加行号",
       "hasError": false
     }

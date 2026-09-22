@@ -201,6 +201,10 @@ generated/devwit/
 | 0.7.12 | 对抗性自查：渲染层 14 项缺陷（凭证横幅恒显/replaceAll 竞态/diff 僵尸等） | `576b1af` |
 | 0.7.13 | 对抗性自查：编辑器内核 9 项（多光标偏移/undo 选区/IME 锚点/代理对） | `a812b30` |
 | 0.7.14 | 审查扫尾：折叠编辑同步 + 多光标行操作 + 后台链吞错 | `3177a03` |
+| 0.7.15 | 三路审查第一批 18 项（面板按钮全灭/attach 杀进程/CRLF diff/会话死锁） | `15224f9` |
+| 0.7.16 | 三路审查第二批 14 项（编排孤儿化/注册表污染/中文路径乱码/junction 逃逸） | `2908a51` |
+| 0.7.17 | 三路审查收尾 8 项（符号链接逃逸/编排失败样本/MCP 取消/预算可见化） | `bc3336a` |
+| 0.7.18 | GitService 调用串行化（index.lock 竞态根治） | `88397b5` |
 
 ### 真实用户指标（2026-09-22）
 - GitHub stars/forks/watchers: 0/0/0（推广物料就绪待用户发）
@@ -318,8 +322,9 @@ npm run dev          # 启动验证核心功能
 ---
 
 **最后更新**: 2026-09-22
-**最新提交**: `3177a03` fix: v0.7.14 审查扫尾——折叠编辑同步 + 多光标行操作 + 后台链吞错
-**测试基线**: 929 单测 / 85 测试文件 + E2E 全量 34 套（本地与 CI 双通道；nightly-e2e 每晚全量回归）
-**Latest**: https://github.com/eeyzs1/DevWit/releases/tag/v0.6.0
-**迭代方法论**: 对抗性代码审查（渲染层/编辑器内核/agent 核心/语言工具包分批）→ 逐项验证 → 修复 + 回归测试 → 全量验证（tsc/eslint/vitest/E2E）→ push（CI 绿）→ CHANGELOG 记录。两轮 26 项发现全部闭环。
+**最新提交**: `88397b5` fix: v0.7.18 GitService 调用串行化 + v0.7.17 转正 Latest + winget PR #438830
+**测试基线**: 941 单测 / 86 测试文件 + E2E 全量 35 套（本地与 CI 双通道；nightly-e2e 每晚全量回归）
+**Latest**: https://github.com/eeyzs1/DevWit/releases/tag/v0.7.17（0.7.17 已转正；此前 Latest 卡在 v0.7.0）
+**winget**: 0.7.17 清单已提交 microsoft/winget-pkgs#438830（四文件含 zh-CN locale，SHA256 双源实证）
+**迭代方法论**: 对抗性代码审查（渲染层/编辑器内核/agent 核心/chat-ui/lsp/dap/workspace 分批）→ 逐项验证 → 修复 + 回归测试 → 全量验证（tsc/eslint/vitest/E2E）→ push（CI 绿）→ CHANGELOG 记录。四轮审查 66 项发现全部处置。**注意：本机 GBK 控制台下禁止用 PowerShell Get-Content/Set-Content 改非 ASCII 文件——用 Node（UTF-8 全程安全，曾有 README 编码事故）。**
 

@@ -27,6 +27,7 @@ const zhCN = {
   "lsp.diag.count": "✕ {errors}  ⚠ {warnings}",
   "lsp.references.count": "{n} 个引用",
   "lsp.references.empty": "无引用",
+  "lsp.rename.placeholder": "新名称",
   "tab.outline": "大纲",
   "outline.empty": "打开 TS/JS 文件后显示符号大纲",
 
@@ -55,6 +56,7 @@ const zhCN = {
   "git.branch.deleteConfirm": "确认删除分支 {name}？",
   "git.stash.title": "暂存",
   "git.stash.push": "暂存变更",
+  "git.stash.pushed": "已暂存当前变更",
   "git.stash.pushPlaceholder": "暂存消息（可选）",
   "git.stash.pop": "恢复",
   "git.stash.apply": "应用",
@@ -731,6 +733,7 @@ const enUS: Messages = {
   "lsp.diag.count": "✕ {errors}  ⚠ {warnings}",
   "lsp.references.count": "{n} references",
   "lsp.references.empty": "No references",
+  "lsp.rename.placeholder": "New name",
   "tab.outline": "Outline",
   "outline.empty": "Open a TS/JS file to see its symbol outline",
 
@@ -759,6 +762,7 @@ const enUS: Messages = {
   "git.branch.deleteConfirm": "Delete branch {name}?",
   "git.stash.title": "Stash",
   "git.stash.push": "Stash Changes",
+  "git.stash.pushed": "Changes stashed",
   "git.stash.pushPlaceholder": "Stash message (optional)",
   "git.stash.pop": "Pop",
   "git.stash.apply": "Apply",

@@ -29,6 +29,17 @@ export interface LspOpenFileView {
   doc: TextDocument;
 }
 
+/**
+ * v0.7.19（审查 P6）：window 捕获键盘监听的目标守卫——事件目标必须是编辑器
+ * 的隐藏 IME textarea（aria-label="editor input"）。否则补全/签名/引用/rename/
+ * 代码操作弹层可见时，其它输入框（Git 提交框/搜索框/聊天框）的 Enter/Tab/
+ * 方向键会被吞掉，甚至把补全文本写进编辑器文档（applyCompletion 直接改 doc）；
+ * 在任意输入框打 "(" 也会触发签名浮层。弹层可见期间焦点去了别处 → 关闭弹层。
+ */
+function isEditorKeyTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLTextAreaElement && target.getAttribute("aria-label") === "editor input";
+}
+
 export interface LspUiDeps {
   api: DevwitApi;
   editor: EditorView;
@@ -44,6 +55,13 @@ export interface LspUiDeps {
   /** 绝对路径 → 工作区相对路径（正斜杠）。 */
   relPathOf(absPath: string): string;
   openFileByPath(path: string): Promise<void>;
+  /**
+   * 外部重写文件后的打开标签缓冲刷新（v0.7.19 / 审查 P2）：rename/codeAction
+   * 对非当前文件的 read→改→write 会让该文件已开标签的内存 doc 过期——
+   * 用户切过去 Ctrl+S 即把重构静默回滚。接线宿主的 refreshActiveFileDoc
+   * （按 path 定位条目，非活动标签只更新缓存不动编辑器）。
+   */
+  refreshOpenFileDoc(path: string): Promise<void>;
 }
 
 export interface LspUiHandle {
@@ -64,7 +82,8 @@ async function applyCrossFileEdits(
   current: LspOpenFileView,
   currentRel: string,
   root: string,
-  edits: LspTextEdit[]
+  edits: LspTextEdit[],
+  refreshOpenFileDoc: (path: string) => Promise<void>
 ): Promise<void> {
   const byFile = new Map<string, LspTextEdit[]>();
   for (const edit of edits) {
@@ -93,7 +112,12 @@ async function applyCrossFileEdits(
         for (let i = 0; i < content.length; i++) {
           if (content[i] === "\n") lineStarts.push(i + 1);
         }
-        const sorted = fileEdits.slice().sort((a, b) => {
+        // v0.7.19（审查 P15）：行号越界（服务器返回过期/非法位置）的编辑跳过
+        // ——旧实现 `?? 0` 回退到文件头插入文本，损坏文件开头
+        const valid = fileEdits.filter(
+          (edit) => edit.startLine < lineStarts.length && edit.endLine < lineStarts.length
+        );
+        const sorted = valid.slice().sort((a, b) => {
           const ao = (lineStarts[a.startLine] ?? 0) + a.startCharacter;
           const bo = (lineStarts[b.startLine] ?? 0) + b.startCharacter;
           return bo - ao;
@@ -105,6 +129,9 @@ async function applyCrossFileEdits(
           text = text.slice(0, startOffset) + edit.newText + text.slice(endOffset);
         }
         await api.workspace.write(abs, text);
+        // v0.7.19（审查 P2）：该文件可能有已打开的标签——刷新其内存 doc，
+        // 否则切换过去后 Ctrl+S 会用旧缓冲把重构静默回滚
+        await refreshOpenFileDoc(abs).catch(() => undefined);
       } catch {
         // 读取/写入失败：跳过该文件（跨文件编辑容错）
       }
@@ -170,15 +197,21 @@ export function mountLspUi(deps: LspUiDeps): LspUiHandle {
   hoverTip.style.display = "none";
   editorArea.appendChild(hoverTip);
   let hoverTimer: number | undefined;
+  /** v0.7.19（审查 P7）：hover 代数——hideHover 使在途请求作废（旧实现鼠标
+   *  已移出编辑器后迟到的 IPC 响应仍无条件弹层并常驻旧坐标）。 */
+  let hoverToken = 0;
   function hideHover(): void {
+    hoverToken++;
     window.clearTimeout(hoverTimer);
     hoverTip.style.display = "none";
   }
-  async function showHoverAt(clientX: number, clientY: number): Promise<void> {
+  async function showHoverAt(clientX: number, clientY: number, token: number): Promise<void> {
     const current = deps.getOpenFile();
     if (current === null || deps.getWorkspaceRoot() === "" || lspStatus.state !== "ready") return;
     const pos = editor.positionFromClientPoint(clientX, clientY);
     const info = await api.lsp.hover(deps.relPathOf(current.path), pos.line, pos.character);
+    // 驻留期间已被移动/离开/点击取消 → 丢弃迟到响应（v0.7.19 / P7）
+    if (token !== hoverToken) return;
     // 驻留期间文件已切换 → 丢弃迟到响应
     if (deps.getOpenFile() !== current || info === null || info.text.trim() === "") return;
     const areaRect = editorArea.getBoundingClientRect();
@@ -191,7 +224,7 @@ export function mountLspUi(deps: LspUiDeps): LspUiHandle {
     hideHover(); // 任何移动先关闭旧浮层并重置驻留计时
     if (deps.getOpenFile() === null || lspStatus.state !== "ready") return;
     const { clientX, clientY } = ev;
-    hoverTimer = window.setTimeout(() => void showHoverAt(clientX, clientY), 500);
+    hoverTimer = window.setTimeout(() => void showHoverAt(clientX, clientY, hoverToken), 500);
   });
   canvas.addEventListener("mouseleave", hideHover);
   canvas.addEventListener("mousedown", hideHover);
@@ -214,7 +247,7 @@ export function mountLspUi(deps: LspUiDeps): LspUiHandle {
         await deps.openFileByPath(abs);
         editor.revealPosition({ line: target.line, character: target.character });
       }
-    })();
+    })().catch(() => undefined); // v0.7.19（P18）：目标文件不可读时吞错（已有状态栏提示）
   };
 
   // ---- LSP 自动补全（v0.4.0）：输入触发 → IPC completion → 浮层 → 键盘/鼠标选择 ----
@@ -326,6 +359,12 @@ export function mountLspUi(deps: LspUiDeps): LspUiHandle {
   // 键盘导航：浮层可见时拦截 ArrowUp/Down/Enter/Tab/Esc（capture 阶段先于编辑器）
   window.addEventListener("keydown", (ev) => {
     if (!completionVisible) return;
+    // v0.7.19（P6）：焦点不在编辑器（弹层可见期间点了别的输入框）→ 不拦截，
+    // 并关闭弹层（旧实现吞掉其它输入框的 Enter/Tab 且向编辑器写入补全文本）
+    if (!isEditorKeyTarget(ev.target)) {
+      hideCompletion();
+      return;
+    }
     const count = Math.min(completionItems.length, 50);
     switch (ev.key) {
       case "ArrowDown":
@@ -363,8 +402,11 @@ export function mountLspUi(deps: LspUiDeps): LspUiHandle {
   let referencesIndex = 0;
   let referencesVisible = false;
   let referencesToken = 0;
+  /** 空结果自动关闭计时器句柄（v0.7.19 / P14）。 */
+  let referencesEmptyTimer: number | undefined;
 
   function hideReferences(): void {
+    window.clearTimeout(referencesEmptyTimer);
     referencesPopup.style.display = "none";
     referencesVisible = false;
     referencesItems = [];
@@ -435,7 +477,10 @@ export function mountLspUi(deps: LspUiDeps): LspUiHandle {
       positionReferencesPopup();
       referencesPopup.style.display = "block";
       referencesVisible = true;
-      window.setTimeout(hideReferences, 1500);
+      // v0.7.19（审查 P14）：跟踪自动关闭计时器——旧实现未跟踪，1.5s 窗口内
+      // 对另一符号发起新查询时，旧计时器到点会把新浮层误关
+      window.clearTimeout(referencesEmptyTimer);
+      referencesEmptyTimer = window.setTimeout(hideReferences, 1500);
       return;
     }
     referencesItems = items;
@@ -454,20 +499,29 @@ export function mountLspUi(deps: LspUiDeps): LspUiHandle {
       editor.revealPosition({ line: target.line, character: target.character });
     } else {
       const abs = `${deps.getWorkspaceRoot().replace(/[/\\]+$/, "")}/${target.file}`;
-      void deps.openFileByPath(abs).then(() => {
-        editor.revealPosition({ line: target.line, character: target.character });
-      });
+      // v0.7.19（P18）：跳转目标文件不可读时吞错（openFileByPath 内已状态栏提示）
+      void deps
+        .openFileByPath(abs)
+        .then(() => {
+          editor.revealPosition({ line: target.line, character: target.character });
+        })
+        .catch(() => undefined);
     }
   }
 
   window.addEventListener("keydown", (ev) => {
     if (ev.shiftKey && ev.key === "F12") {
+      if (!isEditorKeyTarget(ev.target)) return; // v0.7.19（P6）：编辑器快捷键仅编辑器焦点触发
       ev.preventDefault();
       ev.stopPropagation();
       void requestReferences();
       return;
     }
     if (!referencesVisible) return;
+    if (!isEditorKeyTarget(ev.target)) {
+      hideReferences(); // v0.7.19（P6）：焦点去了别处 → 关闭弹层不拦截
+      return;
+    }
     const count = Math.min(referencesItems.length, 50);
     switch (ev.key) {
       case "ArrowDown":
@@ -561,6 +615,9 @@ export function mountLspUi(deps: LspUiDeps): LspUiHandle {
   }
 
   window.addEventListener("keydown", (ev) => {
+    // v0.7.19（P6）：签名触发键仅编辑器焦点——旧实现在任意输入框打 "(" ","
+    // 都会弹签名浮层
+    if (!isEditorKeyTarget(ev.target)) return;
     if (ev.key === "(" || ev.key === ",") {
       if (deps.getOpenFile() !== null) window.setTimeout(() => void requestSignature(), 50);
       return;
@@ -584,7 +641,7 @@ export function mountLspUi(deps: LspUiDeps): LspUiHandle {
   const renameInput = document.createElement("input");
   renameInput.type = "text";
   renameInput.className = "dw-rename-input";
-  renameInput.placeholder = "New name";
+  renameInput.placeholder = t("lsp.rename.placeholder"); // v0.7.19（P13）：走词典（原硬编码英文）
   renameBox.appendChild(renameInput);
   let renameVisible = false;
   let renameToken = 0;
@@ -621,11 +678,12 @@ export function mountLspUi(deps: LspUiDeps): LspUiHandle {
     if (renameToken !== token || deps.getOpenFile() !== current) return;
     hideRename();
     if (edits.length === 0) return;
-    await applyCrossFileEdits(api, current, deps.relPathOf(current.path), deps.getWorkspaceRoot().replace(/[/\\]+$/, ""), edits);
+    await applyCrossFileEdits(api, current, deps.relPathOf(current.path), deps.getWorkspaceRoot().replace(/[/\\]+$/, ""), edits, deps.refreshOpenFileDoc);
   }
 
   window.addEventListener("keydown", (ev) => {
     if (ev.key === "F2" && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      if (!isEditorKeyTarget(ev.target)) return; // v0.7.19（P6）
       const openFile = deps.getOpenFile();
       if (openFile === null || lspStatus.state !== "ready") return;
       ev.preventDefault();
@@ -644,6 +702,9 @@ export function mountLspUi(deps: LspUiDeps): LspUiHandle {
       return;
     }
     if (!renameVisible) return;
+    // v0.7.19（P6）：Enter/Escape 仅当焦点在 rename 自己的输入框或编辑器时
+    // 生效——旧实现弹层可见期间全局劫持，其它输入框无法回车提交
+    if (ev.target !== renameInput && !isEditorKeyTarget(ev.target)) return;
     if (ev.key === "Enter") {
       ev.preventDefault();
       ev.stopPropagation();
@@ -722,7 +783,7 @@ export function mountLspUi(deps: LspUiDeps): LspUiHandle {
 
     const current = deps.getOpenFile();
     if (current === null) return;
-    await applyCrossFileEdits(api, current, deps.relPathOf(current.path), deps.getWorkspaceRoot().replace(/[/\\]+$/, ""), action.edits);
+    await applyCrossFileEdits(api, current, deps.relPathOf(current.path), deps.getWorkspaceRoot().replace(/[/\\]+$/, ""), action.edits, deps.refreshOpenFileDoc);
   }
 
   async function requestCodeAction(): Promise<void> {
@@ -745,6 +806,7 @@ export function mountLspUi(deps: LspUiDeps): LspUiHandle {
 
   window.addEventListener("keydown", (ev) => {
     if (ev.key === "." && ev.ctrlKey && !ev.shiftKey && !ev.metaKey && !ev.altKey) {
+      if (!isEditorKeyTarget(ev.target)) return; // v0.7.19（P6）
       if (deps.getOpenFile() === null || lspStatus.state !== "ready") return;
       ev.preventDefault();
       ev.stopPropagation();
@@ -752,6 +814,10 @@ export function mountLspUi(deps: LspUiDeps): LspUiHandle {
       return;
     }
     if (!codeActionVisible) return;
+    if (!isEditorKeyTarget(ev.target)) {
+      hideCodeAction(); // v0.7.19（P6）：焦点去了别处 → 关闭弹层不拦截
+      return;
+    }
     switch (ev.key) {
       case "ArrowDown":
         ev.preventDefault();

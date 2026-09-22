@@ -123,8 +123,14 @@ export function mountSearchPanel(deps: SearchPanelDeps): SearchPanelHandle {
   });
   els.replaceAllBtn.addEventListener("click", () => void replaceAll());
 
+  /** 搜索请求序号（v0.7.19 / 审查 P3）：主进程每次搜索新建 worker 并行执行，
+   *  乱序完成是常态——无守卫时旧请求的超时/结果会覆盖新查询的渲染并污染
+   *  lastResults（replaceAll 随后用「新输入 + 旧命中集」错误组合）。 */
+  let searchRequestSeq = 0;
+
   async function runSearch(): Promise<void> {
     const query = els.input.value;
+    const requestSeq = ++searchRequestSeq;
     if (query === "") {
       els.results.textContent = "";
       els.count.textContent = "";
@@ -144,9 +150,11 @@ export function mountSearchPanel(deps: SearchPanelDeps): SearchPanelHandle {
         caseSensitive,
         wholeWord,
       });
+      if (requestSeq !== searchRequestSeq) return; // 已有更新的查询：本次作废
       lastResults = results;
       renderResults(results);
     } catch (error) {
+      if (requestSeq !== searchRequestSeq) return; // 旧请求的迟到失败不覆盖新结果
       const raw = error instanceof Error ? error.message : String(error);
       els.count.textContent = /regex|regular|DW_SEARCH/i.test(raw) ? t("err.searchRegex") : localizeError(raw);
       els.results.textContent = "";
@@ -206,8 +214,6 @@ export function mountSearchPanel(deps: SearchPanelDeps): SearchPanelHandle {
     }
     let totalReplaced = 0;
     let filesTouched = 0;
-    const currentPath = deps.getActiveFilePath();
-    let currentRefreshed = false;
     for (const file of lastResults.files) {
       let content: string;
       try {
@@ -215,6 +221,9 @@ export function mountSearchPanel(deps: SearchPanelDeps): SearchPanelHandle {
       } catch {
         continue;
       }
+      // v0.7.19 修复（审查 P4）：保留文件原行尾风格——旧实现 split(/\r?\n/)
+      // 吞掉 \r 后 join("\n") 写回，CRLF 文件被整体改写为 LF（git 整文件标红）
+      const eol = content.includes("\r\n") ? "\r\n" : "\n";
       const lines = content.split(/\r?\n/);
       const matchLines = new Set(file.matches.map((m) => m.line));
       let changed = false;
@@ -230,13 +239,15 @@ export function mountSearchPanel(deps: SearchPanelDeps): SearchPanelHandle {
       }
       if (!changed) continue;
       try {
-        await api.workspace.write(file.absolutePath, lines.join("\n"));
+        await api.workspace.write(file.absolutePath, lines.join(eol));
         filesTouched++;
         totalReplaced += file.matches.length;
-        if (file.absolutePath === currentPath && !currentRefreshed) {
-          await deps.onActiveFileRewritten(file.absolutePath);
-          currentRefreshed = true;
-        }
+        // v0.7.19 修复（审查 P5）：逐文件刷新其已打开标签的缓冲——旧实现
+        // 只在「开始时的活动文件」匹配时刷新一次，循环期间切换标签后该
+        // 标签的内存 doc 过期，Ctrl+S 会把替换结果静默回滚。回调内部按
+        // path 定位 openFiles 条目（活动文件热替换编辑器，非活动只更新缓存，
+        // 未打开的文件自然 no-op）。
+        await deps.onActiveFileRewritten(file.absolutePath);
       } catch {
         // 写入失败跳过该文件
       }

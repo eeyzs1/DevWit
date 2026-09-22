@@ -684,6 +684,8 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     getOpenFile: () => openFile,
     relPathOf,
     openFileByPath,
+    // v0.7.19（审查 P2）：rename/codeAction 跨文件写盘后刷新已开标签缓冲
+    refreshOpenFileDoc: refreshActiveFileDoc,
   });
 
   // v0.7.7：Git 版本控制 UI 集群抽取为 git-panel.ts 模块（面板/diff/blame/
