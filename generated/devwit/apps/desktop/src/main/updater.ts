@@ -37,6 +37,8 @@ export interface UpdateServiceDeps {
 export class UpdateService {
   private autoUpdater: AutoUpdaterLike | null = null;
   private checking = false;
+  /** 最近到达的阶段（v0.7.26 / R7-8c：错误码按阶段区分）。 */
+  private lastPhase: "none" | "available" | "downloading" = "none";
 
   constructor(private readonly deps: UpdateServiceDeps) {}
 
@@ -108,18 +110,28 @@ export class UpdateService {
       au.on("checking-for-update", () => this.emit({ state: "checking" }));
       au.on("update-available", (info: unknown) => {
         const version = typeof (info as { version?: unknown })?.version === "string" ? (info as { version: string }).version : "";
+        this.lastPhase = "available";
         this.emit({ state: "available", version });
       });
-      au.on("update-not-available", () => this.emit({ state: "none" }));
+      au.on("update-not-available", () => {
+        this.lastPhase = "none";
+        this.emit({ state: "none" });
+      });
       au.on("download-progress", (progress: unknown) => {
         const percent = typeof (progress as { percent?: unknown })?.percent === "number" ? Math.round((progress as { percent: number }).percent) : 0;
+        this.lastPhase = "downloading";
         this.emit({ state: "downloading", percent });
       });
       au.on("update-downloaded", (info: unknown) => {
         const version = typeof (info as { version?: unknown })?.version === "string" ? (info as { version: string }).version : "";
         this.emit({ state: "ready", version });
       });
-      au.on("error", () => this.emit({ state: "error", code: "DW_UPDATE_CHECK_FAILED" }));
+      // v0.7.26（审查 R7-8c）：错误码按阶段区分——下载中断报「检查失败」
+      // 误导排障；进入过 available/downloading 后的 error 是下载期错误
+      au.on("error", () => {
+        const code = this.lastPhase === "downloading" || this.lastPhase === "available" ? "DW_UPDATE_DOWNLOAD_FAILED" : "DW_UPDATE_CHECK_FAILED";
+        this.emit({ state: "error", code });
+      });
       this.autoUpdater = au;
       return au;
     } catch {

@@ -70,7 +70,14 @@ let index = 0;
 // dist/renderer 输出裸 ESM（含未解析 import），部分重建时若漏跑
 // build:renderer，全部套件会以「.dw-header 超时」一致失败且难定位
 //（实测教训：34/34 同症状，根因在产物而非产品代码）。提前失败并给出修复指引。
-const rendererBundle = fs.readFileSync(path.join(dir, "../../../dist/renderer/index.js"), "utf8");
+let rendererBundle = "";
+try {
+  // dir = <root>/apps/desktop/tests/e2e → dist/renderer 在 2 级上溯（desktop）下
+  rendererBundle = fs.readFileSync(path.join(dir, "../../dist/renderer/index.js"), "utf8");
+} catch {
+  console.error("[e2e-all] FATAL: dist/renderer/index.js 不存在——请先跑 npm run build。");
+  process.exit(2);
+}
 if (rendererBundle.startsWith("import ") || rendererBundle.includes('"} from "@devwit/')) {
   console.error(
     "[e2e-all] FATAL: dist/renderer/index.js 是 tsc 的裸 ESM 输出而非 esbuild bundle——" +

@@ -70,8 +70,11 @@ export function mountActivityStream(
 
   let subscribed: ChatController | null = null;
   let unsubscribe: (() => void) | null = null;
+  /** 已展开的工具行（按列表下标，v0.7.26 / 审查 R7-15：流式期间全量重建
+   *  不再丢失展开态——审计透明功能在 agent 运行中可用）。 */
+  const expandedTools = new Set<number>();
 
-  function renderItem(item: ChatItem): HTMLElement {
+  function renderItem(item: ChatItem, index: number): HTMLElement {
     const row = document.createElement("div");
     row.className = `dw-act dw-act-${item.kind}`;
     const badge = document.createElement("span");
@@ -149,12 +152,23 @@ export function mountActivityStream(
           const detail = document.createElement("pre");
           detail.className = "dw-act-tool-detail";
           detail.textContent = parts.join("\n");
-          // 默认折叠；点击头部展开/收起完整结果（审计透明，不默认刷屏）
+          // 默认折叠；点击头部展开/收起完整结果（审计透明，不默认刷屏）。
+          // v0.7.26（R7-15）：展开态存 expandedTools——全量重建后恢复
           const toggle = (): void => {
             detail.classList.toggle("dw-collapsed");
             head.classList.toggle("dw-act-tool-open");
+            if (detail.classList.contains("dw-collapsed")) {
+              expandedTools.delete(index);
+            } else {
+              expandedTools.add(index);
+            }
           };
-          detail.classList.add("dw-collapsed");
+          if (expandedTools.has(index)) {
+            detail.classList.remove("dw-collapsed");
+            head.classList.add("dw-act-tool-open");
+          } else {
+            detail.classList.add("dw-collapsed");
+          }
           head.addEventListener("click", toggle);
           body.appendChild(detail);
         }
@@ -286,6 +300,10 @@ export function mountActivityStream(
 
   function render(): void {
     const controller = options.getController();
+    // v0.7.26（R7-15）：跟随式自动滚动——用户上翻阅读时不被拽回底部；
+    // 重建后非跟随态保持原滚动位置（旧实现每事件强制滚底）
+    const nearBottom = root.scrollHeight - root.scrollTop - root.clientHeight < 48;
+    const savedScrollTop = root.scrollTop;
     root.textContent = "";
     if (controller === null) {
       const empty = document.createElement("div");
@@ -294,10 +312,20 @@ export function mountActivityStream(
       root.appendChild(empty);
       return;
     }
-    for (const item of controller.listItems()) {
-      root.appendChild(renderItem(item));
+    const items = controller.listItems();
+    // 会话切换/条目收缩时清理越界的展开下标
+    for (const idx of [...expandedTools]) {
+      if (idx >= items.length) expandedTools.delete(idx);
     }
-    root.scrollTop = root.scrollHeight;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item !== undefined) root.appendChild(renderItem(item, i));
+    }
+    if (nearBottom) {
+      root.scrollTop = root.scrollHeight;
+    } else {
+      root.scrollTop = savedScrollTop;
+    }
   }
 
   /** 激活任务切换时重新订阅新控制器。 */

@@ -27,6 +27,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 let mainWindow: BrowserWindow | null = null;
 let workspace: WorkspaceService | null = null;
 let terminal: TerminalService | null = null;
+/** 更新服务（v0.7.26 / R7-8：createWindow 内 did-finish-load 钩子引用）。 */
+let updater: UpdateService | null = null;
 let aiRuntime: AiRuntime | null = null;
 let telemetry: TelemetryService | null = null;
 let lspService: LspService | null = null;
@@ -57,6 +59,14 @@ function createWindow(): void {
     event.preventDefault();
   });
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  // v0.7.26（审查 R7-8）：静默更新检查挂到 createWindow 内（每个新窗口的
+  // webContents 都获得一次机会——macOS 关窗重建后不再漏检），且只对首个
+  // 完成加载真正发起（updaterStarted 单次标记防 reload 重复网络检查）。
+  mainWindow.webContents.on("did-finish-load", () => {
+    if (updaterStarted) return;
+    updaterStarted = true;
+    void updater?.start();
+  });
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
@@ -152,7 +162,8 @@ app.whenReady().then(() => {
           { state: "ready", version: "9.9.9" },
         ]
       : undefined;
-  const updater = new UpdateService({ send, isPackaged: app.isPackaged, ...(fakeUpdate !== undefined ? { fakeSequence: fakeUpdate } : {}) });
+  const updaterInstance = new UpdateService({ send, isPackaged: app.isPackaged, ...(fakeUpdate !== undefined ? { fakeSequence: fakeUpdate } : {}) });
+  updater = updaterInstance;
 
   // AI 子系统（WU008-WU012 接线）：manifest 落盘 userData/manifests（AC2 审计产物）
   // v0.7.5：grep 正则匹配经 worker 线程隔离（ReDoS 硬超时），env 注入端口
@@ -244,12 +255,6 @@ app.whenReady().then(() => {
 
   createWindow();
 
-  // 启动静默检查（AC16）：渲染进程脚本加载完毕（onStatus 订阅就位）后再发起，
-  // 避免早期状态事件丢失；失败/无更新均不打扰用户（仅状态条瞬态提示）。
-  mainWindow?.webContents.on("did-finish-load", () => {
-    void updater.start();
-  });
-
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -297,3 +302,6 @@ app.on("will-quit", (event) => {
 
 /** will-quit 清理已启动标记（防止 preventDefault 后二次进入重复清理）。 */
 let quitCleanupStarted = false;
+
+/** 静默更新检查已发起标记（v0.7.26 / R7-8：reload/多窗口不重复检查）。 */
+let updaterStarted = false;

@@ -1,13 +1,13 @@
 {
-  "id": "manifest-3ecd693c-4b37-44ff-bd60-787226dd5ee8",
-  "timestamp": "2026-09-22T14:48:16.794Z",
-  "sessionId": "session-1790088496045",
+  "id": "manifest-ad639e16-7e33-4d70-8f38-6d9dfbd338c2",
+  "timestamp": "2026-09-22T15:04:59.893Z",
+  "sessionId": "session-1790089499159",
   "modeId": "chat",
   "providerId": "p-i17",
   "model": "i17-model",
   "items": [
     {
-      "id": "item-f5163f69-74a1-4446-b65f-bb5cfbc0d3ff",
+      "id": "item-7611a943-3112-41e4-84bb-d4cbdc5817f7",
       "type": "system_prompt",
       "label": "系统提示",
       "enabled": true,
@@ -17,7 +17,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-8745cb58-d864-4632-8c48-bac1db1d5e8b",
+      "id": "item-04428ee5-4a7b-463c-a577-f9c96cadbe58",
       "type": "tool_definitions",
       "label": "工具定义（8 个）",
       "enabled": true,
@@ -27,7 +27,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-c785a84e-d625-424c-876d-1a832e5ba470",
+      "id": "item-a9eacfc5-3d99-41d7-90ef-5526b6393319",
       "type": "conversation_history",
       "label": "会话历史（1 条）",
       "enabled": true,
@@ -37,7 +37,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-a6029461-6b5b-420b-b436-e699fbd799f0",
+      "id": "item-d7466fd3-f9c3-4a1c-8059-8edda42782dc",
       "type": "file_fragment",
       "label": "引用文件 src/util.ts",
       "enabled": true,
@@ -48,7 +48,7 @@
       "key": "attachment:src/util.ts"
     },
     {
-      "id": "item-2605ec79-4185-4629-90a6-936a802149d9",
+      "id": "item-de7fd352-bb56-4dab-989f-c0dcaf7df60a",
       "type": "file_fragment",
       "label": "引用文件 src/hello.ts",
       "enabled": true,
@@ -59,7 +59,7 @@
       "key": "attachment:src/hello.ts"
     },
     {
-      "id": "item-66b4412e-6c9e-45a1-8268-7bb0401ea7ae",
+      "id": "item-b770081c-d397-4c4c-84d8-b6f9c41fe802",
       "type": "git_status",
       "label": "Git 状态",
       "enabled": false,
@@ -69,7 +69,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-d966ec95-3f13-4bd4-ae96-874b88c7ce5f",
+      "id": "item-1987a71c-38f7-4ef7-a748-c97b58aa8964",
       "type": "codebase_match",
       "label": "代码库检索（索引未启用）",
       "enabled": false,
