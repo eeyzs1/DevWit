@@ -35,7 +35,13 @@ const CR = 13; // '\r'
 function computeLineStarts(text: string, from: number, to: number): number[] {
   const starts: number[] = [];
   for (let i = from; i < to; i++) {
-    if (text.charCodeAt(i) === LF) {
+    const code = text.charCodeAt(i);
+    if (code === LF) {
+      starts.push(i - from + 1);
+    } else if (code === CR && text.charCodeAt(i + 1) !== LF) {
+      // v0.7.22（审查 E6-8）：孤立 '\r'（旧 Mac 行尾）也计为换行；
+      // '\r\n' 只在 '\n' 处计一次。下一字符检查用完整 text（追加边界安全：
+      // 键盘/IME 不产生 '\r'，仅粘贴/加载携带完整对）。
       starts.push(i - from + 1);
     }
   }
@@ -397,7 +403,10 @@ export class PieceTable {
       next.push(piece);
     }
 
-    this.pieces = next;
+    // v0.7.22（审查 E6-5 缓解）：合并同缓冲区连续相邻片——splitPiece 产生的
+    // 左右两半、删除区间两侧的同源片在分隔被删后重新连续。合并使「插入再
+    // 删除」与反复中部编辑的碎片数有界（完整平衡树重构属中期项）。
+    this.pieces = mergeContiguousPieces(next);
     this.recomputeTotals();
   }
 
@@ -415,4 +424,30 @@ export class PieceTable {
 
 function pieceEnd(start: number, piece: Piece): number {
   return start + piece.length;
+}
+
+/**
+ * 合并同缓冲区内首尾相接的相邻片（v0.7.22 / E6-5）：[b,start,len] 与
+ * [b,start+len,len2] → [b,start,len+len2]，lineStarts 右侧平移左片长度。
+ * 单遍 O(pieces)，仅在 deleteCore 重建后调用。
+ */
+function mergeContiguousPieces(pieces: Piece[]): Piece[] {
+  const out: Piece[] = [];
+  for (const piece of pieces) {
+    const prev = out[out.length - 1];
+    if (
+      prev !== undefined &&
+      prev.buffer === piece.buffer &&
+      prev.start + prev.length === piece.start
+    ) {
+      const shift = prev.length;
+      prev.length += piece.length;
+      for (const entry of piece.lineStarts) {
+        prev.lineStarts.push(entry + shift);
+      }
+    } else {
+      out.push(piece);
+    }
+  }
+  return out;
 }

@@ -85,7 +85,9 @@ export class McpHttpClient implements McpTransport {
   private closed = false;
   private version = HTTP_PROTOCOL_VERSION;
   private nextId = 1;
-  private activeAbort: AbortController | null = null;
+  /** 在途请求的 abort 控制器集（v0.7.22 / 审查 E6-9：旧实现单槽——并发请求
+   *  互相覆盖，close() 只中止最新一个，先完成者 finally 误清后者的控制器）。 */
+  private readonly activeAborts = new Set<AbortController>();
   private requestTimeoutMs: number;
   serverInfo: { name: string; version?: string; description?: string; websiteUrl?: string } | undefined;
 
@@ -179,8 +181,9 @@ export class McpHttpClient implements McpTransport {
   async close(): Promise<void> {
     this.closed = true;
     this.started = false;
-    this.activeAbort?.abort();
-    this.activeAbort = null;
+    // v0.7.22（E6-9）：中止全部在途请求（不再只中止最新一个）
+    for (const controller of this.activeAborts) controller.abort();
+    this.activeAborts.clear();
   }
 
   // --------------------------------------------------------------------------
@@ -217,7 +220,7 @@ export class McpHttpClient implements McpTransport {
     if (isModern && opts?.mcpName !== undefined) headers["Mcp-Name"] = encodeHeaderValue(opts.mcpName);
 
     const controller = new AbortController();
-    this.activeAbort = controller;
+    this.activeAborts.add(controller);
     const timer = setTimeout(() => controller.abort(), this.requestTimeoutMs);
     let res: Awaited<ReturnType<HttpFetchLike>>;
     try {
@@ -227,7 +230,7 @@ export class McpHttpClient implements McpTransport {
       if (this.closed || controller.signal.aborted) throw new Error("DW_MCP_HTTP_TIMEOUT:" + method);
       throw new Error(`DW_MCP_HTTP_UNREACHABLE:${error instanceof Error ? error.message : String(error)}`);
     } finally {
-      this.activeAbort = null;
+      this.activeAborts.delete(controller);
     }
     const contentType = res.headers.get("content-type") ?? "";
     if (!res.ok) {

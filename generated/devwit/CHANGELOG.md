@@ -3,6 +3,20 @@
 所有显著变更记录于此。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本遵循 [语义化版本](https://semver.org/)。
 
+## [0.7.22] — 2026-10-02
+
+### Fixed
+- **第六轮审查扫尾（3 项）**：
+- **孤立 `\r`（旧 Mac）行尾不识别**（E6-8）：整篇一行——行号/折叠/
+  minimap/自动缩进全错。computeLineStarts 兼容（`\r` 非 `\r\n` 前导时
+  计为换行；`\r\n` 只在 `\n` 处计一次）
+- **http-client activeAbort 单槽竞态**（E6-9）：并发请求互相覆盖——close
+  只中止最新一个，先完成者 finally 误清后者控制器。改控制器集合
+  （close 中止全部，finally 摘除自身）
+- **piece-table 删除后相邻片合并**（E6-5 缓解）：deleteCore 重建后合并同
+  缓冲区连续片——「插入再删除」与反复中部编辑的碎片数有界（200 轮中
+  部插入+删除净零片，回归测试锁定；完整平衡树重构属中期项）
+
 ## [0.7.21] — 2026-10-02
 
 ### Fixed

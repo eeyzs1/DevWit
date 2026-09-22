@@ -1,13 +1,13 @@
 {
-  "id": "manifest-187e474e-9f8f-4256-9eaf-a33a216bfeeb",
-  "timestamp": "2026-09-22T12:09:08.289Z",
-  "sessionId": "task-session-1790078948174-2",
+  "id": "manifest-48f13746-b9d3-46a6-a743-6c1c7488429c",
+  "timestamp": "2026-09-22T12:22:06.838Z",
+  "sessionId": "task-session-1790079726725-2",
   "modeId": "agent",
   "providerId": "p-i21",
   "model": "i21-model",
   "items": [
     {
-      "id": "item-fefd907c-9464-4b42-80b8-98a09084cb34",
+      "id": "item-071e5dfe-7c9d-4c76-b6de-bf240e674c21",
       "type": "system_prompt",
       "label": "系统提示",
       "enabled": true,
@@ -17,7 +17,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-dfa2ca51-50ce-42c7-89d0-d4733b858b0e",
+      "id": "item-d7ceb3a4-bda8-42c0-83e4-6eb94da55db0",
       "type": "tool_definitions",
       "label": "工具定义（11 个）",
       "enabled": true,
@@ -27,7 +27,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-2a151f96-a02d-45a3-819a-1664d3d8e371",
+      "id": "item-d25aad24-9953-437a-b3ae-fd33248a994f",
       "type": "conversation_history",
       "label": "会话历史（1 条）",
       "enabled": true,
@@ -37,7 +37,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-091f078c-5bbb-4514-a8af-dc93e18dc5f1",
+      "id": "item-74bd291f-f11f-49f9-bb04-a94eb880207b",
       "type": "git_status",
       "label": "Git 状态",
       "enabled": false,
@@ -47,7 +47,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-8b3636a2-97be-4724-82e0-1edbfc4d87dd",
+      "id": "item-f6f98fbb-c408-422d-8c6d-20eea9e0b22b",
       "type": "codebase_match",
       "label": "代码库检索（索引未启用）",
       "enabled": false,
@@ -57,7 +57,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-bf15fd6c-0f84-4b30-a976-6bcbf0c9a6d2",
+      "id": "item-a75bd23c-c25e-4d2e-b3f0-6ce3cbdc2e95",
       "type": "workflow",
       "label": "复用工作流（write）",
       "enabled": true,

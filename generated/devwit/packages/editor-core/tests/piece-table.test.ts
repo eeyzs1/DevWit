@@ -154,6 +154,38 @@ describe("PieceTable 编辑", () => {
     expect(t.pieceCount).toBe(1);
   });
 
+  it("v0.7.22（E6-8）：孤立 '\\r'（旧 Mac）行尾计为换行；\\r\\n 只计一次", () => {
+    const cr = PieceTable.fromString("a\rb\rc");
+    expect(cr.lineCount).toBe(3);
+    expect(cr.getLine(0)).toBe("a");
+    expect(cr.getLine(2)).toBe("c");
+    const crlf = PieceTable.fromString("a\r\nb\r\nc");
+    expect(crlf.lineCount).toBe(3);
+    expect(crlf.getLine(0)).toBe("a"); // \r 由 getLine 剥除
+    const mixed = PieceTable.fromString("a\nb\r\nc\rd");
+    expect(mixed.lineCount).toBe(4);
+  });
+
+  it("v0.7.22（E6-5 缓解）：中部插入后删除插入内容，片数回落（相邻片合并）", () => {
+    const table = PieceTable.fromString("hello world");
+    const before = table.pieceCount;
+    table.insert(5, "XX");
+    table.delete(5, 2);
+    expect(table.getText()).toBe("hello world");
+    expect(table.pieceCount).toBeLessThanOrEqual(before);
+  });
+
+  it("v0.7.22（E6-5 缓解）：反复中部编辑碎片有界（每轮插入+删除净零片）", () => {
+    const table = PieceTable.fromString("0123456789".repeat(20));
+    const base = table.pieceCount;
+    for (let i = 0; i < 200; i++) {
+      table.insert(100, "abc");
+      table.delete(100, 3);
+    }
+    expect(table.getText()).toBe("0123456789".repeat(20));
+    expect(table.pieceCount).toBeLessThanOrEqual(base + 2);
+  });
+
   it("onDidChange 可解绑", () => {
     const t = PieceTable.fromString("a");
     let count = 0;
