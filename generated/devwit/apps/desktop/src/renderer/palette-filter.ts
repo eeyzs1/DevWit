@@ -56,7 +56,10 @@ function scoreLabel(label: string, query: string): number | null {
 }
 
 /** 过滤 + 排序（分数降序，同分保持注册序）。 */
-export function filterPalette<T>(items: PaletteItem<T>[], query: string, limit = 20): ScoredItem<T>[] {
+/** 面板默认显示条数上限（UI 展示常量，调用方可覆盖）。 */
+export const DEFAULT_PALETTE_LIMIT = 20; // qg-allow: 面板展示行数上限（UI 常量，非调参阈值）
+
+export function filterPalette<T>(items: PaletteItem<T>[], query: string, limit: number = DEFAULT_PALETTE_LIMIT): ScoredItem<T>[] {
   const scored: ScoredItem<T>[] = [];
   for (const item of items) {
     const score = scoreLabel(item.label, query);
