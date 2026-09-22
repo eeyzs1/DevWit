@@ -28,6 +28,7 @@ import { mountSearchPanel } from "./search-panel.js";
 import { mountLspUi } from "./lsp-ui.js";
 import { mountGitPanel } from "./git-panel.js";
 import { mountDebugPanel } from "./debug-panel.js";
+import { mountTerminalPanel } from "./terminal-panel.js";
 import { el } from "./dom.js";
 import { openEditorSetupDialog } from "./editor-setup-dialog.js";
 import { openOnboardingWizard } from "./onboarding-wizard.js";
@@ -152,13 +153,15 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   ide.append(sidebar, editorArea, side);
   main.appendChild(ide);
 
-  // 左栏四页签（AC41 文件/Git + AC42 调试 + v0.4.0 大纲）：各自 DOM 保持（切页签不重建树）
+  // 左栏五页签（AC41 文件/Git + AC42 调试 + v0.4.0 大纲 + v0.7.28 终端）：
+  // 各自 DOM 保持（切页签不重建树）
   const leftTabs = el("div", "dw-tabs dw-left-tabs");
   const filesTab = el("div", "dw-tab dw-tab-active", t("tab.files"));
   const gitTab = el("div", "dw-tab", t("tab.git"));
   const debugTab = el("div", "dw-tab", t("tab.debug"));
   const outlineTab = el("div", "dw-tab", t("tab.outline"));
-  leftTabs.append(filesTab, gitTab, debugTab, outlineTab);
+  const terminalTab = el("div", "dw-tab", t("tab.terminal"));
+  leftTabs.append(filesTab, gitTab, debugTab, outlineTab, terminalTab);
   const filesPane = el("div", "dw-left-pane");
   const gitPane = el("div", "dw-left-pane dw-git");
   gitPane.style.display = "none";
@@ -166,16 +169,20 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   debugPane.style.display = "none";
   const outlinePane = el("div", "dw-left-pane dw-outline");
   outlinePane.style.display = "none";
-  sidebar.append(leftTabs, filesPane, gitPane, debugPane, outlinePane);
-  function activateLeftTab(active: "files" | "git" | "debug" | "outline"): void {
+  const terminalPaneHost = el("div", "dw-left-pane dw-terminal-host");
+  terminalPaneHost.style.display = "none";
+  sidebar.append(leftTabs, filesPane, gitPane, debugPane, outlinePane, terminalPaneHost);
+  function activateLeftTab(active: "files" | "git" | "debug" | "outline" | "terminal"): void {
     filesTab.classList.toggle("dw-tab-active", active === "files");
     gitTab.classList.toggle("dw-tab-active", active === "git");
     debugTab.classList.toggle("dw-tab-active", active === "debug");
     outlineTab.classList.toggle("dw-tab-active", active === "outline");
+    terminalTab.classList.toggle("dw-tab-active", active === "terminal");
     filesPane.style.display = active === "files" ? "" : "none";
     gitPane.style.display = active === "git" ? "flex" : "none";
     debugPane.style.display = active === "debug" ? "flex" : "none";
     outlinePane.style.display = active === "outline" ? "flex" : "none";
+    terminalPaneHost.style.display = active === "terminal" ? "flex" : "none";
   }
   filesTab.addEventListener("click", () => activateLeftTab("files"));
   gitTab.addEventListener("click", () => {
@@ -186,6 +193,10 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   outlineTab.addEventListener("click", () => {
     activateLeftTab("outline");
     void lspUi.refreshOutline(); // 切到大纲即取最新（文件可能已变更）
+  });
+  terminalTab.addEventListener("click", () => {
+    activateLeftTab("terminal");
+    terminalPanel.activate(); // 首次激活创建会话（cwd=工作区根）
   });
 
   // 指挥台形态（AC9：任务列表 | Agent 活动流 | 工作区视图）
@@ -718,6 +729,12 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     openFileByPath,
     showStatus,
     toLocalError,
+  });
+
+  // v0.7.28：终端面板（真实 shell——后端经 R7-7 三项加固，exit 推送接线）
+  const terminalPanel = mountTerminalPanel(terminalPaneHost, {
+    api,
+    getWorkspaceRoot: () => workspaceRoot,
   });
 
   // ---- 首次使用引导（AC11）：未打开工作区时主区显示三步引导 ----
@@ -1382,6 +1399,8 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     gitTab.textContent = t("tab.git");
     debugTab.textContent = t("tab.debug");
     outlineTab.textContent = t("tab.outline");
+    terminalTab.textContent = t("tab.terminal");
+    terminalPanel.applyLocale();
     lspUi.renderOutlineTree(); // 大纲空态文案随语言热生效
     debugPanel.renderDebugStatus(); // 调试状态项随语言热生效
     debugPanel.renderDebugPanel();

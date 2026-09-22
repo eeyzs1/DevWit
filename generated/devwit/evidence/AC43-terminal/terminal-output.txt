@@ -1,0 +1,1 @@
+—— 会话已启动（C:\Windows\system32\cmd.exe）——Microsoft Windows [Version 10.0.26200.9457]

@@ -1,5 +1,5 @@
 
-DevTools listening on ws://127.0.0.1:21407/devtools/browser/8a5cbc1d-3bf0-4819-bb1c-4cce44854465
+DevTools listening on ws://127.0.0.1:21454/devtools/browser/c76d9717-7974-469b-be12-3250c1e299a8
 Error occurred in handler for 'agent:run': Error: DW_MODE_UNBOUND:chat
     at _AiRuntime.run (file:///E:/AI_Generated_Projects/DevWit/generated/devwit/apps/desktop/dist/main/index.js:23684:13)
     at table.<computed> (file:///E:/AI_Generated_Projects/DevWit/generated/devwit/apps/desktop/dist/main/index.js:26254:49)

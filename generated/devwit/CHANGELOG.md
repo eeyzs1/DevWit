@@ -3,6 +3,22 @@
 所有显著变更记录于此。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本遵循 [语义化版本](https://semver.org/)。
 
+## [0.7.28] — 2026-10-02
+
+### Added
+- **终端面板**（侧栏第五页签「终端」）：真实 shell 会话（主进程 pty/pipe
+  后端，v0.7.25 三项加固完毕后的正式接线）——
+  - 输出：流式追加 + ANSI SGR 解析（`terminal-ansi.ts` 纯函数，14 项单测：
+    8/16 亮色/256 色近似/粗体斜体下划线反显/复位；光标控制与 OSC 剥离；
+    流截断半序列缓冲）+ 34 类 CSS 配色；行环形上限 5000
+  - 输入：keydown → xterm 转义序列（方向键/Home/End/Delete/PageUp/Down/
+    Tab/Enter/Ctrl+字母控制码）；IME/粘贴经隐藏 textarea input 事件
+  - 生命周期：页签激活创建（cwd=工作区根）、exit 推送收尾、重启（旧会话
+    树杀 + 干净重建）、结束（终止+清空）；E2E verify-terminal 4 断言
+    全链路（创建/echo 流式/exit 推送/重启）真实 shell 验证
+  - 架构注记：ANSI 解析器放渲染端（@devwit/terminal 含 node: 内置模块
+    不可进浏览器 bundle——esbuild 实测拦截，符合 AR004 主进程专用约定）
+
 ## [0.7.27] — 2026-10-02
 
 ### Fixed

@@ -31,6 +31,17 @@ const zhCN = {
   "tab.outline": "大纲",
   "outline.empty": "打开 TS/JS 文件后显示符号大纲",
 
+  // ---- 终端面板（v0.7.28）----
+  "tab.terminal": "终端",
+  "terminal.started": "—— 会话已启动（{shell}）——",
+  "terminal.exited": "—— 会话已结束{code} ——",
+  "terminal.startFailed": "—— 启动失败：{detail} ——",
+  "terminal.restart": "重启",
+  "terminal.restart.tooltip": "终止当前会话并启动新 shell",
+  "terminal.close": "结束",
+  "terminal.close.tooltip": "终止当前会话（输出清空）",
+  "terminal.hint": "点击输出区聚焦输入；中文输入经输入法确认后发送",
+
   // ---- Git 版本控制（迭代 32 / AC41）----
   "tab.files": "文件",
   "tab.git": "Git",
@@ -737,6 +748,17 @@ const enUS: Messages = {
   "lsp.rename.placeholder": "New name",
   "tab.outline": "Outline",
   "outline.empty": "Open a TS/JS file to see its symbol outline",
+
+  // ---- Terminal panel (v0.7.28) ----
+  "tab.terminal": "Terminal",
+  "terminal.started": "—— session started ({shell}) ——",
+  "terminal.exited": "—— session ended{code} ——",
+  "terminal.startFailed": "—— start failed: {detail} ——",
+  "terminal.restart": "Restart",
+  "terminal.restart.tooltip": "Kill the current session and start a new shell",
+  "terminal.close": "End",
+  "terminal.close.tooltip": "Terminate the current session (output cleared)",
+  "terminal.hint": "Click the output area to focus input; CJK input is sent after IME commit",
 
   // ---- Git version control (iteration 32 / AC41) ----
   "tab.files": "Files",

@@ -1621,6 +1621,79 @@ body,
   flex-direction: column;
   overflow: auto;
 }
+
+/* ---- 终端面板（v0.7.28：真实 shell 流式输出 + ANSI 样式）---- */
+.dw-terminal {
+  flex-direction: column;
+  overflow: hidden;
+}
+.dw-terminal-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--dw-border);
+}
+.dw-terminal-output {
+  flex: 1;
+  overflow: auto;
+  padding: 6px 8px;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-all;
+  cursor: text;
+}
+.dw-terminal-line {
+  min-height: 1.45em;
+}
+.dw-terminal-input {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+/* ANSI SGR 类（8 色 + 亮色 + 修饰）——与编辑器主题变量协调 */
+.ansi-fg-black { color: #4a4a4a; }
+.ansi-fg-red { color: #e5534b; }
+.ansi-fg-green { color: #3fb950; }
+.ansi-fg-yellow { color: #d29922; }
+.ansi-fg-blue { color: #58a6ff; }
+.ansi-fg-magenta { color: #bc8cff; }
+.ansi-fg-cyan { color: #39c5cf; }
+.ansi-fg-white { color: #d0d7de; }
+.ansi-fg-bright-black { color: #8b949e; }
+.ansi-fg-bright-red { color: #ff7b72; }
+.ansi-fg-bright-green { color: #56d364; }
+.ansi-fg-bright-yellow { color: #e3b341; }
+.ansi-fg-bright-blue { color: #79c0ff; }
+.ansi-fg-bright-magenta { color: #d2a8ff; }
+.ansi-fg-bright-cyan { color: #56d4dd; }
+.ansi-fg-bright-white { color: #f0f6fc; }
+.ansi-bg-black { background: #4a4a4a; }
+.ansi-bg-red { background: #e5534b; }
+.ansi-bg-green { background: #3fb950; }
+.ansi-bg-yellow { background: #d29922; }
+.ansi-bg-blue { background: #58a6ff; }
+.ansi-bg-magenta { background: #bc8cff; }
+.ansi-bg-cyan { background: #39c5cf; }
+.ansi-bg-white { background: #d0d7de; }
+.ansi-bg-bright-black { background: #8b949e; }
+.ansi-bg-bright-red { background: #ff7b72; }
+.ansi-bg-bright-green { background: #56d364; }
+.ansi-bg-bright-yellow { background: #e3b341; }
+.ansi-bg-bright-blue { background: #79c0ff; }
+.ansi-bg-bright-magenta { background: #d2a8ff; }
+.ansi-bg-bright-cyan { background: #56d4dd; }
+.ansi-bg-bright-white { background: #f0f6fc; }
+.ansi-bold { font-weight: 700; }
+.ansi-italic { font-style: italic; }
+.ansi-underline { text-decoration: underline; }
+.ansi-inverse {
+  filter: invert(0.85);
+}
+
 .dw-outline-list {
   flex: 1;
   padding: 4px 0;

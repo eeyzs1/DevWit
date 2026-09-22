@@ -1,6 +1,6 @@
 {
   "name": "devwit",
-  "version": "0.7.27",
+  "version": "0.7.28",
   "private": true,
   "description": "DevWit — 简洁上下文 AI 原生桌面 IDE",
   "license": "MIT",
@@ -57,6 +57,7 @@
     "test:e2e32": "node apps/desktop/tests/e2e/verify-i32.mjs",
     "test:e2e33": "node apps/desktop/tests/e2e/verify-i33.mjs",
     "test:e2e34": "node apps/desktop/tests/e2e/verify-i34.mjs",
+    "test:e2e-terminal": "node apps/desktop/tests/e2e/verify-terminal.mjs",
     "lint": "eslint .",
     "rebuild-native": "electron-rebuild -f -w node-pty",
     "pack": "npm run build && electron-builder --dir",
