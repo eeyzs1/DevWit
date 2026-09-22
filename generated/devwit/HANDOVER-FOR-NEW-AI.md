@@ -209,6 +209,14 @@ generated/devwit/
 | 0.7.20 | rag/llm/settings 8 项（RAG 换模型静默失效/凭证解密可见化/SSE 空帧） | `b31da7d` |
 | 0.7.21 | editor-core/mcp/layout 7 项（点击拆代理对/MCP stdin 崩溃/UTF-8 跨块） | `d93107f` |
 | 0.7.22 | 第六轮扫尾（\r 行尾/activeAbort 竞态/piece-table 相邻片合并 26×提速） | `9b357aa` |
+| 0.7.23 | 主进程第七轮（IPC 重定根 critical/大小写绕过/退出清理/单实例锁） | `42c69a2` |
+| 0.7.24 | 第七轮 minor（CSV 公式注入/轨迹 O(n²)/opt_out 端点/模板边界） | `ff6a695` |
+| 0.7.25 | 终端潜伏面三项（会话泄漏/exit 推送/进程树击杀）+ E2E 产物前置闸 | `d446b01` |
+| 0.7.26 | 第七轮收尾（活动流展开态/跟随滚动/更新生命周期） | `64e5b91` |
+| 0.7.27 | 首启四模块九项（双层导览叠压/向导输入丢失/语言回跳/孤儿凭证） | `4085305` |
+| 0.7.28 | **终端面板**（真实 shell + ANSI 流式渲染）| `5e1afaa` |
+| 0.7.29 | a11y 收尾（Escape 关闭 + 打开即聚焦）| `bd3d024` |
+| 0.7.30 | **命令面板**（Ctrl+Shift+P / Ctrl+P 模糊过滤）| `01e4d42` |
 
 ### 真实用户指标（2026-09-22）
 - GitHub stars/forks/watchers: 0/0/0（推广物料就绪待用户发）
@@ -326,9 +334,9 @@ npm run dev          # 启动验证核心功能
 ---
 
 **最后更新**: 2026-09-22
-**最新提交**: `9b357aa` fix: v0.7.22 第六轮审查扫尾——\r 行尾/activeAbort 竞态/piece-table 相邻片合并
-**测试基线**: 952 单测 / 88 测试文件 + E2E 全量 35 套（本地与 CI 双通道；nightly-e2e 每晚全量回归）
-**Latest**: https://github.com/eeyzs1/DevWit/releases/tag/v0.7.20
-**winget**: 0.7.17 清单已提交 microsoft/winget-pkgs#438830（管线全绿待人工合并）；0.7.20 清单本地备好待续提
-**迭代方法论**: 对抗性代码审查（六轮：渲染层/编辑器视图/agent 核心/lsp-dap-workspace/面板/rag-llm-settings/piece-table-mcp-layout，共 117 项发现全部处置）→ 逐项验证 → 修复 + 回归测试 → 全量验证（tsc/eslint/vitest/E2E）→ push（CI 绿）→ CHANGELOG 记录。**注意：本机 GBK 控制台下禁止用 PowerShell Get-Content/Set-Content 改非 ASCII 文件——用 Node（UTF-8 全程安全，曾有 README 编码事故）。**
+**最新提交**: `01e4d42` fix: v0.7.30 质量门修正（命令面板上限常量豁免）
+**测试基线**: 975 单测 / 90 测试文件 + E2E 全量 37 套（本地与 CI 双通道；nightly-e2e 每晚全量回归 + 产物前置闸）
+**Latest**: https://github.com/eeyzs1/DevWit/releases/tag/v0.7.30
+**winget**: 0.7.17 已上线（#438830 合并）；0.7.28 已提交 #439173 审核中；0.7.30 清单备好待续提
+**迭代方法论**: 对抗性代码审查（八轮 147 项发现全部修复，覆盖全部源码）→ 逐项验证 → 修复 + 回归测试 → 全量验证（tsc/eslint/vitest/E2E）→ push（CI 绿）→ CHANGELOG 记录；功能增量（终端面板/命令面板）带专属 E2E 验收交付。**注意：本机 GBK 控制台下禁止用 PowerShell Get-Content/Set-Content 改非 ASCII 文件——用 Node（UTF-8 全程安全，曾有 README 编码事故）。**
 

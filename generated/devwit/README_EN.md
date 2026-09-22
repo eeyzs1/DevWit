@@ -74,6 +74,8 @@ Or download directly: [DevWit-0.7.30-arm64.dmg](https://github.com/eeyzs1/DevWit
 | Feature | Description |
 |---------|-------------|
 | Custom editor kernel | Piece-table text buffer + Canvas rendering + tree-sitter highlighting; IME (CJK), multi-cursor, bracket match/auto-pair, auto-indent, code folding, minimap, line move/comment/duplicate |
+| Terminal panel | Real shell sessions in the sidebar (pty/pipe dual backend): streaming ANSI color output, full arrow-key/shortcut passthrough, process-tree kill, one-click restart |
+| Command palette | Ctrl+Shift+P for commands, Ctrl+P for files (VS Code conventions); fuzzy filtering + full keyboard navigation |
 | Minimal context engine | The full context composition of every LLM request (system prompt, tool list, injected items, per-item token cost) is visible item-by-item and can be toggled individually; manifests are persisted for audit |
 | Conversational coding | Request code changes in chat; edits are presented as an in-editor diff with per-hunk accept/reject |
 | Agent mode | Authorization gate: file writes and terminal commands require explicit user approval; multi-step tasks with fully visible execution traces |
