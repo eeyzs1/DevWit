@@ -88,7 +88,15 @@ export async function maybeOpenContextTour(deps: ContextTourDeps): Promise<void>
   mask.addEventListener("click", (ev) => {
     if (ev.target === mask) dismiss();
   });
+  // v0.7.29（R8-10 a11y）：Escape 关闭；gotIt 聚焦（键盘可直接确认）
+  mask.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") {
+      ev.stopPropagation();
+      dismiss();
+    }
+  });
 
   document.body.appendChild(mask);
+  gotIt.focus();
   await dismissedPromise;
 }

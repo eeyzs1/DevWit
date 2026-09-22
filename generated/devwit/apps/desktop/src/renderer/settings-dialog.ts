@@ -241,10 +241,18 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
   mask.addEventListener("click", (event) => {
     if (event.target === mask) close();
   });
+  // v0.7.29（R8-10 a11y）：Escape 关闭；关闭按钮聚焦（键盘可直接确认）
+  mask.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      close();
+    }
+  });
 
   applyLocale();
   show(initial);
   document.body.appendChild(mask);
+  closeBtn.focus();
 }
 
 // ============================================================================

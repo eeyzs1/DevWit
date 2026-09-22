@@ -70,6 +70,14 @@ export async function maybeOpenAuthGateTour(deps: AuthGateTourDeps): Promise<voi
   mask.addEventListener("click", (ev) => {
     if (ev.target === mask) dismiss();
   });
+  // v0.7.29（R8-10 a11y）：Escape 关闭；gotIt 聚焦
+  mask.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") {
+      ev.stopPropagation();
+      dismiss();
+    }
+  });
 
   document.body.appendChild(mask);
+  gotIt.focus();
 }

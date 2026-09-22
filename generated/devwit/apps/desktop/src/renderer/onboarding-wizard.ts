@@ -398,6 +398,15 @@ export function openOnboardingWizard(deps: OnboardingWizardDeps): void {
     presets = list;
     if (step === 1) render();
   });
+  // v0.7.29（R8-10 a11y）：Escape = 跳过向导（与跳过按钮同语义：标记完成
+  // 后关闭——用户随时可从设置页重跑向导）；打开后聚焦首个交互控件
+  mask.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && !closed) {
+      ev.stopPropagation();
+      close();
+    }
+  });
   render();
   document.body.appendChild(mask);
+  modal.querySelector<HTMLElement>("select, input, button")?.focus();
 }

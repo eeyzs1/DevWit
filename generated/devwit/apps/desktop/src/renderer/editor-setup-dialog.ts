@@ -131,6 +131,13 @@ export function openEditorSetupDialog(deps: EditorSetupDialogDeps): void {
   mask.addEventListener("click", (event) => {
     if (event.target === mask) close();
   });
+  // v0.7.29（R8-10 a11y）：Escape 关闭（不保存——与取消同语义）
+  mask.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      close();
+    }
+  });
   document.body.appendChild(mask);
   commandInput.focus();
 }

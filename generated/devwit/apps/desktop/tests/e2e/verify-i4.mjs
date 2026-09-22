@@ -171,9 +171,11 @@ try {
   await page.selectOption(".dw-settings-content select", "en-US");
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(OUT, "06-settings-en.png") });
+  // v0.7.29 a11y：Escape 现在直接关闭设置页（旧实现需精确点击关闭按钮/
+  // 遮罩）——按 Escape 后断言对话框已关（新行为验证），不再依赖遮罩点击
   await page.keyboard.press("Escape");
-  await page.click(".dw-modal-mask", { position: { x: 4, y: 4 } });
-  await page.waitForTimeout(400);
+  await page.waitForSelector(".dw-modal-mask", { state: "detached", timeout: 5000 });
+  step("Escape 关闭设置页（v0.7.29 a11y 行为）");
   const modeOptionsEn = await page.evaluate(() =>
     [...document.querySelectorAll('select[title="Mode"] option')].map((o) => o.textContent ?? "")
   );
@@ -190,7 +192,9 @@ try {
   await page.click(".dw-settings-nav >> text=General");
   await page.selectOption(".dw-settings-content select", "zh-CN");
   await page.waitForTimeout(500);
-  await page.click(".dw-modal-mask", { position: { x: 4, y: 4 } });
+  // v0.7.29：Escape 关闭（新行为）
+  await page.keyboard.press("Escape");
+  await page.waitForSelector(".dw-modal-mask", { state: "detached", timeout: 5000 });
   await page.waitForTimeout(400);
   const modeOptionsBack = await page.evaluate(() =>
     [...document.querySelectorAll('select[title="模式"] option')].map((o) => o.textContent ?? "")
