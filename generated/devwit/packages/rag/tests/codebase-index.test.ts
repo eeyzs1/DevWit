@@ -187,4 +187,81 @@ describe("CodebaseIndex", () => {
     expect(index.getStatus().state).toBe("disabled");
     expect(fs.existsSync(path.join(indexDir, "chunks.jsonl"))).toBe(true);
   });
+
+  it("v0.7.20（R1）：指纹一致时零重嵌；指纹变化后全量重嵌（换 embedding 模型不再静默失效）", async () => {
+    const first = new CodebaseIndex({ root, indexDir, embedder: makeEmbedder(), fingerprint: "p:small" });
+    await first.buildAll();
+    first.dispose();
+
+    const sameCalls = { count: 0 };
+    const same = new CodebaseIndex({ root, indexDir, embedder: makeEmbedder(sameCalls), fingerprint: "p:small" });
+    await same.buildAll();
+    expect(sameCalls.count).toBe(0);
+    expect(same.getStatus().state).toBe("ready");
+
+    const newCalls = { count: 0 };
+    const next = new CodebaseIndex({ root, indexDir, embedder: makeEmbedder(newCalls), fingerprint: "p:large" });
+    await next.buildAll();
+    expect(newCalls.count).toBeGreaterThan(0);
+    expect(next.getStatus().state).toBe("ready");
+    expect(next.chunkCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it("v0.7.20（R1）：旧格式持久化（无指纹）视为不一致 → 全量重嵌（一次性升级成本）", async () => {
+    const first = new CodebaseIndex({ root, indexDir, embedder: makeEmbedder() });
+    await first.buildAll();
+    first.dispose();
+    fs.writeFileSync(
+      path.join(indexDir, "files.json"),
+      JSON.stringify({ "login.ts": { mtimeMs: 1, size: 1 }, "button.ts": { mtimeMs: 1, size: 1 } }),
+      "utf-8"
+    );
+    const calls = { count: 0 };
+    const second = new CodebaseIndex({ root, indexDir, embedder: makeEmbedder(calls), fingerprint: "p:x" });
+    await second.buildAll();
+    expect(calls.count).toBeGreaterThan(0);
+  });
+
+  it("v0.7.20（R3）：error 态后成功的 syncFile 自愈回 ready（不再永久粘滞）", async () => {
+    let fail = true;
+    const flaky: Embedder = {
+      model: "flaky",
+      embed: async (texts: string[]) => {
+        if (fail) throw new Error("DW_LLM_TIMEOUT: simulated");
+        return texts.map(fakeVector);
+      },
+    };
+    const index = new CodebaseIndex({ root, indexDir, embedder: flaky, onStatus });
+    await index.buildAll();
+    expect(index.getStatus().state).toBe("error");
+
+    fail = false;
+    const buttonPath = path.join(root, "button.ts");
+    fs.writeFileSync(buttonPath, ["export function loginButton(user, token) {", "  return go(user, token);", "}"].join("\n"));
+    await index.syncFile(buttonPath);
+    expect(index.getStatus().state).toBe("ready");
+  });
+
+  it("v0.7.20（R2）：dispose 取消进行中的 buildAll——不再广播 indexing/ready", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const slow: Embedder = {
+      model: "slow",
+      embed: async (texts: string[]) => {
+        await gate;
+        return texts.map(fakeVector);
+      },
+    };
+    const index = new CodebaseIndex({ root, indexDir, embedder: slow, onStatus });
+    const building = index.buildAll();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    index.dispose();
+    expect(index.getStatus().state).toBe("disabled");
+    release();
+    await building;
+    expect(index.getStatus().state).toBe("disabled");
+    expect(statuses.at(-1)!.state).toBe("disabled");
+  });
 });

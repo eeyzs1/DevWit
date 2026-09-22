@@ -146,6 +146,8 @@ export class AiRuntime {
   private ragIndex: CodebaseIndex | null = null;
   private ragStatus: RagStatusInfo = { state: "disabled" };
   private ragRoot: string | null = null;
+  /** 当前索引的 embedding 指纹（v0.7.20 / R1：配置变更触发重建）。 */
+  private ragFingerprint: string | null = null;
   private readonly ragDir: string;
   /** 符号级索引（AC38）：与 RAG 解耦——纯启发式，工作区打开即构建，无 provider 依赖。 */
   private symbolIndex: SymbolIndex | null = null;
@@ -382,7 +384,10 @@ export class AiRuntime {
       this.teardownRag();
       return;
     }
-    if (this.ragIndex !== null && this.ragRoot === root) return; // 已就当前根就绪
+    // v0.7.20（审查 R1）：指纹参与就绪判定——旧实现只看根目录，在线期间改
+    // rag.embedModel/provider 后同根早退，新配置拿不到（旧向量继续被查询）
+    const fingerprint = ragFingerprintOf(config);
+    if (this.ragIndex !== null && this.ragRoot === root && this.ragFingerprint === fingerprint) return;
     this.teardownRag();
 
     let embedder: Embedder;
@@ -395,11 +400,13 @@ export class AiRuntime {
       return;
     }
     this.ragRoot = root;
+    this.ragFingerprint = fingerprint;
     const indexDir = path.join(this.ragDir, hashWorkspaceRoot(root));
     const index = new CodebaseIndex({
       root,
       indexDir,
       embedder,
+      fingerprint,
       onStatus: (status) => this.setRagStatus(status),
     });
     this.ragIndex = index;
@@ -421,6 +428,7 @@ export class AiRuntime {
       this.ragIndex = null;
     }
     this.ragRoot = null;
+    this.ragFingerprint = null;
     this.setRagStatus({ state: "disabled" });
   }
 
@@ -1456,6 +1464,11 @@ export class AiRuntime {
 /** 工作区根 → 索引目录名（防路径穿越：渲染可控 root 字符串，哈希后作目录名）。 */
 function hashWorkspaceRoot(root: string): string {
   return createHash("sha1").update(path.resolve(root)).digest("hex").slice(0, 12);
+}
+
+/** RAG embedding 指纹（v0.7.20 / R1）：provider + 模型，配置变更触发索引重建。 */
+function ragFingerprintOf(config: RagConfig): string {
+  return `${config.providerId ?? "auto"}:${config.embedModel}`;
 }
 
 // ---------------------------------------------------------------------------

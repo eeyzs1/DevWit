@@ -28,6 +28,9 @@ export interface IndexedFileMeta {
 export interface PersistedIndex {
   chunks: IndexedChunk[];
   files: Record<string, IndexedFileMeta>;
+  /** embedding 指纹（v0.7.20 / R1）：providerId:embedModel。undefined = 旧格式
+   *  或未提供——CodebaseIndex 视为不一致触发全量重嵌（一次性升级成本）。 */
+  fingerprint?: string;
 }
 
 const CHUNKS_FILE = "chunks.jsonl";
@@ -51,11 +54,24 @@ export class IndexStore {
     } catch {
       return null; // 无历史索引（首次/已清理）
     }
-    let files: Record<string, IndexedFileMeta>;
+    let parsed: unknown;
     try {
-      files = JSON.parse(rawFiles) as Record<string, IndexedFileMeta>;
+      parsed = JSON.parse(rawFiles);
     } catch {
       return null; // files.json 损坏 → 全量重建（chunks 无文件表无法做变更检测）
+    }
+    // v2 格式 { fingerprint, files }（v0.7.20 / R1）；旧格式为纯 Record——
+    // 按 { fingerprint: undefined, files: 原样 } 解析（指纹缺失由上层判为
+    // 不一致 → 全量重嵌，一次性升级成本）
+    let fingerprint: string | undefined;
+    let files: Record<string, IndexedFileMeta>;
+    if (isFilesV2(parsed)) {
+      fingerprint = typeof parsed.fingerprint === "string" ? parsed.fingerprint : undefined;
+      files = parsed.files;
+    } else if (typeof parsed === "object" && parsed !== null) {
+      files = parsed as Record<string, IndexedFileMeta>;
+    } else {
+      return null;
     }
     const chunks: IndexedChunk[] = [];
     for (const line of rawChunks.split("\n")) {
@@ -67,7 +83,7 @@ export class IndexStore {
         // 单行损坏跳过（异常断电写了一半）；files.json 的 mtime 会驱动该文件重建
       }
     }
-    return { chunks, files };
+    return { chunks, files, ...(fingerprint !== undefined ? { fingerprint } : {}) };
   }
 
   /** 全量原子重写（tmp → rename，避免半写状态）。 */
@@ -79,8 +95,15 @@ export class IndexStore {
     const filesTmp = `${filesPath}.tmp`;
     const lines = index.chunks.map((chunk) => JSON.stringify(chunk)).join("\n");
     await fs.writeFile(chunksTmp, lines.length > 0 ? `${lines}\n` : "", "utf-8");
-    await fs.writeFile(filesTmp, JSON.stringify(index.files), "utf-8");
+    await fs.writeFile(filesTmp, JSON.stringify({ fingerprint: index.fingerprint, files: index.files }), "utf-8");
     await fs.rename(chunksTmp, chunksPath);
     await fs.rename(filesTmp, filesPath);
   }
+}
+
+/** files.json v2 形状判别。 */
+function isFilesV2(value: unknown): value is { fingerprint?: unknown; files: Record<string, IndexedFileMeta> } {
+  if (typeof value !== "object" || value === null) return false;
+  const record = value as Record<string, unknown>;
+  return typeof record["files"] === "object" && record["files"] !== null;
 }

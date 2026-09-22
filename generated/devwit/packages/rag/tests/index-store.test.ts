@@ -71,4 +71,19 @@ describe("IndexStore", () => {
     expect(loaded).not.toBeNull();
     expect(loaded!.chunks).toHaveLength(1);
   });
+
+  it("v0.7.20（R1）：指纹随 save 持久化并在 load 时带回", async () => {
+    await store.save({ ...sampleIndex(), fingerprint: "p1:text-embedding-3-small" });
+    const loaded = await store.load();
+    expect(loaded!.fingerprint).toBe("p1:text-embedding-3-small");
+  });
+
+  it("v0.7.20（R1）：旧格式 files.json（纯 Record，无指纹）→ fingerprint undefined（上层判为不一致全量重嵌）", async () => {
+    await store.save(sampleIndex());
+    fs.writeFileSync(path.join(dir, "files.json"), JSON.stringify({ "src/a.ts": { mtimeMs: 1000, size: 12 } }), "utf-8");
+    const loaded = await store.load();
+    expect(loaded).not.toBeNull();
+    expect(loaded!.fingerprint).toBeUndefined();
+    expect(loaded!.files["src/a.ts"]).toEqual({ mtimeMs: 1000, size: 12 });
+  });
 });

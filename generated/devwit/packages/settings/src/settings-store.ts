@@ -171,7 +171,27 @@ export class SettingsStore implements CredentialResolver {
     if (!record) {
       throw new CredentialNotFoundError(ref);
     }
-    return this.crypto.decryptString(record.ciphertext);
+    try {
+      return this.crypto.decryptString(record.ciphertext);
+    } catch (error) {
+      // v0.7.20 修复（审查 R4）：解密失败（重装系统/换机/换用户后 DPAPI/
+      // Keychain 密钥已变，密文完好但不可解）——旧实现把原始英文错误一路
+      // 透传且无任何损坏提示，用户无从得知需重录。映射 ASCII 码（渲染端
+      // localizeError 可本地化）+ 落 corrupt 标记（设置页横幅与 JSON 损坏
+      // 同机制可见；重录任一凭证即清除）。
+      if (!(CREDENTIALS_CORRUPT_KEY in this.settings)) {
+        this.settings[CREDENTIALS_CORRUPT_KEY] = {
+          reason: "decrypt-failed",
+          ref,
+          detectedAt: new Date().toISOString(),
+        };
+        writeJsonAtomic(this.settingsPath, this.settings);
+        this.emitChange(CREDENTIALS_CORRUPT_KEY, this.settings[CREDENTIALS_CORRUPT_KEY]);
+      }
+      throw new Error(
+        `DW_CREDENTIAL_DECRYPT_FAILED:${ref}:${error instanceof Error ? error.message.slice(0, 120) : String(error)}`
+      );
+    }
   }
 
   /** CredentialResolver 契约实现（llm-providers 注入此接口）。 */

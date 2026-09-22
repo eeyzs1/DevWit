@@ -125,6 +125,10 @@ export async function* parseOpenAiEvents(payloads: AsyncIterable<string>): Async
   for await (const payload of payloads) {
     const chunk = parseJsonObject(payload);
     if (!chunk) {
+      // v0.7.20（审查 R6）：空 data: 行（部分兼容网关的 keep-alive 空帧）跳过
+      // ——单帧异常不应升级为流级错误作废整轮已流出的回复（agent-loop 收到
+      // error 事件即整轮失败）。非空畸形 JSON 仍按错误上抛（真实损坏）。
+      if (payload.trim() === "") continue;
       // 错误码保持 ASCII：消息经 trace→IPC 到渲染端，localizeError 按当前语言本地化
       yield { type: "error", error: "DW_SSE_PARSE_FAILED:openai", retryable: false };
       continue;
@@ -149,7 +153,16 @@ export async function* parseOpenAiEvents(payloads: AsyncIterable<string>): Async
       if (Array.isArray(toolCalls)) {
         for (const entry of toolCalls) {
           if (!isRecord(entry)) continue;
-          const index = asNumber(entry["index"]) ?? 0;
+          // v0.7.20 修复（审查 R5）：某些兼容实现省略 tool_calls[].index——
+          // 旧实现缺省归 0 号桶，并行调用的参数分片串桶 → JSON 拼接损坏 →
+          // 静默空参数执行。缺 index 时按 pending 已有桶数顺延分配（或按 id
+          // 复用同 id 的既有桶，保持增量拼接正确）。
+          let index = asNumber(entry["index"]);
+          if (index === undefined) {
+            const id = asString(entry["id"]);
+            const existingById = [...pending.entries()].find(([, s]) => id !== "" && s.id === id);
+            index = existingById !== undefined ? existingById[0] : pending.size;
+          }
           const state = pending.get(index) ?? { id: "", name: "", argsJson: "" };
           const id = asString(entry["id"]);
           if (id) state.id = id;

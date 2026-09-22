@@ -116,6 +116,22 @@ describe("parseOpenAiEvents（fixture 回放）", () => {
       { type: "done", stopReason: "end_turn" },
     ]);
   });
+
+  it("v0.7.20（R6）：空 data: 行（网关 keep-alive）跳过，不作废整轮已流出的回复", async () => {
+    const payloads = (async function* (): AsyncGenerator<string> {
+      yield '{"id":"c1","object":"chat.completion.chunk","created":1,"model":"m","choices":[{"index":0,"delta":{"content":"前半"},"finish_reason":null}]}';
+      yield ""; // 空帧：旧实现 → error 事件 → 整轮失败
+      yield "   "; // 纯空白同样跳过
+      yield '{"id":"c1","object":"chat.completion.chunk","created":1,"model":"m","choices":[{"index":0,"delta":{"content":"后半"},"finish_reason":null}]}';
+      yield '{"id":"c1","object":"chat.completion.chunk","created":1,"model":"m","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}';
+    })();
+    const events = await collect(parseOpenAiEvents(payloads));
+    expect(events).toEqual([
+      { type: "text", text: "前半" },
+      { type: "text", text: "后半" },
+      { type: "done", stopReason: "end_turn" },
+    ]);
+  });
 });
 
 describe("错误路径（构造 Response 直接喂解析函数）", () => {

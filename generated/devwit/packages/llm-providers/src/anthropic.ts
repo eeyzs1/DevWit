@@ -157,6 +157,8 @@ export async function* parseAnthropicEvents(payloads: AsyncIterable<string>): As
   for await (const payload of payloads) {
     const event = parseJsonObject(payload);
     if (!event) {
+      // v0.7.20（审查 R6）：空 data: 行跳过（同 openai 侧——单帧不应作废整轮流出的回复）
+      if (payload.trim() === "") continue;
       // 错误码保持 ASCII：消息经 trace→IPC 到渲染端，localizeError 按当前语言本地化
       yield { type: "error", error: "DW_SSE_PARSE_FAILED:anthropic", retryable: false };
       continue;

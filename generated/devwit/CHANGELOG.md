@@ -3,6 +3,40 @@
 所有显著变更记录于此。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本遵循 [语义化版本](https://semver.org/)。
 
+## [0.7.20] — 2026-10-02
+
+### Fixed
+- **rag / llm-providers / settings 对抗性审查修复（8 项）**——第五轮审查批次：
+
+**Critical**
+- **切换 embedding 模型后 RAG 检索静默失效**（R1）：持久化无模型指纹——
+  换 embedModel/provider 后 mtime 未变零重嵌，旧维度向量与新查询余弦全 0
+  （返回无关块或空），无报错永不自愈，「重建索引」也无效。files.json v2
+  持久化 `providerId:embedModel` 指纹，不一致即全量重嵌（旧格式视为不
+  一致，一次性升级成本）；refreshRag 指纹参与就绪判定（在线改配置立即
+  生效）
+
+**Major**
+- **dispose 不取消进行中的 buildAll**（R2）：切工作区后旧索引继续对旧根
+  烧 embedding 费用，完成后广播旧根的 ready 状态覆盖新索引。生命周期
+  代数：任务在文件/批次边界中止，不再广播
+- **一次网络错误后 error 态永久粘滞**（R3）：成功 syncFile 不回 ready——
+  之后所有对话的代码库上下文都是占位项直到手动重建。成功路径无条件回
+  ready（对齐 SymbolIndex 的自愈语义）
+- **凭证解密失败不可见不可诊断**（R4）：换机/重装后 DPAPI 密钥已变——
+  原始英文错误透传、设置页无损坏提示。映射 DW_CREDENTIAL_DECRYPT_FAILED
+  （本地化）+ 落 corrupt 标记（横幅与重录清除机制复用）
+
+**Minor**
+- **tool_calls 增量缺 index 串桶**（R5）：兼容实现省略 index 时按 pending
+  桶数顺延/按 id 复用（旧实现归 0 号桶 → JSON 拼坏 → 静默空参数执行）
+- **空 SSE data 行作废整轮流出的回复**（R6）：网关 keep-alive 空帧跳过
+  （anthropic/openai 双侧；非空畸形 JSON 仍报错）
+- **索引孤儿块永久残留**（R7）：双 rename 断电窗口产物——load 时按
+  files 表对账丢弃
+- **`..` 开头命名的合法文件永不索引**（R8）：`..draft.ts` 被误判越界
+  （codebase-index + symbol-index 两处）
+
 ## [0.7.19] — 2026-10-02
 
 ### Fixed

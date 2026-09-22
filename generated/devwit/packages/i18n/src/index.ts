@@ -138,6 +138,8 @@ export function localizeError(raw: string, opts?: LocalizeErrorOptions): string 
   if (mcpServerSchema !== null) return t("err.mcpServerSchema", { detail: (mcpServerSchema[1] ?? "").trim() });
   if (raw.includes("DW_SESSION_BUSY")) return t("chat.error.busy");
   if (raw.includes("DW_BUDGET_EXCEEDED")) return t("err.budgetExceeded");
+  // v0.7.20（审查 R4）：凭证解密失败（换机/重装后密钥不可用）——本地化提示重录
+  if (raw.includes("DW_CREDENTIAL_DECRYPT_FAILED")) return t("err.credentialDecryptFailed");
   const searchTimeout = /DW_SEARCH_TIMEOUT:(\d+)/.exec(raw);
   if (searchTimeout !== null) return t("err.searchTimeout", { ms: searchTimeout[1] ?? "10000" });
   if (raw.includes("DW_SEARCH_WORKER_FAILED")) return t("err.searchWorkerFailed");

@@ -46,6 +46,13 @@ export interface CodebaseIndexOptions {
   root: string;
   indexDir: string;
   embedder: Embedder;
+  /**
+   * embedding 指纹（v0.7.20 / 审查 R1）：`providerId:embedModel`。持久化在
+   * files.json；与当前配置不一致 → 历史向量全部作废重嵌。旧实现无指纹：
+   * 切换 embedding 模型/provider 后 mtime/size 未变 → 零重嵌 → 余弦维度
+   * 不匹配全为 0 分 → 检索静默失效（返回无关块或空），永不自愈、无报错。
+   */
+  fingerprint?: string;
   /** 状态变化回调（主→渲染推送 RagStatus）。 */
   onStatus?: (status: RagStatusInfo) => void;
 }
@@ -61,17 +68,21 @@ export class CodebaseIndex {
   private readonly root: string;
   private readonly store: IndexStore;
   private readonly embedder: Embedder;
+  private readonly fingerprint: string;
   private readonly onStatus?: (status: RagStatusInfo) => void;
   private readonly chunks = new Map<string, IndexedChunk>();
   private readonly files = new Map<string, IndexedFileMeta>();
   private state: RagStatusInfo = { state: "disabled" };
   /** 增量同步串行化：buildAll 与 syncFile 互斥（Promise 链）。 */
   private queue: Promise<unknown> = Promise.resolve();
+  /** 生命周期代数（v0.7.20 / 审查 R2）：dispose 递增使在跑任务尽快中止。 */
+  private generation = 0;
 
   constructor(options: CodebaseIndexOptions) {
     this.root = options.root;
     this.store = new IndexStore(options.indexDir);
     this.embedder = options.embedder;
+    this.fingerprint = options.fingerprint ?? "default";
     if (options.onStatus !== undefined) this.onStatus = options.onStatus;
   }
 
@@ -89,16 +100,28 @@ export class CodebaseIndex {
 
   /** 全量构建。恢复历史索引后仅重建变更文件（mtime/size 变化），无变化则零 embedding 请求。 */
   async buildAll(): Promise<void> {
+    const generation = this.generation;
     await this.enqueue(async () => {
       try {
         const discovered = await walkIndexableFiles(this.root);
+        if (generation !== this.generation) return; // 已 dispose：静默中止（R2）
         const total = discovered.length;
         this.setState({ state: "indexing", indexedFiles: 0, totalFiles: total });
 
         const persisted = await this.store.load();
         if (persisted !== null) {
-          for (const chunk of persisted.chunks) this.chunks.set(chunk.id, chunk);
-          for (const [relPath, meta] of Object.entries(persisted.files)) this.files.set(relPath, meta);
+          // v0.7.20（R1）：embedding 指纹不一致（换模型/provider；旧格式无
+          // 指纹同样视为不一致）→ 历史向量全部作废，全量重嵌
+          const stale = persisted.fingerprint !== this.fingerprint;
+          if (!stale) {
+            // v0.7.20（R7）：孤儿对账——chunks 有而 files 表无的块（写盘在
+            // 双 rename 之间被打断 + 其间文件被删的窗口产物）丢弃；
+            // 旧实现永久返回已删除文件的内容且重建也清不掉
+            for (const chunk of persisted.chunks) {
+              if (persisted.files[chunk.relPath] !== undefined) this.chunks.set(chunk.id, chunk);
+            }
+            for (const [relPath, meta] of Object.entries(persisted.files)) this.files.set(relPath, meta);
+          }
         }
 
         // 已消失的文件：移除其全部块
@@ -118,15 +141,19 @@ export class CodebaseIndex {
         }
         for (const file of dirty) {
           await this.reindexFile(file.absPath, file.relPath, file.meta);
+          if (generation !== this.generation) return; // 已 dispose：中止（R2）
           processed += 1;
           this.setState({ state: "indexing", indexedFiles: processed, totalFiles: dirty.length });
         }
 
         await this.persist();
-        this.setState({ state: "ready", fileCount: this.files.size, chunkCount: this.chunks.size });
+        if (generation === this.generation) {
+          this.setState({ state: "ready", fileCount: this.files.size, chunkCount: this.chunks.size });
+        }
       } catch (error) {
         // embedding 网络错误 / 磁盘错误等：状态置 error（源层据此产出占位项），
         // 不向上抛——索引失败绝不阻断对话（AC19 透明性：可见的不可用）。
+        if (generation !== this.generation) return; // 已 dispose：不再广播旧状态（R2）
         this.setState({ state: "error", code: errorCodeOf(error) });
       }
     });
@@ -134,10 +161,11 @@ export class CodebaseIndex {
 
   /** 单文件增量同步（保存/外部变更事件驱动）；文件不可读/不再可索引时移除其块。 */
   async syncFile(absPath: string): Promise<void> {
+    const generation = this.generation;
     await this.enqueue(async () => {
       try {
         const relPath = path.relative(this.root, absPath);
-        if (relPath.startsWith("..") || path.isAbsolute(relPath)) return;
+        if (isOutsideRoot(relPath)) return;
         let meta: IndexedFileMeta | null;
         try {
           const stat = await fs.stat(absPath);
@@ -153,10 +181,14 @@ export class CodebaseIndex {
           await this.reindexFile(absPath, relPath, meta);
         }
         await this.persist();
-        if (this.state.state === "ready") {
+        if (generation === this.generation) {
+          // v0.7.20 修复（审查 R3）：成功路径无条件回 ready——旧实现仅在已是
+          // ready 时刷新计数，一次瞬时网络错误置 error 后成功同步不自愈，
+          // 之后所有对话的代码库上下文都是占位项（直到手动重建/重启）
           this.setState({ state: "ready", fileCount: this.files.size, chunkCount: this.chunks.size });
         }
       } catch (error) {
+        if (generation !== this.generation) return;
         this.setState({ state: "error", code: errorCodeOf(error) });
       }
     });
@@ -189,6 +221,9 @@ export class CodebaseIndex {
 
   /** 关闭（状态归 disabled；内存清空，磁盘索引保留供下次恢复）。 */
   dispose(): void {
+    // v0.7.20 修复（审查 R2）：递增代数——在跑的 buildAll 在下一个文件/批次
+    // 边界中止（不再继续对已废弃的根烧 embedding 费用），且不再广播旧状态
+    this.generation++;
     this.chunks.clear();
     this.files.clear();
     this.setState({ state: "disabled" });
@@ -251,8 +286,15 @@ export class CodebaseIndex {
     await this.store.save({
       chunks: [...this.chunks.values()],
       files: Object.fromEntries(this.files),
+      fingerprint: this.fingerprint,
     });
   }
+}
+
+/** v0.7.20（审查 R8）：越界判定只拒绝真正的 `..` 段——`..draft.ts` 这类
+ *  合法文件名不再被误判为 root 外路径而永不索引。 */
+function isOutsideRoot(relPath: string): boolean {
+  return relPath === ".." || relPath.startsWith(`..${path.sep}`) || path.isAbsolute(relPath);
 }
 
 /** 提取 ASCII 错误码（约定 Error.message 以 DW_ 开头；否则给通用码）。 */

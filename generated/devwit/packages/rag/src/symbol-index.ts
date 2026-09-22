@@ -73,7 +73,8 @@ export class SymbolIndex {
   async syncFile(absPath: string): Promise<void> {
     await this.enqueue(async () => {
       const relPath = normalizeSlashes(path.relative(this.root, absPath));
-      if (relPath.startsWith("..") || path.isAbsolute(relPath)) return;
+      // v0.7.20（审查 R8）：只拒绝真正的 `..` 段（..draft.ts 是合法文件名）
+      if (relPath === ".." || relPath.startsWith("../") || relPath.startsWith("..\\") || path.isAbsolute(relPath)) return;
       let isFile = false;
       try {
         isFile = (await fs.stat(absPath)).isFile();
