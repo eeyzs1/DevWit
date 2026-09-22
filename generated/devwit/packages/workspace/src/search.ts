@@ -116,7 +116,10 @@ function searchInContent(
     return null;
   }
   const matches: SearchMatch[] = [];
-  const lines = content.split(/\r?\n/);
+  // v0.7.17（审查 L9c）：UTF-8 BOM 保留在首行行首——列号整体 +1、preview 带
+  // 不可见字符。剥掉后再做行级匹配（仅首行受影响）。
+  const normalized = content.charCodeAt(0) === 0xfeff ? content.slice(1) : content;
+  const lines = normalized.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
     if (matches.length >= maxPerFile) break;
     const text = lines[i] ?? "";
@@ -133,7 +136,9 @@ function searchInContent(
         line: i + 1,
         column: m.index + 1,
         endColumn: m.index + m[0].length + 1,
-        preview: text,
+        // v0.7.17（审查 L9b）：preview 截断——巨型单行文件（≤1MB minified js）
+        // 整行进 preview × 上千命中 = IPC/JSON 载荷爆炸
+        preview: text.length > 200 ? `${text.slice(0, 200)}…` : text,
       });
       if (matches.length >= maxPerFile) break;
     }

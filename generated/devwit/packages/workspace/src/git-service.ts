@@ -249,8 +249,21 @@ export class GitService {
     });
   }
 
+  /**
+   * v0.7.17（审查 L12b）：分支名防 git 选项注入——前导 `-` 的名字会被 git
+   * 当作选项（如 checkout("-f") 强检丢弃工作区修改）。git ref 命名规则本就
+   * 禁止以 - 开头，提前拒绝比事后排查干净（execFile 已防 shell 注入，这是
+   * 选项位面的补全）。
+   */
+  private assertBranchName(name: string): void {
+    if (name.startsWith("-") || name.trim() === "") {
+      throw new Error("DW_GIT_INVALID_BRANCH_NAME");
+    }
+  }
+
   /** git checkout <name>；失败抛 DW_GIT_CHECKOUT_FAILED:*（无 --：避免被当作 pathspec） */
   async checkout(name: string): Promise<void> {
+    this.assertBranchName(name);
     await this.runMutating(["checkout", name], "DW_GIT_CHECKOUT_FAILED");
   }
 
@@ -259,6 +272,7 @@ export class GitService {
    * 分支名合法性由 git 校验（非法字符/已存在 → DW_GIT_CREATE_BRANCH_FAILED）。
    */
   async createBranch(name: string, doCheckout: boolean): Promise<void> {
+    this.assertBranchName(name);
     await this.runMutating(["branch", name], "DW_GIT_CREATE_BRANCH_FAILED");
     if (doCheckout) {
       try {
@@ -273,6 +287,7 @@ export class GitService {
 
   /** git branch -d <name>（安全删除：仅删已合并；-D 强删留给显式调用）；失败抛 DW_GIT_DELETE_BRANCH_FAILED:* */
   async deleteBranch(name: string): Promise<void> {
+    this.assertBranchName(name);
     await this.runMutating(["branch", "-d", name], "DW_GIT_DELETE_BRANCH_FAILED");
   }
 

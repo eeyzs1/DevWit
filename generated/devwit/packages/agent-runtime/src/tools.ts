@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import type { AgentToolName, ToolCall, ToolDefinition, ToolResult } from "@devwit/contracts";
 
@@ -87,7 +88,32 @@ export function resolveWithinRoot(root: string, target: string): string {
   if (resolved !== normalizedRoot && !resolved.startsWith(normalizedRoot + path.sep)) {
     throw new ToolArgumentError(`路径越出工作区: ${target}`);
   }
+  // v0.7.17 修复（审查 A13）：词法防线看不见符号链接——工作区内一个指向
+  // 区外的 symlink 即可让授权后的 write/edit 写出工作区（workspace-service
+  // 已有同款防线，agent 工具路径此前缺）。真实路径复核：目标不存在（新建）
+  // 时回退最近存在祖先（与 workspace-service.realpathOfNearestExisting 同语义）。
+  const rootReal = realpathOfNearestExisting(normalizedRoot);
+  const resolvedReal = realpathOfNearestExisting(resolved);
+  const rootNorm = rootReal.toLowerCase();
+  const resolvedNorm = resolvedReal.toLowerCase();
+  if (resolvedNorm !== rootNorm && !resolvedNorm.startsWith(rootNorm + path.sep)) {
+    throw new ToolArgumentError(`路径越出工作区（符号链接逃逸）: ${target}`);
+  }
   return resolved;
+}
+
+/** 解析真实路径；目标不存在时逐级上溯到最近存在的祖先（到盘符仍无则原样返回）。 */
+function realpathOfNearestExisting(p: string): string {
+  let current = p;
+  for (;;) {
+    try {
+      return fs.realpathSync(current);
+    } catch {
+      const parent = path.dirname(current);
+      if (parent === current) return p;
+      current = parent;
+    }
+  }
 }
 
 function displayPath(root: string, absolute: string): string {

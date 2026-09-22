@@ -31,7 +31,9 @@ import type {
   RagStatusInfo,
   SymbolsQueryResult,
   TraceSessionInfo,
+  ToolCall,
   ToolDefinition,
+  ToolResult,
   UsagePricing,
   UsageSummary,
   UsageDailySummary,
@@ -42,7 +44,7 @@ import type {
   WorkflowTemplate,
 } from "@devwit/contracts";
 import { DEFAULT_RAG_CONFIG, IPC, isFailureTraceEvent } from "@devwit/contracts";
-import { AgentLoop, AgentOrchestrator, AgentTrace, Authorizer, BackendRegistry, CommandWhitelistMemory, createNodeEnvironment, DEFAULT_LEARNING, decideRoute, DiagnosticsTracker, historyFromTrace, InternalAgentBackend, ModeStatsTracker, parseModeRunStats, parseRoutingConfig, parseWorkflowTemplates, WorkflowMemory } from "@devwit/agent-runtime";
+import { AgentLoop, AgentOrchestrator, AgentTrace, Authorizer, BackendRegistry, CommandWhitelistMemory, createNodeEnvironment, DEFAULT_LEARNING, decideRoute, DiagnosticsTracker, historyFromTrace, InternalAgentBackend, ModeStatsTracker, parseModeRunStats, parseRoutingConfig, parseWorkflowTemplates, WorkflowMemory, type ToolContext } from "@devwit/agent-runtime";
 import type { AgentBackend, AgentBackendInput, AgentBackendResult, AgentRunResult, CommandWhitelistSnapshot, ToolEnvironment, WhitelistLearningConfig } from "@devwit/agent-runtime";
 import { attachmentSource, ContextEngine, fileFragmentSource, FIRST_PARTY_SECTION_ORDER, gitStatusSource, MODE_SECTION_NAME, PromptSectionRegistry, selectionSource, symbolRefSource, TiktokenCounter, workflowSource } from "@devwit/context-engine";
 import { createEmbedder, ProviderRegistry } from "@devwit/llm-providers";
@@ -124,6 +126,8 @@ export interface AiRuntimeDeps {
 }
 
 export class AiRuntime {
+  /** 进程级一次性告警标记（A14：enforce 无单价表只提示一次，不刷屏）。 */
+  private static budgetNoPricingWarned = false;
   private readonly deps: AiRuntimeDeps;
   private readonly settings: SettingsStore;
   private readonly registry: ProviderRegistry;
@@ -548,7 +552,16 @@ export class AiRuntime {
     // 保守默认下，这是用户显式选择的硬停；ASCII 错误码由渲染端 localizeError 本地化
     const budgetGate = this.budgetConfig();
     if (budgetGate.enabled && budgetGate.enforce === true) {
-      const alert = this.usageStore.checkBudget(budgetGate.threshold, budgetGate.period, new Date(), this.loadPricing());
+      const pricing = this.loadPricing();
+      // v0.7.17（审查 A14）：enforce 开启但未配置单价表 → 成本恒 0、熔断静默
+      // 失效（fail-open 无提示）。stderr 一次性告警（ASCII），使失效模式可发现。
+      if (pricing === undefined && !AiRuntime.budgetNoPricingWarned) {
+        AiRuntime.budgetNoPricingWarned = true;
+        process.stderr.write(
+          "DW_BUDGET_ENFORCE_WITHOUT_PRICING: cost gate is ON but usage.pricing is empty - enforcement cannot trigger until pricing is configured\n"
+        );
+      }
+      const alert = this.usageStore.checkBudget(budgetGate.threshold, budgetGate.period, new Date(), pricing);
       if (alert.exceeded) {
         throw new Error(`DW_BUDGET_EXCEEDED:${budgetGate.threshold};${budgetGate.period}`);
       }
@@ -669,7 +682,10 @@ export class AiRuntime {
           onAssistantDelta: (delta) => this.emitDelta(input.sessionId, delta),
           // B-WU5：编排 run 同样聚合模式作用域动态工具 + MCP 工具
           extraTools: () => this.modeScopeTools(mode.id),
-          executeExtraTool: (call) => this.mcpManager.callTool(call),
+          // v0.7.17（审查 A10）：MCP 调用接取消——与 abort 信号竞速，取消后
+          // 最长 30s 的在途调用立即返回「已取消」（适配器侧副作用无法撤回，
+          // 但结果不再被等满；旧实现结果被丢弃却照常等待）
+          executeExtraTool: (call, ctx) => this.callMcpToolCancellable(call, ctx),
           diagnostics: session.diagnostics,
         });
         runResult = await orchestrator.run(input, session.abort.signal, priorHistory);
@@ -685,7 +701,7 @@ export class AiRuntime {
           // AC17：MCP 工具热聚合（每轮迭代取当前 ready 服务器工具集）与调用路由；
           // B-WU5：模式作用域动态工具（modeStore.scope kind=tool）前置聚合
           extraTools: () => this.modeScopeTools(mode.id),
-          executeExtraTool: (call) => this.mcpManager.callTool(call),
+          executeExtraTool: (call, ctx) => this.callMcpToolCancellable(call, ctx),
           // AC30：编辑后 tsc 诊断回馈（快照源已挂会话引擎）
           diagnostics: session.diagnostics,
         });
@@ -706,16 +722,40 @@ export class AiRuntime {
         }
       }
       finishReason = runResult.finishReason;
+      // v0.7.17 修复（审查 A11）：编排 run 的子任务存在 error 终态时——综合
+      // 可能照常完成并返回 completed，但「含失败子任务的 run」不是可学习/可
+      // 记成功的样本（模块自述：只从真实成功的 run 学习，失败经验不传播；
+      // 成功率虚高会让推荐失真、坏工作流被复用注入）。
+      const runEvents = session.trace.list().slice(runStartEvents);
+      const subagentFailed = runEvents.some(
+        (event) =>
+          event.type === "subagent_done" &&
+          (event.detail as { finishReason?: unknown } | undefined)?.finishReason === "error"
+      );
       // AC32：成功 run 沉淀工作流模板（本轮含 done 无 error 且至少一次工具调用才够格；
       // 抛错路径（中断/失败）不进学习——失败经验不传播）
-      if (this.readWorkflowEnabled()) {
-        this.workflowMemory.learnFromRun(session.trace.list().slice(runStartEvents), input.modeId);
+      if (this.readWorkflowEnabled() && !subagentFailed) {
+        this.workflowMemory.learnFromRun(runEvents, input.modeId);
       }
     } finally {
       // AC33：run 定级——completed 记成功 / error 记失败；
       // cancelled / max_iterations / 异常抛出 不定级（用户中断与未竟任务不毒化成功率）。
-      if (finishReason === "completed") this.modeStats.recordRun(input.modeId, true);
-      else if (finishReason === "error") this.modeStats.recordRun(input.modeId, false);
+      // v0.7.17（A11）：编排 run 含失败子任务时降级为不定级（completed 的表象
+      // 不代表整体成功；不毒化成功率也不虚增）
+      let effectiveFinish = finishReason;
+      if (finishReason === "completed") {
+        const hasFailedSubagent = session.trace
+          .list()
+          .slice(runStartEvents)
+          .some(
+            (event) =>
+              event.type === "subagent_done" &&
+              (event.detail as { finishReason?: unknown } | undefined)?.finishReason === "error"
+          );
+        if (hasFailedSubagent) effectiveFinish = "thrown";
+      }
+      if (effectiveFinish === "completed") this.modeStats.recordRun(input.modeId, true);
+      else if (effectiveFinish === "error") this.modeStats.recordRun(input.modeId, false);
       // AC35：真实用量落账本——取消/出错路径同样记录已观测到的部分量；
       // provider 未回报 usage 的 run 不计入（账本只收真实计费量，与 manifest 估算互补）。
       if (runResult?.usage !== undefined) {
@@ -1153,6 +1193,30 @@ export class AiRuntime {
       .list<ToolDefinition>(modeId, "tool")
       .map((entry) => entry.value);
     return [...scopeTools, ...this.mcpManager.toolDefinitions()];
+  }
+
+  /**
+   * MCP 工具调用（v0.7.17 / 审查 A10）：与取消信号竞速——abort 后立即返回
+   * 「已取消」，不再等满最长 30s 的在途调用（适配器侧副作用无法撤回，但
+   * 取消的 run 不必为其驻足；底层调用的孤儿结果被吞掉防 unhandled rejection）。
+   */
+  private async callMcpToolCancellable(call: ToolCall, ctx: ToolContext): Promise<ToolResult> {
+    const signal = ctx.signal;
+    if (signal === undefined) return this.mcpManager.callTool(call);
+    const inflight = this.mcpManager.callTool(call).catch(
+      (): ToolResult => ({ ok: false, output: "", error: "MCP 调用已中断" })
+    );
+    if (signal.aborted) {
+      return { ok: false, output: "", error: "已取消（会话中止）" };
+    }
+    const abortFallback = new Promise<ToolResult>((resolve) => {
+      signal.addEventListener(
+        "abort",
+        () => resolve({ ok: false, output: "", error: "已取消（会话中止）" }),
+        { once: true }
+      );
+    });
+    return Promise.race([inflight, abortFallback]);
   }
 
   /** B-WU6：读取配置的 agent 后端 id（settings agent.backendId，缺省 internal）。 */

@@ -3,6 +3,30 @@
 所有显著变更记录于此。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本遵循 [语义化版本](https://semver.org/)。
 
+## [0.7.17] — 2026-10-02
+
+### Fixed
+- **三路对抗性审查修复第三批（8 项，收尾）**：
+- **agent 工具符号链接逃逸**（A13，安全）：resolveWithinRoot 词法防线看不见
+  symlink——工作区内指向区外的链接可让授权后的 write/edit 写出工作区。
+  补真实路径复核（最近存在祖先回退，与 workspace-service 同口径）
+- **含失败子任务的编排 run 仍记成功并学习**（A11）：综合照常完成返回
+  completed，但失败样本进入 modeStats（成功率虚高、推荐失真）与工作流
+  记忆（坏模板被复用注入）。有 subagent error 终态时不学习、不定级
+- **MCP 工具调用不受取消影响**（A10）：abort 后最长 30s 在途调用照常等满
+  ——与取消信号竞速，立即返回「已取消」（孤儿结果吞掉防 unhandled rejection）
+- **git 分支名选项注入**（L12b）：前导 `-` 的名字被 git 当选项（如
+  checkout("-f") 强检丢弃修改）——git ref 规则本就禁止，提前拒绝
+  DW_GIT_INVALID_BRANCH_NAME
+- **搜索 preview 无截断 + BOM 列号偏移**（L9b/c）：巨型单行文件整行进
+  preview × 上千命中 = IPC 载荷爆炸——截 200 字符；UTF-8 BOM 使首行
+  列号整体 +1——先剥离再匹配
+- **RAG 块级开关「弹回」**（C6）：latestManifest 只在下次 build 重建——
+  改开关后 refresh 用旧 manifest 把显示弹回（状态已改、显示撒谎）。本地
+  乐观更新，下次真实 build 后校准
+- **enforce 预算无单价表静默失效**（A14）：成本恒 0 永不拦截且无提示——
+  stderr 一次性 ASCII 告警使失效模式可发现
+
 ## [0.7.16] — 2026-10-02
 
 ### Fixed

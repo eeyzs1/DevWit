@@ -44,7 +44,23 @@ export class ContextPanelController {
   /** 稳定 key 项的逐项开关（AC19 codebase_match 单块剔除/恢复）。 */
   async setItemOverride(key: string, enabled: boolean): Promise<void> {
     await this.api.context.setItemOverride(key, enabled);
-    await this.refresh();
+    // v0.7.17 修复（审查 C6）：latestManifest 只在下一次 engine.build 才重建——
+    // 直接 refresh() 会用旧 manifest 把刚改的开关「弹回」勾选态（引擎状态
+    // 实际已改、显示撒谎，下次请求完成后才纠正）。此处本地乐观更新该项显示，
+    // manifest 保留乐观版本（策略视图仍真实拉取），下次真实 build 后自然校准。
+    const current = this.state.manifest;
+    if (current !== null && current.items.some((item) => item.key === key)) {
+      this.state = {
+        ...this.state,
+        manifest: {
+          ...current,
+          items: current.items.map((item) => (item.key === key ? { ...item, enabled } : item)),
+        },
+      };
+    }
+    const policy = await this.api.context.getPolicy();
+    this.state = { policy, manifest: this.state.manifest };
+    this.emit();
   }
 
   /**
