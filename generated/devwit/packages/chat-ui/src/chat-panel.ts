@@ -449,6 +449,14 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
       option.selected = mode.id === controller.currentModeId;
       modeSelect.appendChild(option);
     }
+    // v0.7.12 修复：当前模式已被删除（如设置页删除使用中的自定义模式）——下拉
+    // 重建后无匹配项，浏览器显示第一项，但 controller 仍持已删 id：界面看似有效、
+    // 下次发送主进程报 DW_MODE_NOT_FOUND。回退到列表首个模式（内置 Chat 恒在）。
+    if (modes.length > 0 && !modes.some((mode) => mode.id === controller.currentModeId)) {
+      controller.setMode(modes[0]!.id);
+      const first = modeSelect.querySelector("option");
+      if (first !== null) first.selected = true;
+    }
     const providers = options.listProviders();
     providerSelect.textContent = "";
     const auto = document.createElement("option");
@@ -461,6 +469,14 @@ export function mountChatPanel(container: HTMLElement, options: ChatPanelOptions
       option.textContent = `${provider.label} · ${provider.model}`;
       option.selected = provider.id === controller.currentProviderId;
       providerSelect.appendChild(option);
+    }
+    // 同类回退：手动选择的模型已删除（设置页删除 provider）——UI 显示「跟随
+    // 模式绑定」而实际仍发已删 id，请求时报模型不存在。清空回跟随模式绑定。
+    if (
+      controller.currentProviderId !== undefined &&
+      !providers.some((provider) => provider.id === controller.currentProviderId)
+    ) {
+      controller.setProvider(undefined);
     }
   }
 

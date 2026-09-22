@@ -293,6 +293,7 @@ const zhCN = {
   "review.noBlock": "（回复中未找到唯一代码块，无法生成 diff）",
   "review.noChange": "（提案与当前内容一致）",
   "review.title": "变更审查 — {path}",
+  "review.inProgress": "已有 diff 审查进行中，请先完成或关闭当前审查",
 
   // ---- 统一设置页（AC12）----
   "settings.title": "设置",
@@ -570,6 +571,10 @@ const zhCN = {
   "err.budgetExceeded": "成本预算已超限（已开启超限熔断）：新请求被拒绝。可在设置 → 通用 → 成本预算中调高阈值、清零用量或关闭熔断。",
   "err.searchTimeout": "搜索超时（{ms}ms，已中止）——正则可能过于复杂或工作区过大，请简化查询",
   "err.searchWorkerFailed": "搜索引擎异常退出，请重试；若持续出现请报告问题",
+  "err.saveFailed": "保存失败：{detail}",
+  "err.openFailed": "打开文件失败：{detail}",
+  "err.treeFailed": "加载文件树失败：{detail}",
+  "err.preloadMissing": "preload 未就绪：window.devwit 缺失（应用安装可能损坏）",
   "chat.empty.title": "主 Agent 会这样工作",
   "chat.empty.lines": [
     "1. 规划：理解你的意图后拆解为可执行步骤",
@@ -985,6 +990,7 @@ const enUS: Messages = {
   "review.noBlock": " (no unique code block found in the reply; cannot build a diff)",
   "review.noChange": " (proposal identical to current content)",
   "review.title": "Review Changes — {path}",
+  "review.inProgress": "A diff review is already open; finish or close it first",
 
   "settings.title": "Settings",
   "settings.nav.general": "General",
@@ -1254,6 +1260,10 @@ const enUS: Messages = {
   "err.budgetExceeded": "Cost budget exceeded (enforce is on): new requests are refused. Raise the threshold, clear usage, or turn off enforcement in Settings → General → Cost budget.",
   "err.searchTimeout": "Search timed out ({ms}ms, aborted) — the regex may be too complex or the workspace too large; simplify the query",
   "err.searchWorkerFailed": "The search engine crashed; please retry and report if it persists",
+  "err.saveFailed": "Save failed: {detail}",
+  "err.openFailed": "Failed to open file: {detail}",
+  "err.treeFailed": "Failed to load the file tree: {detail}",
+  "err.preloadMissing": "preload not ready: window.devwit missing (the installation may be broken)",
   "chat.empty.title": "How the main Agent works",
   "chat.empty.lines": [
     "1. Plan: understands your intent and breaks it into executable steps",

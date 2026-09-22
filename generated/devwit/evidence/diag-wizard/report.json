@@ -4,8 +4,8 @@
     "data": {
       "modelSelect": {
         "rect": {
-          "w": 190.6666717529297,
-          "h": 24
+          "w": 190.5,
+          "h": 26
         },
         "optionCount": 1,
         "value": ""
@@ -16,39 +16,39 @@
           "cls": "dw-select",
           "display": "block",
           "vis": "visible",
-          "rectH": 24,
-          "rectW": 190.6666717529297
+          "rectH": 26,
+          "rectW": 190.5
         },
         {
           "tag": "DIV",
           "cls": "dw-chat-toolbar",
           "display": "flex",
           "vis": "visible",
-          "rectH": 36.66666793823242,
-          "rectW": 399.3333435058594
+          "rectH": 39,
+          "rectW": 399
         },
         {
           "tag": "DIV",
           "cls": "dw-chat",
           "display": "flex",
           "vis": "visible",
-          "rectH": 676,
-          "rectW": 399.3333435058594
+          "rectH": 635,
+          "rectW": 399
         },
         {
           "tag": "DIV",
           "cls": "dw-side-body",
           "display": "flex",
           "vis": "visible",
-          "rectH": 676,
-          "rectW": 399.3333435058594
+          "rectH": 635,
+          "rectW": 399
         },
         {
           "tag": "DIV",
           "cls": "dw-side",
           "display": "flex",
           "vis": "visible",
-          "rectH": 712,
+          "rectH": 671,
           "rectW": 400
         },
         {
@@ -56,24 +56,24 @@
           "cls": "dw-ide",
           "display": "grid",
           "vis": "visible",
-          "rectH": 712,
-          "rectW": 1282
+          "rectH": 671,
+          "rectW": 1264
         },
         {
           "tag": "DIV",
           "cls": "dw-main",
           "display": "block",
           "vis": "visible",
-          "rectH": 712,
-          "rectW": 1282
+          "rectH": 671,
+          "rectW": 1264
         },
         {
           "tag": "DIV",
           "cls": "",
           "display": "flex",
           "vis": "visible",
-          "rectH": 776,
-          "rectW": 1282
+          "rectH": 735,
+          "rectW": 1264
         }
       ],
       "wizardPresent": true,
@@ -124,15 +124,15 @@
           "cls": "dw-side-body",
           "display": "flex",
           "vis": "visible",
-          "rectH": 676,
-          "rectW": 399.3333435058594
+          "rectH": 635,
+          "rectW": 399
         },
         {
           "tag": "DIV",
           "cls": "dw-side",
           "display": "flex",
           "vis": "visible",
-          "rectH": 712,
+          "rectH": 671,
           "rectW": 400
         },
         {
@@ -140,24 +140,24 @@
           "cls": "dw-ide",
           "display": "grid",
           "vis": "visible",
-          "rectH": 712,
-          "rectW": 1282
+          "rectH": 671,
+          "rectW": 1264
         },
         {
           "tag": "DIV",
           "cls": "dw-main",
           "display": "block",
           "vis": "visible",
-          "rectH": 712,
-          "rectW": 1282
+          "rectH": 671,
+          "rectW": 1264
         },
         {
           "tag": "DIV",
           "cls": "",
           "display": "flex",
           "vis": "visible",
-          "rectH": 776,
-          "rectW": 1282
+          "rectH": 735,
+          "rectW": 1264
         }
       ],
       "wizardPresent": false,

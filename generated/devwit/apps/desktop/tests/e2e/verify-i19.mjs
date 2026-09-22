@@ -100,6 +100,17 @@ function assert(cond, message) {
   }
 }
 
+/** 轮询直到 fn() 返回真值（返回其值），超时返回 null。（与 verify-i33 同款） */
+async function pollUntil(fn, timeoutMs = 20_000, intervalMs = 200) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const value = await fn();
+    if (value) return value;
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  return null;
+}
+
 function launchElectron(cdpPort) {
   return new Promise((resolve, reject) => {
     const exe = path.join(ROOT, "node_modules", "electron", "dist", "electron.exe");
@@ -188,12 +199,22 @@ try {
   step("诊断行出现：编辑后发现 1 个问题（tsc 真跑，首个 broken.ts）");
 
   // 第 2 轮 LLM 请求体审计：诊断文本注入（修复闭环核心链路）
-  // （第 2 个授权行出现 = 第 2 轮请求已发出并被本地端点捕获）
-  const secondBody = chatBodies[1];
-  const secondRaw = JSON.stringify(secondBody ?? {});
+  // 等待式断言（v0.7.12）：诊断行出现 ≠ 第 2 轮请求体已被本地端点完整接收。
+  // 产品侧顺序有保证（refreshDiagnostics 在工具结果返回前 await，诊断快照
+  // 必然先于下一轮请求组装），但「工具结果落账 → 下一轮 engine.build → HTTP
+  // 传输 → 端点 req end 回调」链路存在可观测间隔。夜跑 9/18、9/21 失败 run 的
+  // 落盘证据（chat-bodies.json 仅 1 体）实证：断言读取时 chatBodies[1] 尚为
+  // undefined——本地恒同步、CI 偶发先读。改为等待请求体完整到达且含诊断文本；
+  // 若产品回归（诊断真未注入）则 30s 超时仍失败，断言力不降级。
+  const secondBody = await pollUntil(() => {
+    const body = chatBodies[1];
+    if (body === undefined) return null;
+    const raw = JSON.stringify(body);
+    return raw.includes("TS2322") && raw.includes("broken.ts") ? body : null;
+  }, 30_000);
   assert(
-    secondRaw.includes("TS2322") && secondRaw.includes("broken.ts"),
-    `第 2 轮请求应携带 TS2322 诊断文本（实际含 TS2322=${secondRaw.includes("TS2322")}）`
+    secondBody !== null,
+    `第 2 轮请求应携带 TS2322 诊断文本（实际: ${JSON.stringify(chatBodies[1] ?? null).slice(0, 200)}）`
   );
   fs.writeFileSync(path.join(OUT, "chat-bodies.json"), JSON.stringify(chatBodies, null, 2), "utf-8");
   step("第 2 轮请求体审计：诊断（broken.ts TS2322）已注入上下文");

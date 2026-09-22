@@ -418,7 +418,13 @@ async function bootstrap(api: DevwitApi): Promise<void> {
 
   async function saveActiveFile(): Promise<void> {
     if (openFile === null) return;
-    await api.workspace.write(openFile.path, openFile.doc.getText());
+    try {
+      await api.workspace.write(openFile.path, openFile.doc.getText());
+    } catch (error) {
+      // v0.7.12：保存失败不再静默（旧实现仅 unhandled rejection，用户无感知数据未落盘）
+      showStatus(t("err.saveFailed", { detail: error instanceof Error ? error.message : String(error) }));
+      return;
+    }
     openFile.doc.markSaved();
     refreshDirty();
     void lspUi.refreshOutline(); // 保存后刷新大纲（落盘后 tsserver 重新分析）
@@ -472,12 +478,46 @@ async function bootstrap(api: DevwitApi): Promise<void> {
 
   // v0.7.6：搜索面板逻辑抽取为 search-panel.ts 模块（DOM 仍在宿主装配，
   // 状态/事件/搜索/替换/locale 由模块持有；行为零变化——E2E 回归锁定）
+  /** 新建文档统一挂监听：脏状态回显 + LSP 增量同步/自动补全/大纲刷新。
+   *  v0.7.12 抽取：replaceAll 重写活动文件后换新 doc 必须走同一装配——旧实现
+   *  换 doc 不重挂监听，之后编辑器「哑掉」（不报未保存、LSP 同步/补全/大纲停更）。 */
+  const createWiredDoc = (content: string): TextDocument => {
+    const doc = TextDocument.fromString(content);
+    doc.onDidChange(refreshDirty);
+    if (workspaceRoot !== "") {
+      doc.onDidChange(() => lspUi.scheduleLspSync());
+      doc.onDidChange(() => lspUi.scheduleCompletion()); // v0.4.0：输入触发自动补全
+      doc.onDidChange(() => lspUi.scheduleOutlineRefresh()); // v0.4.0：编辑触发大纲刷新
+    }
+    return doc;
+  };
   const refreshActiveFileDoc = async (path: string): Promise<void> => {
-    if (openFile === null || openFile.path !== path) return;
-    const refreshed = await api.workspace.read(openFile.path);
-    const newDoc = TextDocument.fromString(refreshed);
-    openFile.doc = newDoc;
-    editor.setDocument(newDoc);
+    // v0.7.12 修复两处：
+    // 1) 按 path 定位条目 + await 后复验——replaceAll 写盘期间用户可能切换/关闭
+    //    标签，旧实现假定 openFile 不变，会把 A 文件内容装进当前活动文件 C 的
+    //    条目（编辑器显示 A 内容、标签是 C），Ctrl+S 即把 A 内容写进 C 的路径。
+    // 2) 新 doc 经 createWiredDoc 重挂全部监听（见上）。
+    const target = openFiles.find((f) => f.path === path);
+    if (target === undefined) return;
+    let refreshed: string;
+    try {
+      refreshed = await api.workspace.read(path);
+    } catch {
+      return; // 读失败（并发删除/权限等）保留旧缓冲，不阻断替换流程
+    }
+    if (!openFiles.includes(target)) return; // await 期间该标签已被关闭
+    target.doc = createWiredDoc(refreshed);
+    if (openFile !== null && openFile.path === path) {
+      // 仍是活动文件：热替换编辑器视图（LSP 全文重推 + 诊断/断点/大纲跟随）
+      editor.setDocument(target.doc);
+      if (workspaceRoot !== "") {
+        lspUi.syncOpenFileToLsp();
+        lspUi.applyEditorDiagnostics();
+        void lspUi.refreshOutline();
+      }
+      debugPanel.syncEditorBreakpoints();
+      refreshDirty();
+    }
   };
   const searchPanelHandle = mountSearchPanel({
     api,
@@ -577,6 +617,9 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     })();
   });
 
+  /** 打开请求序号：快速连点 A→B 时后发请求胜出（旧实现两次 read 竞速，
+   *  后完成者抢占活动标签——A 慢 resolve 时最终显示 A 而非用户最后点的 B）。 */
+  let openFileRequestId = 0;
   async function openFileByPath(filePath: string): Promise<void> {
     // 多标签页（v0.4.0）：已打开则直接切换，不重复加载
     const existing = openFiles.find((f) => f.path === filePath);
@@ -584,9 +627,17 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       await switchToTab(filePath);
       return;
     }
-    const content = await api.workspace.read(filePath);
-    const doc = TextDocument.fromString(content);
-    doc.onDidChange(refreshDirty);
+    const requestId = ++openFileRequestId;
+    let content: string;
+    try {
+      content = await api.workspace.read(filePath);
+    } catch (error) {
+      // v0.7.12：读失败（>50MB / 已被外部删除 / 权限）不再静默无反应
+      showStatus(t("err.openFailed", { detail: error instanceof Error ? error.message : String(error) }));
+      return;
+    }
+    if (requestId !== openFileRequestId) return; // 已有更新的打开请求，本次作废
+    const doc = createWiredDoc(content);
     // LSP 文档生命周期（AC40）：关旧（清其诊断快照）→ 开新（缓冲区全文同步）
     if (openFile !== null && workspaceRoot !== "") {
       void api.lsp.didClose(relPathOf(openFile.path));
@@ -598,9 +649,6 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     debugPanel.syncEditorBreakpoints(); // 断点红点随文件切换重挂（AC42）
     if (workspaceRoot !== "") {
       lspUi.syncOpenFileToLsp();
-      doc.onDidChange(() => lspUi.scheduleLspSync());
-      doc.onDidChange(() => lspUi.scheduleCompletion()); // v0.4.0：输入触发自动补全
-      doc.onDidChange(() => lspUi.scheduleOutlineRefresh()); // v0.4.0：编辑触发大纲刷新
       lspUi.applyEditorDiagnostics(); // 该文件既有诊断立即上波浪线
       void lspUi.refreshOutline(); // 文件打开即取大纲（LSP 未就绪则空，ready 推送时补偿）
     }
@@ -758,6 +806,10 @@ async function bootstrap(api: DevwitApi): Promise<void> {
 
   /** 进入工作区：设置根目录 + 构建文件树（打开对话框与 AC15 启动恢复共用）。 */
   async function enterWorkspace(root: string): Promise<void> {
+    // v0.7.12：切换工作区先对旧标签逐个 didClose——tsserver 不残留旧文档/诊断
+    // （switchToTab/closeFile 路径都发，此处旧实现漏发）。须在改写 workspaceRoot
+    // 之前按旧根计算相对路径。
+    for (const file of openFiles) void api.lsp.didClose(relPathOf(file.path));
     workspaceRoot = root;
     chatController.setWorkspaceRoot(root);
     taskCenter.setWorkspaceRoot(root);
@@ -783,7 +835,12 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   async function openWorkspace(): Promise<void> {
     const root = await api.workspace.openDialog();
     if (root === null) return;
-    await enterWorkspace(root);
+    try {
+      await enterWorkspace(root);
+    } catch (error) {
+      // v0.7.12：目录树加载失败不再静默（旧实现按钮点击无反应 + unhandled rejection）
+      showStatus(t("err.treeFailed", { detail: error instanceof Error ? error.message : String(error) }));
+    }
     schedulePersist();
   }
   openBtn.addEventListener("click", () => void openWorkspace());
@@ -1078,11 +1135,33 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       consoleRoot.style.display = "grid";
       codePane.appendChild(editorArea); // 同一编辑器实例迁入代码页签，状态保留
       formBtn.textContent = t("chrome.form.chat");
+      // v0.7.12：diff 审查随形态迁移——旧实现把 overlay 留在隐藏容器里成为
+      // 僵尸（引用非空，chat 形态再点「审查提案」被守卫静默吞掉）
+      if (diffOverlay !== null) {
+        diffOverlay.style.position = "relative";
+        diffPane.textContent = "";
+        diffPane.appendChild(diffOverlay);
+        diffTab.classList.add("dw-tab-active");
+        codeTab.classList.remove("dw-tab-active");
+        codePane.style.display = "none";
+        diffPane.style.display = "flex";
+      }
     } else {
       consoleRoot.style.display = "none";
       ide.style.display = "grid";
       ide.insertBefore(editorArea, side);
       formBtn.textContent = t("chrome.form.console");
+      // 覆盖层迁回 chat 形态挂法（absolute 覆盖编辑器区）；diffPane 复位空态
+      if (diffOverlay !== null) {
+        diffOverlay.style.position = "";
+        editorArea.appendChild(diffOverlay);
+        codeTab.classList.add("dw-tab-active");
+        diffTab.classList.remove("dw-tab-active");
+        codePane.style.display = "";
+        diffPane.style.display = "none";
+        diffPane.textContent = "";
+        diffPane.appendChild(el("div", "dw-sidebar-empty", t("console.diff.empty")));
+      }
     }
     editor.resize();
   }
@@ -1175,7 +1254,11 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       showStatus(t("review.noBlock"));
       return;
     }
-    if (diffOverlay !== null) return; // 已有审查进行中
+    if (diffOverlay !== null) {
+      // v0.7.12：已有审查时给出可见提示（旧实现静默 return，功能看似失灵）
+      showStatus(t("review.inProgress"));
+      return;
+    }
     const controller = new DiffController(openFile.doc.getText(), proposal.code);
     if (!controller.hasChanges) {
       showStatus(t("review.noChange"));
@@ -1208,6 +1291,17 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   function closeDiff(): void {
     diffOverlay?.remove();
     diffOverlay = null;
+    // v0.7.12：console 形态关闭审查后回到代码页——旧实现留在空白 Diff 页
+    // （空态占位只在 applyLocale 重建），编辑器被隐藏需手动点「代码」才能回去。
+    if (form === "console") {
+      codeTab.classList.add("dw-tab-active");
+      diffTab.classList.remove("dw-tab-active");
+      codePane.style.display = "";
+      diffPane.style.display = "none";
+      diffPane.textContent = "";
+      diffPane.appendChild(el("div", "dw-sidebar-empty", t("console.diff.empty")));
+      editor.resize();
+    }
   }
 
   // ---- 数据加载与热更新 ----
@@ -1330,7 +1424,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (app === null) return;
     const api = window.devwit;
     if (api === undefined) {
-      app.textContent = "preload not ready: window.devwit missing";
+      app.textContent = t("err.preloadMissing"); // v0.7.12：故障态文案也走词典（语言一致）
       return;
     }
     // 恢复上次界面语言（AC12：持久化在 settings "ui.locale"；「跟随系统」或未设置时按系统语言解析）

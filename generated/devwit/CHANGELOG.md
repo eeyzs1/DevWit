@@ -3,6 +3,48 @@
 所有显著变更记录于此。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本遵循 [语义化版本](https://semver.org/)。
 
+## [0.7.12] — 2026-10-02
+
+### Fixed
+- **凭证损坏横幅无条件常显**（0.7.3 引入，对抗性自查发现）：横幅刷新读
+  `settings.get` 未 await，同步判 `typeof Promise === "object"` 恒真——凭证
+  完好也报「已损坏已备份」。改 async 读取后判定
+- **replaceAll 后活动文件编辑器「哑掉」**：跨文件搜索全部替换重写活动文件
+  换新 doc 后不重挂监听——脏状态回显、LSP 增量同步/自动补全/大纲全部停更
+  （切标签重开才恢复）。抽取 `createWiredDoc` 统一装配，热替换后 LSP 全文
+  重推 + 诊断/断点/大纲跟随
+- **replaceAll 刷新期间切换标签可致写坏文件**（低概率高危）：刷新协程在
+  `await read` 后不复验目标，把 A 文件内容装进当前活动文件 C 的条目，Ctrl+S
+  即把 A 内容写入 C 的路径。改按 path 定位条目 + await 后复验仍存在才替换
+- **删除使用中的模式/模型后 UI 与实际不同步**：删除对话面板当前选中的
+  自定义模式后下拉显示第一个模式，但控制器仍持已删 id——下次发送报
+  DW_MODE_NOT_FOUND 而界面看似有效。`refreshSelectors` 检测失效 id 回退
+  首个模式（内置 Chat 恒在）/清空手动模型选择回跟随模式绑定
+- **指挥台 diff 未关时切换形态成僵尸**：console 形态打开 diff 审查后切回
+  chat，覆盖层留在隐藏容器且引用非空——再点「审查修改」被守卫静默吞掉。
+  形态切换时覆盖层随迁（chat 挂编辑器区/console 挂 Diff 页签）；已占用时
+  状态栏可见提示；console 关闭 diff 后回到代码页（不再停在空白 Diff 页）
+- **保存/打开文件失败静默无反应**：Ctrl+S 写盘失败、点击 >50MB 或已被
+  外部删除的文件节点，此前仅 unhandled rejection 零提示——现状态栏本地化
+  报错（err.saveFailed / err.openFailed / err.treeFailed，中英词典）
+- **设置页模式分区异步渲染竞态**：进入「模式」后其 `providers.list()` 未
+  返回期间切到其它分区（或语言热切换），陈旧续跑把模式表单/社区段追加进
+  新分区 UI。分区渲染代际守卫，过期即放弃
+- **快速连点文件 A→B 竞态**：两次 read 竞速后完成者抢占活动标签——打开
+  请求序号化，后发请求胜出
+- **切换工作区残留 tsserver 旧文档**：enterWorkspace 清空标签不发
+  didClose（switchToTab/closeFile 路径都发）——逐个补发；「打开文件夹」
+  目录树加载失败由静默无反应改状态栏报错
+
+### Changed
+- 设置对话框单例守卫（按钮连点不再叠开多层）
+- 设置页 4 处 catch 展示原始 error.message 改经 localizeError（providers/
+  editor/modes/mcp 保存路径，DW_* 错误码与其余 6 处一致本地化）
+- preload 缺失故障态文案走词典（原硬编码英文）
+- verify-i19 第 2 轮请求体断言改等待式（pollUntil）——诊断行出现 ≠ 请求体
+  已被本地端点接收，夜跑 9/18、9/21 失败 run 的 chat-bodies.json 仅 1 体
+  实证为测试侧竞态；产品回归时 30s 超时仍失败，断言力不降级
+
 ## [0.7.11] — 2026-08-30
 
 ### Fixed

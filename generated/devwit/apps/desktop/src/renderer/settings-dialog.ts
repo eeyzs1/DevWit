@@ -119,6 +119,8 @@ function fieldInput(type: string, value: string): HTMLInputElement {
 // ============================================================================
 
 export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSection = "general"): void {
+  // v0.7.12：单例守卫——设置按钮可连点，叠开多层对话框仅添混乱（关闭与订阅均正常，纯 UX）。
+  if (document.querySelector(".dw-modal-settings") !== null) return;
   const mask = el("div", "dw-modal-mask");
   const modal = el("div", "dw-modal dw-modal-settings");
   mask.appendChild(modal);
@@ -176,8 +178,13 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
     }
   }
 
+  // v0.7.12：分区渲染代际——异步分区渲染器（renderModes）在 await 后据此判废，
+  // 防止陈旧续跑把元素追加进已切换/已重渲染的 content。
+  let renderGeneration = 0;
+
   function show(section: SettingsSection): void {
     current = section;
+    const generation = ++renderGeneration;
     for (const [id, btn] of navBtns) {
       btn.classList.toggle("dw-settings-nav-active", id === section);
     }
@@ -206,7 +213,7 @@ export function openSettingsDialog(deps: SettingsDialogDeps, initial: SettingsSe
         renderEditor(content, deps);
         break;
       case "modes":
-        void renderModes(content, deps);
+        void renderModes(content, deps, () => generation !== renderGeneration);
         break;
       case "mcp":
         renderMcp(content, deps, (sink) => {
@@ -934,19 +941,23 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps, registe
   // 时持久化标记 security.credentialsCorrupt——不再静默清空用户的全部 API Key。
   // 用户重新保存任一凭证后主进程清除标记（settings.onChanged 热刷新本横幅）。
   const corruptBanner = el("div", "dw-form-error");
+  // v0.7.12 修复：api.settings.get 返回 Promise，旧实现同步判 typeof marker === "object"
+  // 对 Promise 恒真——横幅无条件常显（凭证完好也报损坏）。改 async 读取后判定。
   const refreshCorruptBanner = (): void => {
-    const marker = api.settings.get("security.credentialsCorrupt") as
-      | { backupFile?: unknown }
-      | null
-      | undefined;
-    if (marker !== null && marker !== undefined && typeof marker === "object") {
-      corruptBanner.textContent = t("provider.corruptWarning", {
-        backup: typeof marker.backupFile === "string" ? marker.backupFile : "credentials.enc.json.corrupt-*",
-      });
-      corruptBanner.style.display = "";
-    } else {
-      corruptBanner.style.display = "none";
-    }
+    void (async () => {
+      const marker = (await api.settings.get("security.credentialsCorrupt")) as
+        | { backupFile?: unknown }
+        | null
+        | undefined;
+      if (marker !== null && marker !== undefined && typeof marker === "object") {
+        corruptBanner.textContent = t("provider.corruptWarning", {
+          backup: typeof marker.backupFile === "string" ? marker.backupFile : "credentials.enc.json.corrupt-*",
+        });
+        corruptBanner.style.display = "";
+      } else {
+        corruptBanner.style.display = "none";
+      }
+    })();
   };
   refreshCorruptBanner();
   registerCorruptSink(refreshCorruptBanner);
@@ -1215,7 +1226,8 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps, registe
       await renderList();
       errorBox.textContent = t("provider.saved");
     })().catch((error: unknown) => {
-      errorBox.textContent = error instanceof Error ? error.message : String(error);
+      // v0.7.12：DW_* 错误码与校验错误经 localizeError 本地化（与其余 6 处一致）
+      errorBox.textContent = localizeError(error instanceof Error ? error.message : String(error));
     });
   });
 
@@ -1291,7 +1303,8 @@ function renderEditor(content: HTMLElement, deps: SettingsDialogDeps): void {
       await api.settings.set("externalEditor", { command });
       errorBox.textContent = command === "" ? t("editor.cleared") : t("editor.saved");
     })().catch((error: unknown) => {
-      errorBox.textContent = error instanceof Error ? error.message : String(error);
+      // v0.7.12：DW_* 错误码经 localizeError 本地化（与其余 6 处一致）
+      errorBox.textContent = localizeError(error instanceof Error ? error.message : String(error));
     });
   });
 }
@@ -1300,8 +1313,17 @@ function renderEditor(content: HTMLElement, deps: SettingsDialogDeps): void {
 // 模式：创建/编辑/删除（系统提示 + 工具集 + 模型 + 上下文策略）
 // ============================================================================
 
-async function renderModes(content: HTMLElement, deps: SettingsDialogDeps): Promise<void> {
+async function renderModes(
+  content: HTMLElement,
+  deps: SettingsDialogDeps,
+  isStale: () => boolean = () => false
+): Promise<void> {
   const { api } = deps;
+  const providers: ProviderConfig[] = await api.providers.list();
+  // v0.7.12 修复：await 返回时用户可能已切到其它分区（或语言热切换触发重渲染，
+  // show() 已清空并重建 content）——本函数是唯一在 await 之后仍向 content 顶层
+  // 追加元素的分区渲染器，陈旧续跑会把模式表单/社区段混入新分区。过期即放弃。
+  if (isStale()) return;
   content.appendChild(el("h3", "dw-settings-subtitle", t("mode.title")));
   // 迭代 14 / AC23：无账号社区分享方式——导出/导入 JSON
   content.appendChild(el("p", "dw-modal-hint", t("mode.share.hint")));
@@ -1309,7 +1331,6 @@ async function renderModes(content: HTMLElement, deps: SettingsDialogDeps): Prom
   content.appendChild(list);
 
   let modes: ModeDefinition[] = [];
-  const providers: ProviderConfig[] = await api.providers.list();
   /** 社区行「已导入」状态刷新器（迭代 16）：renderList 重建本地列表后逐个调用。 */
   const communitySyncs: Array<() => void> = [];
 
@@ -1513,7 +1534,8 @@ async function renderModes(content: HTMLElement, deps: SettingsDialogDeps): Prom
       await renderList();
       errorBox.textContent = t("mode.saved");
     })().catch((error: unknown) => {
-      errorBox.textContent = error instanceof Error ? error.message : String(error);
+      // v0.7.12：DW_* 错误码经 localizeError 本地化（与其余 6 处一致）
+      errorBox.textContent = localizeError(error instanceof Error ? error.message : String(error));
     });
   });
 
@@ -1779,7 +1801,8 @@ function renderMcp(content: HTMLElement, deps: SettingsDialogDeps, onMcpSink: (s
       await renderList();
       errorBox.textContent = t("mcp.saved");
     })().catch((error: unknown) => {
-      errorBox.textContent = error instanceof Error ? error.message : String(error);
+      // v0.7.12：DW_* 错误码经 localizeError 本地化（与其余 6 处一致）
+      errorBox.textContent = localizeError(error instanceof Error ? error.message : String(error));
     });
   });
 
