@@ -3,6 +3,20 @@
 所有显著变更记录于此。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本遵循 [语义化版本](https://semver.org/)。
 
+## [0.7.18] — 2026-10-02
+
+### Fixed
+- **GitService 调用串行化**（L12d）：status（读 index）与 stage/commit（写
+  index.lock）并发时偶发 "index.lock exists" 冒泡给用户——同实例内全部 git
+  调用经队列按序执行（失败/超时不阻塞队列；进程外并发仍由 git 锁语义兜底）。
+  2 项伪 exec 单测锁定（按序执行 + 失败不卡队列）
+
+### Changed
+- **v0.7.17 已转正 Latest Release**（此前 Latest 停留在 v0.7.0——in-app
+  自动更新通道现在向全部旧版用户交付 0.7.12 以来的 40 项审查修复）
+- winget 0.7.17 清单补 zh-CN locale 与 ReleaseNotesUrl（四文件完整形态）；
+  已提交 [winget-pkgs#438830](https://github.com/microsoft/winget-pkgs/pull/438830)
+
 ## [0.7.17] — 2026-10-02
 
 ### Fixed

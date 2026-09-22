@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { GitService, parseBlamePorcelain, parsePorcelainZ } from "../src/git-service.js";
+import { GitService, parseBlamePorcelain, parsePorcelainZ, type GitExecFile } from "../src/git-service.js";
 
 const hasGit = spawnSync("git", ["--version"], { timeout: 5000 }).status === 0;
 
@@ -65,6 +65,64 @@ describe("parsePorcelainZ（纯解析）", () => {
   it("无冲突时 conflicts 为空数组", () => {
     const out = parsePorcelainZ("## main\0M  a.txt\0");
     expect(out.conflicts).toEqual([]);
+  });
+});
+
+describe("GitService 调用串行化（v0.7.18 / 审查 L12d）", () => {
+  it("并发调用按序执行：第二个 git 调用等第一个回调完成后才开始", async () => {
+    const events: string[] = [];
+    let pendingCallback: ((error: Error | null) => void) | null = null;
+    let callCount = 0;
+    const fakeExec: GitExecFile = (_file, _args, _options, callback) => {
+      callCount += 1;
+      const n = callCount;
+      events.push(`start:${n}`);
+      // 异步完成（模拟 git 进程耗时），第一个调用被人为挂起
+      if (n === 1) {
+        pendingCallback = (error) => {
+          events.push(`end:${n}`);
+          callback(error, "", "");
+        };
+      } else {
+        setTimeout(() => {
+          events.push(`end:${n}`);
+          callback(null, "", "");
+        }, 0);
+      }
+    };
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "devwit-gitser-"));
+    try {
+      const service = new GitService(root, fakeExec);
+      const first = service.status(); // 进入队列，回调被挂起
+      const second = service.status(); // 排队，不得在第一个回调前开始
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(events).toEqual(["start:1"]); // 第二个尚未开始
+      pendingCallback?.(new Error("exit 128")); // 放行第一个（错误→null 结果）
+      await first;
+      await second;
+      expect(events).toEqual(["start:1", "end:1", "start:2", "end:2"]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("前一个调用失败不阻塞队列（回调恒触发即解锁）", async () => {
+    let calls = 0;
+    const fakeExec: GitExecFile = (_f, _a, _o, callback) => {
+      calls += 1;
+      callback(calls === 1 ? new Error("boom") : null, "ok-out", "");
+    };
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "devwit-gitser2-"));
+    try {
+      const service = new GitService(root, fakeExec);
+      const first = service.status();
+      const second = service.status();
+      expect(await first).toBeNull(); // 错误 → null
+      await second; // 队列中的第二个调用完成
+      expect(calls).toBe(2); // 队列未被失败卡死
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });
 

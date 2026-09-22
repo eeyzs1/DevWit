@@ -85,10 +85,34 @@ function nodeExecFile(
 }
 
 export class GitService {
+  /** 串行化队列（v0.7.18 / 审查 L12d）：本实例内全部 git 调用按序执行。 */
+  private gitQueue: Promise<void> = Promise.resolve();
+  private readonly execImpl: GitExecFile;
+
   constructor(
     private readonly root: string,
-    private readonly execImpl: GitExecFile = nodeExecFile
-  ) {}
+    execImpl: GitExecFile = nodeExecFile
+  ) {
+    // v0.7.18 修复（审查 L12d）：status（读 index）与 stage/commit（写
+    // index.lock）并发时偶发 "index.lock exists" 冒泡给用户——git 无会话锁，
+    // 同实例调用串行化消除面板自身触发的竞态（UI 恒经同一实例；进程外并发
+    // 仍由 git 自身的锁语义兜底报错）。超时/错误不阻塞队列（回调恒触发）。
+    const impl = execImpl;
+    this.execImpl = (file, args, options, callback) => {
+      this.gitQueue = this.gitQueue.then(
+        () =>
+          new Promise<void>((resolve) => {
+            impl(file, args, options, (error, stdout, stderr) => {
+              try {
+                callback(error, stdout, stderr);
+              } finally {
+                resolve();
+              }
+            });
+          })
+      );
+    };
+  }
 
   /** 面板状态快照；非 git 仓库/git 不可用返回 null。 */
   status(): Promise<GitPanelStatus | null> {
