@@ -257,12 +257,16 @@ export class McpHttpClient implements McpTransport {
   private async readAllSse(res: Awaited<ReturnType<HttpFetchLike>>): Promise<string> {
     if (!res.body) return "";
     const reader = res.body.getReader();
-    const chunks: string[] = [];
+    // v0.7.21 修复（审查 E6-4）：stream 解码器处理跨网络块的多字节 UTF-8
+    // ——旧实现逐块 toString，CJK 3 字节字符跨块边界产生 U+FFFD → SSE 事件
+    // 解析失败 → DW_MCP_HTTP_NO_RESPONSE（中文大输出间歇失败）
+    const decoder = new TextDecoder("utf-8");
+    let text = "";
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      chunks.push(Buffer.from(value).toString("utf-8"));
+      text += decoder.decode(value, { stream: true });
     }
-    return chunks.join("");
+    return text + decoder.decode();
   }
 }

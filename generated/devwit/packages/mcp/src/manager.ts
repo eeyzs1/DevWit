@@ -29,6 +29,12 @@ export function validateMcpServerConfig(config: McpServerConfig): void {
   if (typeof config.id !== "string" || !MCP_ID_PATTERN.test(config.id)) {
     throw new Error("mcp server id must match /^[\\w-]+$/");
   }
+  // v0.7.21 修复（审查 E6-6）：id 含 "__" 会与工具全名分隔符（mcp__<id>__<tool>）
+  // 产生解析歧义——id "a__b"+工具 "t" 的全名被解析回 serverId="a"/tool="b__t"，
+  // 可致跨服务器工具碰撞或 UNKNOWN_SERVER 误报。fail-closed 拒绝。
+  if (config.id.includes("__")) {
+    throw new Error("mcp server id must not contain '__' (tool name separator)");
+  }
   if (typeof config.name !== "string" || config.name.trim() === "") throw new Error("mcp server name must not be empty");
   const transport = config.transport ?? "stdio";
   if (transport !== "stdio" && transport !== "http") throw new Error(`mcp server transport must be stdio|http (got ${transport})`);

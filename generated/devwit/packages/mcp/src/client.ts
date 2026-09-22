@@ -58,6 +58,8 @@ export class McpStdioClient {
   private nextId = 1;
   private readonly pending = new Map<number, PendingRequest>();
   private stdoutBuffer = "";
+  /** 跨块 UTF-8 解码器（v0.7.21 / E6-4）。 */
+  private stdoutDecoder = new TextDecoder("utf-8");
   private stderrTail = "";
   private started = false;
   /** 进程退出回调（manager 据此转 error 态）。code 为 null 表示信号终止。 */
@@ -96,7 +98,8 @@ export class McpStdioClient {
       const needsShell = process.platform === "win32" && !hasExplicitExt;
       if (needsShell) {
         for (const arg of args) {
-          if (/[&|<>^"\r\n]/.test(arg)) {
+          // v0.7.21（E6-10）：黑名单补 "%"（cmd 变量展开 %VAR% 可把 env 值泄进 argv）
+          if (/[&|<>^"%\r\n]/.test(arg)) {
             throw new Error(`DW_MCP_UNSAFE_ARG:${arg.slice(0, 40)}`);
           }
         }
@@ -114,6 +117,16 @@ export class McpStdioClient {
       // spawn 异步失败（ENOENT 等）：走退出路径，拒绝全部挂起
       this.handleExit(null, `DW_MCP_SPAWN_FAILED:${error.message}`);
     });
+    // v0.7.21 修复（审查 E6-2）：服务器死亡后、exit 送达前的窗口内写 stdin
+    // 触发 EPIPE 'error'——stdin 流无监听会升级 uncaughtException 崩掉主进程
+    //（与 v0.7.15 L14 的 lsp-client 同型修复，此处此前漏了同一行）。
+    proc.stdin.on("error", () => {
+      // 管道已断：等待 exit 事件统一走 handleExit 语义（拒绝挂起请求）
+    });
+    // v0.7.21 修复（审查 E6-4）：跨读块边界的多字节 UTF-8 逐块 toString 产生
+    // U+FFFD（CJK 3 字节跨 64KB pipe 块边界时该行 JSON.parse 失败 → 响应被
+    // 丢弃 → 30s 超时）。stream 模式解码器保留跨块状态。
+    this.stdoutDecoder = new TextDecoder("utf-8");
     proc.stdout.on("data", (chunk: Buffer) => this.handleStdout(chunk));
     proc.stderr.on("data", (chunk: Buffer) => {
       this.stderrTail = (this.stderrTail + chunk.toString("utf-8")).slice(-STDERR_TAIL_CHARS);
@@ -173,7 +186,16 @@ export class McpStdioClient {
     this.rejectAllPending("DW_MCP_CLIENT_CLOSED");
     proc.kill();
     await new Promise<void>((resolve) => {
-      const timer = setTimeout(resolve, 3000);
+      const timer = setTimeout(() => {
+        // v0.7.21（审查 E6-7）：3s 后仍存活 → SIGKILL 升级（POSIX 上忽略
+        // SIGTERM 的服务器不再成为孤儿进程；Windows kill 即 TerminateProcess）
+        try {
+          proc.kill("SIGKILL");
+        } catch {
+          // 已退出：noop
+        }
+        resolve();
+      }, 3000);
       proc.once("exit", () => {
         clearTimeout(timer);
         resolve();
@@ -197,7 +219,7 @@ export class McpStdioClient {
         reject(new Error(`DW_MCP_TIMEOUT:${method}`));
       }, timeoutMs ?? this.requestTimeoutMs);
       this.pending.set(id, { method, resolve, reject, timer });
-      proc.stdin.write(`${JSON.stringify(message)}\n`, "utf-8");
+      this.writeLine(message);
     });
   }
 
@@ -205,11 +227,23 @@ export class McpStdioClient {
     const proc = this.proc;
     if (proc === null) return;
     const message = { jsonrpc: "2.0", method, ...(params !== undefined ? { params } : {}) };
-    proc.stdin.write(`${JSON.stringify(message)}\n`, "utf-8");
+    this.writeLine(message);
+  }
+
+  /** 统一写入口（v0.7.21）：stdin 已断时静默丢弃——错误语义由 exit 路径统一承载。 */
+  private writeLine(message: unknown): void {
+    const proc = this.proc;
+    if (proc === null) return;
+    try {
+      proc.stdin.write(`${JSON.stringify(message)}\n`, "utf-8");
+    } catch {
+      // 同步写异常（管道半关）：等待 exit 事件收尾
+    }
   }
 
   private handleStdout(chunk: Buffer): void {
-    this.stdoutBuffer += chunk.toString("utf-8");
+    // v0.7.21（E6-4）：stream 解码器处理跨块多字节序列（构造时创建）
+    this.stdoutBuffer += this.stdoutDecoder.decode(chunk, { stream: true });
     for (;;) {
       const newline = this.stdoutBuffer.indexOf("\n");
       if (newline < 0) break;
@@ -222,7 +256,18 @@ export class McpStdioClient {
       } catch {
         continue; // 非 JSON 行（服务器打印的日志等）跳过，不中断会话
       }
-      if (typeof message.id !== "number") continue; // 服务器通知/请求暂不需要处理
+      // v0.7.21 修复（审查 E6-3）：带 method+数字 id 的是「服务器→客户端请求」
+      //（MCP 规范允许服务器随时 ping）——旧实现只滤无 id 通知，服务器请求会
+      // pending.get(id) 命中客户端同 id 挂起请求并以 undefined 错误 resolve
+      //（tools/list 静默变空集 / call 静默 ok+空输出）。请求回空成功响应
+      //（ping 语义）+ 通知照旧忽略。
+      if (typeof message.method === "string") {
+        if (typeof message.id === "number") {
+          this.writeLine({ jsonrpc: "2.0", id: message.id, result: {} });
+        }
+        continue;
+      }
+      if (typeof message.id !== "number") continue; // 服务器通知
       const entry = this.pending.get(message.id);
       if (entry === undefined) continue;
       this.pending.delete(message.id);

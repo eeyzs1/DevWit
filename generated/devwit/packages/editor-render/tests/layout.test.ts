@@ -700,6 +700,20 @@ describe("measureTextWidth / xForColumnChars / columnForXChars", () => {
     expect(columnForXChars("", 50, widthOfCell)).toBe(0);
   });
 
+  it("v0.7.21（E6-1）：点击 emoji 右半吸附到码点左边界（不拆散代理对）", () => {
+    // "a中b😀c"：a(10) 中(20) b(10) 高代理(20) 低代理(0) c(10)，累计 10/30/40/60/60/70
+    // emoji 单元格 x∈[40,60)：右半 x∈[50,60) 旧实现返回 col=4（高/低代理之间，
+    // 打字即拆对产生孤立代理乱码），现吸附 col=3
+    const line = "a中b😀c";
+    expect(columnForXChars(line, 45, widthOfCell)).toBe(3); // 左半
+    expect(columnForXChars(line, 55, widthOfCell)).toBe(3); // 右半 → 吸附（旧=4）
+    expect(columnForXChars(line, 999, widthOfCell)).toBe(6); // 行尾
+    // 连续 emoji："😀😀"（总宽 40）：第二格右半 x=35 → col-1=3 是低代理 → 吸附 2
+    expect(columnForXChars("😀😀", 30, widthOfCell)).toBe(2);
+    expect(columnForXChars("😀😀", 35, widthOfCell)).toBe(2); // 右半吸附（旧=3 拆对）
+    expect(columnForXChars("😀😀", 50, widthOfCell)).toBe(4); // 超行尾 → EOL（合法边界）
+  });
+
   it("纯 ASCII 行为与旧 length×charWidth 模型完全一致（零回归）", () => {
     const ascii = "const hello = 1;";
     const legacy: Measurer = (text) => text.length * CELL;

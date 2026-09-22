@@ -175,6 +175,7 @@ export class TextDocument {
   undo(): boolean {
     const entry = this.undoStack.popUndo();
     if (entry === undefined) {
+      this.lastUndoRedoChanges = []; // v0.7.21（E6-12）：失败调用也清空，与注释语义一致
       return false;
     }
     const changes: DocumentChange[] = [];
@@ -195,6 +196,7 @@ export class TextDocument {
   redo(): boolean {
     const entry = this.undoStack.popRedo();
     if (entry === undefined) {
+      this.lastUndoRedoChanges = []; // v0.7.21（E6-12）
       return false;
     }
     const changes: DocumentChange[] = [];

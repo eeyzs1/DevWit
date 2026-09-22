@@ -3,6 +3,37 @@
 所有显著变更记录于此。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本遵循 [语义化版本](https://semver.org/)。
 
+## [0.7.21] — 2026-10-02
+
+### Fixed
+- **editor-core / mcp / editor-render(layout) 对抗性审查修复（7 项）**——
+  第六轮审查批次（此前未覆盖的编辑器数据结构层与 MCP 协议栈）：
+
+**Major（5 项）**
+- **点击 emoji 右半拆散代理对**（E6-1）：columnForXChars 中点判定返回高/
+  低代理之间的列——打字把文本插进代理对内部，孤立代理（乱码方块）写入
+  缓冲并持久化（数值复现验证；CJK 扩展 B 生僻字同样）。命中列吸附到
+  码点左边界
+- **MCP stdio stdin EPIPE 崩主进程**（E6-2）：服务器死亡窗口内写 stdin 触发
+  无监听的 error 事件 → uncaughtException（与 v0.7.15 L14 的 LSP 同型修复，
+  此处漏了同一行）。stdin error 吞掉 + 统一 writeLine 入口
+- **MCP 服务器请求被误配为客户端挂起请求的响应**（E6-3）：带 method+数字
+  id 的服务器请求（规范允许的 ping）命中同 id 挂起请求 → tools/list 静默
+  变空集。先判 method（请求回空成功响应，通知忽略）
+- **两传输层 UTF-8 跨块解码损坏**（E6-4）：逐块 toString 使 CJK 3 字节
+  跨 pipe/网络块边界产生 U+FFFD → JSON 解析失败 → 响应丢弃（30s 超时）/
+  HTTP NO_RESPONSE。stream 模式 TextDecoder（stdio + http 双侧）
+- **piece-table 碎片无界增长**（E6-5，性能非正确性）：全部热路径
+  O(pieces)——记录为已知取舍（平衡树重构属中期项，当前规模实测可接受）
+
+**Minor（含加固）**
+- **serverId 含 "__" 工具全名解析歧义**（E6-6）：id "a__b"+工具 "t" 跨服务
+  器碰撞——校验 fail-closed 拒绝含 "__" 的 id
+- **close() 无 SIGKILL 升级**（E6-7）：POSIX 上忽略 SIGTERM 的服务器成
+  孤儿——3s 超时后升级 SIGKILL
+- **cmd 注入黑名单漏 %**（E6-10）：%VAR% 变量展开可泄 env 值进 argv
+- **getLastUndoRedoChanges 失败调用残留旧值**（E6-12）：与注释语义对齐
+
 ## [0.7.20] — 2026-10-02
 
 ### Fixed

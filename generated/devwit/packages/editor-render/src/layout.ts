@@ -147,7 +147,10 @@ export function xForColumnChars(lineText: string, column: number, widthOf: CharW
   return x;
 }
 
-/** 像素 x → 列（逐字符宽度单遍累计，中点判定语义与 columnForX 一致）。 */
+/** 像素 x → 列（逐字符宽度单遍累计，中点判定语义与 columnForX 一致）。
+ *  v0.7.21 修复（审查 E6-1）：命中列若落在代理对中间（col-1 是低代理），
+ *  吸附到码点左边界——旧实现返回拆对列，点击 emoji 右半打字会把文本插进
+ *  代理对内部（孤立代理 = 乱码方块，可持久化）。CJK 扩展 B 生僻字同样。 */
 export function columnForXChars(lineText: string, x: number, widthOf: CharWidthFn): number {
   if (x <= 0 || lineText.length === 0) {
     return 0;
@@ -156,11 +159,18 @@ export function columnForXChars(lineText: string, x: number, widthOf: CharWidthF
   for (let col = 1; col <= lineText.length; col++) {
     const width = prevWidth + widthOf(lineText[col - 1] ?? "");
     if (x < (prevWidth + width) / 2) {
-      return col - 1;
+      return snapToCodepointBoundary(lineText, col - 1);
     }
     prevWidth = width;
   }
-  return lineText.length;
+  return snapToCodepointBoundary(lineText, lineText.length);
+}
+
+/** 把列吸附到合法码点边界：col 处是低代理（拆对了高/低代理）则退一列。 */
+function snapToCodepointBoundary(lineText: string, col: number): number {
+  const ch = lineText[col] ?? "";
+  const cp = ch.codePointAt(0) ?? 0;
+  return cp >= 0xdc00 && cp <= 0xdfff ? Math.max(0, col - 1) : col;
 }
 
 /** 整段文本像素宽度（逐字符宽度单遍累计）。 */
