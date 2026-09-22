@@ -61,6 +61,7 @@ export interface IpcHooks {
 export const PUSH_CHANNELS: readonly string[] = [
   IPC.WorkspaceEvent,
   IPC.TerminalOutput,
+  IPC.TerminalExit,
   IPC.SettingsChanged,
   IPC.AgentEvent,
   IPC.ModesChanged,
@@ -225,6 +226,11 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
     const info = await terminal.create({ cwd: String(cwd) });
     terminal.onOutput(info.id, (data) => {
       hooks.send(IPC.TerminalOutput, info.id, data);
+    });
+    // v0.7.25（审查 R7-7b）：shell 退出推送——渲染端据此收尾会话 UI，
+    // 旧实现 exit 后渲染端毫不知情，后续 input 得到 Unknown session 拒绝
+    terminal.onExit(info.id, (exit) => {
+      hooks.send(IPC.TerminalExit, info.id, exit);
     });
     return info;
   };

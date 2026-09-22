@@ -21,6 +21,7 @@ interface Session {
   info: TerminalSessionInfo;
   handle: TerminalHandle;
   outputCallbacks: Set<(data: string) => void>;
+  exitCallbacks: Set<(exit: { code: number | null; signal: string | null }) => void>;
 }
 
 export class TerminalService {
@@ -65,15 +66,22 @@ export class TerminalService {
       backend: usedBackend.kind,
       pid: handle.pid
     };
-    const session: Session = { info, handle, outputCallbacks: new Set() };
+    const session: Session = { info, handle, outputCallbacks: new Set(), exitCallbacks: new Set() };
     this.sessions.set(info.id, session);
     handle.onData((data) => {
       for (const cb of session.outputCallbacks) {
         cb(data);
       }
     });
-    handle.onExit(() => {
+    handle.onExit((exit) => {
       this.sessions.delete(info.id);
+      // v0.7.25（审查 R7-7b）：exit 回调在会话表移除后触发——订阅方据此推送
+      // TerminalExit 给渲染端（渲染端收尾会话 UI，不再对死会话发 input）
+      for (const cb of session.exitCallbacks) {
+        cb(exit);
+      }
+      session.exitCallbacks.clear();
+      session.outputCallbacks.clear();
     });
     return info;
   }
@@ -96,6 +104,15 @@ export class TerminalService {
     session.outputCallbacks.add(cb);
     return () => {
       session.outputCallbacks.delete(cb);
+    };
+  }
+
+  /** 订阅会话退出（v0.7.25 / R7-7b），返回退订函数。 */
+  onExit(id: string, cb: (exit: { code: number | null; signal: string | null }) => void): () => void {
+    const session = this.requireSession(id);
+    session.exitCallbacks.add(cb);
+    return () => {
+      session.exitCallbacks.delete(cb);
     };
   }
 

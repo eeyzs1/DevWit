@@ -41,7 +41,8 @@ const api: DevwitApi = {
     dispose: (id) => {
       void ipcRenderer.invoke(IPC.TerminalDispose, id);
     },
-    onOutput: (cb) => subscribe<[string, string]>(IPC.TerminalOutput, cb)
+    onOutput: (cb) => subscribe<[string, string]>(IPC.TerminalOutput, cb),
+    onExit: (cb) => subscribe<[string, { code: number | null; signal: string | null }]>(IPC.TerminalExit, cb)
   },
   settings: {
     get: (key) => ipcRenderer.invoke(IPC.SettingsGet, key) as Promise<unknown>,

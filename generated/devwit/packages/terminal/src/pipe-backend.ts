@@ -76,7 +76,21 @@ class PipeHandle implements TerminalHandle {
     }
     this.dead = true;
     this.dataCallbacks.clear();
-    this.proc.kill();
+    // v0.7.25（审查 R7-7c）：Windows 进程树击杀——裸 kill 只终止 shell 本进程，
+    // cmd.exe 下的 npm/node 子孙进程存活（端口占用/CPU 持续）。taskkill /T /F
+    // 终止整棵树；POSIX 维持原语义（会话首进程组随 PTY/管道回收）。
+    if (process.platform === "win32" && this.pid > 0) {
+      try {
+        spawn("taskkill", ["/pid", String(this.pid), "/T", "/F"], {
+          stdio: "ignore",
+          windowsHide: true,
+        });
+      } catch {
+        this.proc.kill();
+      }
+    } else {
+      this.proc.kill();
+    }
   }
 
   onData(cb: (data: string) => void): void {

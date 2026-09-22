@@ -1200,6 +1200,9 @@ export const IPC = {
   TerminalCreate: "terminal:create",
   TerminalInput: "terminal:input",
   TerminalOutput: "terminal:output",
+  /** v0.7.25（审查 R7-7b）：shell 进程退出推送——渲染端据此收尾会话 UI，
+   *  旧实现只有 output 通道，用户敲 exit 后渲染端毫不知情。 */
+  TerminalExit: "terminal:exit",
   TerminalResize: "terminal:resize",
   TerminalDispose: "terminal:dispose",
   SettingsGet: "settings:get",
@@ -1332,6 +1335,8 @@ export interface DevwitApi {
     resize(id: string, cols: number, rows: number): void;
     dispose(id: string): void;
     onOutput(cb: (id: string, data: string) => void): () => void;
+    /** v0.7.25（R7-7b）：shell 进程退出推送（渲染端据此收尾会话 UI）。 */
+    onExit(cb: (id: string, exit: { code: number | null; signal: string | null }) => void): () => void;
   };
   settings: {
     get(key: string): Promise<unknown>;

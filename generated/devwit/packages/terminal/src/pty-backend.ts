@@ -3,6 +3,7 @@
  * node-pty 是 optionalDependency（原生模块，Electron 下需 electron-rebuild），
  * 运行时动态 import；加载失败抛 NodePtyUnavailableError，由 TerminalService 回退。
  */
+import { spawn } from "node:child_process";
 import { defaultShell } from "./types.js";
 import type { TerminalBackend, TerminalExitInfo, TerminalHandle, TerminalSpawnOptions } from "./types.js";
 
@@ -93,7 +94,20 @@ class PtyHandle implements TerminalHandle {
     }
     this.dead = true;
     this.dataCallbacks.clear();
-    this.pty.kill();
+    // v0.7.25（审查 R7-7c）：Windows 进程树击杀（同 PipeHandle 口径）——
+    // conpty 下裸 kill 不终止 npm run dev 的 node 子孙进程
+    if (process.platform === "win32" && this.pid > 0) {
+      try {
+        spawn("taskkill", ["/pid", String(this.pid), "/T", "/F"], {
+          stdio: "ignore",
+          windowsHide: true,
+        });
+      } catch {
+        this.pty.kill();
+      }
+    } else {
+      this.pty.kill();
+    }
   }
 
   onData(cb: (data: string) => void): void {

@@ -65,6 +65,20 @@ function runOne(name) {
 
 const results = [];
 let index = 0;
+
+// v0.7.25 前置闸：renderer 产物必须是 esbuild IIFE bundle——tsc -b 会向
+// dist/renderer 输出裸 ESM（含未解析 import），部分重建时若漏跑
+// build:renderer，全部套件会以「.dw-header 超时」一致失败且难定位
+//（实测教训：34/34 同症状，根因在产物而非产品代码）。提前失败并给出修复指引。
+const rendererBundle = fs.readFileSync(path.join(dir, "../../../dist/renderer/index.js"), "utf8");
+if (rendererBundle.startsWith("import ") || rendererBundle.includes('"} from "@devwit/')) {
+  console.error(
+    "[e2e-all] FATAL: dist/renderer/index.js 是 tsc 的裸 ESM 输出而非 esbuild bundle——" +
+    "请先跑 npm run build（或至少 npm run build:renderer）。"
+  );
+  process.exit(2);
+}
+
 // 串行执行：Electron 实例与临时端口隔离更稳，且失败定位清晰
 for (const name of scripts) {
   index += 1;

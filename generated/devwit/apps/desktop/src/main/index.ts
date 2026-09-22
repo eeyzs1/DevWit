@@ -60,6 +60,16 @@ function createWindow(): void {
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+  // v0.7.25（审查 R7-7a）：渲染层重载/崩溃时回收全部终端会话——reload
+  //（默认菜单 Ctrl+R 可触发）后渲染端丢失会话 id，pty 与输出订阅全部滞留
+  //（shell 进程持续运行直到退出应用）。首次 loadFile 同样触发，但彼时会话
+  // 表为空，no-op。
+  mainWindow.webContents.on("did-start-navigation", () => {
+    terminal?.disposeAll();
+  });
+  mainWindow.webContents.on("render-process-gone", () => {
+    terminal?.disposeAll();
+  });
 }
 
 // v0.7.23 修复（审查 R7-4）：单实例锁——双开时两个主进程各自持有 SettingsStore

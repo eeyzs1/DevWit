@@ -3,6 +3,27 @@
 所有显著变更记录于此。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本遵循 [语义化版本](https://semver.org/)。
 
+## [0.7.25] — 2026-10-02
+
+### Fixed
+- **终端潜伏面三项修复**（R7-7，接线前根治——渲染端尚无终端 UI，按潜在
+  影响评估）：
+- **会话泄漏**（R7-7a）：reload（默认菜单 Ctrl+R）/渲染进程崩溃后渲染端
+  丢失会话 id，pty 会话与输出订阅全部滞留（shell 进程持续运行直到退出
+  应用）——webContents 导航开始/进程崩溃时 disposeAll 回收
+- **无 TerminalExit 推送**（R7-7b）：用户敲 exit 后主进程删会话但渲染端
+  毫不知情，后续 input 得到 Unknown session 拒绝——新增 terminal:exit
+  推送通道（contracts IPC + PUSH_CHANNELS + preload onExit +
+  service onExit 订阅），渲染端未来接线即可收尾会话 UI
+- **kill 不杀进程树**（R7-7c）：Windows 上裸 kill 只终止 shell 本进程，
+  `npm run dev` 的 node 子孙进程存活（端口占用/CPU 持续）——双后端
+  （pty/pipe）kill 改 `taskkill /pid /T /F` 树杀，POSIX 维持原语义
+
+### Changed
+- **E2E 跑批器前置闸**：dist/renderer/index.js 若为 tsc 裸 ESM 输出（部分
+  重建漏跑 build:renderer 的产物事故——实测 34/34 套以同一「.dw-header
+  超时」症状失败、根因难定位）提前失败并给出修复指引
+
 ## [0.7.24] — 2026-10-02
 
 ### Fixed
