@@ -3,6 +3,25 @@
 所有显著变更记录于此。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本遵循 [语义化版本](https://semver.org/)。
 
+## [0.7.24] — 2026-10-02
+
+### Fixed
+- **第七轮审查 minor 批（5 项）**：
+- **导出 CSV 公式注入**（R7-12）：modeId/providerId/model 可含社区导入内容，
+  `= + - @` 开头单元格在 Excel 打开可执行公式——加 `'` 前缀（OWASP 标准
+  缓解；数字列不受影响）
+- **trace-timeline O(n²) 渲染**（R7-13）：每可见行 indexOf 全数组——live 模式
+  每事件全量重渲染，千级事件会话卡顿。seq→下标映射一次构建
+- **轨迹视图 live 事件竞态丢失**（R7-14）：fetch 快照落后于已 push 的 live
+  事件时整体替换使其从视图消失——同会话按 seq 合并（跨会话整体替换，
+  会话隔离）
+- **opt_out 信标发往用户未选择的端点**（R7-9）：configure 先换 config 再
+  flush——用户先清空自建端点再关开关时告别信标发往内建 PostHog 云端。
+  opt_out flush 固定用旧端点，完成后恢复新配置
+- **外部编辑器模板边界**（R7-16）：路径中段引号（`C:\"My Tools"\code.exe`）
+  切成两个错误 token——非成对引号回退空白分词；NaN 行号兜底 1（原命令行
+  出现字面量 `:NaN`）
+
 ## [0.7.23] — 2026-10-02
 
 ### Fixed

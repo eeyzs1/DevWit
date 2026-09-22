@@ -210,6 +210,9 @@ export class UsageStore {
   /**
    * 导出成本报告为 CSV 字符串。
    * 列：ts, sessionId, modeId, providerId, model, inputTokens, outputTokens, cost, finishReason
+   * v0.7.24（审查 R7-12）：CSV 公式注入防护——modeId/providerId/model 可含
+   * 社区导入内容，以 = + - @ 开头的单元格在 Excel 打开时可执行公式
+   * （=HYPERLINK 等）；加 ' 前缀（OWASP CSV 注入标准缓解）。
    */
   exportCSV(pricing?: UsagePricing): string {
     const records = this.readAll();
@@ -218,7 +221,11 @@ export class UsageStore {
       const cost = computeCost(r, pricing);
       return [r.ts, r.sessionId, r.modeId, r.providerId, r.model, r.inputTokens, r.outputTokens, cost ?? "", r.finishReason]
         .map((v) => {
-          const s = String(v);
+          let s = String(v);
+          // 公式前缀防护（数字列不受影响——Number 值 String 化后不会以这些字符开头）
+          if (/^[=+\-@]/.test(s) && !/^-?\d/.test(s)) {
+            s = `'${s}`;
+          }
           return /["\n,]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
         })
         .join(",");

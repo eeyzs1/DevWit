@@ -20,8 +20,15 @@ export class ExternalEditorError extends Error {
 /**
  * 按空白分词但保留双引号段（引号内可含空格路径）。
  * 例：'"C:\\Tools\\Code.exe" -g {file}' → ['C:\\Tools\\Code.exe', '-g', '{file}']
+ * v0.7.24（审查 R7-16a）：路径中段的引号（C:\"My Tools"\code.exe）旧实现
+ * 切成两个错误 token——非成对引号现在回退为普通空白分词（诚实降级，
+ * 不产生半截命令）。
  */
 export function tokenizeTemplate(template: string): string[] {
+  const balanced = (template.match(/"/g) ?? []).length % 2 === 0;
+  if (!balanced) {
+    return template.trim().split(/\s+/).filter((token) => token !== "");
+  }
   const tokens: string[] = [];
   const pattern = /"([^"]*)"|(\S+)/g;
   let match: RegExpExecArray | null;
@@ -48,8 +55,11 @@ export function buildEditorCommand(
   if (!trimmed.includes("{file}")) {
     throw new ExternalEditorError("DW_EXTERNAL_EDITOR_MISSING_FILE_PLACEHOLDER");
   }
+  // v0.7.24（审查 R7-16b）：非有限行号（NaN/Infinity 经异常调用路径传入）兜底 1
+  // ——旧实现 Math.floor(NaN)=NaN 使命令行出现字面量 ":NaN"
+  const safeLine = Number.isFinite(line) ? Math.max(1, Math.floor(line)) : 1;
   const tokens = tokenizeTemplate(trimmed).map((token) =>
-    token.replaceAll("{file}", file).replaceAll("{line}", String(Math.max(1, Math.floor(line))))
+    token.replaceAll("{file}", file).replaceAll("{line}", String(safeLine))
   );
   const [cmd, ...args] = tokens;
   if (cmd === undefined || cmd === "") {

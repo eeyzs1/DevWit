@@ -108,6 +108,8 @@ export function mountTraceTimeline(container: HTMLElement, options: TraceTimelin
   let sessions: TraceSessionInfo[] = [];
   let selected = liveSessionId;
   let events: AgentTraceEvent[] = [];
+  /** events 所属会话（v0.7.24 / R7-14：合并去重的会话隔离依据）。 */
+  let eventsSession: string | null = null;
   let filter: TraceFilter = "all";
   let replaying = false;
   let visibleCount = 0;
@@ -350,16 +352,40 @@ export function mountTraceTimeline(container: HTMLElement, options: TraceTimelin
       empty.textContent = replaying ? t("trace.replay.hint") : t("trace.empty");
       list.appendChild(empty);
     } else {
+      // v0.7.24（审查 R7-13）：seq→下标映射一次构建——旧实现每行 indexOf
+      // 全数组引用比较，live 模式每事件全量重渲染 = O(n²)，千级事件会话卡顿
+      const indexBySeq = new Map<number, number>();
+      for (let i = 0; i < events.length; i++) {
+        const event = events[i];
+        if (event !== undefined) indexBySeq.set(event.seq, i);
+      }
       for (const event of visible) {
-        const indexInFull = events.indexOf(event);
-        list.appendChild(renderRow(event, indexInFull));
+        list.appendChild(renderRow(event, indexBySeq.get(event.seq) ?? -1));
       }
     }
     root.appendChild(list);
   }
 
   async function loadEvents(): Promise<void> {
-    events = (await options.api.agent.trace(selected)).filter((event) => event.type !== "assistant_delta");
+    const fetched = (await options.api.agent.trace(selected)).filter((event) => event.type !== "assistant_delta");
+    // v0.7.24（审查 R7-14）：同会话内按 seq 合并而非整体替换——fetch 读盘期间
+    // live 事件已 push 的情况下，旧实现的覆盖替换会让这些事件从视图消失
+    // （窗口窄，仅挂载/切会话后首次加载期间，但消失即审计盲区）。
+    // 跨会话（切换下拉）必须整体替换：events 属于前一会话，不能混并。
+    if (events.length === 0 || eventsSession !== selected) {
+      events = fetched;
+      eventsSession = selected;
+    } else {
+      const known = new Set(events.map((event) => event.seq));
+      let appended = false;
+      for (const event of fetched) {
+        if (!known.has(event.seq)) {
+          events.push(event);
+          appended = true;
+        }
+      }
+      if (appended) events.sort((a, b) => a.seq - b.seq);
+    }
     render();
   }
 

@@ -114,8 +114,9 @@ export class TelemetryService {
    */
   configure(): void {
     const wasActive = this.isActive();
+    const prev = this.config;
     const next = readConfig(this.settings);
-    const endpointChanged = next.endpoint !== this.config.endpoint;
+    const endpointChanged = next.endpoint !== prev.endpoint;
     this.config = next;
     const nowActive = this.isActive();
     if (!wasActive && nowActive) {
@@ -124,9 +125,16 @@ export class TelemetryService {
       this.track("telemetry_opt_in");
       void this.flush();
     } else if (wasActive && !nowActive) {
-      // 先以旧激活态把 opt_out 发出去，再停（isActive 现已为 false，直接构造事件）
+      // 先以旧激活态把 opt_out 发出去，再停（isActive 现已为 false，直接构造事件）。
+      // v0.7.24（审查 R7-9）：opt_out 信标发往**旧配置端点**——this.config 已被
+      // 上面替换为 next，而 flush 读 this.config.endpoint。用户先清空自建端点再
+      // 关开关时，告别信标会发往内建 PostHog 云端（用户未选择的第三方）。
+      // flush 后恢复新配置。
+      this.config = prev;
       this.buffer.push(this.buildEvent("telemetry_opt_out"));
-      void this.flush();
+      void this.flush().finally(() => {
+        this.config = next;
+      });
       this.disarm();
     } else if (nowActive && endpointChanged) {
       // 端点变更：积压事件发往何处属旧配置的语义，先清空再续（宁缺毋滥）
