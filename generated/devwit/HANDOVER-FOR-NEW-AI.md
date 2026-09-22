@@ -9,7 +9,7 @@
 - **GitHub**: https://github.com/eeyzs1/DevWit
 - **协议**: MIT，免费软件，不商业化
 - **版本**: v0.5.0（已发布 Latest）— 编辑器增强 9 项
-- **测试基线**: 747 单测 / 69 测试文件（DAP 偶发超时属环境抖动，重跑全绿）
+- **测试基线**: 929 单测 / 85 测试文件（DAP 偶发超时属环境抖动，重跑全绿）
 - **仓库根**: `generated/devwit/`（git 仓库根在 `DevWit/`）
 
 ## 2. 快速开始
@@ -27,7 +27,7 @@ npm install              # 安装依赖（首次）
 npx tsc -b               # TypeScript 全量类型检查
 npm run build            # 全量构建（tsc + esbuild renderer/main/preload + copy html）
 npm run dev              # 构建 + 启动 Electron
-npm test                 # 747 单测（vitest）
+npm test                 # 929 单测（vitest）
 npm run dist             # 打包（electron-builder，三平台）
 npm run lint             # ESLint
 npm run rebuild-native   # 重编 node-pty（终端原生依赖，可选）
@@ -187,10 +187,25 @@ generated/devwit/
 | 行复制 + Ctrl+Backspace/Delete 删词 | `9a98844` |
 | Minimap 缩略图 | `7b11d2f` |
 
-### 真实用户指标（接手时 2026-08-11）
-- GitHub stars/forks/watchers: **0/0/0**（推广待账号发布）
+### v0.7.x 系列（2026-08-29 起，代码审查驱动迭代）
+| 版本 | 主题 | 提交 |
+|------|------|------|
+| 0.7.1 | 安全加固（git_diff 命令注入/路径逃逸/CJK 宽度） | `403fd98` |
+| 0.7.2 | 事务性 undo + token 审计校准 + 会话存储治理 | `a16013c` |
+| 0.7.3 | 成本预算熔断 + 凭证损坏可见化 + 聊天增量渲染 | `10063cb` |
+| 0.7.4 | 授权粒度收窄（命令级 allow_session）+ 搜索 ReDoS worker 隔离 | `d21c078` |
+| 0.7.5 | agent grep ReDoS worker 隔离 + 轨迹缓存 | `9608efb` |
+| 0.7.6-0.7.8 | 渲染层模块化三步（search/lsp-ui/git/debug 面板抽取） | `afdeda4`…`7d5c9d8` |
+| 0.7.9 | 流式审查按钮回归修复 + 4 项加固 | `5918add` |
+| 0.7.11 | 夜跑全量 E2E CI + 编排子 Agent 角色提示修复 | `d89fe39`/`bf1505b` |
+| 0.7.12 | 对抗性自查：渲染层 14 项缺陷（凭证横幅恒显/replaceAll 竞态/diff 僵尸等） | `576b1af` |
+| 0.7.13 | 对抗性自查：编辑器内核 9 项（多光标偏移/undo 选区/IME 锚点/代理对） | `a812b30` |
+| 0.7.14 | 审查扫尾：折叠编辑同步 + 多光标行操作 + 后台链吞错 | `3177a03` |
+
+### 真实用户指标（2026-09-22）
+- GitHub stars/forks/watchers: 0/0/0（推广物料就绪待用户发）
 - 北极星目标 10 万用户；阻塞在分发与曝光，非产品功能
-- Homebrew tap 已跟 Latest；winget 首包 #407506 已于 2026-08-21 合并（0.2.0 上线）；0.5.0 update PR #422497 已提交待审批
+- Homebrew tap 已跟 Latest；winget 已上线（0.2.0 首包 #407506 + 后续 update PR）
 
 ## 7. 待办事项（按优先级）
 
@@ -275,7 +290,7 @@ generated/devwit/
 ### 构建验证流程
 ```bash
 npx tsc -b           # 类型检查必须通过
-npm test             # 747 单测必须全绿
+npm test             # 929 单测必须全绿
 npm run build        # 构建必须成功
 npm run dev          # 启动验证核心功能
 ```
@@ -302,8 +317,9 @@ npm run dev          # 启动验证核心功能
 
 ---
 
-**最后更新**: 2026-08-22
-**最新提交**: `0b02a8a` fix: 指挥台任务模型兜底 + 根治 E2E 进程树清理 EPERM
-**测试基线**: 766 单测 / 71 测试文件（CI 双 job 稳定全绿，含 E2E Smoke）
+**最后更新**: 2026-09-22
+**最新提交**: `3177a03` fix: v0.7.14 审查扫尾——折叠编辑同步 + 多光标行操作 + 后台链吞错
+**测试基线**: 929 单测 / 85 测试文件 + E2E 全量 34 套（本地与 CI 双通道；nightly-e2e 每晚全量回归）
 **Latest**: https://github.com/eeyzs1/DevWit/releases/tag/v0.6.0
+**迭代方法论**: 对抗性代码审查（渲染层/编辑器内核/agent 核心/语言工具包分批）→ 逐项验证 → 修复 + 回归测试 → 全量验证（tsc/eslint/vitest/E2E）→ push（CI 绿）→ CHANGELOG 记录。两轮 26 项发现全部闭环。
 
