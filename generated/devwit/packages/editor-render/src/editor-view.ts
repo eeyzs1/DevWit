@@ -1,4 +1,9 @@
 import type { Position, TextDocument } from "@devwit/editor-core";
+import {
+  backwardDeleteLength,
+  forwardDeleteLength,
+  multiCursorFinalOffsets,
+} from "./edit-ops.js";
 import { ImeInput } from "./ime-input.js";
 import {
   clampScrollTop,
@@ -100,6 +105,8 @@ export class EditorView {
   private renderScheduled = false;
   private disposed = false;
   private readonly removeWindowListeners: Array<() => void> = [];
+  /** canvas 事件解绑器（v0.7.13：dispose 时一并回收，防同 canvas 重建后双份回调）。 */
+  private readonly removeCanvasListeners: Array<() => void> = [];
   /** 渲染期间生效的可视行映射（docLine → screenIndex）；render 外为空。 */
   private visibleLineMap: Map<number, number> = new Map();
   /**
@@ -136,6 +143,13 @@ export class EditorView {
   private minimapDragging = false;
   /** 渲染期间填充的可视行有序数组（screenIdx → docLine；折叠隐藏行已跳过）。 */
   private renderVisibleLines: number[] = [];
+  /**
+   * IME 合成锚点（v0.7.13）：合成开始时的选区 + 文档版本 + 文档引用。
+   * 合成期间选区被移动（如 Ctrl+Click 跳转定义）或文档被外部替换（如搜索
+   * replaceAll 刷新活动文件）时，提交回落到锚点/被丢弃——旧实现用「当前」
+   * 选区提交，合成串会插到跳转目标处或新文档开头。
+   */
+  private compositionAnchor: { doc: TextDocument; version: number; selections: Selection[] } | null = null;
   /** Ctrl/Cmd+Click 回调（跳转定义；由集成方接 LSP）。null 时该组合键等同普通点击。 */
   onDefinitionRequest: ((pos: Position) => void) | null = null;
   /** 行号槽点击回调（断点切换；由集成方接 DAP）。null 时槽点击等同普通点击。 */
@@ -179,6 +193,11 @@ export class EditorView {
       onCommitText: (text) => this.commitText(text),
       onCompositionStart: () => {
         this.compositionText = "";
+        this.compositionAnchor = {
+          doc: this.doc,
+          version: this.doc.version,
+          selections: this.selections.map((sel) => ({ anchor: { ...sel.anchor }, active: { ...sel.active } })),
+        };
         this.scheduleRender();
       },
       onCompositionUpdate: (text) => {
@@ -187,8 +206,16 @@ export class EditorView {
       },
       onCompositionEnd: (text) => {
         this.compositionText = "";
-        if (text.length > 0) {
-          this.replaceSelections(text);
+        const anchor = this.compositionAnchor;
+        this.compositionAnchor = null;
+        if (text.length > 0 && anchor !== null) {
+          if (anchor.doc === this.doc && anchor.version === this.doc.version) {
+            // 选区可能已被移动（Ctrl+Click 跳转等）：回落到合成起点提交
+            this.selections = anchor.selections.map((sel) => ({ anchor: { ...sel.anchor }, active: { ...sel.active } }));
+            this.replaceSelections(text);
+          }
+          // 文档在合成期间被替换或修改：丢弃提交（诚实降级——锚点失效时
+          // 任何落点都是错的；浏览器已终止候选串）
         }
         this.scheduleRender();
       },
@@ -222,6 +249,14 @@ export class EditorView {
   }
 
   setDocument(doc: TextDocument): void {
+    // v0.7.13：替换文档时取消进行中的 IME 合成——否则迟到的 compositionend
+    // 会把合成串插到新文档开头（新 doc 选区已重置 (0,0)）。blur 触发浏览器
+    // 取消合成，随后的 compositionend 因锚点已清而被丢弃。
+    if (this.ime.isComposing) {
+      this.compositionAnchor = null;
+      this.compositionText = "";
+      this.ime.element.blur();
+    }
     this.docUnsubscribe();
     this.doc = doc;
     this.docUnsubscribe = this.doc.onDidChange(() => this.onDocumentChanged());
@@ -382,6 +417,24 @@ export class EditorView {
     return false;
   }
 
+  /** 从 from 行沿 direction（±1）找到首个可见行；行 0 恒可见，
+   *  向下越过末行仍隐藏（折叠区恰终止于末行）时回退向上找。 */
+  private firstVisibleLineFrom(from: number, direction: 1 | -1): number {
+    const clampLine = (n: number): number => Math.max(0, Math.min(n, this.doc.lineCount - 1));
+    let line = clampLine(from);
+    while (line >= 0 && line < this.doc.lineCount && this.isLineHidden(line)) {
+      line += direction;
+    }
+    if (line >= this.doc.lineCount || line < 0 || this.isLineHidden(clampLine(line))) {
+      // 越界（末行隐藏场景）：反方向重找
+      line = clampLine(from);
+      while (line > 0 && this.isLineHidden(line)) {
+        line -= 1;
+      }
+    }
+    return clampLine(line);
+  }
+
   /** startLine → FoldRegion 索引重建（foldRegions 变更时调用）。 */
   private rebuildFoldRegionIndex(): void {
     this.foldRegionByStart = new Map(this.foldRegions.map((region) => [region.startLine, region]));
@@ -441,6 +494,14 @@ export class EditorView {
     for (const off of this.removeWindowListeners) {
       off();
     }
+    this.removeWindowListeners.length = 0;
+    // v0.7.13：canvas 事件一并摘除——旧实现只回收 window 监听，同一 canvas
+    // 上 dispose 后重建 EditorView 时旧实例的 mousedown/contextmenu 等仍存活
+    // （双份 onDefinitionRequest/onGutterClick 回调、幽灵拖拽、旧视图无法 GC）
+    for (const off of this.removeCanvasListeners) {
+      off();
+    }
+    this.removeCanvasListeners.length = 0;
     this.ime.dispose();
   }
 
@@ -449,13 +510,17 @@ export class EditorView {
   // --------------------------------------------------------------------------
 
   private attachCanvasEvents(): void {
-    this.canvas.addEventListener("mousedown", (ev) => this.onMouseDown(ev));
-    this.canvas.addEventListener("wheel", (ev) => this.onWheel(ev), { passive: false });
-    this.canvas.addEventListener("dblclick", (ev) => this.onDoubleClick(ev));
+    const addCanvas = (type: string, handler: (ev: Event) => void, options?: AddEventListenerOptions): void => {
+      this.canvas.addEventListener(type, handler, options);
+      this.removeCanvasListeners.push(() => this.canvas.removeEventListener(type, handler, options));
+    };
+    addCanvas("mousedown", (ev) => this.onMouseDown(ev as MouseEvent));
+    addCanvas("wheel", (ev) => this.onWheel(ev as WheelEvent), { passive: false });
+    addCanvas("dblclick", (ev) => this.onDoubleClick(ev as MouseEvent));
     // 行号槽右键时阻止浏览器默认上下文菜单（v0.4.0：编辑断点入口）
-    this.canvas.addEventListener("contextmenu", (ev) => {
-      if (this.onGutterContextMenu !== null && this.gutterLineFromEvent(ev) !== null) {
-        ev.preventDefault();
+    addCanvas("contextmenu", (ev) => {
+      if (this.onGutterContextMenu !== null && this.gutterLineFromEvent(ev as MouseEvent) !== null) {
+        (ev as MouseEvent).preventDefault();
       }
     });
     const move = (ev: MouseEvent): void => this.onMouseMove(ev);
@@ -589,6 +654,13 @@ export class EditorView {
   }
 
   private onKeyDown(ev: KeyboardEvent): void {
+    // v0.7.13：合成期间的真实键名 keydown（Firefox/Safari 候选窗导航）不当作
+    // 编辑命令——否则方向键/退格打断候选窗操作、合成锚点漂移。Escape 例外
+    // （取消合成本身）。Chromium/Electron 合成期 key="Process" 不命中任何 case，
+    // 此守卫对宿主无行为变化，属可复用包的兼容性加固。
+    if (ev.isComposing || this.ime.isComposing) {
+      if (ev.key !== "Escape") return;
+    }
     const mod = ev.ctrlKey || ev.metaKey;
     const key = ev.key;
     const lower = key.length === 1 ? key.toLowerCase() : key;
@@ -597,16 +669,14 @@ export class EditorView {
       switch (lower) {
         case "z":
           if (ev.shiftKey) {
-            this.doc.redo();
+            this.undoRedo("redo");
           } else {
-            this.doc.undo();
+            this.undoRedo("undo");
           }
-          this.clampSelections();
           ev.preventDefault();
           return;
         case "y":
-          this.doc.redo();
-          this.clampSelections();
+          this.undoRedo("redo");
           ev.preventDefault();
           return;
         case "a":
@@ -619,7 +689,11 @@ export class EditorView {
           return;
         case "x":
           this.copySelectionToClipboard();
-          this.replaceSelections("");
+          // v0.7.13：空选区 Ctrl+X = 什么都不剪切——不再对空选区发空编辑
+          // （配合 document.applyEdit 的 no-op 守卫，脏标记与 undo 栈零污染）
+          if (this.selections.some((sel) => !isSelectionEmpty(sel))) {
+            this.replaceSelections("");
+          }
           ev.preventDefault();
           return;
         case "Home":
@@ -778,6 +852,7 @@ export class EditorView {
       const pos = this.doc.positionAt(newOffsets[index] ?? 0);
       return { anchor: pos, active: pos };
     });
+    this.dedupeSelections();
     this.wakeCursor();
     this.ensureCursorVisible();
     this.scheduleRender();
@@ -820,6 +895,7 @@ export class EditorView {
       const pos = this.doc.positionAt(newOffsets[index] ?? 0);
       return { anchor: pos, active: pos };
     });
+    this.dedupeSelections();
     this.wakeCursor();
     this.ensureCursorVisible();
     this.scheduleRender();
@@ -869,6 +945,7 @@ export class EditorView {
       const pos = this.doc.positionAt(newOffsets[index] ?? 0);
       return { anchor: pos, active: pos };
     });
+    this.dedupeSelections();
     this.wakeCursor();
     this.ensureCursorVisible();
     this.scheduleRender();
@@ -1103,10 +1180,13 @@ export class EditorView {
     const offsets = this.selections.map((sel) => this.doc.offsetAt(sel.active));
     const desc = offsets.map((offset, index) => ({ offset, index })).sort((a, b) => b.offset - a.offset);
     const newOffsets: number[] = new Array<number>(offsets.length);
+    const removedLens: number[] = new Array<number>(offsets.length).fill(0);
     // 事务：多光标一次删词 = 一条 undo
     // v0.7.5 性能：getText 提升到循环外——backward 词扫描只读光标左侧文本，
     // 而降序应用下更高位光标的编辑不影响更低处内容（快照等价，O(文档) 而非 O(文档×光标)）
     const fullText = this.doc.getText();
+    // v0.7.13 修复：光标落点位移改用「低位光标实际删除长度之和」——旧实现用
+    // 「低位光标个数」当位移，词删除每个光标删多字符时高位光标系统性偏右。
     this.doc.transact(() => {
       for (const { offset, index } of desc) {
         if (offset === 0) {
@@ -1129,17 +1209,11 @@ export class EditorView {
           }
         }
         this.doc.applyEdit({ offset: start, length: end - start, text: "" });
-        const below = offsets.filter((o) => o > 0 && o < offset).length;
-        newOffsets[index] = start - below;
+        removedLens[index] = end - start;
+        newOffsets[index] = start;
       }
     });
-    this.selections = this.selections.map((_, index) => {
-      const pos = this.doc.positionAt(newOffsets[index] ?? 0);
-      return { anchor: pos, active: pos };
-    });
-    this.wakeCursor();
-    this.ensureCursorVisible();
-    this.scheduleRender();
+    this.applyMultiCursorOffsets(offsets, removedLens, newOffsets);
   }
 
   /**
@@ -1150,19 +1224,20 @@ export class EditorView {
       this.replaceSelections("");
       return;
     }
-    const total = this.doc.length;
     const offsets = this.selections.map((sel) => this.doc.offsetAt(sel.active));
     const desc = offsets.map((offset, index) => ({ offset, index })).sort((a, b) => b.offset - a.offset);
     const newOffsets: number[] = new Array<number>(offsets.length);
+    const removedLens: number[] = new Array<number>(offsets.length).fill(0);
     // 事务：多光标一次删词 = 一条 undo
     this.doc.transact(() => {
       for (const { offset, index } of desc) {
+        // v0.7.13：逐光标读最新长度与文本（forward 扫描可能进入更高位光标已删
+        // 除的区域，旧实现 total 用循环外快照，光标重叠时扫描越过当前文档尾部）
+        const total = this.doc.length;
         if (offset >= total) {
           newOffsets[index] = offset;
           continue;
         }
-        // 注：forward 词扫描可能越过更高位光标已删除的区域——必须逐光标读最新
-        // 文本（与 deleteWordBackward 的快照提升不同，此处不可提升出循环）
         const fullText = this.doc.getText();
         const start = offset;
         let end = offset;
@@ -1180,14 +1255,28 @@ export class EditorView {
           }
         }
         this.doc.applyEdit({ offset: start, length: end - start, text: "" });
-        const below = offsets.filter((o) => o > 0 && o < offset).length;
-        newOffsets[index] = start - below;
+        removedLens[index] = end - start;
+        newOffsets[index] = start;
       }
     });
+    this.applyMultiCursorOffsets(offsets, removedLens, newOffsets);
+  }
+
+  /**
+   * 多光标删除后的光标落点（v0.7.13 抽取）：每个光标的最终偏移 = 自身删除后
+   * 位置 −（偏移更低的光标实际删除长度之和）。旧实现以「低位光标个数」近似，
+   * 仅在每光标恰删 1 字符（退格/Delete）时成立——词删除/代理对删除每光标
+   * 删多字符时高位光标系统性偏右，之后打字落点漂移。
+   */
+  private applyMultiCursorOffsets(offsets: number[], removedLens: number[], newOffsets: number[]): void {
+    // 纯函数结算（edit-ops.ts，单测锁定）：自身删除后位置 − 低位实际删除长度之和
+    const finalOffsets = multiCursorFinalOffsets(offsets, removedLens, newOffsets);
     this.selections = this.selections.map((_, index) => {
-      const pos = this.doc.positionAt(newOffsets[index] ?? 0);
+      const target = Math.max(0, Math.min(finalOffsets[index] ?? 0, this.doc.length));
+      const pos = this.doc.positionAt(target);
       return { anchor: pos, active: pos };
     });
+    this.dedupeSelections();
     this.wakeCursor();
     this.ensureCursorVisible();
     this.scheduleRender();
@@ -1201,26 +1290,33 @@ export class EditorView {
     const offsets = this.selections.map((sel) => this.doc.offsetAt(sel.active));
     const desc = offsets.map((offset, index) => ({ offset, index })).sort((a, b) => b.offset - a.offset);
     const newOffsets: number[] = new Array<number>(offsets.length);
+    const removedLens: number[] = new Array<number>(offsets.length).fill(0);
     // 事务：多光标一次退格 = 一条 undo
     this.doc.transact(() => {
       for (const { offset, index } of desc) {
         if (offset > 0) {
-          this.doc.applyEdit({ offset: offset - 1, length: 1, text: "" });
-          // 最终偏移 = offset - 1 -（更低处实际删除的光标数）；降序应用保证低位偏移有效
-          const below = offsets.filter((o) => o > 0 && o < offset).length;
-          newOffsets[index] = offset - 1 - below;
+          // v0.7.13：代理对感知——光标前是低位代理（emoji 等增补平面字符的
+          // 后半）时删 2 个码元，旧实现硬编码 1 会拆散代理对留下乱码方块
+          const len = this.backwardDeleteLength(offset);
+          this.doc.applyEdit({ offset: offset - len, length: len, text: "" });
+          removedLens[index] = len;
+          newOffsets[index] = offset - len;
         } else {
           newOffsets[index] = 0;
         }
       }
     });
-    this.selections = this.selections.map((_, index) => {
-      const pos = this.doc.positionAt(newOffsets[index] ?? 0);
-      return { anchor: pos, active: pos };
-    });
-    this.wakeCursor();
-    this.ensureCursorVisible();
-    this.scheduleRender();
+    this.applyMultiCursorOffsets(offsets, removedLens, newOffsets);
+  }
+
+  /** 光标左侧一个字符的删除长度（代理对 = 2 码元，否则 1；纯函数见 edit-ops.ts）。 */
+  private backwardDeleteLength(offset: number): number {
+    return backwardDeleteLength(this.doc.getTextInRange(Math.max(0, offset - 2), offset), 2);
+  }
+
+  /** 光标右侧一个字符的删除长度（代理对 = 2 码元，否则 1；纯函数见 edit-ops.ts）。 */
+  private forwardDeleteLength(offset: number): number {
+    return forwardDeleteLength(this.doc.getTextInRange(offset, Math.min(offset + 2, this.doc.length)), 0);
   }
 
   private deleteForward(): void {
@@ -1228,27 +1324,23 @@ export class EditorView {
       this.replaceSelections("");
       return;
     }
-    const total = this.doc.length;
     const offsets = this.selections.map((sel) => this.doc.offsetAt(sel.active));
     const desc = offsets.map((offset, index) => ({ offset, index })).sort((a, b) => b.offset - a.offset);
     const newOffsets: number[] = new Array<number>(offsets.length);
+    const removedLens: number[] = new Array<number>(offsets.length).fill(0);
     // 事务：多光标一次 Delete = 一条 undo
     this.doc.transact(() => {
       for (const { offset, index } of desc) {
-        if (offset < total) {
-          this.doc.applyEdit({ offset, length: 1, text: "" });
+        // v0.7.13：逐光标读最新长度（高位光标删除可能已缩短文档）+ 代理对感知
+        if (offset < this.doc.length) {
+          const len = this.forwardDeleteLength(offset);
+          this.doc.applyEdit({ offset, length: len, text: "" });
+          removedLens[index] = len;
         }
-        const below = offsets.filter((o) => o < offset).length;
-        newOffsets[index] = offset - below;
+        newOffsets[index] = offset;
       }
     });
-    this.selections = this.selections.map((_, index) => {
-      const pos = this.doc.positionAt(newOffsets[index] ?? 0);
-      return { anchor: pos, active: pos };
-    });
-    this.wakeCursor();
-    this.ensureCursorVisible();
-    this.scheduleRender();
+    this.applyMultiCursorOffsets(offsets, removedLens, newOffsets);
   }
 
   // --------------------------------------------------------------------------
@@ -1274,9 +1366,20 @@ export class EditorView {
         return { anchor: pos, active: pos };
       }
       const offset = this.doc.offsetAt(sel.active);
-      const next = this.doc.positionAt(Math.max(0, Math.min(this.doc.length, offset + delta)));
+      let next = this.doc.positionAt(Math.max(0, Math.min(this.doc.length, offset + delta)));
+      // v0.7.13 修复：跨行水平移动落入折叠隐藏行（如 ArrowRight 从折叠头行行尾
+      // 跨入）→ 光标不可见且后续移动行为混乱。沿移动方向跳到最近可见行
+      //（前向 = 折叠区后首行行首；后向 = 折叠头行行尾）。
+      if (this.isLineHidden(next.line)) {
+        const visible = delta > 0 ? this.firstVisibleLineFrom(next.line, 1) : this.firstVisibleLineFrom(next.line, -1);
+        next =
+          delta > 0
+            ? { line: visible, character: 0 }
+            : { line: visible, character: this.lineText(visible).length };
+      }
       return extend ? { anchor: sel.anchor, active: next } : { anchor: next, active: next };
     });
+    this.dedupeSelections();
     this.wakeCursor();
     this.ensureCursorVisible();
     this.scheduleRender();
@@ -1290,10 +1393,18 @@ export class EditorView {
         targetLine += lineDelta > 0 ? 1 : -1;
       }
       targetLine = Math.max(0, Math.min(this.doc.lineCount - 1, targetLine));
+      // v0.7.13 修复：向下越过文件尾的折叠区被 clamp 回隐藏末行——光标不可见
+      // 且 ArrowDown 卡死（每按一次都被 clamp 回同一隐藏行，直到点击/打字触发
+      // clampSelections 自动展开才恢复）。clamp 后仍隐藏则向来时方向回退到最近
+      // 可见行（VS Code 语义：停在折叠头行）。
+      while (targetLine > 0 && this.isLineHidden(targetLine)) {
+        targetLine -= 1;
+      }
       const targetChar = Math.min(sel.active.character, this.lineText(targetLine).length);
       const next: Position = { line: targetLine, character: targetChar };
       return extend ? { anchor: sel.anchor, active: next } : { anchor: next, active: next };
     });
+    this.dedupeSelections();
     this.wakeCursor();
     this.ensureCursorVisible();
     this.scheduleRender();
@@ -1356,6 +1467,7 @@ export class EditorView {
       anchor: this.clampPosition(sel.anchor),
       active: this.clampPosition(sel.active),
     }));
+    this.dedupeSelections();
     // 光标落入折叠隐藏行 → 自动展开该折叠区域
     for (const sel of this.selections) {
       for (const pos of [sel.anchor, sel.active]) {
@@ -1369,6 +1481,56 @@ export class EditorView {
         }
       }
     }
+  }
+
+  /**
+   * 重合光标去重（v0.7.13）：退格/Delete 删到边界、垂直移动越过折叠行汇聚、
+   * undo 后 clamp 汇聚都会产生完全重合的光标——不去重则每次击键重复插入
+   * （两个光标同点，"a" 插两遍变 "aa"）。VS Code 同样在编辑/移动后折叠重合光标。
+   */
+  private dedupeSelections(): void {
+    if (this.selections.length <= 1) return;
+    const seen = new Set<string>();
+    this.selections = this.selections.filter((sel) => {
+      const key = `${sel.anchor.line}:${sel.anchor.character}|${sel.active.line}:${sel.active.character}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  /**
+   * undo/redo + 光标落点恢复（v0.7.13）：撤销组回滚后光标停在过期列（如输入
+   * "abc" 后 Ctrl+Z，文本正确回退但光标仍停在词中间）。变更数与光标数一致时
+   * 逐光标配对恢复（多光标打字场景每个光标回到各自编辑点），否则主光标回
+   * 撤销组首个变更起点（undo）/重做组末个变更终点（redo）。
+   */
+  private undoRedo(kind: "undo" | "redo"): void {
+    const before = this.selections.length;
+    const ok = kind === "undo" ? this.doc.undo() : this.doc.redo();
+    this.clampSelections();
+    if (!ok) return;
+    const changes = this.doc.getLastUndoRedoChanges();
+    if (changes.length === 0) return;
+    const clamp = (offset: number): Position =>
+      this.doc.positionAt(Math.max(0, Math.min(offset, this.doc.length)));
+    if (changes.length === before) {
+      const positions = changes.map((change) =>
+        kind === "undo" ? clamp(change.offset) : clamp(change.offset + change.insertedLength)
+      );
+      // changes 按应用顺序（undo 为逆序应用）：与光标按偏移升序对齐
+      positions.sort((a, b) => a.line - b.line || a.character - b.character);
+      this.selections = positions.map((pos) => ({ anchor: pos, active: pos }));
+    } else {
+      const single =
+        kind === "undo"
+          ? clamp(changes[0]!.offset)
+          : clamp(changes[changes.length - 1]!.offset + changes[changes.length - 1]!.insertedLength);
+      this.selections = [{ anchor: single, active: single }];
+    }
+    this.dedupeSelections();
+    this.wakeCursor();
+    this.ensureCursorVisible();
   }
 
   private clampPosition(pos: Position): Position {

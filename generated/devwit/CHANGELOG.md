@@ -3,6 +3,48 @@
 所有显著变更记录于此。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本遵循 [语义化版本](https://semver.org/)。
 
+## [0.7.13] — 2026-10-02
+
+### Fixed
+- **编辑器内核对抗性自查（E 系列 9 项）**——对抗性审查第二轮（编辑器视图
+  + piece-table + undo 栈全文逐行追踪）发现并修复：
+- **多光标词删除光标漂移**（E1）：Ctrl+Backspace/Ctrl+Delete 后光标落点位移
+  用「低位光标个数」近似「低位实际删除长度」——词删除每光标删多字符时高位
+  光标系统性偏右，之后打字落错位置。抽取纯函数 `multiCursorFinalOffsets`
+  （edit-ops.ts，14 项单测锁定）统一四条删除路径；Ctrl+Delete 的 total
+  快照陈旧问题（光标重叠时扫描越界）一并修复
+- **重合光标不去重 → 打字重复插入**（E2）：退格删到边界/垂直移动越过折叠
+  汇聚/undo 后 clamp 汇聚产生完全重合光标，每敲一键插两遍（"a"→"aa"）。
+  编辑/移动/undo 后按 (anchor, active) 去重（VS Code 同语义）
+- **空选区 Ctrl+X 误标脏 + 空 undo**（E3）：cut nothing 仍发空编辑，
+  applyEdit 对 no-op 无守卫——version++ → 已保存文档现未保存标记、关闭误弹
+  确认，且留空 undo 记录（Ctrl+Z 按了没反应）。document.applyEdit 开头
+  no-op 直接返回 + Ctrl+X 仅非空选区才发编辑
+- **Undo/Redo 后光标停错误列**（E4）：撤销只回滚文本不恢复选区——输入 "abc"
+  后 Ctrl+Z 光标停在词中间而非输入起点。document 暴露 getLastUndoRedoChanges，
+  视图按变更数与光标数配对恢复（多光标打字各回各点），否则主光标回撤销组
+  首变更起点/重做组末变更终点
+- **ArrowDown 进入延伸至文件尾的折叠区 → 光标落入隐藏行卡死**（E5）：跳过
+  隐藏行越界后被 clamp 回隐藏末行——不可见且每按一次都被弹回。clamp 后
+  仍隐藏则回退最近可见行（VS Code 语义：停折叠头行）；ArrowRight 跨入
+  隐藏行同样沿移动方向跳到最近可见行
+- **IME 合成期间选区被移动/文档被替换 → 合成串插错位置**（E6）：合成开始
+  记录锚点（选区+版本+文档引用），提交回落锚点；锚点失效（文档已换/已改）
+  丢弃提交；setDocument 主动取消进行中的合成（防迟到 compositionend 插到
+  新文档开头）
+- **Backspace/Delete 拆散代理对**（E7）：按码元硬删 1 把 emoji 删成孤立
+  高代理——乱码方块 + 保存时编码损坏。删除长度代理对感知（2 码元），
+  纯函数 `backwardDeleteLength`/`forwardDeleteLength` 单测锁定
+- **dispose 不回收 canvas 监听**（E8）：同一 canvas 重建 EditorView 时旧
+  实例 mousedown/contextmenu 等仍存活（双份回调 + 无法 GC）——canvas 监听
+  与 window 监听同模式收集并在 dispose 执行
+- **onKeyDown 无 isComposing 守卫**（E10）：Firefox/Safari 合成期真实键名
+  keydown 会打断候选窗导航（Chromium/Electron 不受影响，可复用包加固）
+
+### Changed
+- 渲染层测试基建：编辑运算纯函数抽至 `packages/editor-render/src/edit-ops.ts`
+  并导出（multiCursorFinalOffsets / backwardDeleteLength / forwardDeleteLength）
+
 ## [0.7.12] — 2026-10-02
 
 ### Fixed

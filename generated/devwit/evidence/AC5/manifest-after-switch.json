@@ -1,13 +1,13 @@
 {
-  "id": "manifest-9d1c2ebe-7aee-4d45-ab17-e0abf2f99f5f",
-  "timestamp": "2026-09-22T05:44:20.893Z",
-  "sessionId": "session-1790055858558",
+  "id": "manifest-4dd8bb07-2634-476f-8504-b34a43c7ee04",
+  "timestamp": "2026-09-22T05:59:54.091Z",
+  "sessionId": "session-1790056791634",
   "modeId": "agent",
   "providerId": "e2e-local-b",
   "model": "e2e-model-b",
   "items": [
     {
-      "id": "item-cf1b3465-4e6f-46ed-a69f-236544b9202f",
+      "id": "item-9cfbf0ec-931d-4721-9f86-f84daa25a126",
       "type": "system_prompt",
       "label": "系统提示",
       "enabled": true,
@@ -17,7 +17,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-5c200836-c99e-4a44-8870-f7a370d60a45",
+      "id": "item-9aaa1944-2811-4eb3-ab49-2a68b07f522d",
       "type": "tool_definitions",
       "label": "工具定义（11 个）",
       "enabled": true,
@@ -27,7 +27,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-658c55ac-9b47-4168-bb8f-1d4d8e627a88",
+      "id": "item-19102d96-ba5d-4fa9-a8d9-c5b668497f01",
       "type": "conversation_history",
       "label": "会话历史（9 条）",
       "enabled": true,
@@ -37,17 +37,17 @@
       "counting": "exact"
     },
     {
-      "id": "item-1598fa4d-1644-4910-a0da-23aa5c513833",
+      "id": "item-f6f773e5-f09a-4fdb-b583-f3516b7488da",
       "type": "file_fragment",
       "label": "文件片段 hello.txt",
       "enabled": false,
       "tokens": 0,
       "content": "",
-      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-wcxnAg\\hello.txt",
+      "source": "C:\\Users\\eeyzs1\\AppData\\Local\\Temp\\devwit-e2e-8v8RsX\\hello.txt",
       "counting": "exact"
     },
     {
-      "id": "item-b905d19e-2f1a-4ce0-8d6f-7f8eec1b8b3c",
+      "id": "item-e6198e3d-ea82-4892-b41b-8e09acb2eaf3",
       "type": "git_status",
       "label": "Git 状态",
       "enabled": true,
@@ -57,7 +57,7 @@
       "counting": "exact"
     },
     {
-      "id": "item-f51f2090-dfc8-45f1-9fcf-a52555aa458b",
+      "id": "item-89cd91a0-fc2f-45de-ac30-57a279cec11c",
       "type": "codebase_match",
       "label": "代码库检索（索引未启用）",
       "enabled": false,

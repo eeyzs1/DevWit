@@ -37,6 +37,8 @@ export class TextDocument {
   private transactionDepth = 0;
   /** 事务缓冲：endTransaction 时作为一条 undo 记录入栈。 */
   private transactionOps: EditOp[] = [];
+  /** 最近一次 undo/redo 实际应用的变更（v0.7.13：供视图恢复光标落点；下一次调用覆盖）。 */
+  private lastUndoRedoChanges: DocumentChange[] = [];
 
   private constructor(table: PieceTable) {
     this.table = table;
@@ -102,6 +104,11 @@ export class TextDocument {
   applyEdit(edit: TextEdit): void {
     const offset = Math.max(0, Math.min(edit.offset, this.table.length));
     const end = Math.max(offset, Math.min(offset + edit.length, this.table.length));
+    // v0.7.13 修复：空删除 + 空插入的 no-op 直接返回——旧实现照常入 undo 栈、
+    // 递增版本并派发事件：空选区 Ctrl+X（cut nothing 仍走 replaceSelections("")）
+    // 会把已保存文档误标脏（标签页现未保存标记、关闭误弹确认），并留一条空
+    // undo 记录（下次 Ctrl+Z「按了没反应」白耗一步撤销）。
+    if (end === offset && edit.text.length === 0) return;
     const removedText = this.table.getTextInRange(offset, end);
     this.table.replace(offset, end - offset, edit.text);
     const op: EditOp = { offset, removedText, insertedText: edit.text };
@@ -160,6 +167,11 @@ export class TextDocument {
     this.applyEdit({ offset, length, text: "" });
   }
 
+  /** 最近一次 undo/redo 实际应用的变更（按应用顺序；空 = 该调用未生效）。 */
+  getLastUndoRedoChanges(): readonly DocumentChange[] {
+    return this.lastUndoRedoChanges;
+  }
+
   undo(): boolean {
     const entry = this.undoStack.popUndo();
     if (entry === undefined) {
@@ -175,6 +187,7 @@ export class TextDocument {
       this.table.replace(op.offset, op.insertedText.length, op.removedText);
       changes.push(this.inverseOf(op));
     }
+    this.lastUndoRedoChanges = changes;
     this.publish(changes);
     return true;
   }
@@ -194,6 +207,7 @@ export class TextDocument {
         insertedText: op.insertedText,
       });
     }
+    this.lastUndoRedoChanges = changes;
     this.publish(changes);
     return true;
   }

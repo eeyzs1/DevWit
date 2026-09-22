@@ -269,3 +269,76 @@ describe("事务 undo（v0.7.2：一次逻辑操作 = 一条 undo）", () => {
     expect(doc.getText()).toBe("");
   });
 });
+
+describe("v0.7.13 修复回归", () => {
+  it("no-op 编辑（空删 + 空插）不递增版本、不入 undo 栈、不派发事件", () => {
+    // 背景：空选区 Ctrl+X（cut nothing 仍走 replaceSelections("")）曾把已保存
+    // 文档误标脏 + 留一条空 undo 记录（下次 Ctrl+Z「按了没反应」）
+    const doc = TextDocument.fromString("hello");
+    const events: DocumentChangeEvent[] = [];
+    const off = doc.onDidChange((e) => events.push(e));
+    doc.applyEdit({ offset: 3, length: 0, text: "" });
+    off();
+    expect(doc.version).toBe(0);
+    expect(doc.isDirty).toBe(false);
+    expect(doc.canUndo).toBe(false);
+    expect(events).toHaveLength(0);
+    expect(doc.undo()).toBe(false);
+  });
+
+  it("越界夹取后的空编辑同样 no-op（offset 超出文档长度）", () => {
+    const doc = TextDocument.fromString("ab");
+    doc.applyEdit({ offset: 99, length: 0, text: "" });
+    expect(doc.version).toBe(0);
+    expect(doc.canUndo).toBe(false);
+  });
+
+  it("undo 后 getLastUndoRedoChanges 给出逆操作变更（供视图恢复光标）", () => {
+    // "hello|world" 光标列 5 处输入 "abc" → undo → 视图据首变更 offset=5 回移光标
+    const doc = TextDocument.fromString("helloworld");
+    typeText(doc, "abc", 5);
+    expect(doc.getText()).toBe("helloabcworld");
+    expect(doc.undo()).toBe(true);
+    expect(doc.getText()).toBe("helloworld");
+    const changes = doc.getLastUndoRedoChanges();
+    expect(changes.length).toBe(1);
+    expect(changes[0]?.offset).toBe(5);
+    expect(changes[0]?.removedLength).toBe(3);
+    expect(changes[0]?.insertedLength).toBe(0);
+  });
+
+  it("redo 后 getLastUndoRedoChanges 给出正向变更（终点 = offset + insertedLength）", () => {
+    const doc = TextDocument.fromString("helloworld");
+    typeText(doc, "abc", 5);
+    doc.undo();
+    expect(doc.redo()).toBe(true);
+    const changes = doc.getLastUndoRedoChanges();
+    expect(changes.length).toBe(1);
+    expect(changes[0]?.offset).toBe(5);
+    expect(changes[0]?.insertedLength).toBe(3);
+    expect(changes[0]?.insertedText).toBe("abc");
+  });
+
+  it("多光标事务组 undo：逆序应用的变更按应用顺序返回（逐光标配对恢复）", () => {
+    const doc = TextDocument.fromString("one two three");
+    doc.transact(() => {
+      doc.insert(7, "X"); // 高位：two 后插 X
+      doc.insert(3, "Y"); // 低位：one 后插 Y
+    });
+    expect(doc.getText()).toBe("oneY twoX three");
+    expect(doc.undo()).toBe(true);
+    const changes = doc.getLastUndoRedoChanges();
+    expect(changes).toHaveLength(2);
+    // undo 逆序应用：后应用的低位编辑（Y@3）先被撤销，高位（X@7）后被撤销
+    expect(changes[0]?.offset).toBe(3);
+    expect(changes[0]?.removedLength).toBe(1);
+    expect(changes[1]?.offset).toBe(7);
+    expect(changes[1]?.removedLength).toBe(1);
+  });
+
+  it("undo/redo 未生效时 getLastUndoRedoChanges 为空", () => {
+    const doc = TextDocument.fromString("");
+    expect(doc.undo()).toBe(false);
+    expect(doc.getLastUndoRedoChanges()).toEqual([]);
+  });
+});

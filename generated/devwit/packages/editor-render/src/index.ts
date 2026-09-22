@@ -8,6 +8,11 @@ export {
 } from "./editor-view.js";
 export { ImeInput, type ImeInputCallbacks } from "./ime-input.js";
 export {
+  backwardDeleteLength,
+  forwardDeleteLength,
+  multiCursorFinalOffsets,
+} from "./edit-ops.js";
+export {
   clampScrollTop,
   columnForX,
   columnForXChars,
