@@ -44,7 +44,7 @@ import type {
 import { DEFAULT_RAG_CONFIG, IPC, isFailureTraceEvent } from "@devwit/contracts";
 import { AgentLoop, AgentOrchestrator, AgentTrace, Authorizer, BackendRegistry, CommandWhitelistMemory, createNodeEnvironment, DEFAULT_LEARNING, decideRoute, DiagnosticsTracker, historyFromTrace, InternalAgentBackend, ModeStatsTracker, parseModeRunStats, parseRoutingConfig, parseWorkflowTemplates, WorkflowMemory } from "@devwit/agent-runtime";
 import type { AgentBackend, AgentBackendInput, AgentBackendResult, AgentRunResult, CommandWhitelistSnapshot, ToolEnvironment, WhitelistLearningConfig } from "@devwit/agent-runtime";
-import { attachmentSource, ContextEngine, fileFragmentSource, FIRST_PARTY_SECTION_ORDER, gitStatusSource, PromptSectionRegistry, selectionSource, symbolRefSource, TiktokenCounter, workflowSource } from "@devwit/context-engine";
+import { attachmentSource, ContextEngine, fileFragmentSource, FIRST_PARTY_SECTION_ORDER, gitStatusSource, MODE_SECTION_NAME, PromptSectionRegistry, selectionSource, symbolRefSource, TiktokenCounter, workflowSource } from "@devwit/context-engine";
 import { createEmbedder, ProviderRegistry } from "@devwit/llm-providers";
 import { McpManager, validateMcpServerConfig } from "@devwit/mcp";
 import { ModeStore, type ModeScopeRegistry } from "@devwit/modes";
@@ -1115,24 +1115,34 @@ export class AiRuntime {
   }
 
   /**
-   * B-WU4/B-WU5：run 前按模式重装系统提示段。
-   * mode 提示为基底段（FIRST_PARTY_SECTION_ORDER.mode）；模式作用域注册的
-   * prompt_section 段按注册序接在 context 段位之后。仅一个 mode 段时组装结果
-   * 与旧 input.systemPrompt 完全一致（行为不变）；manifest 记录段组成审计。
+   * B-WU4/B-WU5：run 前按模式安装系统提示段。
+   * v0.7.16 修复（审查 A4）：不再 clear+重装共享注册表——并发不同模式 run
+   * （任务中心 + 聊天）时，A 会话运行中的后续迭代会拼入 B 模式的 mode-scope
+   * 段（跨模式污染）。mode 基底段恒注册一次（文本经 modeTextOverride 每 run
+   * 覆盖，见 prompt-sections.ts 的 v0.7.10 修复）；mode-scope 段带 modeId
+   * 归属，assemble 按 ctx.modeId 过滤。
    */
   private syncModeSections(mode: ModeDefinition): void {
-    this.promptSections.clear();
-    this.promptSections.register({
-      name: "mode",
-      order: FIRST_PARTY_SECTION_ORDER.mode,
-      text: mode.systemPrompt,
-    });
+    if (!this.promptSections.list().some((section) => section.name === MODE_SECTION_NAME)) {
+      this.promptSections.register({
+        name: MODE_SECTION_NAME,
+        order: FIRST_PARTY_SECTION_ORDER.mode,
+        text: "",
+      });
+    }
+    // 该模式的 scope 段：先清旧（同模式配置热更新），再装新（名含 modeId 防跨模式撞名）
+    for (const section of this.promptSections.list()) {
+      if (section.modeId === mode.id) {
+        this.promptSections.unregister(section.name);
+      }
+    }
     const scopeSections = this.modeStore.scope.list<string>(mode.id, "prompt_section");
     for (const [i, entry] of scopeSections.entries()) {
       this.promptSections.register({
-        name: `mode-scope:${entry.key}`,
+        name: `mode-scope:${mode.id}:${entry.key}`,
         order: FIRST_PARTY_SECTION_ORDER.context + i,
         text: entry.value,
+        modeId: mode.id,
       });
     }
   }

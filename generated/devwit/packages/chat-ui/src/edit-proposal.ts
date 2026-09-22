@@ -25,6 +25,14 @@ export function extractEditProposal(assistantText: string): EditProposal | null 
   if (match === undefined) {
     return null;
   }
+  // v0.7.16 修复（审查 C4）：首个闭合后剩余文本仍含 ``` → 非贪婪匹配在
+  // 内层围栏处假闭合（替换内容本身含 ``` 行时常见，改 markdown 文件）。
+  // 旧实现恰好 1 个匹配即通过——提取的是被截断的内容，「接受」后写入残缺
+  // 代码。按多块契约诚实降级返回 null（普通对话展示，不 diff）。
+  const matchEnd = (match.index ?? 0) + match[0].length;
+  if (assistantText.slice(matchEnd).includes("```")) {
+    return null;
+  }
   const language = (match[1] ?? "").trim();
   let code = match[2] ?? "";
   // 围栏内容按行对齐：去掉收尾的单个换行，保留内部结构与缩进

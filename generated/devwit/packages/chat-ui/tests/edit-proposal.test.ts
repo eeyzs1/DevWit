@@ -29,4 +29,15 @@ describe("extractEditProposal", () => {
   it("空代码块 → code 为空串", () => {
     expect(extractEditProposal("```\n\n```")).toEqual({ code: "" });
   });
+
+  it("v0.7.16（审查 C4）：替换内容含 ``` 行（内层围栏假闭合）→ null（不截断提取）", () => {
+    // 旧实现：非贪婪在第一个 ``` 闭合 → 恰好 1 个匹配 → code="foo"（残缺）
+    const text = "```md\nfoo\n```\nbar\n```\nend";
+    expect(extractEditProposal(text)).toBeNull();
+  });
+
+  it("v0.7.16（审查 C4）：闭合后尾部再出现 ``` → null（视为多块，诚实降级）", () => {
+    const text = "```ts\nconst a = 1;\n```\n附注：\n```";
+    expect(extractEditProposal(text)).toBeNull();
+  });
 });

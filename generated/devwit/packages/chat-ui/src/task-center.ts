@@ -38,6 +38,8 @@ export class TaskCenter {
   private readonly deps: TaskCenterDeps;
   private readonly tasks: TaskEntry[] = [];
   private readonly listeners = new Set<() => void>();
+  /** 会话 → 未决授权 requestId 集（v0.7.16/C7：并行子 Agent 多授权账本）。 */
+  private readonly pendingAuth = new Map<string, Set<string>>();
   private readonly unsubscribeAgent: () => void;
   private workspaceRoot: string;
   private defaultModeId: string;
@@ -201,18 +203,32 @@ export class TaskCenter {
       case "user_message":
         // 中断任务被续发（新一轮 run 开始）→ 复活为进行中
         entry.status = "running";
+        this.pendingAuth.delete(event.sessionId);
         break;
-      case "authorization_request":
+      case "authorization_request": {
         entry.status = "waiting_auth";
+        // v0.7.16（审查 C7）：并行子 Agent 共享授权门，可同时产生多个待裁决
+        // 请求——按 requestId 记账，首个 decision 不再把状态翻回 running
+        const requestId = (event.detail as { requestId?: unknown } | undefined)?.requestId;
+        const set = this.pendingAuth.get(event.sessionId) ?? new Set<string>();
+        if (typeof requestId === "string" && requestId !== "") set.add(requestId);
+        this.pendingAuth.set(event.sessionId, set);
         break;
-      case "authorization_decision":
-        entry.status = "running";
+      }
+      case "authorization_decision": {
+        const requestId = (event.detail as { requestId?: unknown } | undefined)?.requestId;
+        const set = this.pendingAuth.get(event.sessionId);
+        if (set !== undefined && typeof requestId === "string") set.delete(requestId);
+        entry.status = (set?.size ?? 0) > 0 ? "waiting_auth" : "running";
         break;
+      }
       case "done":
         entry.status = "done";
+        this.pendingAuth.delete(event.sessionId);
         break;
       case "error":
         entry.status = "failed";
+        this.pendingAuth.delete(event.sessionId);
         break;
       default:
         return; // 其余事件不影响任务状态

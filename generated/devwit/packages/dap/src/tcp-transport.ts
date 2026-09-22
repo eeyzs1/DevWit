@@ -73,15 +73,24 @@ export function tcpServerTransportFactory(listenTimeoutMs = 10_000): DapTranspor
 
       const onStdout = (chunk: Buffer): void => {
         buf += chunk.toString("utf-8");
-        const nl = buf.indexOf("\n");
-        if (nl < 0) return;
-        const match = LISTEN_LINE.exec(buf.slice(0, nl));
-        if (match === null) return; // 非监听行（告警等），继续等
-        const host = match[1] ?? "127.0.0.1";
-        const port = Number.parseInt(match[2] ?? "0", 10);
-        settled = true;
-        cleanup();
-        connectSocket(host, port, onDead).then(resolve, reject);
+        // v0.7.16 修复（审查 L5）：逐行扫描而非只盯第一行——首行若为告警/
+        // 横幅（非监听行），旧实现不消费该行、永远检测不到后续监听行 →
+        // LISTEN_TIMEOUT。当前 dapDebugServer 首行即监听行（latent），此处
+        // 为协议鲁棒性加固。
+        for (;;) {
+          const nl = buf.indexOf("\n");
+          if (nl < 0) return;
+          const line = buf.slice(0, nl);
+          buf = buf.slice(nl + 1);
+          const match = LISTEN_LINE.exec(line);
+          if (match === null) continue; // 非监听行（告警等）：消费并继续
+          const host = match[1] ?? "127.0.0.1";
+          const port = Number.parseInt(match[2] ?? "0", 10);
+          settled = true;
+          cleanup();
+          connectSocket(host, port, onDead).then(resolve, reject);
+          return;
+        }
       };
 
       proc.stdout.on("data", onStdout);

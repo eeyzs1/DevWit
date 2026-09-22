@@ -22,7 +22,7 @@ import { t } from "@devwit/i18n";
 export type ChatItem =
   | { kind: "user"; text: string }
   | { kind: "assistant"; text: string; streaming: boolean }
-  | { kind: "tool"; summary: string; ok: boolean | null; detail?: string; request?: string }
+  | { kind: "tool"; summary: string; ok: boolean | null; detail?: string; request?: string; subagentId?: string }
   | { kind: "authorization"; requestId: string; toolName: string; reason: string; decision: AuthorizationDecision | null; auto?: boolean }
   | { kind: "diagnostics"; count: number; firstLine: string }
   | { kind: "route"; routed: string; providerId: string; score: number; threshold: number }
@@ -329,26 +329,46 @@ export class ChatController {
       }
       case "tool_call": {
         // 捕获工具调用请求参数（供活动流「请求」可见；结果在 tool_result 里补）
-        const tc = event.detail as { args?: unknown } | undefined;
+        const tc = event.detail as { args?: unknown; subagentId?: unknown } | undefined;
         const request = tc?.args !== undefined && typeof tc.args === "object" ? JSON.stringify(tc.args) : undefined;
-        this.items.push({ kind: "tool", summary: event.summary, ok: null, ...(request !== undefined ? { request } : {}) });
+        // v0.7.16（审查 C2）：记录归属（并行子 Agent 共享 sessionId，无归属
+        // 则结果配对错位——工具 B 显示工具 A 的结果、A 永远「执行中」）
+        const subagentId = typeof tc?.subagentId === "string" ? tc.subagentId : undefined;
+        this.items.push({
+          kind: "tool",
+          summary: event.summary,
+          ok: null,
+          ...(request !== undefined ? { request } : {}),
+          ...(subagentId !== undefined ? { subagentId } : {}),
+        });
         break;
       }
       case "tool_result": {
-        const last = [...this.items].reverse().find((item) => item.kind === "tool" && item.ok === null);
-        if (last?.kind === "tool") {
-          last.summary = event.summary;
+        const detail = event.detail as {
+          result?: { ok?: unknown; output?: unknown; error?: unknown };
+          subagentId?: unknown;
+        } | undefined;
+        const resultSubagent = typeof detail?.subagentId === "string" ? detail.subagentId : undefined;
+        const pendingTools = [...this.items].reverse().filter((item) => item.kind === "tool" && item.ok === null);
+        // v0.7.16（审查 C2）：带归属时先按 subagentId 配对（倒序取最近未决），
+        // 兜底旧轨迹（无 subagentId）沿用全局最近未决——串行场景语义不变
+        const last =
+          resultSubagent !== undefined
+            ? pendingTools.find((item) => item.kind === "tool" && item.subagentId === resultSubagent)
+            : undefined;
+        const target = (last ?? pendingTools[0]);
+        if (target?.kind === "tool") {
+          target.summary = event.summary;
           // 工具结果审计：结构化 result.ok 是唯一成败事实源（agent-loop 的
           // tool_result 事件恒带 detail.result.ok）；缺失时保持未知（null=…），
           // 不再按 summary 文案子串猜测——文案与展示语言耦合且非权威信号
-          const detail = event.detail as { result?: { ok?: unknown; output?: unknown; error?: unknown } } | undefined;
           const result = detail?.result;
-          last.ok = typeof result?.ok === "boolean" ? result.ok : null;
+          target.ok = typeof result?.ok === "boolean" ? result.ok : null;
           if (result !== undefined) {
             const ok = result.ok === true;
             const output = typeof result.output === "string" ? result.output : "";
             const error = typeof result.error === "string" ? result.error : "";
-            last.detail = ok ? (output.length > 0 ? output : "(无输出)") : `错误: ${error || "未知错误"}`;
+            target.detail = ok ? (output.length > 0 ? output : "(无输出)") : `错误: ${error || "未知错误"}`;
           }
         }
         break;

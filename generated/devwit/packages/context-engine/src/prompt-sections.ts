@@ -30,6 +30,13 @@ export interface PromptSection {
   text: string | ((ctx: PromptSectionAssembleContext) => string);
   /** true = 该段成为唯一系统提示；>1 个 effective complete → 组装失败。 */
   complete?: boolean;
+  /**
+   * 段所属模式（v0.7.16 / 审查 A4）：undefined = 全模式共享；设置时仅
+   * ctx.modeId 匹配的组装包含。此前注册表被各 run clear+重装共享单份，
+   * 并发不同模式 run（任务中心 + 聊天）时 A 会话的后续迭代会拼入 B 模式
+   * 的 mode-scope 段（跨模式污染）。
+   */
+  modeId?: string;
 }
 
 /** 仓库内一方的命名段位分配（避免魔法数字撞序）。 */
@@ -89,7 +96,9 @@ export class PromptSectionRegistry {
 
   /** 组装系统提示。空注册表返回空文本（调用方决定兜底）。 */
   assemble(ctx: PromptSectionAssembleContext): PromptAssembly {
-    const ordered = this.list();
+    // v0.7.16（审查 A4）：mode-scope 段按组装上下文的模式过滤——其它模式的
+    // 段（并发 run 各自安装）不进入本次组装。
+    const ordered = this.list().filter((s) => s.modeId === undefined || s.modeId === ctx.modeId);
     const complete = ordered.filter((s) => s.complete === true);
     if (complete.length > 1) {
       throw new Error(

@@ -3,6 +3,60 @@
 所有显著变更记录于此。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本遵循 [语义化版本](https://semver.org/)。
 
+## [0.7.16] — 2026-10-02
+
+### Fixed
+- **三路对抗性审查修复第二批（14 项）**——需设计项为主：
+
+**并发正确性**
+- **编排子 Agent 孤儿化**（A3）：单个子 Agent 基础设施异常（build/send IO
+  错误）时 Promise.all 即整体 reject，其余 worker 不被取消、继续消费队列
+  跑完——后台持续改文件/烧 token 且结果丢弃。mapWithConcurrency 异常隔离
+  （停派发 + 回调中止）+ 本地取消链（外部/异常取消传导至全部子 Agent）；
+  编排异常转 error 终态（用量入账、轨迹可审计、会话正常收尾）
+- **PromptSectionRegistry 跨模式污染**（A4）：注册表被各 run clear+重装共享
+  单份——任务中心与聊天并发不同模式 run 时，A 会话后续迭代拼入 B 模式的
+  mode-scope 段。段增加 modeId 归属，assemble 按 ctx.modeId 过滤，sync
+  不再全局 clear（mode 基座段注册一次，文本经 modeTextOverride 每 run 覆盖）
+- **并行子 Agent 工具结果配对错位**（C2）：「倒序找最后一个未决 tool 项」
+  只对串行成立——事件序 A.call→B.call→A.result 时 A 的结果填进 B 的行。
+  tool 项记录 subagentId 归属，结果按归属配对（旧轨迹无归属时兜底原语义）
+
+**Windows/中文环境**
+- **git_status 中文路径乱码**（L6）：非 -z porcelain 对非常规路径输出
+  `"\346..."` 八进制转义（agent 拿到不可用路径）；含 " -> " 的文件名被误判
+  rename。改 `--porcelain=v1 -z`（与 git-service 统一口径）
+- **Windows 目录 junction 被递归跟随**（L8）：readdir Dirent 在 Windows 把
+  目录 reparse point 报为 directory——指向工作区外的 junction 递归进入
+  （破坏 search 防逃逸保证）。lstat 复核（libuv 把 junction 映射为
+  symbolic link），一律按 file 不递归（与 Linux 对齐）
+- **showHead 未知错误伪装「无 HEAD 版」**（L12a）：超时等异常被当作 untracked
+  → diff 误显示全新增。改上抛 DW_GIT_SHOW_HEAD_FAILED（诚实降级）
+
+**LSP/DAP**
+- **步进失败后调试状态机锁死**（L3）：next/stepIn/stepOut 先置 running 再
+  发请求，失败无回滚——UI 永卡 running、后续全抛 NOT_STOPPED。失败回滚
+  stopped 态与 stopThreadId
+- **tcp 监听行只盯 stdout 首行**（L5）：适配器首行输出告警时永远检测不到
+  监听行 → LISTEN_TIMEOUT。改逐行消费扫描
+
+**工具与搜索**
+- **agent grep worker exit 监听器泄漏**（L10）：常驻 worker 每请求累积一个
+  匿名 exit 监听器，>10 次 MaxListenersExceededWarning 刷屏——成功路径
+  三个监听器统一摘除
+- **search-worker 共享 regex 隔行漏配**（L11）：flags 含 "g" 时 lastIndex
+  跨行推进——逐行重置（协议级防御，当前调用方未触发）
+
+**渲染层**
+- **多个待裁决授权时任务状态误翻回「进行中」**（C7）：并行子 Agent 共享
+  授权门可同时产生多个 pending——按 requestId 记账，仍有未决则保持
+  waiting_auth
+- **改名中切换语言冻死会话列表**（C8）：全量重绘销毁改名输入框但 editingId
+  残留，后续改名/切换全被守卫拦截——render 时复位残留编辑态
+- **围栏内含 ``` 行静默截断提案**（C4）：非贪婪匹配在内层围栏假闭合，
+  恰好 1 个匹配通过唯一性校验——「接受」写入残缺代码。闭合后剩余文本仍含
+  ``` 则按多块契约诚实降级 null
+
 ## [0.7.15] — 2026-10-02
 
 ### Fixed

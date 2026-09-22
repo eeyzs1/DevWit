@@ -94,23 +94,45 @@ export function parsePlannedTasks(text: string): PlannedTask[] | null {
   return tasks.length > 0 ? tasks : null;
 }
 
-/** 并发上限映射：最多 limit 个 worker 消费任务队列，结果按原序回填。 */
+/**
+ * 并发上限映射：最多 limit 个 worker 消费任务队列，结果按原序回填。
+ * v0.7.16 修复（审查 A3）：worker 级异常隔离——旧实现 Promise.all 一个
+ * reject 即整体 reject，其余 worker 不被取消、继续消费队列跑完（孤儿化：
+ * 后台持续改文件/烧 token，结果丢弃且用量不入账）。现在首个异常：
+ * 1) 停止派发新任务；2) 回调 onWorkerError（调用方据此中止在跑兄弟）；
+ * 3) 全部 worker 收敛后向上冒泡首个异常。
+ */
 async function mapWithConcurrency<T, R>(
   items: readonly T[],
   limit: number,
-  fn: (item: T, index: number) => Promise<R>
+  fn: (item: T, index: number) => Promise<R>,
+  onWorkerError?: (error: unknown) => void
 ): Promise<R[]> {
   const results = new Array<R>(items.length);
   let next = 0;
+  // 数组容器（TS 控制流不跟踪闭包内赋值，null 检查会被窄化为永不触发）
+  const failures: Array<{ error: unknown }> = [];
   const workers = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
     for (;;) {
       const index = next;
       next += 1;
       if (index >= items.length) return;
-      results[index] = await fn(items[index]!, index);
+      if (failures.length > 0) return; // 兄弟已失败：不再取新任务
+      try {
+        results[index] = await fn(items[index]!, index);
+      } catch (error) {
+        if (failures.length === 0) {
+          failures.push({ error });
+          onWorkerError?.(error);
+        }
+        return;
+      }
     }
   });
   await Promise.all(workers);
+  if (failures.length > 0) {
+    throw failures[0]!.error;
+  }
   return results;
 }
 
@@ -223,9 +245,37 @@ export class AgentOrchestrator {
     );
 
     // ---- 阶段 2：并行子 Agent -------------------------------------------------
-    const results = await mapWithConcurrency(subtasks, this.deps.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY, (task) =>
-      this.runSubAgent(task, input, trace, signal)
-    );
+    // v0.7.16（审查 A3）：本地取消链——外部取消传导至子 Agent；首个 worker
+    // 基础设施级异常（build/send IO 错误）同样中止其余在跑子 Agent（不再孤儿化）
+    const subAgentAbort = new AbortController();
+    const chainAbort = (): void => subAgentAbort.abort();
+    signal?.addEventListener("abort", chainAbort, { once: true });
+    let results: AgentRunResult[];
+    try {
+      results = await mapWithConcurrency(
+        subtasks,
+        this.deps.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
+        (task) => this.runSubAgent(task, input, trace, subAgentAbort.signal),
+        () => subAgentAbort.abort()
+      );
+    } catch (error) {
+      signal?.removeEventListener("abort", chainAbort);
+      // 异常转 error 终态（不向上抛）：用量保留入账、轨迹可审计、ai-runtime
+      // 正常收尾（session.running 复位）——旧实现裸抛使部分用量丢失
+      const message = error instanceof Error ? error.message : String(error);
+      this.authorizer.denyAllPending();
+      recordUsage();
+      trace.record("error", `子 Agent 执行异常: ${message}`);
+      return {
+        finishReason: "error",
+        finalText: "",
+        iterations: 0,
+        errorMessage: `DW_ORCHESTRATION_FAILED:${message}`,
+        ...usagePart(),
+      };
+    } finally {
+      signal?.removeEventListener("abort", chainAbort);
+    }
     for (const result of results) addUsage(result.usage);
 
     if (signal?.aborted) {

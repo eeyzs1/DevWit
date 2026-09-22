@@ -30,7 +30,12 @@ if (port !== null) {
     if (message.op === "match-lines") {
       try {
         const regex = new RegExp(message.source ?? "", message.flags ?? "");
-        const matched = (message.lines ?? []).map((line) => regex.test(line));
+        // v0.7.16（审查 L11）：逐行重置 lastIndex——共享 regex 的 flags 含 "g"
+        // 时 lastIndex 跨行推进会隔行漏配（当前调用方只传 ""/"i"，协议级防御）
+        const matched = (message.lines ?? []).map((line) => {
+          regex.lastIndex = 0;
+          return regex.test(line);
+        });
         port.postMessage({ id: message.id, ok: true, matched });
       } catch (error) {
         port.postMessage({ id: message.id, ok: false, error: error instanceof Error ? error.message : String(error) });

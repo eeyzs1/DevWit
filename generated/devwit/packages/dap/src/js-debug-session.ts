@@ -627,25 +627,46 @@ export class JsDebugSession {
     this.setState({ state: "running" });
   }
 
+  /** 步进请求失败回滚：线程实际仍 stopped——状态由请求完成驱动而非事件驱动的
+   *  窄窗兜底（v0.7.16 / 审查 L3：旧实现失败后永卡 running，后续栈/变量/
+   *  步进全抛 DW_DAP_NOT_STOPPED，会话功能锁死）。 */
+  private rollbackToStopped(threadId: number, error: unknown): never {
+    this.stopThreadId = threadId;
+    this.setState({ state: "stopped", threadId, reason: "step-request-failed" });
+    throw error;
+  }
+
   async next(): Promise<void> {
     const { client, threadId } = this.requireStopped();
     this.stopThreadId = null;
     this.setState({ state: "running" });
-    await client.request("next", { threadId });
+    try {
+      await client.request("next", { threadId });
+    } catch (error) {
+      this.rollbackToStopped(threadId, error);
+    }
   }
 
   async stepIn(): Promise<void> {
     const { client, threadId } = this.requireStopped();
     this.stopThreadId = null;
     this.setState({ state: "running" });
-    await client.request("stepIn", { threadId });
+    try {
+      await client.request("stepIn", { threadId });
+    } catch (error) {
+      this.rollbackToStopped(threadId, error);
+    }
   }
 
   async stepOut(): Promise<void> {
     const { client, threadId } = this.requireStopped();
     this.stopThreadId = null;
     this.setState({ state: "running" });
-    await client.request("stepOut", { threadId });
+    try {
+      await client.request("stepOut", { threadId });
+    } catch (error) {
+      this.rollbackToStopped(threadId, error);
+    }
   }
 
   /**

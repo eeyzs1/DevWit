@@ -58,7 +58,24 @@ export function buildFileTree(rootPath: string, options: BuildFileTreeOptions = 
       count += 1;
       const childPath = path.join(dirPath, entry.name);
       if (entry.isDirectory()) {
-        children.push(build(childPath, entry.name, depth + 1));
+        // v0.7.16 修复（审查 L8）：Windows junction/目录 reparse point 在
+        // readdir Dirent 下仍报 directory（Linux DT_LNK 报 file）——跟随会
+        // 递归进工作区外目录（破坏 search 的防逃逸保证）且 junction 环产生
+        // 重复子树。lstat 复核：libuv 把 junction 映射为 symbolic link，
+        // 一律按 file 处理不递归（与 Linux 行为对齐）。
+        let linkLike = entry.isSymbolicLink();
+        if (!linkLike && process.platform === "win32") {
+          try {
+            linkLike = fs.lstatSync(childPath).isSymbolicLink();
+          } catch {
+            linkLike = true; // 消失/不可访问：保守按文件（不递归）
+          }
+        }
+        if (linkLike) {
+          children.push({ name: entry.name, path: childPath, type: "file" });
+        } else {
+          children.push(build(childPath, entry.name, depth + 1));
+        }
       } else {
         // 符号链接等一律按 file 处理，避免跟随链接造成环
         children.push({ name: entry.name, path: childPath, type: "file" });

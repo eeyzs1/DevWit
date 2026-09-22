@@ -113,6 +113,13 @@ export function mountSessionList(container: HTMLElement, options: SessionListOpt
   }
 
   function render(): void {
+    // v0.7.16（审查 C8）：重渲染会销毁改名输入框——若 editingId 残留（如改名
+    // 中切换界面语言触发全量重绘），后续所有改名/切换都被其守卫拦截（列表
+    // 交互冻死）。输入框已不存在，此处复位。
+    if (editingId !== null) {
+      editingId = null;
+      resetConfirm();
+    }
     list.textContent = "";
     const activeId = options.getActiveSessionId();
     if (items.length === 0) {

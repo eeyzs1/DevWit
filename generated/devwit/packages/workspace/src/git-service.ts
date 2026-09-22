@@ -143,7 +143,10 @@ export class GitService {
               reject(new Error("DW_GIT_NOT_REPO"));
               return;
             }
-            resolve(null); // 其余异常按无 HEAD 版处理（untracked 同语义）
+            // v0.7.16 修复（审查 L12a）：超时等未知错误不再伪装「无 HEAD 版」
+            //（大仓库 git 慢时 diff 误显示全新增）——上抛明确错误码，渲染端
+            // 状态栏提示，diff 视图不打开（诚实降级优于错误结论）
+            reject(new Error("DW_GIT_SHOW_HEAD_FAILED"));
             return;
           }
           resolve(stdout);

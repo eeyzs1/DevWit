@@ -81,16 +81,23 @@ export class RegexMatchService {
         return;
       }
       const timer = setTimeout(() => finish(null), timeoutMs);
+      // v0.7.16（审查 L10）：exit 监听器成功路径也要摘除——旧实现只摘
+      // message/error，常驻 worker 每次请求累积一个匿名 exit 监听器，
+      // >10 次触发 MaxListenersExceededWarning 刷屏
+      const onExit = (code: number): void => {
+        if (!settled && code !== 0) finish(null);
+      };
       const onMessage = (message: { ok: boolean; matched?: boolean[] }): void => {
         if (settled) return;
         if (message.ok && Array.isArray(message.matched)) {
           const matched = message.matched;
-          // 正常完成：worker 保留复用，仅重置空闲计时
+          // 正常完成：worker 保留复用，仅重置空闲计时；三个监听器全部摘除
           clearTimeout(timer);
           settled = true;
           this.armIdleTimer();
           worker.off("message", onMessage);
           worker.off("error", onError);
+          worker.off("exit", onExit);
           resolve(matched);
         } else {
           finish(null);
@@ -100,9 +107,7 @@ export class RegexMatchService {
       worker.on("message", onMessage);
       worker.on("error", onError);
       // worker 无 error 事件的主动退出（如 OOM/process.exit）：非零码且未决 → 失败
-      worker.on("exit", (code) => {
-        if (!settled && code !== 0) finish(null);
-      });
+      worker.on("exit", onExit);
       worker.postMessage({ id: 1, op: "match-lines", lines, source, flags });
     });
   }

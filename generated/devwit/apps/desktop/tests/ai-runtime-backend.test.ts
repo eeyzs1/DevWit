@@ -145,8 +145,8 @@ describe("AiRuntime promptSections + mode-scope 接线（B-WU4/B-WU5）", () => 
     expect(system?.content).toContain("先读后写");
     expect(system?.content).toContain("你是 DevWit 的编码 Agent"); // mode 基底段保留
 
-    // manifest 审计段组成（B-WU4）
-    expect(runtime.getLatestManifest()?.promptSections?.map((s) => s.name)).toEqual(["mode", "mode-scope:discipline"]);
+    // manifest 审计段组成（B-WU4；v0.7.16/A4：段名含 modeId 归属，跨模式不撞名）
+    expect(runtime.getLatestManifest()?.promptSections?.map((s) => s.name)).toEqual(["mode", "mode-scope:agent:discipline"]);
   });
 
   it("模式作用域 tool 聚合进请求工具集（agent-loop extraTools，B-WU5）", async () => {

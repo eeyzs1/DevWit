@@ -94,6 +94,29 @@ describe("modeTextOverride（v0.7.10：input.systemPrompt 恒赢 mode 段）", (
   });
 });
 
+describe("v0.7.16 modeId 归属过滤（审查 A4：并发模式互不污染）", () => {
+  const ctxOf = (modeId: string) => ({ modeId, providerId: "p", model: "m" });
+
+  it("带 modeId 的段仅在该模式的组装中出现；其它模式组装不含", () => {
+    const reg = new PromptSectionRegistry();
+    reg.register({ name: "mode", order: 0, text: "基座" });
+    reg.register({ name: "mode-scope:X:k1", order: 200, text: "X 的专属段", modeId: "X" });
+    reg.register({ name: "mode-scope:Y:k1", order: 200, text: "Y 的专属段", modeId: "Y" });
+    reg.register({ name: "shared", order: 300, text: "共享段" });
+    expect(reg.assemble(ctxOf("X")).text).toBe("基座\n\nX 的专属段\n\n共享段");
+    expect(reg.assemble(ctxOf("Y")).text).toBe("基座\n\nY 的专属段\n\n共享段");
+    expect(reg.assemble(ctxOf("Z")).text).toBe("基座\n\n共享段");
+  });
+
+  it("modeId 段不进其它模式的 sections 审计清单（manifest 组成如实）", () => {
+    const reg = new PromptSectionRegistry();
+    reg.register({ name: "mode", order: 0, text: "基座" });
+    reg.register({ name: "mode-scope:X:k1", order: 200, text: "X 段", modeId: "X" });
+    const names = reg.assemble(ctxOf("Y")).sections.map((s) => s.name);
+    expect(names).toEqual(["mode"]);
+  });
+});
+
 describe("ContextEngine promptSections 集成（B-WU4）", () => {
   it("注册表存在：系统提示为组装结果（input.systemPrompt 恒为 mode 段文本——v0.7.10 修复），manifest 记录段组成", async () => {
     const reg = new PromptSectionRegistry();
