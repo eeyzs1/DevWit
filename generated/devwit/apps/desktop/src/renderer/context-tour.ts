@@ -41,7 +41,12 @@ async function mergeState(api: DevwitApi, patch: OnboardingState): Promise<void>
   await api.settings.set("onboarding.state", { ...prev, ...patch });
 }
 
-/** 若尚未看过导览则弹出；已看过则 no-op。 */
+/**
+ * 若尚未看过导览则弹出；已看过则 no-op。
+ * v0.7.27（审查 R8-1）：返回在 dismiss() 内 resolve 的 Promise——调用方
+ * 据此串行后续导览（旧实现 appendChild 后即返回，index.ts 的 await 只等到
+ * 「已显示」，授权门导览立即叠上来：用户先看到错的那个 + 双层遮罩异常变暗）。
+ */
 export async function maybeOpenContextTour(deps: ContextTourDeps): Promise<void> {
   const state = await readState(deps.api);
   if (state.contextTourSeen === true) return;
@@ -66,11 +71,18 @@ export async function maybeOpenContextTour(deps: ContextTourDeps): Promise<void>
   actions.appendChild(gotIt);
   modal.appendChild(actions);
 
+  // v0.7.27（R8-1）：dismiss 时 resolve——调用方可 await 完整导览生命周期
+  let dismissed!: () => void;
+  const dismissedPromise = new Promise<void>((resolve) => {
+    dismissed = resolve;
+  });
   const dismiss = (): void => {
     deps.highlightTab?.(false);
     mask.remove();
-    void mergeState(deps.api, { contextTourSeen: true });
+    // v0.7.27（R8-5）：完成标记失败可见（否则每次启动重弹且无提示）
+    mergeState(deps.api, { contextTourSeen: true }).catch(() => undefined);
     deps.showChatTab?.();
+    dismissed();
   };
   gotIt.addEventListener("click", dismiss);
   mask.addEventListener("click", (ev) => {
@@ -78,4 +90,5 @@ export async function maybeOpenContextTour(deps: ContextTourDeps): Promise<void>
   });
 
   document.body.appendChild(mask);
+  await dismissedPromise;
 }

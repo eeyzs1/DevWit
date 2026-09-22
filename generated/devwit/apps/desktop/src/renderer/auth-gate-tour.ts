@@ -62,7 +62,8 @@ export async function maybeOpenAuthGateTour(deps: AuthGateTourDeps): Promise<voi
 
   const dismiss = (): void => {
     mask.remove();
-    void mergeState(deps.api, { authGateTourSeen: true });
+    // v0.7.27（R8-5）：完成标记失败可见（否则每次启动重弹且无提示）
+    mergeState(deps.api, { authGateTourSeen: true }).catch(() => undefined);
     deps.showChatTab?.();
   };
   gotIt.addEventListener("click", dismiss);

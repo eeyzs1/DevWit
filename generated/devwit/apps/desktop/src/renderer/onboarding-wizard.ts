@@ -64,14 +64,27 @@ export function openOnboardingWizard(deps: OnboardingWizardDeps): void {
   let step: 0 | 1 | 2 = 0;
   let presets: ProviderPreset[] = [];
   let activePreset: ProviderPreset | null = null;
+  // v0.7.27（审查 R8-2）：模型步输入跨步骤保留——旧实现 render 整体重建，
+  // 上一步再下一步后 baseUrl 重置回预设默认 / Key 清空 / 型号从不回填
+  let wizardBaseUrl = "";
+  let wizardModel = "";
+  let wizardSecret = "";
+  // v0.7.27（审查 R8-3）：语言步当前选择——旧实现重渲染后异步 get 读到
+  // 旧值把 select 视觉回跳到「跟随系统」
+  let langChoice: string | null = null;
+  // v0.7.27（审查 R8-8）：close 幂等闩锁——双击跳过/完成按钮双发 onClosed，
+  // 叠加导览调度链后最多 4 层遮罩
+  let closed = false;
 
   const markCompleted = (): void => {
     void (async () => {
       const prev = (await api.settings.get("onboarding.state")) as Record<string, unknown> | null;
       await api.settings.set("onboarding.state", { ...(prev ?? {}), completed: true });
-    })();
+    })().catch(() => undefined); // v0.7.27（R8-5）：失败不静默成 unhandled rejection
   };
   const close = (): void => {
+    if (closed) return;
+    closed = true;
     markCompleted();
     unsubscribe();
     mask.remove();
@@ -97,13 +110,20 @@ export function openOnboardingWizard(deps: OnboardingWizardDeps): void {
       option.textContent = LOCALE_LABEL[locale];
       select.appendChild(option);
     }
+    // v0.7.27（R8-3）：同步初始化当前选择，异步 get 仅作首帧校正——
+    // 旧实现 get 在 change 后的重渲染中读到旧值（FIFO 早于 set 入队），
+    // select 被视觉回跳
+    select.value = langChoice ?? "system";
     void api.settings.get("ui.locale").then((stored) => {
-      select.value = stored === "zh-CN" || stored === "en-US" ? stored : "system";
+      if (langChoice === null) {
+        select.value = stored === "zh-CN" || stored === "en-US" ? stored : "system";
+      }
     });
     select.addEventListener("change", () => {
       const choice = select.value;
+      langChoice = choice;
       setLocale(choice === "system" ? resolveSystemLocale() : (choice as Locale));
-      void api.settings.set("ui.locale", choice);
+      void api.settings.set("ui.locale", choice).catch(() => undefined);
     });
     form.appendChild(select);
     body.appendChild(form);
@@ -178,7 +198,11 @@ export function openOnboardingWizard(deps: OnboardingWizardDeps): void {
       secretInput.value = "";
     }
     presetSelect.addEventListener("change", () => {
-      applyPreset(presets.find((preset) => preset.id === presetSelect.value) ?? null);
+      const preset = presets.find((candidate) => candidate.id === presetSelect.value) ?? null;
+      applyPreset(preset);
+      wizardBaseUrl = "";
+      wizardModel = "";
+      wizardSecret = "";
     });
 
     // 预设目录经 IPC 异步下发；到达前下拉为空。无「自定义」项——自定义接入走设置页。
@@ -197,6 +221,12 @@ export function openOnboardingWizard(deps: OnboardingWizardDeps): void {
       presetSelect.value = activePreset.id;
       applyPreset(activePreset);
     }
+    // v0.7.27（R8-2）：跨步骤回填用户输入（用户改过 baseUrl/model/Key 后
+    // 返回语言步再前进，旧实现全部丢失；applyPreset 的默认值仅在未自定义时
+    // 生效——自定义过 baseUrl 则以用户值为准）
+    if (wizardBaseUrl !== "") baseUrlInput.value = wizardBaseUrl;
+    modelInput.value = wizardModel;
+    if (!activePreset?.keyless) secretInput.value = wizardSecret;
 
     const actions = el("div", "dw-modal-actions");
     const backBtn = el("button", "dw-btn", t("wizard.back"));
@@ -207,6 +237,10 @@ export function openOnboardingWizard(deps: OnboardingWizardDeps): void {
     body.appendChild(actions);
 
     backBtn.addEventListener("click", () => {
+      // v0.7.27（R8-2）：离开模型步前快照输入，前进回来时回填
+      wizardBaseUrl = baseUrlInput.value;
+      wizardModel = modelInput.value;
+      wizardSecret = secretInput.value;
       step = 0;
       render();
     });
@@ -262,6 +296,8 @@ export function openOnboardingWizard(deps: OnboardingWizardDeps): void {
     });
 
     saveBtn.addEventListener("click", () => {
+      if (saveBtn.disabled) return; // v0.7.27（R8-7）：IPC 往返期间双击去重
+      saveBtn.disabled = true;
       void (async () => {
         errorBox.textContent = "";
         if (activePreset === null) {
@@ -294,11 +330,21 @@ export function openOnboardingWizard(deps: OnboardingWizardDeps): void {
           maxTokens: 4096,
           ...(keyless ? { keyless: true } : {}),
         };
-        await api.providers.upsert(config);
+        try {
+          await api.providers.upsert(config);
+        } catch (error) {
+          // v0.7.27（审查 R8-6）：upsert 失败补偿删除刚写入的凭证——旧实现
+          // 留下永久孤儿密文（无 provider 引用、无删除路径，重试每次新增）
+          if (!keyless) {
+            await api.credentials.delete(credentialRef).catch(() => undefined);
+          }
+          throw error;
+        }
         deps.onProvidersChanged();
         step = 2;
         render();
       })().catch((error: unknown) => {
+        saveBtn.disabled = false; // 失败恢复（v0.7.27 / R8-7）
         errorBox.textContent = error instanceof Error ? error.message : String(error);
       });
     });

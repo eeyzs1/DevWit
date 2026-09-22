@@ -68,16 +68,23 @@ export function openEditorSetupDialog(deps: EditorSetupDialogDeps): void {
   const errorBox = el("div", "dw-form-error");
   modal.appendChild(errorBox);
 
-  // 预填当前配置（启动失败修正路径：把用户现有模板带出来改）
+  // 预填当前配置（启动失败修正路径：把用户现有模板带出来改）。
+  // v0.7.27（审查 R8-9）：仅空时回填——迟到 resolve 不覆写用户已选的预设模板
   void deps.api.settings.get("externalEditor").then((value) => {
     const config = value as { command?: string } | null;
-    if (config !== null && typeof config.command === "string") {
+    if (config !== null && typeof config.command === "string" && commandInput.value === "") {
       commandInput.value = config.command;
     }
   });
 
+  // v0.7.27（审查 R8-4）：成功提示独立元素（accent 色）——旧实现复用
+  // .dw-form-error 红色样式显示「已保存」，用户误以为保存失败
+  const okBox = el("div", "dw-form-ok");
+  modal.appendChild(okBox);
+
   const close = (): void => mask.remove();
   async function save(): Promise<boolean> {
+    okBox.textContent = "";
     const command = commandInput.value.trim();
     if (command === "") {
       errorBox.textContent = t("err.templateEmpty");
@@ -97,19 +104,25 @@ export function openEditorSetupDialog(deps: EditorSetupDialogDeps): void {
   actions.appendChild(cancelBtn);
   const saveBtn = el("button", "dw-btn", t("editorSetup.save"));
   saveBtn.addEventListener("click", () => {
-    void save().then((ok) => {
-      if (ok) errorBox.textContent = t("editor.saved");
-    });
+    errorBox.textContent = "";
+    void save()
+      .then((ok) => {
+        if (ok) okBox.textContent = t("editor.saved");
+      })
+      .catch(() => undefined); // v0.7.27（R8-5）：IPC 失败不静默 unhandled rejection
   });
   actions.appendChild(saveBtn);
   if (deps.onSaved !== undefined) {
     const saveOpenBtn = el("button", "dw-btn dw-btn-primary", t("editorSetup.saveOpen"));
     saveOpenBtn.addEventListener("click", () => {
-      void save().then((ok) => {
-        if (!ok) return;
-        close();
-        deps.onSaved?.();
-      });
+      errorBox.textContent = "";
+      void save()
+        .then((ok) => {
+          if (!ok) return;
+          close();
+          deps.onSaved?.();
+        })
+        .catch(() => undefined); // v0.7.27（R8-5）
     });
     actions.appendChild(saveOpenBtn);
   }

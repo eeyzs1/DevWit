@@ -2894,6 +2894,12 @@ body,
   grid-column: 1 / -1;
 }
 
+/* v0.7.27（审查 R8-4）：成功提示样式——区别于错误红（保存成功不再显示成失败） */
+.dw-form-ok {
+  color: var(--dw-accent);
+  grid-column: 1 / -1;
+}
+
 /* ---- 统一设置页（AC12）：左侧导航 + 右侧分区内容 ---- */
 
 .dw-modal-settings {
