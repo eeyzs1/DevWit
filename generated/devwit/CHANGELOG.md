@@ -3,6 +3,29 @@
 所有显著变更记录于此。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本遵循 [语义化版本](https://semver.org/)。
 
+## [0.7.14] — 2026-10-02
+
+### Fixed
+- **编辑后折叠区域失同步**（E11，审查遗留轻微项）：打开文件后在顶部按
+  Enter 插行，所有折叠区域行号整体偏移——折叠标记画错行、隐藏区间失真；
+  宿主除 setDocument 外没有任何编辑后重算调用，「集成方负责」契约在内部
+  打字路径下不可维持。现在编辑置脏、渲染前一次性重算（rAF 合并连击，
+  O(行数) 不落在每击键上），用户折叠态按「头行文本 + 相对顺序」迁移
+- **Alt+Up/Down 行移动丢弃其余光标**（E9）：多光标下移动行块只保留主光标，
+  其余静默消失——改为按行归属平移全部光标（块内 +方向、交换邻行 -方向、
+  块外不动）并去重
+- **Shift+Alt+Up/Down 行复制平移块上方光标**（E9）：复制插入点上方区域
+  的行不移动，旧实现把全部光标一律 +块高——只有块内及其下方光标平移
+- **视口变大后 scrollTop 超上限**（E12）：resize() 补 clampScroll（纯视觉
+  瞬态）；wheel 滚轮 deltaMode 归一化（Firefox 行/页模式此前几乎滚不动，
+  Electron/Chromium 不受影响属可复用包加固）
+
+### Changed
+- **fire-and-forget IPC 链统一吞错可见化**（F10）：模式/模型热更新链、白名单
+  初始读取、示例项目创建链、模式删除链、预设目录初始 IIFE——任一失败不再
+  unhandled rejection 无感知（runBackground 辅助 / localizeError / 新增
+  err.sampleFailed 词典键，中英）
+
 ## [0.7.13] — 2026-10-02
 
 ### Fixed

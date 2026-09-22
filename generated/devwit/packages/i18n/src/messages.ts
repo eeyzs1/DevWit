@@ -574,6 +574,7 @@ const zhCN = {
   "err.saveFailed": "保存失败：{detail}",
   "err.openFailed": "打开文件失败：{detail}",
   "err.treeFailed": "加载文件树失败：{detail}",
+  "err.sampleFailed": "示例项目创建失败：{detail}",
   "err.preloadMissing": "preload 未就绪：window.devwit 缺失（应用安装可能损坏）",
   "chat.empty.title": "主 Agent 会这样工作",
   "chat.empty.lines": [
@@ -1263,6 +1264,7 @@ const enUS: Messages = {
   "err.saveFailed": "Save failed: {detail}",
   "err.openFailed": "Failed to open file: {detail}",
   "err.treeFailed": "Failed to load the file tree: {detail}",
+  "err.sampleFailed": "Failed to create the sample project: {detail}",
   "err.preloadMissing": "preload not ready: window.devwit missing (the installation may be broken)",
   "chat.empty.title": "How the main Agent works",
   "chat.empty.lines": [

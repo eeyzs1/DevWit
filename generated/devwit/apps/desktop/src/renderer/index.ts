@@ -226,6 +226,13 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   function showStatus(message: string): void {
     statusMessage.textContent = message;
   }
+  /** fire-and-forget IPC 链统一吞错并状态栏可见化（v0.7.14/F10：
+   *  杜绝 unhandled rejection 无感知——后台数据链失败至少留下痕迹）。 */
+  function runBackground(task: Promise<unknown>): void {
+    task.catch((error) => {
+      showStatus(toLocalError(error instanceof Error ? error.message : String(error)));
+    });
+  }
 
   // ---- 自动更新（AC16）：启动静默检查，发现新版本才提示 ----
   let lastUpdateStatus: UpdateStatusInfo | null = null;
@@ -548,15 +555,15 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   function launchWizard(onClosed?: () => void): void {
     openOnboardingWizard({
       api,
-      onProvidersChanged: () => void reloadProviders(),
+      onProvidersChanged: () => runBackground(reloadProviders()),
       onOpenFolder: () => openWorkspace(),
       onClosed,
     });
   }
   const settingsDeps: SettingsDialogDeps = {
     api,
-    onProvidersChanged: () => void reloadProviders(),
-    onModesChanged: () => void reloadModes(),
+    onProvidersChanged: () => runBackground(reloadProviders()),
+    onModesChanged: () => runBackground(reloadModes()),
     onRerunWizard: () => launchWizard(),
   };
 
@@ -758,8 +765,13 @@ async function bootstrap(api: DevwitApi): Promise<void> {
   async function openSampleProject(): Promise<void> {
     const root = await api.workspace.openDialog();
     if (root === null) return;
-    await api.workspace.createSample(root);
-    await enterWorkspace(root);
+    try {
+      await api.workspace.createSample(root);
+      await enterWorkspace(root);
+    } catch (error) {
+      // v0.7.14/F10：脚手架写入/进入工作区失败不再静默（unhandled rejection）
+      showStatus(t("err.sampleFailed", { detail: error instanceof Error ? error.message : String(error) }));
+    }
   }
   function refreshOnboarding(): void {
     onboarding.style.display = workspaceRoot === "" ? "flex" : "none";
@@ -1313,16 +1325,19 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     providers = await api.providers.list();
     chatPanel.refreshSelectors();
   }
-  void reloadModes();
-  void reloadProviders();
-  api.modes.onChanged(() => void reloadModes());
+  // v0.7.14/F10：初始加载与热更新链 runBackground 化——失败状态栏可见
+  runBackground(reloadModes());
+  runBackground(reloadProviders());
+  api.modes.onChanged(() => runBackground(reloadModes()));
   // AC29：命令毕业进白名单 → 状态栏瞬态提示（差分检测新增条目；null=未初始化不提示）
   let knownWhitelist: string[] | null = null;
-  void api.settings.get("security.commandWhitelist").then((stored) => {
-    knownWhitelist = Array.isArray(stored) ? stored.filter((x): x is string => typeof x === "string") : [];
-  });
+  runBackground(
+    api.settings.get("security.commandWhitelist").then((stored) => {
+      knownWhitelist = Array.isArray(stored) ? stored.filter((x): x is string => typeof x === "string") : [];
+    })
+  );
   api.settings.onChanged((key, value) => {
-    if (key === "providers") void reloadProviders();
+    if (key === "providers") runBackground(reloadProviders());
     if (key === "security.commandWhitelist" && Array.isArray(value)) {
       const current = value.filter((x): x is string => typeof x === "string");
       const previous = knownWhitelist;

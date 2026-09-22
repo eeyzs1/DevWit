@@ -1232,6 +1232,7 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps, registe
   });
 
   // 预设目录异步下发后填充下拉（首项为自定义），再加载已存配置
+  // v0.7.14/F10：初始 IIFE 补 catch——presets 拉取失败不再 unhandled rejection
   void (async () => {
     presets = await api.providers.presets();
     presetSelect.textContent = "";
@@ -1247,7 +1248,9 @@ function renderProviders(content: HTMLElement, deps: SettingsDialogDeps, registe
     }
     await renderList();
     newForm();
-  })();
+  })().catch(() => {
+    // 预设目录拉取失败：表单仍可用（自定义输入），静默降级不打断设置页
+  });
 }
 
 // ============================================================================
@@ -1470,10 +1473,14 @@ async function renderModes(
         const delBtn = el("button", "dw-btn dw-btn-small dw-btn-danger", t("mode.delete"));
         delBtn.addEventListener("click", (event) => {
           event.stopPropagation();
-          void api.modes
+          // v0.7.14/F10：删除链补 catch——IPC 拒绝不再 unhandled rejection
+          api.modes
             .delete(mode.id)
             .then(deps.onModesChanged)
-            .then(() => renderList());
+            .then(() => renderList())
+            .catch((error: unknown) => {
+              errorBox.textContent = localizeError(error instanceof Error ? error.message : String(error));
+            });
         });
         row.appendChild(delBtn);
       }

@@ -1,8 +1,8 @@
 [
   {
     "seq": 1,
-    "timestamp": "2026-09-22T05:59:52.256Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:15.343Z",
+    "sessionId": "session-1790057414727",
     "type": "route",
     "summary": "route: manual → e2e-local-a (score 0/30)",
     "detail": {
@@ -15,8 +15,8 @@
   },
   {
     "seq": 2,
-    "timestamp": "2026-09-22T05:59:52.257Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:15.344Z",
+    "sessionId": "session-1790057414727",
     "type": "user_message",
     "summary": "你好",
     "detail": {
@@ -25,15 +25,15 @@
   },
   {
     "seq": 0,
-    "timestamp": "2026-09-22T05:59:52.414Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:15.525Z",
+    "sessionId": "session-1790057414727",
     "type": "assistant_delta",
     "summary": "你好！我是 DevWit，简洁上下文的 AI 编程助手。"
   },
   {
     "seq": 3,
-    "timestamp": "2026-09-22T05:59:52.517Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:15.639Z",
+    "sessionId": "session-1790057414727",
     "type": "assistant_message",
     "summary": "你好！我是 DevWit，简洁上下文的 AI 编程助手。",
     "detail": {
@@ -42,8 +42,8 @@
   },
   {
     "seq": 4,
-    "timestamp": "2026-09-22T05:59:52.524Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:15.646Z",
+    "sessionId": "session-1790057414727",
     "type": "usage",
     "summary": "usage: in 42 / out 17",
     "detail": {
@@ -55,15 +55,15 @@
   },
   {
     "seq": 5,
-    "timestamp": "2026-09-22T05:59:52.524Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:15.647Z",
+    "sessionId": "session-1790057414727",
     "type": "done",
     "summary": "任务完成"
   },
   {
     "seq": 6,
-    "timestamp": "2026-09-22T05:59:52.870Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:15.974Z",
+    "sessionId": "session-1790057414727",
     "type": "route",
     "summary": "route: manual → e2e-local-a (score 0/30)",
     "detail": {
@@ -76,8 +76,8 @@
   },
   {
     "seq": 7,
-    "timestamp": "2026-09-22T05:59:52.871Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:15.975Z",
+    "sessionId": "session-1790057414727",
     "type": "user_message",
     "summary": "请把 hello.txt 加一行",
     "detail": {
@@ -86,15 +86,15 @@
   },
   {
     "seq": 0,
-    "timestamp": "2026-09-22T05:59:52.908Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:16.014Z",
+    "sessionId": "session-1790057414727",
     "type": "assistant_delta",
     "summary": "这是修改后的 hello.txt：\n\n```\nE2E hello devwit\nline2\nadded by agent proposal\n```"
   },
   {
     "seq": 8,
-    "timestamp": "2026-09-22T05:59:53.018Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:16.120Z",
+    "sessionId": "session-1790057414727",
     "type": "assistant_message",
     "summary": "这是修改后的 hello.txt：\n\n```\nE2E hello devwit\nline2\nadded by agent proposal\n```",
     "detail": {
@@ -103,8 +103,8 @@
   },
   {
     "seq": 9,
-    "timestamp": "2026-09-22T05:59:53.019Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:16.120Z",
+    "sessionId": "session-1790057414727",
     "type": "usage",
     "summary": "usage: in 42 / out 17",
     "detail": {
@@ -116,15 +116,15 @@
   },
   {
     "seq": 10,
-    "timestamp": "2026-09-22T05:59:53.019Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:16.120Z",
+    "sessionId": "session-1790057414727",
     "type": "done",
     "summary": "任务完成"
   },
   {
     "seq": 11,
-    "timestamp": "2026-09-22T05:59:53.404Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:16.543Z",
+    "sessionId": "session-1790057414727",
     "type": "route",
     "summary": "route: manual → e2e-local-a (score 0/30)",
     "detail": {
@@ -137,8 +137,8 @@
   },
   {
     "seq": 12,
-    "timestamp": "2026-09-22T05:59:53.405Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:16.543Z",
+    "sessionId": "session-1790057414727",
     "type": "user_message",
     "summary": "创建文件 agent-created.txt",
     "detail": {
@@ -147,8 +147,8 @@
   },
   {
     "seq": 13,
-    "timestamp": "2026-09-22T05:59:53.549Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:16.687Z",
+    "sessionId": "session-1790057414727",
     "type": "assistant_message",
     "summary": "（发起 1 个工具调用）",
     "detail": {
@@ -167,8 +167,8 @@
   },
   {
     "seq": 14,
-    "timestamp": "2026-09-22T05:59:53.549Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:16.688Z",
+    "sessionId": "session-1790057414727",
     "type": "tool_call",
     "summary": "write({\"path\":\"agent-created.txt\",\"content\":\"created by devwit agent\\n\"})",
     "detail": {
@@ -181,12 +181,12 @@
   },
   {
     "seq": 15,
-    "timestamp": "2026-09-22T05:59:53.550Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:16.688Z",
+    "sessionId": "session-1790057414727",
     "type": "authorization_request",
     "summary": "write: 写入文件: agent-created.txt",
     "detail": {
-      "requestId": "auth-209d80e0-d54a-4a2f-b714-813adf83b8e2",
+      "requestId": "auth-d5fd8dca-1533-4bea-98e9-11c4cf8d0ab1",
       "toolName": "write",
       "args": {
         "path": "agent-created.txt",
@@ -197,19 +197,19 @@
   },
   {
     "seq": 16,
-    "timestamp": "2026-09-22T05:59:53.770Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:16.874Z",
+    "sessionId": "session-1790057414727",
     "type": "authorization_decision",
     "summary": "write → allow",
     "detail": {
-      "requestId": "auth-209d80e0-d54a-4a2f-b714-813adf83b8e2",
+      "requestId": "auth-d5fd8dca-1533-4bea-98e9-11c4cf8d0ab1",
       "decision": "allow"
     }
   },
   {
     "seq": 17,
-    "timestamp": "2026-09-22T05:59:53.772Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:16.877Z",
+    "sessionId": "session-1790057414727",
     "type": "tool_result",
     "summary": "write 成功",
     "detail": {
@@ -221,8 +221,8 @@
   },
   {
     "seq": 18,
-    "timestamp": "2026-09-22T05:59:53.773Z",
-    "sessionId": "session-1790056791634",
+    "timestamp": "2026-09-22T06:10:16.877Z",
+    "sessionId": "session-1790057414727",
     "type": "diagnostics",
     "summary": "诊断：无问题",
     "detail": {

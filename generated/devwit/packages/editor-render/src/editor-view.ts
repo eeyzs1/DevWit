@@ -133,6 +133,8 @@ export class EditorView {
   private foldRegions: FoldRegion[] = [];
   /** 已折叠的起始行集合（0-based startLine → true；render 时跳过 startLine+1..endLine）。 */
   private foldedStarts: Set<number> = new Set();
+  /** 折叠区域脏标记（v0.7.14：编辑后置脏，渲染前一次性重算 + 折叠态迁移）。 */
+  private foldsDirty = false;
   /** Minimap 缩略图开关（v0.5.0：右侧缩略渲染 + 视口指示框 + 点击/拖拽滚动）。 */
   private minimapEnabled: boolean;
   /** Minimap 宽度（像素；默认 80）。 */
@@ -388,6 +390,7 @@ export class EditorView {
       this.tabSize,
     );
     this.rebuildFoldRegionIndex();
+    this.foldsDirty = false;
     this.invalidateVisibleProjection();
     this.scheduleRender();
   }
@@ -481,6 +484,8 @@ export class EditorView {
     const cssHeight = this.canvas.clientHeight || this.canvas.height || 600;
     this.canvas.width = Math.round(cssWidth * this.dpr);
     this.canvas.height = Math.round(cssHeight * this.dpr);
+    // v0.7.14（E12）：视口变大后 scrollTop 可能超上限（纯视觉瞬态）——钳制
+    this.clampScroll();
     this.scheduleRender();
   }
 
@@ -643,11 +648,22 @@ export class EditorView {
 
   private onWheel(ev: WheelEvent): void {
     ev.preventDefault();
+    // v0.7.14（E12）：deltaMode 归一化——Firefox 行/页模式滚轮此前按原始值
+    // （1/3 之类）累加，几乎滚不动。行模式 ×lineHeight，页模式 ×视口高。
+    let dy = ev.deltaY;
+    let dx = ev.deltaX;
+    if (ev.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+      dy *= this.lineHeight;
+      dx *= this.lineHeight;
+    } else if (ev.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+      dy *= this.viewportHeight();
+      dx *= this.viewportWidth();
+    }
     if (ev.shiftKey) {
-      this.scrollLeft += ev.deltaY + ev.deltaX;
+      this.scrollLeft += dy + dx;
     } else {
-      this.scrollTop += ev.deltaY;
-      this.scrollLeft += ev.deltaX;
+      this.scrollTop += dy;
+      this.scrollLeft += dx;
     }
     this.clampScroll();
     this.scheduleRender();
@@ -1064,10 +1080,18 @@ export class EditorView {
       this.doc.applyEdit({ offset: startOffset, length: endOffset - startOffset, text: lines.join("\n") });
     }
     const delta = direction;
-    this.selections = [{
-      anchor: { line: primary.anchor.line + delta, character: primary.anchor.character },
-      active: { line: primary.active.line + delta, character: primary.active.character },
-    }];
+    // v0.7.14 修复（E9）：行块与邻行交换后按行归属平移全部光标——块内 +delta、
+    // 被交换的邻行 -delta、块外不动。旧实现只保留主光标（其余光标静默消失）。
+    const shiftLineFor = (line: number): number => {
+      if (line >= firstLine && line <= lastLine) return line + delta;
+      const neighbor = direction === -1 ? firstLine - 1 : lastLine + 1;
+      return line === neighbor ? line - delta : line;
+    };
+    this.selections = this.selections.map((sel) => ({
+      anchor: { line: shiftLineFor(sel.anchor.line), character: sel.anchor.character },
+      active: { line: shiftLineFor(sel.active.line), character: sel.active.character },
+    }));
+    this.dedupeSelections();
     this.wakeCursor();
     this.ensureCursorVisible();
     this.scheduleRender();
@@ -1089,27 +1113,33 @@ export class EditorView {
       lines.push(this.lineText(line));
     }
     const insertText = lines.join("\n") + "\n";
+    // v0.7.14 修复（E9）：只有块内及其下方光标平移——插入点上方（direction=-1
+    // 的块上方区域）的行不移动，旧实现把全部光标（含块上方）一律 +shift。
+    const shift = lastLine - firstLine + 1;
+    const shiftSel = (sel: Selection): Selection => ({
+      anchor: {
+        line: sel.anchor.line >= firstLine ? sel.anchor.line + shift : sel.anchor.line,
+        character: sel.anchor.character,
+      },
+      active: {
+        line: sel.active.line >= firstLine ? sel.active.line + shift : sel.active.line,
+        character: sel.active.character,
+      },
+    });
     if (direction === -1) {
       // 复制到上方：在 firstLine 行首插入
       const insertOffset = this.doc.offsetAt({ line: firstLine, character: 0 });
       this.doc.applyEdit({ offset: insertOffset, length: 0, text: insertText });
-      // 光标不移动（仍在原行，但原行已下移 lastLine-firstLine+1 行）
-      const shift = lastLine - firstLine + 1;
-      this.selections = this.selections.map((sel) => ({
-        anchor: { line: sel.anchor.line + shift, character: sel.anchor.character },
-        active: { line: sel.active.line + shift, character: sel.active.character },
-      }));
+      // 块内光标随原文下移 shift（仍在原行文本上）
+      this.selections = this.selections.map(shiftSel);
     } else {
       // 复制到下方：在 lastLine 行尾插入 \n + 行文本
       const insertOffset = this.doc.offsetAt({ line: lastLine, character: this.lineText(lastLine).length });
       this.doc.applyEdit({ offset: insertOffset, length: 0, text: "\n" + lines.join("\n") });
-      // 光标移到复制块
-      const shift = lastLine - firstLine + 1;
-      this.selections = this.selections.map((sel) => ({
-        anchor: { line: sel.anchor.line + shift, character: sel.anchor.character },
-        active: { line: sel.active.line + shift, character: sel.active.character },
-      }));
+      // 块内光标移到复制块，块下方光标随行下移
+      this.selections = this.selections.map(shiftSel);
     }
+    this.dedupeSelections();
     this.wakeCursor();
     this.ensureCursorVisible();
     this.scheduleRender();
@@ -1627,9 +1657,41 @@ export class EditorView {
   private onDocumentChanged(): void {
     // 行数可能变化：投影缓存失效（下一次消费时重建）
     this.invalidateVisibleProjection();
+    // v0.7.14 修复（E11）：编辑后折叠区域失同步——顶部插一行后所有 foldRegions
+    // 行号整体偏移，折叠标记画错行、隐藏区间失真（宿主除 setDocument 外无编辑
+    // 后重算调用，「集成方负责」契约在内部打字路径下不可维持）。标记脏并在
+    // 下次渲染前一次性重算（rAF 合并连击；O(行数) 不落在每击键上）。
+    this.foldsDirty = true;
     this.clampSelections();
     this.clampScroll();
     this.scheduleRender();
+  }
+
+  /** 编辑后重算折叠区域，并按折叠头行文本迁移用户折叠态（foldedStarts）。 */
+  private refreshFoldsAfterEdit(): void {
+    this.foldsDirty = false;
+    const headers = [...this.foldedStarts].sort((a, b) => a - b).map((line) => this.lineText(line));
+    this.foldRegions = computeFoldRegions((line) => this.doc.getLine(line), this.doc.lineCount, this.tabSize);
+    this.rebuildFoldRegionIndex();
+    if (headers.length === 0) {
+      this.invalidateVisibleProjection();
+      return;
+    }
+    // 行号已漂移，按「头行文本 + 相对顺序」重新定位折叠态；找不到的丢弃
+    //（该区域已被编辑消除——诚实降级，不猜测）
+    const migrated = new Set<number>();
+    let searchFrom = 0;
+    for (const headerText of headers) {
+      const region = this.foldRegions.find(
+        (r) => r.startLine >= searchFrom && this.lineText(r.startLine) === headerText
+      );
+      if (region !== undefined) {
+        migrated.add(region.startLine);
+        searchFrom = region.startLine + 1;
+      }
+    }
+    this.foldedStarts = migrated;
+    this.invalidateVisibleProjection();
   }
 
   private wakeCursor(): void {
@@ -1664,6 +1726,9 @@ export class EditorView {
     this.renderScheduled = false;
     if (this.disposed) {
       return;
+    }
+    if (this.foldsDirty) {
+      this.refreshFoldsAfterEdit();
     }
     const ctx = this.ctx;
     const viewW = this.viewportWidth();
