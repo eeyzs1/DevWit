@@ -167,6 +167,19 @@ const zhCN = {
   "search.truncated": "结果过多，已截断。请细化搜索条件",
   "search.noWorkspace": "请先打开工作区",
   "search.replaced": "已替换 {n} 处 / {files} 个文件",
+  "search.toggleTitle": "切换跨文件搜索",
+
+  // ---- 命令面板（v0.7.30）----
+  "palette.commands.placeholder": "输入命令名…",
+  "palette.commands.hint": "命令 · ↑↓ 选择 · Enter 执行 · Esc 关闭",
+  "palette.files.placeholder": "输入文件名…",
+  "palette.files.hint": "文件 · ↑↓ 选择 · Enter 打开 · Esc 关闭",
+  "palette.empty": "无匹配项",
+  "palette.goto.files": "转到：文件树",
+  "palette.goto.git": "转到：Git 面板",
+  "palette.goto.debug": "转到：调试面板",
+  "palette.goto.outline": "转到：大纲",
+  "palette.goto.terminal": "转到：终端",
   "err.searchRegex": "正则表达式无效",
   "editor.welcome":
     "// 欢迎使用 DevWit\n// 打开文件夹后点击左侧文件开始编辑；右侧对话面板可请求 AI 修改代码。\n",
@@ -885,6 +898,19 @@ const enUS: Messages = {
   "search.truncated": "Too many results, truncated. Refine your search",
   "search.noWorkspace": "Open a workspace first",
   "search.replaced": "Replaced {n} occurrences / {files} files",
+  "search.toggleTitle": "Toggle cross-file search",
+
+  // ---- Command palette (v0.7.30) ----
+  "palette.commands.placeholder": "Type a command name…",
+  "palette.commands.hint": "Commands · ↑↓ navigate · Enter run · Esc close",
+  "palette.files.placeholder": "Type a file name…",
+  "palette.files.hint": "Files · ↑↓ navigate · Enter open · Esc close",
+  "palette.empty": "No matches",
+  "palette.goto.files": "Go to: Files tree",
+  "palette.goto.git": "Go to: Git panel",
+  "palette.goto.debug": "Go to: Debug panel",
+  "palette.goto.outline": "Go to: Outline",
+  "palette.goto.terminal": "Go to: Terminal",
   "err.searchRegex": "Invalid regular expression",
   "editor.welcome":
     "// Welcome to DevWit\n// Open a folder and click a file on the left to edit; ask AI to modify code in the chat panel.\n",

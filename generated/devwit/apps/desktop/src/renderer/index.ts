@@ -25,6 +25,7 @@ import {
 } from "@devwit/chat-ui";
 import { openSettingsDialog, type SettingsDialogDeps } from "./settings-dialog.js";
 import { mountSearchPanel } from "./search-panel.js";
+import { mountCommandPalette } from "./command-palette.js";
 import { mountLspUi } from "./lsp-ui.js";
 import { mountGitPanel } from "./git-panel.js";
 import { mountDebugPanel } from "./debug-panel.js";
@@ -459,7 +460,6 @@ async function bootstrap(api: DevwitApi): Promise<void> {
       searchPanelHandle.toggle();
     }
   });
-
   // ---- 跨文件搜索面板（v0.4.0）：编辑器顶部，Ctrl+Shift+F 切换 ----
   const searchPanel = el("div", "dw-search-panel");
   searchPanel.style.display = "none";
@@ -559,6 +559,38 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     getActiveFilePath: () => openFile?.path ?? null,
     onActiveFileRewritten: refreshActiveFileDoc,
     showStatus,
+  });
+
+  // ---- 命令面板（v0.7.30）：Ctrl+Shift+P 命令 / Ctrl+P 文件 ----
+  const palette = mountCommandPalette({
+    listFiles: () => workspaceFiles,
+    openFile: (relPath) => {
+      const abs = `${workspaceRoot.replace(/[/\\]+$/, "")}/${relPath}`;
+      void openFileByPath(abs).catch(() => undefined);
+    },
+    listCommands: () => [
+      { id: "openFolder", label: t("chrome.openFolder"), run: () => void openWorkspace() },
+      { id: "save", label: t("chrome.save"), run: () => void saveActiveFile() },
+      { id: "settings", label: t("chrome.settings"), run: () => openSettingsDialog(settingsDeps) },
+      { id: "form.toggle", label: form === "chat" ? t("chrome.form.console") : t("chrome.form.chat"), run: () => { switchForm(form === "chat" ? "console" : "chat"); schedulePersist(); } },
+      { id: "search.toggle", label: t("search.toggleTitle"), run: () => searchPanelHandle.toggle() },
+      { id: "tab.files", label: t("palette.goto.files"), run: () => activateLeftTab("files") },
+      { id: "tab.git", label: t("palette.goto.git"), run: () => { activateLeftTab("git"); void gitPanel.refreshGit(); } },
+      { id: "tab.debug", label: t("palette.goto.debug"), run: () => activateLeftTab("debug") },
+      { id: "tab.outline", label: t("palette.goto.outline"), run: () => { activateLeftTab("outline"); void lspUi.refreshOutline(); } },
+      { id: "tab.terminal", label: t("palette.goto.terminal"), run: () => { activateLeftTab("terminal"); terminalPanel.activate(); } },
+      { id: "external", label: t("chrome.external"), run: () => void (async () => { if (openFile !== null) await openExternal(openFile.path); })() },
+    ],
+  });
+  window.addEventListener("keydown", (event) => {
+    // Ctrl+Shift+P：命令面板；Ctrl+P：文件面板（VS Code 惯例）
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "p") {
+      event.preventDefault();
+      palette.open("commands");
+    } else if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "p") {
+      event.preventDefault();
+      palette.open("files");
+    }
   });
 
   // ---- 统一设置页（AC12）：通用 / 模型 / 编辑器 / 模式 ----
@@ -1401,6 +1433,7 @@ async function bootstrap(api: DevwitApi): Promise<void> {
     outlineTab.textContent = t("tab.outline");
     terminalTab.textContent = t("tab.terminal");
     terminalPanel.applyLocale();
+    palette.applyLocale(); // v0.7.30：命令面板占位/提示随语言热生效
     lspUi.renderOutlineTree(); // 大纲空态文案随语言热生效
     debugPanel.renderDebugStatus(); // 调试状态项随语言热生效
     debugPanel.renderDebugPanel();

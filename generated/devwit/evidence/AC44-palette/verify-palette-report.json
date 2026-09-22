@@ -1,0 +1,16 @@
+{
+  "steps": [
+    "应用启动 + fixture 工作区打开（alpha.ts / beta.md）",
+    "Ctrl+Shift+P 打开命令面板（命令目录可见）",
+    "命令执行：过滤 + Enter → 转到终端（会话创建）",
+    "文件面板：过滤 + Enter → alpha.ts 打开"
+  ],
+  "assertions": [
+    "命令面板列出本地化命令（实际含: 打开文件夹保存 (Ctrl+S)设置指挥台切换跨文件搜索转到：文件树转到：Git 面板转到：调试面板转到：大纲转到：终端外部编辑器 ↗）",
+    "过滤「终端」+ Enter 执行 → 终端页签激活并创建会话",
+    "Escape 关闭命令面板（a11y 键盘闭环）",
+    "Ctrl+P 文件面板过滤「alpha」+ Enter → alpha.ts 打开"
+  ],
+  "failures": [],
+  "fatal": null
+}
