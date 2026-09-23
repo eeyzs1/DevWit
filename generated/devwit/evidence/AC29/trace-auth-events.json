@@ -2,12 +2,12 @@
   "authorization_request": [
     {
       "seq": 5,
-      "timestamp": "2026-09-22T16:45:01.238Z",
-      "sessionId": "task-session-1790095500990-1",
+      "timestamp": "2026-09-22T17:18:10.988Z",
+      "sessionId": "task-session-1790097490724-1",
       "type": "authorization_request",
       "summary": "bash: 执行命令: echo ac29>> i18-marker.txt",
       "detail": {
-        "requestId": "auth-c7fee6f1-3363-4f37-bced-768902bfe940",
+        "requestId": "auth-486147ea-c924-4757-bc8e-c75b4ef2323d",
         "toolName": "bash",
         "args": {
           "command": "echo ac29>> i18-marker.txt"
@@ -17,12 +17,12 @@
     },
     {
       "seq": 10,
-      "timestamp": "2026-09-22T16:45:01.596Z",
-      "sessionId": "task-session-1790095500990-1",
+      "timestamp": "2026-09-22T17:18:11.344Z",
+      "sessionId": "task-session-1790097490724-1",
       "type": "authorization_request",
       "summary": "bash: 执行命令: echo ac29>> i18-marker.txt",
       "detail": {
-        "requestId": "auth-116cdfef-1249-4828-9800-b424d8e6de69",
+        "requestId": "auth-697f0e0a-b898-4a74-acc1-5dc22bd93b82",
         "toolName": "bash",
         "args": {
           "command": "echo ac29>> i18-marker.txt"
@@ -34,8 +34,8 @@
   "authorization_auto": [
     {
       "seq": 15,
-      "timestamp": "2026-09-22T16:45:01.783Z",
-      "sessionId": "task-session-1790095500990-1",
+      "timestamp": "2026-09-22T17:18:11.535Z",
+      "sessionId": "task-session-1790097490724-1",
       "type": "authorization_auto",
       "summary": "bash: 执行命令: echo ac29>> i18-marker.txt",
       "detail": {
