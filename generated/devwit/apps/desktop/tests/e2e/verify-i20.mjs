@@ -1,3 +1,11 @@
+
+/** 剔除宿主继承的 ELECTRON_RUN_AS_NODE——在 Electron 宿主（VS Code 任务/DSH 等）的终端里
+ * 跑 E2E 时，该变量会让 electron.exe 以纯 Node 模式启动而直接 bad option 退出。 */
+function omitRunAsNode(env) {
+  const cleaned = { ...env };
+  delete cleaned.ELECTRON_RUN_AS_NODE;
+  return cleaned;
+}
 /**
  * 迭代 22 验证脚本（AC31 本地小模型路由，证据落盘 evidence/AC31）：
  * 1. 双本地端点（p-local 小模型 / p-cloud 模式绑定云端），各自真实 HTTP 线协议应答
@@ -86,7 +94,7 @@ function launchElectron(cdpPort) {
     const proc = spawn(exe, [`--remote-debugging-port=${cdpPort}`, "--lang=zh-CN", "."], {
       cwd: ROOT,
       env: {
-        ...process.env,
+        ...omitRunAsNode(process.env),
         DEVWIT_E2E_OPEN_DIR: fixture,
         DEVWIT_USER_DATA_DIR: userDataDir, DEVWIT_E2E_OFFSCREEN: "1",
       },

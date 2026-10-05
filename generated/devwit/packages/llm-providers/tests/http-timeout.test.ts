@@ -76,6 +76,13 @@ describe("fetchWithConnectTimeout", () => {
 });
 
 describe("fetchWithRetry（🟡修复回归：429/5xx 预流重试——retryable 此前无消费方）", () => {
+  it("网络层不可达（真实关闭端口）：统一为 DW_LLM_UNREACHABLE（v0.7.31，曾透传裸 fetch failed）", async () => {
+    // 127.0.0.1:1 无监听——fetch 抛 TypeError（ECONNREFUSED），真实网络路径非 mock
+    await expect(
+      fetchWithRetry("http://127.0.0.1:1/v1/chat/completions", { method: "POST" }, { retries: 0 })
+    ).rejects.toThrow("DW_LLM_UNREACHABLE");
+  });
+
   it("429 后 200：重试成功，服务端共收到 2 次请求（Retry-After 尊重）", async () => {
     let attempts = 0;
     const server = http.createServer((req, res) => {

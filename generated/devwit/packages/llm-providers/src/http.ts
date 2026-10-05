@@ -129,7 +129,14 @@ export async function fetchWithRetry(
       await assertResponseOk(response);
       return response;
     } catch (error) {
-      if (!isRetryableError(error) || attempt >= retries) throw error;
+      if (!isRetryableError(error) || attempt >= retries) {
+        // v0.7.31：网络层故障（TypeError "fetch failed"——ECONNREFUSED/DNS/TLS）
+        // 统一为 ASCII 错误码，由渲染端 localizeError 本地化——旧实现把裸
+        // "fetch failed" 直接展示给用户（与 DW_PROBE_UNREACHABLE 口径不一致）。
+        // 调用方主动取消（DOMException AbortError）与超时（TimeoutError）原样透传。
+        if (error instanceof TypeError) throw new Error("DW_LLM_UNREACHABLE");
+        throw error;
+      }
       const retryAfter = error instanceof ProviderHttpError ? error.retryAfterMs : undefined;
       const backoff = retryAfter ?? 500 * 2 ** attempt;
       await backoffSleep(backoff, init.signal);

@@ -1,3 +1,11 @@
+
+/** 剔除宿主继承的 ELECTRON_RUN_AS_NODE——在 Electron 宿主（VS Code 任务/DSH 等）的终端里
+ * 跑 E2E 时，该变量会让 electron.exe 以纯 Node 模式启动而直接 bad option 退出。 */
+function omitRunAsNode(env) {
+  const cleaned = { ...env };
+  delete cleaned.ELECTRON_RUN_AS_NODE;
+  return cleaned;
+}
 /**
  * 迭代 6 验证脚本（AC15 会话持久化：对话 + Agent 任务历史落盘，重启恢复）。
  *
@@ -107,7 +115,7 @@ let electronProc = null;
 function launchElectron(cdpPort, withOpenDirHook) {
   return new Promise((resolve, reject) => {
     const exe = path.join(ROOT, "node_modules", "electron", "dist", "electron.exe");
-    const env = { ...process.env, DEVWIT_USER_DATA_DIR: userDataDir, DEVWIT_E2E_OFFSCREEN: "1" };
+    const env = { ...omitRunAsNode(process.env), DEVWIT_USER_DATA_DIR: userDataDir, DEVWIT_E2E_OFFSCREEN: "1" };
     // 进程二不带给目录钩子：文件树出现即证明工作区来自 session.state 恢复
     if (withOpenDirHook) env.DEVWIT_E2E_OPEN_DIR = fixture;
     const proc = spawn(exe, [`--remote-debugging-port=${cdpPort}`, "--lang=zh-CN", "."], {

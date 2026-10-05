@@ -34,6 +34,7 @@ const zhCN = {
   // ---- 终端面板（v0.7.28）----
   "tab.terminal": "终端",
   "terminal.started": "—— 会话已启动（{shell}）——",
+  "terminal.started.fallback": "—— 会话已启动（{shell} · pipe 回退模式，TUI 程序不可用）——",
   "terminal.exited": "—— 会话已结束{code} ——",
   "terminal.startFailed": "—— 启动失败：{detail} ——",
   "terminal.restart": "重启",
@@ -508,6 +509,7 @@ const zhCN = {
   "err.llmUnknown": "模型服务返回未知错误（{provider}）",
   "err.probeTimeout": "连接超时：服务器 {ms}ms 内无响应",
   "err.probeUnreachable": "无法连接该 Base URL：请确认服务已启动、地址与端口正确",
+  "err.llmUnreachable": "无法连接模型服务：请确认服务已启动、地址与端口正确（检查本地服务是否运行、API 地址是否正确）",
   "err.probeHttp": "服务器返回 HTTP {status}（请检查 Base URL 路径与 API Key）",
   "err.probeInvalidUrl": "Base URL 无效",
 
@@ -765,6 +767,7 @@ const enUS: Messages = {
   // ---- Terminal panel (v0.7.28) ----
   "tab.terminal": "Terminal",
   "terminal.started": "—— session started ({shell}) ——",
+  "terminal.started.fallback": "—— session started ({shell} · pipe fallback, TUI apps unavailable) ——",
   "terminal.exited": "—— session ended{code} ——",
   "terminal.startFailed": "—— start failed: {detail} ——",
   "terminal.restart": "Restart",
@@ -1229,6 +1232,7 @@ const enUS: Messages = {
   "err.llmUnknown": "Unknown error from model service ({provider})",
   "err.probeTimeout": "Connection timed out: no response within {ms}ms",
   "err.probeUnreachable": "Cannot reach this Base URL: check that the service is running and the address/port are correct",
+  "err.llmUnreachable": "Cannot reach the model service: make sure it is running and the address/port are correct (check local services and the API URL)",
   "err.probeHttp": "Server returned HTTP {status} (check the Base URL path and API key)",
   "err.probeInvalidUrl": "Invalid Base URL",
 

@@ -161,12 +161,17 @@ export function buildHandlerTable(services: IpcServices, hooks: IpcHooks, ai?: A
   table[IPC.WorkspaceOpenDialog] = async () => {
     const dir = await hooks.openDirectoryDialog();
     if (dir) {
-      await workspace.openRoot(dir);
+      // v0.7.31（实测修复）：openRoot 内部以 path.resolve 规范化存储（正斜杠→
+      // 反斜杠等），返回值必须与之一致——旧实现返回原始 dir，非规范路径形态
+      // （如 E:/ 前进斜杠）下渲染层回传 root 与主进程精确比对失败，文件树
+      // 永久 DW_WORKSPACE_ROOT_MISMATCH 且无自愈。
+      const resolved = await workspace.openRoot(dir);
       workspace.watch();
       ai?.refreshRag(); // AC19：工作区确定后立即评估/构建代码索引
       ai?.refreshSymbols(); // AC38：符号索引与 RAG 解耦，同址构建
-      lsp?.openWorkspace(dir); // AC40：工作区打开即启动 tsserver（零系统依赖）
-      git?.openWorkspace(dir); // AC41：Git 服务绑定仓库根（非 git 目录状态为 null）
+      lsp?.openWorkspace(resolved); // AC40：工作区打开即启动 tsserver（零系统依赖）
+      git?.openWorkspace(resolved); // AC41：Git 服务绑定仓库根（git 会向上找外层仓库）
+      return resolved;
     }
     return dir;
   };

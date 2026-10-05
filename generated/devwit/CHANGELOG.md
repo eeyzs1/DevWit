@@ -3,6 +3,50 @@
 所有显著变更记录于此。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本遵循 [语义化版本](https://semver.org/)。
 
+## [0.7.31] — 2026-10-05
+
+本版为「真实用户全流程实测」修复版：打包发布形态（NSIS/AppImage/deb 产物）
+下手工实测发现的五处缺陷全部闭环，均附真实复现证据与回归测试。
+
+### Fixed
+- **发布版终端无法执行任何命令**（critical）：渲染层按 pty 惯例发送 `\r`，
+  但 cmd.exe 管道 stdin 只认 `\r\n`、POSIX shell 只认 `\n`——打包产物不含
+  node-pty（electron-builder 白名单 + `npmRebuild:false`，按设计回退 pipe），
+  回退后端透传 `\r` 导致回车永不触发执行（终端能显示 banner 但敲任何命令
+  无响应）。`PipeBackend.write` 现按平台翻译行尾（`toPipeLineEndings`，
+  含真实 shell 逐字符回归测试：`pipe-backend.test.ts`）。
+- **打包版 LSP 启动失败（DW_LSP_SERVER_EXIT:1）**：pnpm 符号链接布局使
+  electron-builder 的 `asarUnpack` 通配符失配，typescript-language-server/
+  typescript/pyright 只进 asar 不解包，运行时 asar→unpacked 路径替换后文件
+  不存在。`pnpm-workspace.yaml` 增加 `nodeLinker: hoisted`（npm 式真实平铺
+  布局），asar.unpacked 三依赖齐备，打包版大纲/诊断/悬停恢复（终端后端亦
+  随之从 pipe 回退升级为真 pty）。
+- **首启向导「保存并继续」校验失败后按钮永久禁用**：旧实现先 disable 再
+  校验，模型为空的早退路径不恢复 disabled——没装 Ollama 的用户点一次保存
+  后按钮从此点不动（须上一步/下一步重渲染解套）。全部同步校验前置，禁用
+  只覆盖异步 IPC 窗口。
+- **工作区路径形态不一致（DW_WORKSPACE_ROOT_MISMATCH）**：打开工作区 IPC
+  返回原始 dir 而主进程存的是 path.resolve 规范化值——非规范路径形态
+  （正斜杠等）下文件树永久加载失败且无自愈。现返回 resolved 并同步喂给
+  LSP/Git。
+- **对话网络层错误裸透传**：模型服务不可达时用户看到原始 `fetch failed`；
+  现统一为 ASCII 错误码 `DW_LLM_UNREACHABLE`（`fetchWithRetry` 网络层
+  TypeError 包装）并双语本地化（与 DW_PROBE_UNREACHABLE 同口径）。
+- **pipe 回退静默降级**：终端回退 pipe 后无任何提示；启动行现明示
+  「pipe 回退模式，TUI 程序不可用」。
+
+### Changed
+- **构建脚本去 npm 硬编码**：`build`/`pack`/`dist`/`dev` 原内部链式调用
+  `npm run`，仅有 pnpm/yarn 的环境直接失败；新增 `scripts/build.mjs` 以
+  node 直接驱动本地工具（tsc/esbuild），npm / pnpm / yarn 均可作运行器。
+- **E2E 启动器环境免疫**：41 个 E2E 脚本 spawn electron 时剔除宿主继承的
+  `ELECTRON_RUN_AS_NODE`——在 Electron 宿主（VS Code 任务终端等）里跑
+  E2E 不再 bad option 直接退出。
+- **pnpm 全兼容配置**（`pnpm-workspace.yaml`）：`blockExoticSubdeps` 放行
+  @electron/node-gyp（git 型传递依赖）、`linkWorkspacePackages` 链接
+  @devwit/* 内部包、`allowBuilds` 白名单（electron/esbuild/node-pty），
+  附 `nodeLinker: hoisted`（见上）。
+
 ## [0.7.30] — 2026-10-02
 
 ### Added

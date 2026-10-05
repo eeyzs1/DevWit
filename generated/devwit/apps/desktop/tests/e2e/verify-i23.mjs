@@ -1,3 +1,11 @@
+
+/** 剔除宿主继承的 ELECTRON_RUN_AS_NODE——在 Electron 宿主（VS Code 任务/DSH 等）的终端里
+ * 跑 E2E 时，该变量会让 electron.exe 以纯 Node 模式启动而直接 bad option 退出。 */
+function omitRunAsNode(env) {
+  const cleaned = { ...env };
+  delete cleaned.ELECTRON_RUN_AS_NODE;
+  return cleaned;
+}
 /**
  * 迭代 25 验证脚本（AC34 插件市场原型——社区索引扩展 MCP 服务器，证据落盘 evidence/AC34）：
  * 1. 本地 HTTP server 模拟社区索引源（DEVWIT_MODES_INDEX_URL 注入，与社区模式同一 base）：
@@ -109,7 +117,7 @@ function launchElectron(cdpPort, indexBase) {
     const proc = spawn(exe, [`--remote-debugging-port=${cdpPort}`, "--lang=zh-CN", "."], {
       cwd: ROOT,
       env: {
-        ...process.env,
+        ...omitRunAsNode(process.env),
         DEVWIT_E2E_OPEN_DIR: fixture,
         DEVWIT_USER_DATA_DIR: userDataDir, DEVWIT_E2E_OFFSCREEN: "1",
         DEVWIT_MODES_INDEX_URL: indexBase,

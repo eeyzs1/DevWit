@@ -1,3 +1,11 @@
+
+/** 剔除宿主继承的 ELECTRON_RUN_AS_NODE——在 Electron 宿主（VS Code 任务/DSH 等）的终端里
+ * 跑 E2E 时，该变量会让 electron.exe 以纯 Node 模式启动而直接 bad option 退出。 */
+function omitRunAsNode(env) {
+  const cleaned = { ...env };
+  delete cleaned.ELECTRON_RUN_AS_NODE;
+  return cleaned;
+}
 /**
  * 实机演示：真实 DeepSeek LLM 调用【真实外部托管 MCP】—— Context7（https://mcp.context7.com/mcp）
  *
@@ -38,7 +46,7 @@ function launchElectron(cdpPort) {
     const exe = path.join(ROOT, "node_modules", "electron", "dist", "electron.exe");
     const proc = spawn(exe, [`--remote-debugging-port=${cdpPort}`, "--lang=zh-CN", "."], {
       cwd: ROOT,
-      env: { ...process.env, DEVWIT_E2E_OPEN_DIR: proj, DEVWIT_USER_DATA_DIR: userDataDir, DEVWIT_E2E_OFFSCREEN: "1", DEEPSEEK_API_KEY: KEY },
+      env: { ...omitRunAsNode(process.env), DEVWIT_E2E_OPEN_DIR: proj, DEVWIT_USER_DATA_DIR: userDataDir, DEVWIT_E2E_OFFSCREEN: "1", DEEPSEEK_API_KEY: KEY },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stderrBuf = "";

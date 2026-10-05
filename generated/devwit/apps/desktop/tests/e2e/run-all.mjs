@@ -1,3 +1,11 @@
+
+/** 剔除宿主继承的 ELECTRON_RUN_AS_NODE——在 Electron 宿主（VS Code 任务/DSH 等）的终端里
+ * 跑 E2E 时，该变量会让 electron.exe 以纯 Node 模式启动而直接 bad option 退出。 */
+function omitRunAsNode(env) {
+  const cleaned = { ...env };
+  delete cleaned.ELECTRON_RUN_AS_NODE;
+  return cleaned;
+}
 /**
  * E2E 全量跑批器（v0.7.11：根治测试腐烂——verify-i11/i5 静默失效数月无人知晓）。
  *
@@ -32,7 +40,7 @@ function runOne(name) {
   return new Promise((resolve) => {
     const started = Date.now();
     const child = spawn(process.execPath, [path.join(dir, name)], {
-      env: { ...process.env, DEVWIT_E2E_OFFSCREEN: "1" },
+      env: { ...omitRunAsNode(process.env), DEVWIT_E2E_OFFSCREEN: "1" },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let timedOut = false;

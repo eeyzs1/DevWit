@@ -8,7 +8,8 @@ export default tseslint.config(
       "release/**",
       "evidence/**",
       "runtime/sources/workitems/**",
-      "vendor/**"
+      "vendor/**",
+      ".manual-test/**"
     ]
   },
   ...tseslint.configs.recommended,

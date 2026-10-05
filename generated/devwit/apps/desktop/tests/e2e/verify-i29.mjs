@@ -1,3 +1,11 @@
+
+/** 剔除宿主继承的 ELECTRON_RUN_AS_NODE——在 Electron 宿主（VS Code 任务/DSH 等）的终端里
+ * 跑 E2E 时，该变量会让 electron.exe 以纯 Node 模式启动而直接 bad option 退出。 */
+function omitRunAsNode(env) {
+  const cleaned = { ...env };
+  delete cleaned.ELECTRON_RUN_AS_NODE;
+  return cleaned;
+}
 /**
  * 迭代 29 验证脚本（AC38 代码智能 II：符号级索引 + @符号 引用，证据落盘 evidence/AC38）：
  * 1. fixture 工作区（src/calc.ts 含 add 函数与 MAGIC_SYMBOL_TOKEN / src/user.ts 含 UserService 类与
@@ -110,7 +118,7 @@ function launchElectron(cdpPort) {
     const proc = spawn(exe, [`--remote-debugging-port=${cdpPort}`, "--lang=zh-CN", "."], {
       cwd: ROOT,
       env: {
-        ...process.env,
+        ...omitRunAsNode(process.env),
         DEVWIT_E2E_OPEN_DIR: fixture,
         DEVWIT_USER_DATA_DIR: userDataDir, DEVWIT_E2E_OFFSCREEN: "1",
       },

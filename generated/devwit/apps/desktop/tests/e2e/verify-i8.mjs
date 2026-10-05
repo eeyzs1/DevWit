@@ -1,3 +1,11 @@
+
+/** 剔除宿主继承的 ELECTRON_RUN_AS_NODE——在 Electron 宿主（VS Code 任务/DSH 等）的终端里
+ * 跑 E2E 时，该变量会让 electron.exe 以纯 Node 模式启动而直接 bad option 退出。 */
+function omitRunAsNode(env) {
+  const cleaned = { ...env };
+  delete cleaned.ELECTRON_RUN_AS_NODE;
+  return cleaned;
+}
 /**
  * 迭代 8 验证脚本（AC17 MCP 工具接入，证据落盘 evidence/AC17）：
  * 1. 设置页 MCP 分区：UI 表单新增 stdio 服务器（真实 node 子进程跑 fake-mcp-server），
@@ -101,7 +109,7 @@ function launchElectron(cdpPort) {
     const exe = path.join(ROOT, "node_modules", "electron", "dist", "electron.exe");
     const proc = spawn(exe, [`--remote-debugging-port=${cdpPort}`, "--lang=zh-CN", "."], {
       cwd: ROOT,
-      env: { ...process.env, DEVWIT_E2E_OPEN_DIR: fixture, DEVWIT_USER_DATA_DIR: userDataDir, DEVWIT_E2E_OFFSCREEN: "1" },
+      env: { ...omitRunAsNode(process.env), DEVWIT_E2E_OPEN_DIR: fixture, DEVWIT_USER_DATA_DIR: userDataDir, DEVWIT_E2E_OFFSCREEN: "1" },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stderrBuf = "";

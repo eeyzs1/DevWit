@@ -297,33 +297,37 @@ export function openOnboardingWizard(deps: OnboardingWizardDeps): void {
 
     saveBtn.addEventListener("click", () => {
       if (saveBtn.disabled) return; // v0.7.27（R8-7）：IPC 往返期间双击去重
+      errorBox.textContent = "";
+      // v0.7.31（实测修复）：全部同步校验先行——旧实现先 disable 再校验，
+      // 校验失败的早退路径不会恢复 disabled，按钮从此点不动（用户必须
+      // 上一步/下一步重渲染才能解套）。禁用只覆盖真正的异步 IPC 窗口。
+      if (activePreset === null) {
+        errorBox.textContent = t("provider.required");
+        return;
+      }
+      const keyless = activePreset.keyless;
+      const baseUrl = baseUrlInput.value.trim();
+      const model = modelInput.value.trim();
+      if (baseUrl === "" || model === "") {
+        errorBox.textContent = t("provider.required");
+        return;
+      }
+      if (!keyless && secretInput.value === "") {
+        errorBox.textContent = t("provider.needKey");
+        return;
+      }
+      const preset = activePreset; // 校验后非空；const 捕获供闭包内保持收窄
       saveBtn.disabled = true;
       void (async () => {
-        errorBox.textContent = "";
-        if (activePreset === null) {
-          errorBox.textContent = t("provider.required");
-          return;
-        }
-        const baseUrl = baseUrlInput.value.trim();
-        const model = modelInput.value.trim();
-        if (baseUrl === "" || model === "") {
-          errorBox.textContent = t("provider.required");
-          return;
-        }
-        const keyless = activePreset.keyless;
         const id = `p-${Date.now().toString(36)}`;
         const credentialRef = `cred-${id}`;
         if (!keyless) {
-          if (secretInput.value === "") {
-            errorBox.textContent = t("provider.needKey");
-            return;
-          }
-          await api.credentials.set(credentialRef, activePreset.type, secretInput.value);
+          await api.credentials.set(credentialRef, preset.type, secretInput.value);
         }
         const config: ProviderConfig = {
           id,
-          type: activePreset.type,
-          label: activePreset.label,
+          type: preset.type,
+          label: preset.label,
           baseUrl,
           model,
           credentialRef,

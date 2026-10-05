@@ -159,6 +159,8 @@ export function localizeError(raw: string, opts?: LocalizeErrorOptions): string 
   const probeHttp = /DW_PROBE_HTTP:(\d+)/.exec(raw);
   if (probeHttp !== null) return t("err.probeHttp", { status: probeHttp[1] ?? "" });
   if (raw.includes("DW_PROBE_UNREACHABLE")) return t("err.probeUnreachable");
+  // v0.7.31：对话/embed 网络层不可达（曾直接透传裸 "fetch failed"）
+  if (raw.includes("DW_LLM_UNREACHABLE")) return t("err.llmUnreachable");
   if (raw.includes("DW_PROBE_INVALID_URL")) return t("err.probeInvalidUrl");
   // 迭代 32 / AC41 Git 版本控制错误码（detail 为 git stderr 摘要，随码剥离不展示）
   if (raw.includes("DW_GIT_NOT_REPO")) return t("err.gitNotRepo");

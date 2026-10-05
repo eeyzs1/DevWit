@@ -135,7 +135,11 @@ export function mountTerminalPanel(container: HTMLElement, deps: TerminalPanelDe
     try {
       const cwd = deps.getWorkspaceRoot() !== "" ? deps.getWorkspaceRoot() : undefined as unknown as string;
       session = await api.terminal.create(cwd);
-      appendRaw(t("terminal.started", { shell: session.shell }));
+      // v0.7.31：pipe 回退不再静默——node-pty 缺失时（发布包形态）明确告知降级，
+      // 避免用户误以为 TUI/全屏程序也能用（pty 特性在 pipe 下不可用）。
+      appendRaw(session.backend === "pipe"
+        ? t("terminal.started.fallback", { shell: session.shell })
+        : t("terminal.started", { shell: session.shell }));
     } catch (error) {
       appendRaw(t("terminal.startFailed", { detail: error instanceof Error ? error.message : String(error) }));
       exited = true;

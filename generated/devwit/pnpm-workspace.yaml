@@ -1,0 +1,18 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+# pnpm 11+ 默认拒绝 git/tarball 型传递依赖（@electron/rebuild → @electron/node-gyp），
+# 此处显式放行以完成安装（与既有 package-lock.json 的 npm 解析结果一致）。
+# pnpm 12 默认符号链接布局会让 electron-builder 的 asarUnpack 通配符失配
+# （node_modules/typescript-language-server 等是 symlink → 只进 asar 不解包，
+# 打包版 LSP 全挂）；hoisted 生成 npm 式真实平铺目录，同时让主 bundle 的
+# external node-pty 在 dev 模式可解析（pty 后端恢复）。
+nodeLinker: hoisted
+blockExoticSubdeps: false
+# pnpm 10+ 默认不把 "*" 依赖链接到 workspace 内部包（npm 会），@devwit/* 均为内部包。
+linkWorkspacePackages: true
+# pnpm 12 构建脚本白名单（package.json 的 allowScripts 是 npm 语法，pnpm 不认）。
+allowBuilds:
+  electron: true
+  esbuild: true
+  node-pty: true

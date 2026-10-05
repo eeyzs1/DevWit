@@ -1,3 +1,11 @@
+
+/** 剔除宿主继承的 ELECTRON_RUN_AS_NODE——在 Electron 宿主（VS Code 任务/DSH 等）的终端里
+ * 跑 E2E 时，该变量会让 electron.exe 以纯 Node 模式启动而直接 bad option 退出。 */
+function omitRunAsNode(env) {
+  const cleaned = { ...env };
+  delete cleaned.ELECTRON_RUN_AS_NODE;
+  return cleaned;
+}
 /**
  * 迭代 4 验证脚本（用户三反馈的修复回归，证据落盘 evidence/AC13）：
  * 1. 终端乱码：触发运行时错误后，主进程 stderr 无 CJK、无非法 UTF-8 序列；
@@ -34,7 +42,7 @@ function launchElectron(cdpPort) {
     // --lang=zh-CN：固定中文界面（迭代 5 起首启语言跟随系统，测试环境可能是英文系统）
     const proc = spawn(exe, [`--remote-debugging-port=${cdpPort}`, "--lang=zh-CN", "."], {
       cwd: ROOT,
-      env: { ...process.env, DEVWIT_E2E_OPEN_DIR: fixture, DEVWIT_USER_DATA_DIR: userDataDir, DEVWIT_E2E_OFFSCREEN: "1" },
+      env: { ...omitRunAsNode(process.env), DEVWIT_E2E_OPEN_DIR: fixture, DEVWIT_USER_DATA_DIR: userDataDir, DEVWIT_E2E_OFFSCREEN: "1" },
       stdio: ["ignore", "pipe", "pipe"],
     });
     proc.stdout.on("data", (chunk) => stdoutChunks.push(Buffer.from(chunk)));

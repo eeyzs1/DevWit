@@ -9,6 +9,14 @@ import { StringDecoder } from "node:string_decoder";
 import { defaultShell } from "./types.js";
 import type { TerminalBackend, TerminalExitInfo, TerminalHandle, TerminalSpawnOptions } from "./types.js";
 
+/**
+ * 管道模式的行尾翻译：\r\n 与孤立 \r 统一为目标平台的行终止符。
+ * Windows→\r\n（cmd.exe 管道 stdin 不接受孤立 \r）；POSIX→\n（shell 把 \r 当普通字符）。
+ */
+export function toPipeLineEndings(data: string): string {
+  return process.platform === "win32" ? data.replace(/\r\n|\r/g, "\r\n") : data.replace(/\r\n|\r/g, "\n");
+}
+
 class PipeHandle implements TerminalHandle {
   readonly pid: number;
   private readonly proc: ChildProcessWithoutNullStreams;
@@ -61,7 +69,11 @@ class PipeHandle implements TerminalHandle {
     if (this.dead) {
       return;
     }
-    this.proc.stdin.write(data);
+    // v0.7.31（实测修复）：管道 shell 的行终止符语义与真终端不同——cmd.exe 只认
+    // \r\n、POSIX shell 只认 \n，而渲染层按 pty 惯例发送 \r。旧实现直接透传，
+    // 导致 node-pty 缺失（发布包不含原生模块）回退 pipe 后，回车永远不触发执行：
+    // 终端能显示 banner 但任何命令都无响应。此处按平台统一翻译行尾。
+    this.proc.stdin.write(toPipeLineEndings(data));
   }
 
   resize(_cols: number, _rows: number): void {
