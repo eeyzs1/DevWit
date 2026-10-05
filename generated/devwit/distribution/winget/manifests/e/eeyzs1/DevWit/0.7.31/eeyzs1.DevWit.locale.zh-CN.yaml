@@ -1,0 +1,17 @@
+﻿# yaml-language-server: $schema=https://aka.ms/winget-manifest.locale.1.10.0.schema.json
+PackageIdentifier: eeyzs1.DevWit
+PackageVersion: 0.7.31
+PackageLocale: zh-CN
+Publisher: eeyzs1
+PublisherUrl: https://github.com/eeyzs1
+PackageName: DevWit
+PackageUrl: https://github.com/eeyzs1/DevWit
+License: MIT
+LicenseUrl: https://github.com/eeyzs1/DevWit/blob/main/LICENSE
+ShortDescription: 绠€娲佷笂涓嬫枃 AI 鍘熺敓妗岄潰 IDE銆備綘鎻忚堪鎰忓浘锛孉gent 瑙勫垝銆佺粡浣犳巿鏉冨悗鎵ц锛屼氦浠樺彲瀹℃煡鐨?diff 涓庡畬鏁存墽琛岃建杩广€?Tags:
+  - ai
+  - ide
+  - llm
+  - agent
+  - 浠ｇ爜缂栬緫鍣?  - 寮€鍙戣€呭伐鍏?ManifestType: locale
+ManifestVersion: 1.10.0
